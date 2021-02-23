@@ -9,10 +9,11 @@ require (
 	github.com/edwarnicke/signalctx v0.0.0-20201105214533-3a35840b3011
 	github.com/golang/protobuf v1.4.3
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/networkservicemesh/api v0.0.0-20210202152048-ec956057eb3a
+	github.com/networkservicemesh/api v0.0.0-20210218170701-1a72f1cba074
 	github.com/networkservicemesh/cmd-nsc v0.0.0-20210217074516-7882a6bb23c9
-	github.com/networkservicemesh/sdk v0.0.0-20210216095211-a36209b21c4b
+	github.com/networkservicemesh/sdk v0.0.0-20210220122417-bab01203bb73
 	github.com/networkservicemesh/sdk-sriov v0.0.0-20210217064121-69fae3fcd42e
+	github.com/networkservicemesh/sdk-vpp v0.0.0-20210220122805-99076822b6e1
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.0
 	github.com/spiffe/go-spiffe/v2 v2.0.0-beta.5

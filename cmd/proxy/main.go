@@ -2,15 +2,26 @@ package main
 
 import (
 	"context"
+	"net"
 	"os"
 
 	nested "github.com/antonfisher/nested-logrus-formatter"
 	"github.com/edwarnicke/signalctx"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/noop"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
 	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	"github.com/nordix/nvip/pkg/client"
+	"github.com/nordix/nvip/pkg/endpoint"
 	"github.com/nordix/nvip/pkg/nsm"
 	"github.com/sirupsen/logrus"
 )
@@ -37,12 +48,18 @@ func main() {
 	// ********************************************************************************
 	// Enable Jaeger
 	log.EnableTracing(true)
-	jaegerCloser := jaeger.InitJaeger(ctx, "nsc")
+	jaegerCloser := jaeger.InitJaeger(ctx, "proxy")
 	defer func() { _ = jaegerCloser.Close() }()
 
 	// ********************************************************************************
 	// Get config from environment
 	// ********************************************************************************
+
+	go StartNSC(ctx)
+	StartNSE(ctx)
+}
+
+func StartNSC(ctx context.Context) {
 	rootConf := &client.Config{}
 	if err := envconfig.Usage("nsm", rootConf); err != nil {
 		log.FromContext(ctx).Fatal(err)
@@ -52,11 +69,43 @@ func main() {
 	}
 	log.FromContext(ctx).Infof("rootConf: %+v", rootConf)
 
-	// ********************************************************************************
-	// Full Mesh client
-	// ********************************************************************************
 	apiClient := nsm.NewAPIClient(ctx, rootConf)
 	monitor := client.NewMonitor("load-balancer", apiClient, apiClient)
 	monitor.Start()
-	// monitor.MonitorNetworkService()
+}
+
+func StartNSE(ctx context.Context) {
+	// get config from environment
+	config := new(endpoint.Config)
+	if err := config.Process(); err != nil {
+		logrus.Fatal(err.Error())
+	}
+
+	log.FromContext(ctx).Infof("Config: %#v", config)
+
+	_, ipnet, err := net.ParseCIDR(config.CidrPrefix)
+	if err != nil {
+		log.FromContext(ctx).Fatalf("error parsing cidr: %+v", err)
+	}
+
+	responderEndpoint := []networkservice.NetworkServiceServer{
+		point2pointipam.NewServer(ipnet),
+		recvfd.NewServer(),
+		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
+			kernelmech.MECHANISM: kernel.NewServer(),
+			noop.MECHANISM:       null.NewServer(),
+		}),
+		sendfd.NewServer(),
+	}
+
+	ep := endpoint.NewEndpoint(ctx, config)
+
+	err = ep.Start(responderEndpoint...)
+	if err != nil {
+		log.FromContext(ctx).Fatalf("unable to start nse %+v", err)
+	}
+
+	defer ep.Delete()
+
+	<-ctx.Done()
 }

@@ -27,6 +27,12 @@ spec:
                   fieldPath: metadata.name
             - name: NSM_NETWORK_SERVICES
               value: kernel://load-balancer/nsm
+            - name: NSE_CONNECT_TO
+              value: unix:///var/lib/networkservicemesh/nsm.io.sock
+            - name: NSE_CIDR_PREFIX
+              value: 169.255.0.0/16
+            - name: NSE_SERVICE_NAME
+              value: proxy
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
