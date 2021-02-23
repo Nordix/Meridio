@@ -1,0 +1,12 @@
+---
+
+registry: localhost:5000
+organization: nvip
+tag: latest
+pullPolicy: IfNotPresent
+
+loadBalancerImage: load-balancer
+loadBalancerVersion: latest
+
+proxyImage: proxy
+proxyVersion: latest

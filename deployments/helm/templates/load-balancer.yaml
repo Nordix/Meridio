@@ -1,0 +1,50 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: load-balancer
+  labels:
+    app: load-balancer
+spec:
+  selector:
+    matchLabels:
+      app: load-balancer
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: load-balancer
+    spec:
+      containers:
+        - name: load-balancer
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.loadBalancerImage }}:{{ .Values.loadBalancerVersion }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NSE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NSE_CONNECT_TO
+              value: unix:///var/lib/networkservicemesh/nsm.io.sock
+            - name: NSE_CIDR_PREFIX
+              value: 169.254.0.0/16
+            - name: NSE_SERVICE_NAME
+              value: load-balancer
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: nsm-socket
+              mountPath: /var/lib/networkservicemesh
+              readOnly: false
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory
+        - name: nsm-socket
+          hostPath:
+            path: /var/lib/networkservicemesh
+            type: DirectoryOrCreate
