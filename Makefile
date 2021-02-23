@@ -1,7 +1,7 @@
-VERSION ?= master
+VERSION ?= latest
+VERSION_LOAD_BALANCER ?= $(VERSION)
 
-REGISTRY ?= localhost:5000
-ORGANIZATION ?= nvip
+REGISTRY ?= localhost:5000/nvip
 
 .PHONY: all
 all: default
@@ -16,8 +16,12 @@ tag:
 push:
 	docker push $(REGISTRY)/$(IMAGE):$(VERSION)
 
+.PHONY: load-balancer
+load-balancer:
+	VERSION=$(VERSION_LOAD_BALANCER) IMAGE=load-balancer $(MAKE) build tag push
+
 .PHONY: clear
 clear:
 
 .PHONY: default
-default: 
+default: load-balancer
