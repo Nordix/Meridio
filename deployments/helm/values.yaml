@@ -10,3 +10,6 @@ loadBalancerVersion: latest
 
 proxyImage: proxy
 proxyVersion: latest
+
+targetImage: target
+targetVersion: latest

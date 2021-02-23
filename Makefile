@@ -1,6 +1,7 @@
 VERSION ?= latest
 VERSION_LOAD_BALANCER ?= $(VERSION)
 VERSION_PROXY ?= $(VERSION)
+VERSION_TARGET ?= $(VERSION)
 
 REGISTRY ?= localhost:5000/nvip
 
@@ -25,8 +26,12 @@ load-balancer:
 proxy:
 	VERSION=$(VERSION_PROXY) IMAGE=proxy $(MAKE) build tag push
 
+.PHONY: target
+target:
+	VERSION=$(VERSION_TARGET) IMAGE=target $(MAKE) build tag push
+
 .PHONY: clear
 clear:
 
 .PHONY: default
-default: load-balancer proxy
+default: load-balancer proxy target
