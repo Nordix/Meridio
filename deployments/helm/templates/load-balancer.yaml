@@ -15,6 +15,15 @@ spec:
       labels:
         app: load-balancer
     spec:
+      initContainers:
+        - name: sysctl-init
+          image: {{ .Values.registry }}/{{ .Values.organization }}/busybox:1.29
+          securityContext:
+            privileged: true
+          command: ["/bin/sh"]
+          args:
+            - -c
+            - sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv4.conf.all.forwarding=1
       containers:
         - name: load-balancer
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.loadBalancerImage }}:{{ .Values.loadBalancerVersion }}
@@ -39,6 +48,8 @@ spec:
             - name: nsm-socket
               mountPath: /var/lib/networkservicemesh
               readOnly: false
+          securityContext:
+            privileged: true
       volumes:
         - name: spire-agent-socket
           hostPath:

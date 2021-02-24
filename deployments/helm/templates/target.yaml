@@ -35,6 +35,8 @@ spec:
             - name: nsm-socket
               mountPath: /var/lib/networkservicemesh
               readOnly: true
+          securityContext:
+            privileged: true
       volumes:
         - name: spire-agent-socket
           hostPath:
