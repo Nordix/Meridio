@@ -17,6 +17,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.0
 	github.com/spiffe/go-spiffe/v2 v2.0.0-beta.5
+	github.com/vishvananda/netlink v1.1.0
 	google.golang.org/grpc v1.35.0
 	honnef.co/go/tools v0.0.1-2020.1.5
 )
