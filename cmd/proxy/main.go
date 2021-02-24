@@ -22,7 +22,9 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	"github.com/nordix/nvip/pkg/client"
 	"github.com/nordix/nvip/pkg/endpoint"
+	"github.com/nordix/nvip/pkg/networking"
 	"github.com/nordix/nvip/pkg/nsm"
+	"github.com/nordix/nvip/pkg/proxy"
 	"github.com/sirupsen/logrus"
 )
 
@@ -52,9 +54,15 @@ func main() {
 	defer func() { _ = jaegerCloser.Close() }()
 
 	// ********************************************************************************
-	// Get config from environment
+	// Start the Proxy (NSE + NSC)
 	// ********************************************************************************
 
+	linkMonitor, err := networking.NewLinkMonitor()
+	if err != nil {
+		log.FromContext(ctx).Fatalf("Error creating link monitor: %+v", err)
+	}
+	proxy := proxy.NewProxy()
+	linkMonitor.Subscribe(proxy)
 	go StartNSC(ctx)
 	StartNSE(ctx)
 }
