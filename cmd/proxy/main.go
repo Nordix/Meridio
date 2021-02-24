@@ -99,6 +99,7 @@ func StartNSE(ctx context.Context) {
 	responderEndpoint := []networkservice.NetworkServiceServer{
 		point2pointipam.NewServer(ipnet),
 		recvfd.NewServer(),
+		proxy.NewProxyEndpoint(),
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 			kernelmech.MECHANISM: kernel.NewServer(),
 			noop.MECHANISM:       null.NewServer(),
