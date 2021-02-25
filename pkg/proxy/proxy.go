@@ -3,11 +3,13 @@ package proxy
 import (
 	"github.com/nordix/nvip/pkg/networking"
 	"github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
 )
 
 type Proxy struct {
 	bridge        *networking.Bridge
 	outgoingRoute *networking.OutgoingRoute
+	vip           *netlink.Addr
 }
 
 func (p *Proxy) isNSMInterface(intf *networking.Interface) bool {
@@ -35,7 +37,10 @@ func (p *Proxy) InterfaceCreated(intf *networking.Interface) {
 	if intf.InteraceType == networking.NSC {
 		// Add the neighbor IPs of the interface to the nexthops (outgoing traffic)
 		for _, ip := range intf.NeighborIPs {
-			p.outgoingRoute.AddNexthop(ip)
+			err := p.outgoingRoute.AddNexthop(ip)
+			if err != nil {
+				logrus.Errorf("Proxy: Error adding nexthop: %v", err)
+			}
 		}
 	}
 }
@@ -62,18 +67,24 @@ func (p *Proxy) InterfaceDeleted(intf *networking.Interface) {
 	if intf.InteraceType == networking.NSC {
 		// Remove the neighbor IPs of the interface from the nexthops (outgoing traffic)
 		for _, ip := range intf.NeighborIPs {
-			p.outgoingRoute.RemoveNexthop(ip)
+			err := p.outgoingRoute.RemoveNexthop(ip)
+			if err != nil {
+				logrus.Errorf("Proxy: Error removing nexthop: %v", err)
+			}
 		}
 	}
 }
 
-func NewProxy() *Proxy {
+func NewProxy(vip *netlink.Addr) *Proxy {
 	bridge, err := networking.NewBridge("bridge0")
 	if err != nil {
 		logrus.Errorf("Proxy: Error creating the bridge: %v", err)
 	}
+	outgoingRoute := networking.NewOutgoingRoute(10, vip)
 	proxy := &Proxy{
-		bridge: bridge,
+		bridge:        bridge,
+		outgoingRoute: outgoingRoute,
+		vip:           vip,
 	}
 	return proxy
 }

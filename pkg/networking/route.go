@@ -44,8 +44,9 @@ func (or *OutgoingRoute) RemoveNexthop(nexthop *netlink.Addr) error {
 	return or.updateRoute()
 }
 
-func NewOutgoingRoute(vip *netlink.Addr) *OutgoingRoute {
+func NewOutgoingRoute(tableId int, vip *netlink.Addr) *OutgoingRoute {
 	outgoingRoute := &OutgoingRoute{
+		tableId:  tableId,
 		vip:      vip,
 		nexthops: []*netlink.Addr{},
 	}

@@ -57,11 +57,13 @@ func main() {
 	// Start the Proxy (NSE + NSC)
 	// ********************************************************************************
 
+	vip, _ := netlink.ParseAddr("20.0.0.1/32")
+
 	linkMonitor, err := networking.NewLinkMonitor()
 	if err != nil {
 		log.FromContext(ctx).Fatalf("Error creating link monitor: %+v", err)
 	}
-	p := proxy.NewProxy()
+	p := proxy.NewProxy(vip)
 	proxyEndpoint := proxy.NewProxyEndpoint(p)
 	linkMonitor.Subscribe(proxyEndpoint)
 	go StartNSC(ctx)
