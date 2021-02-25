@@ -26,6 +26,7 @@ import (
 	"github.com/nordix/nvip/pkg/nsm"
 	"github.com/nordix/nvip/pkg/proxy"
 	"github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
 )
 
 func main() {
@@ -66,11 +67,12 @@ func main() {
 	p := proxy.NewProxy(vip)
 	proxyEndpoint := proxy.NewProxyEndpoint(p)
 	linkMonitor.Subscribe(proxyEndpoint)
-	go StartNSC(ctx)
+
+	go StartNSC(ctx, p)
 	StartNSE(ctx, proxyEndpoint)
 }
 
-func StartNSC(ctx context.Context) {
+func StartNSC(ctx context.Context, interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber) {
 	rootConf := &client.Config{}
 	if err := envconfig.Usage("nsm", rootConf); err != nil {
 		log.FromContext(ctx).Fatal(err)
@@ -82,6 +84,7 @@ func StartNSC(ctx context.Context) {
 
 	apiClient := nsm.NewAPIClient(ctx, rootConf)
 	monitor := client.NewMonitor("load-balancer", apiClient, apiClient)
+	monitor.SetInterfaceMonitorSubscriber(interfaceMonitorSubscriber)
 	monitor.Start()
 }
 

@@ -47,7 +47,7 @@ func (pe *ProxyEndpoint) Request(ctx context.Context, request *networkservice.Ne
 
 	// TODO name generation
 	randomID := rand.Intn(1000)
-	interfaceName := "nsm" + strconv.Itoa(randomID)
+	interfaceName := "nse" + strconv.Itoa(randomID)
 	logrus.Infof("ProxyEndpoint: interface name: %v", interfaceName)
 	request.GetConnection().Mechanism.GetParameters()[kernel.InterfaceNameKey] = interfaceName
 

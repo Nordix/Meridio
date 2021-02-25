@@ -5,6 +5,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/nordix/nvip/pkg/networking"
 	"github.com/sirupsen/logrus"
 )
 
@@ -14,6 +15,7 @@ type Monitor struct {
 	NetworkServiceDiscoveryStream registry.NetworkServiceEndpointRegistry_FindClient
 	registryClient                RegistryClient
 	nsmgrClient                   NSMgrClient
+	interfaceMonitorSubscriber    networking.InterfaceMonitorSubscriber
 }
 
 type RegistryClient interface {
@@ -69,6 +71,7 @@ func (m *Monitor) endpointAdded(networkServiceEndpoint *registry.NetworkServiceE
 	logrus.Infof("Full Mesh Client Monitor (%v): event add: %v", m.networkServiceName, networkServiceEndpoint.Name)
 	networkServiceClient := NewNetworkServiceClient(m.networkServiceName, m.nsmgrClient)
 	networkServiceClient.NetworkServiceEndpointName = networkServiceEndpoint.Name
+	networkServiceClient.InterfaceMonitorSubscriber = m.interfaceMonitorSubscriber
 	networkServiceClient.Request()
 	m.networkServiceClients[networkServiceEndpoint.Name] = networkServiceClient
 }
@@ -97,6 +100,13 @@ func (m *Monitor) prepareQuery() *registry.NetworkServiceEndpointQuery {
 		Watch:                  true,
 	}
 	return query
+}
+
+func (m *Monitor) SetInterfaceMonitorSubscriber(interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber) {
+	m.interfaceMonitorSubscriber = interfaceMonitorSubscriber
+	for _, nsc := range m.networkServiceClients {
+		nsc.InterfaceMonitorSubscriber = interfaceMonitorSubscriber
+	}
 }
 
 // NewMonitor - Create a struct monitoring NSEs of a Network Service

@@ -101,8 +101,6 @@ func (apiClient *APIClient) getAdditionalFunctionality() []networkservice.Networ
 		clients = append(clients, vfio.NewClient())
 	}
 
-	logrus.Errorf("Full Mesh: clients (AdditionalFunctionality) : %v", clients)
-
 	return clients
 }
 
