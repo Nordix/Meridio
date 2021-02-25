@@ -24,6 +24,10 @@ func (intf *Interface) getLink() (netlink.Link, error) {
 	return netlink.LinkByIndex(intf.index)
 }
 
+func (intf *Interface) GetIndex() int {
+	return intf.index
+}
+
 func (intf *Interface) GetName() string {
 	i, err := intf.getLink()
 	if err != nil {
@@ -33,6 +37,7 @@ func (intf *Interface) GetName() string {
 }
 
 func (intf *Interface) AddAddress(address *netlink.Addr) error {
+	address.Label = ""
 	i, err := intf.getLink()
 	if err != nil {
 		return err
