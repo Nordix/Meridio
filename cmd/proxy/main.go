@@ -61,10 +61,11 @@ func main() {
 	if err != nil {
 		log.FromContext(ctx).Fatalf("Error creating link monitor: %+v", err)
 	}
-	proxy := proxy.NewProxy()
-	linkMonitor.Subscribe(proxy)
+	p := proxy.NewProxy()
+	proxyEndpoint := proxy.NewProxyEndpoint(p)
+	linkMonitor.Subscribe(proxyEndpoint)
 	go StartNSC(ctx)
-	StartNSE(ctx)
+	StartNSE(ctx, proxyEndpoint)
 }
 
 func StartNSC(ctx context.Context) {
@@ -82,7 +83,7 @@ func StartNSC(ctx context.Context) {
 	monitor.Start()
 }
 
-func StartNSE(ctx context.Context) {
+func StartNSE(ctx context.Context, proxyEndpoint *proxy.ProxyEndpoint) {
 	// get config from environment
 	config := new(endpoint.Config)
 	if err := config.Process(); err != nil {
@@ -99,11 +100,11 @@ func StartNSE(ctx context.Context) {
 	responderEndpoint := []networkservice.NetworkServiceServer{
 		point2pointipam.NewServer(ipnet),
 		recvfd.NewServer(),
-		proxy.NewProxyEndpoint(),
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 			kernelmech.MECHANISM: kernel.NewServer(),
 			noop.MECHANISM:       null.NewServer(),
 		}),
+		proxyEndpoint,
 		sendfd.NewServer(),
 	}
 
