@@ -2,6 +2,7 @@ VERSION ?= latest
 VERSION_LOAD_BALANCER ?= $(VERSION)
 VERSION_PROXY ?= $(VERSION)
 VERSION_TARGET ?= $(VERSION)
+VERSION_IPAM ?= $(VERSION)
 
 REGISTRY ?= localhost:5000/nvip
 
@@ -30,6 +31,10 @@ proxy:
 target:
 	VERSION=$(VERSION_TARGET) IMAGE=target $(MAKE) build tag push
 
+.PHONY: ipam
+ipam:
+	VERSION=$(VERSION_IPAM) IMAGE=ipam $(MAKE) build tag push
+
 .PHONY: ipam-proto
 ipam-proto:
 	protoc --go_out=plugins=grpc:. --go_opt=paths=source_relative api/ipam/ipam.proto
@@ -41,4 +46,4 @@ proto: ipam-proto
 clear:
 
 .PHONY: default
-default: load-balancer proxy target
+default: load-balancer proxy target ipam

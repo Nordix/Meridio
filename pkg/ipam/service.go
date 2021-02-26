@@ -24,6 +24,7 @@ type Ipam struct {
 
 // Start -
 func (ipam *Ipam) Start() {
+	logrus.Infof("IPAM Service: Start the service (port: %v)", ipam.Port)
 	if err := ipam.Server.Serve(ipam.Listener); err != nil {
 		logrus.Errorf("IPAM Service: failed to serve: %v", err)
 	}
