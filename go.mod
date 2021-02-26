@@ -9,6 +9,7 @@ require (
 	github.com/edwarnicke/signalctx v0.0.0-20201105214533-3a35840b3011
 	github.com/golang/protobuf v1.4.3
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/metal-stack/go-ipam v1.8.1
 	github.com/networkservicemesh/api v0.0.0-20210218170701-1a72f1cba074
 	github.com/networkservicemesh/sdk v0.0.0-20210220122417-bab01203bb73
 	github.com/networkservicemesh/sdk-sriov v0.0.0-20210217064121-69fae3fcd42e
