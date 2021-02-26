@@ -13,3 +13,8 @@ proxyVersion: latest
 
 targetImage: target
 targetVersion: latest
+
+ipamImage: ipam
+ipamVersion: latest
+ipamPort: 7777
+ipamTargetPort: 7777

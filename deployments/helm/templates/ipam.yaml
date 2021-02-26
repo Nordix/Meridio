@@ -1,0 +1,25 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ipam
+  namespace: default
+  labels:
+    app: ipam
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ipam
+  template:
+    metadata:
+      labels:
+        app: ipam
+    spec:
+      containers:
+        - name: ipam
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ipamImage }}:{{ .Values.ipamVersion }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          env:
+            - name: IPAM_PORT
+              value: "{{ .Values.ipamTargetPort }}"
