@@ -131,6 +131,7 @@ func NewNetworkServiceClient(networkServiceName string, nsmgrClient NSMgrClient)
 		NetworkServiceName: networkServiceName,
 		nsmgrClient:        nsmgrClient,
 		InterfaceName:      interfaceName,
+		Labels:             make(map[string]string),
 	}
 
 	return networkServiceClient

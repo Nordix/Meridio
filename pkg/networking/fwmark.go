@@ -13,6 +13,11 @@ type FWMarkRoute struct {
 	tableId int
 }
 
+func (fwmr *FWMarkRoute) Delete() error {
+	// TODO
+	return nil
+}
+
 func (fwmr *FWMarkRoute) configure() error {
 	cmd := "/usr/sbin/ip rule add fwmark " + strconv.Itoa(fwmr.fwmark) + " table " + strconv.Itoa(fwmr.tableId)
 	_, err := exec.Command("bash", "-c", cmd).Output()
