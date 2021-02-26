@@ -30,6 +30,13 @@ proxy:
 target:
 	VERSION=$(VERSION_TARGET) IMAGE=target $(MAKE) build tag push
 
+.PHONY: ipam-proto
+ipam-proto:
+	protoc --go_out=plugins=grpc:. --go_opt=paths=source_relative api/ipam/ipam.proto
+
+.PHONY: proto
+proto: ipam-proto
+
 .PHONY: clear
 clear:
 

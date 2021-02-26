@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package ipam;
+option go_package = "github.com/nordix/nvip/api/ipam";
+import "google/protobuf/empty.proto";
+
+service IpamService {
+    rpc Allocate(SubnetRequest) returns (Subnet) {}
+    rpc Release(Subnet) returns (google.protobuf.Empty) {}
+}
+
+message Subnet {
+    string address = 1;
+    int32 prefixLength = 2;
+}
+
+message SubnetRequest {
+    Subnet subnet = 1;
+    int32 prefixLength = 2;
+}
