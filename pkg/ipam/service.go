@@ -32,11 +32,11 @@ func (ipam *Ipam) Start() {
 
 // Allocate -
 func (ipam *Ipam) Allocate(ctx context.Context, SubnetRequest *ipamAPI.SubnetRequest) (*ipamAPI.Subnet, error) {
-	subnetRequested := fmt.Sprintf("%s:%s", SubnetRequest.Subnet.Address, strconv.Itoa(int(SubnetRequest.Subnet.PrefixLength)))
+	subnetRequested := fmt.Sprintf("%s/%s", SubnetRequest.Subnet.Address, strconv.Itoa(int(SubnetRequest.Subnet.PrefixLength)))
 
 	if _, ok := ipam.subnets[subnetRequested]; ok == false {
 		ipam.subnets[subnetRequested] = struct{}{}
-		_, err := ipam.goIpam.NewPrefix(SubnetRequest.Subnet.Address)
+		_, err := ipam.goIpam.NewPrefix(subnetRequested)
 		if err != nil {
 			return nil, err
 		}
