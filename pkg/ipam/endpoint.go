@@ -48,11 +48,12 @@ func (ie *IpamEndpoint) Request(ctx context.Context, request *networkservice.Net
 		PrefixLength: int32(ie.prefixLengthRequest),
 	}
 
-	AllocatedSubnet, err := ie.ipamServiceClient.Allocate(context.Background(), subnetRequest)
+	allocatedSubnet, err := ie.ipamServiceClient.Allocate(context.Background(), subnetRequest)
+	allocatedSubnetCIDR := fmt.Sprintf("%s/%d", allocatedSubnet.Address, allocatedSubnet.PrefixLength)
 	if err != nil {
 		logrus.Errorf("IpamEndpoint: err to allocate new subnet: %v", err)
 	}
-	logrus.Infof("IpamEndpoint: AllocatedSubnet: %v", AllocatedSubnet)
+	logrus.Infof("IpamEndpoint: AllocatedSubnet: %v", allocatedSubnet)
 
 	connection := request.GetConnection()
 	if connection.GetContext() == nil {
@@ -64,15 +65,15 @@ func (ie *IpamEndpoint) Request(ctx context.Context, request *networkservice.Net
 	ipContext := connection.GetContext().GetIpContext()
 
 	goIpam := goipam.New()
-	_, err = goIpam.NewPrefix(AllocatedSubnet.Address)
+	_, err = goIpam.NewPrefix(allocatedSubnetCIDR)
 	if err != nil {
 		logrus.Errorf("IpamEndpoint: err (goIpam) NewPrefix: %v", err)
 	}
-	srcIP, err := goIpam.AcquireIP(AllocatedSubnet.Address)
+	srcIP, err := goIpam.AcquireIP(allocatedSubnetCIDR)
 	if err != nil {
 		logrus.Errorf("IpamEndpoint: err (goIpam) Acquire srcIP: %v", err)
 	}
-	dstIP, err := goIpam.AcquireIP(AllocatedSubnet.Address)
+	dstIP, err := goIpam.AcquireIP(allocatedSubnetCIDR)
 	if err != nil {
 		logrus.Errorf("IpamEndpoint: err (goIpam) Acquire dstIP: %v", err)
 	}
