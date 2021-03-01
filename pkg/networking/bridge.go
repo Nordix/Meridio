@@ -30,6 +30,16 @@ func (b *Bridge) create() error {
 	return nil
 }
 
+func (b *Bridge) useExistingBridge() error {
+	index, err := GetIndexFromName(b.name)
+	if err != nil {
+		return err
+	}
+	b.index = index
+	logrus.Infof("Bridge: Use existing (id : %v), (name: %v)", b.index, b.name)
+	return nil
+}
+
 func (b *Bridge) Delete() error {
 	return nil
 }
@@ -96,7 +106,10 @@ func NewBridge(name string) (*Bridge, error) {
 	}
 	err := bridge.create()
 	if err != nil {
-		return nil, err
+		err = bridge.useExistingBridge()
+		if err != nil {
+			return nil, err
+		}
 	}
 	return bridge, nil
 }
