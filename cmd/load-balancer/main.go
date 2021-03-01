@@ -16,11 +16,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
 	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	"github.com/nordix/nvip/pkg/endpoint"
+	"github.com/nordix/nvip/pkg/ipam"
 	"github.com/sirupsen/logrus"
 )
 
@@ -64,8 +64,11 @@ func main() {
 		log.FromContext(ctx).Fatalf("error parsing cidr: %+v", err)
 	}
 
+	ipamServiceIPPort := "ipam-service:7777"
+
 	responderEndpoint := []networkservice.NetworkServiceServer{
-		point2pointipam.NewServer(ipnet),
+		// point2pointipam.NewServer(ipnet),
+		ipam.NewProxyEndpoint(ipnet, ipamServiceIPPort),
 		recvfd.NewServer(),
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 			kernelmech.MECHANISM: kernel.NewServer(),
