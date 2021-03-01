@@ -43,12 +43,12 @@ func (apiClient *APIClient) Find(networkServiceEndpointQuery *registry.NetworkSe
 
 // Request -
 func (apiClient *APIClient) Request(networkServiceRequest *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	return apiClient.networkServiceClient.Request(apiClient.context, networkServiceRequest)
+	return apiClient.networkServiceClient.Request(context.Background(), networkServiceRequest)
 }
 
 // Close -
 func (apiClient *APIClient) Close(connection *networkservice.Connection) (*empty.Empty, error) {
-	return apiClient.networkServiceClient.Close(apiClient.context, connection)
+	return apiClient.networkServiceClient.Close(context.Background(), connection)
 }
 
 func (apiClient *APIClient) getX509Source() *workloadapi.X509Source {

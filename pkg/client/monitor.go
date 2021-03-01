@@ -72,7 +72,7 @@ func (m *Monitor) endpointAdded(networkServiceEndpoint *registry.NetworkServiceE
 	networkServiceClient := NewNetworkServiceClient(m.networkServiceName, m.nsmgrClient)
 	networkServiceClient.NetworkServiceEndpointName = networkServiceEndpoint.Name
 	networkServiceClient.InterfaceMonitorSubscriber = m.interfaceMonitorSubscriber
-	networkServiceClient.Request()
+	go networkServiceClient.Request()
 	m.networkServiceClients[networkServiceEndpoint.Name] = networkServiceClient
 }
 
@@ -82,7 +82,7 @@ func (m *Monitor) endpointRemoved(networkServiceEndpoint *registry.NetworkServic
 	if exists == false {
 		return
 	}
-	networkServiceClient.Close()
+	go networkServiceClient.Close()
 	delete(m.networkServiceClients, networkServiceEndpoint.Name)
 }
 
