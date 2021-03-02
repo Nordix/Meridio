@@ -20,7 +20,7 @@ type IpamEndpoint struct {
 	prefixLengthRequest  int
 }
 
-func NewProxyEndpoint(network *net.IPNet, ipamServiceIPPort string) *IpamEndpoint {
+func NewIpamEndpoint(network *net.IPNet, ipamServiceIPPort string) *IpamEndpoint {
 	conn, err := grpc.Dial(ipamServiceIPPort, grpc.WithInsecure())
 	if err != nil {
 		logrus.Errorf("IpamEndpoint: failed to connect to %v: %v", ipamServiceIPPort, err)

@@ -68,7 +68,7 @@ func main() {
 
 	responderEndpoint := []networkservice.NetworkServiceServer{
 		// point2pointipam.NewServer(ipnet),
-		ipam.NewProxyEndpoint(ipnet, ipamServiceIPPort),
+		ipam.NewIpamEndpoint(ipnet, ipamServiceIPPort),
 		recvfd.NewServer(),
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 			kernelmech.MECHANISM: kernel.NewServer(),
