@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-type Ipam struct {
+type IpamService struct {
 	Listener net.Listener
 	Server   *grpc.Server
 	Port     int
@@ -23,26 +23,26 @@ type Ipam struct {
 }
 
 // Start -
-func (ipam *Ipam) Start() {
-	logrus.Infof("IPAM Service: Start the service (port: %v)", ipam.Port)
-	if err := ipam.Server.Serve(ipam.Listener); err != nil {
+func (is *IpamService) Start() {
+	logrus.Infof("IPAM Service: Start the service (port: %v)", is.Port)
+	if err := is.Server.Serve(is.Listener); err != nil {
 		logrus.Errorf("IPAM Service: failed to serve: %v", err)
 	}
 }
 
 // Allocate -
-func (ipam *Ipam) Allocate(ctx context.Context, SubnetRequest *ipamAPI.SubnetRequest) (*ipamAPI.Subnet, error) {
-	subnetRequested := fmt.Sprintf("%s/%s", SubnetRequest.Subnet.Address, strconv.Itoa(int(SubnetRequest.Subnet.PrefixLength)))
+func (is *IpamService) Allocate(ctx context.Context, SubnetRequest *ipamAPI.SubnetRequest) (*ipamAPI.Subnet, error) {
+	subnetRequested := fmt.Sprintf("%s/%s", SubnetRequest.SubnetPool.Address, strconv.Itoa(int(SubnetRequest.SubnetPool.PrefixLength)))
 
-	if _, ok := ipam.subnets[subnetRequested]; ok == false {
-		ipam.subnets[subnetRequested] = struct{}{}
-		_, err := ipam.goIpam.NewPrefix(subnetRequested)
+	if _, ok := is.subnets[subnetRequested]; ok == false {
+		is.subnets[subnetRequested] = struct{}{}
+		_, err := is.goIpam.NewPrefix(subnetRequested)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	child, err := ipam.goIpam.AcquireChildPrefix(subnetRequested, uint8(SubnetRequest.PrefixLength))
+	child, err := is.goIpam.AcquireChildPrefix(subnetRequested, uint8(SubnetRequest.PrefixLength))
 	if err != nil {
 		return nil, err
 	}
@@ -54,12 +54,12 @@ func (ipam *Ipam) Allocate(ctx context.Context, SubnetRequest *ipamAPI.SubnetReq
 }
 
 // Release -
-func (ipam *Ipam) Release(ctx context.Context, subnetRelease *ipamAPI.SubnetRelease) (*empty.Empty, error) {
+func (is *IpamService) Release(ctx context.Context, subnetRelease *ipamAPI.SubnetRelease) (*empty.Empty, error) {
 	return nil, nil
 }
 
 // NewIpam -
-func NewIpam(port int) (*Ipam, error) {
+func NewIpamService(port int) (*IpamService, error) {
 	lis, err := net.Listen("tcp", fmt.Sprintf("[::]:%s", strconv.Itoa(port)))
 	if err != nil {
 		logrus.Errorf("IPAM Service: failed to listen: %v", err)
@@ -70,7 +70,7 @@ func NewIpam(port int) (*Ipam, error) {
 
 	s := grpc.NewServer()
 
-	ipam := &Ipam{
+	ipamService := &IpamService{
 		Listener: lis,
 		Server:   s,
 		Port:     port,
@@ -78,7 +78,7 @@ func NewIpam(port int) (*Ipam, error) {
 		subnets:  make(map[string]struct{}),
 	}
 
-	ipamAPI.RegisterIpamServiceServer(s, ipam)
+	ipamAPI.RegisterIpamServiceServer(s, ipamService)
 
-	return ipam, nil
+	return ipamService, nil
 }

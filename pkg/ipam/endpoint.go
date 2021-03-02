@@ -44,7 +44,7 @@ func NewIpamEndpoint(network *net.IPNet, ipamServiceIPPort string) *IpamEndpoint
 
 func (ie *IpamEndpoint) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	subnetRequest := &ipamAPI.SubnetRequest{
-		Subnet:       ie.networkServiceSubnet,
+		SubnetPool:   ie.networkServiceSubnet,
 		PrefixLength: int32(ie.prefixLengthRequest),
 	}
 

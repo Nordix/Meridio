@@ -20,7 +20,7 @@ func main() {
 		port = 100
 	}
 
-	i, _ := ipam.NewIpam(port)
+	i, _ := ipam.NewIpamService(port)
 
 	i.Start()
 }

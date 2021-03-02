@@ -15,12 +15,12 @@ message Subnet {
 }
 
 message SubnetRequest {
-    Subnet subnet = 1;
+    Subnet subnetPool = 1;
     int32 prefixLength = 2;
 }
 
 message SubnetRelease {
-    Subnet parentSubnet = 1;
+    Subnet subnetPool = 1;
     Subnet subnet = 2;
 }
 
