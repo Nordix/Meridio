@@ -53,7 +53,7 @@ func (ipam *Ipam) AllocateIP(subnet *netlink.Addr) (*netlink.Addr, error) {
 		return nil, err
 	}
 	prefixLength, _ := subnet.Mask.Size()
-	ipCidr := fmt.Sprintf("%s/%s", ip, strconv.Itoa(prefixLength))
+	ipCidr := fmt.Sprintf("%s/%s", ip.IP.String(), strconv.Itoa(prefixLength))
 	return netlink.ParseAddr(ipCidr)
 }
 
