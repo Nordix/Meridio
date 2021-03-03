@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"net"
 	"os"
 
 	nested "github.com/antonfisher/nested-logrus-formatter"
@@ -20,7 +19,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	"github.com/nordix/nvip/pkg/endpoint"
-	"github.com/nordix/nvip/pkg/ipam"
 	"github.com/sirupsen/logrus"
 )
 
@@ -59,16 +57,16 @@ func main() {
 
 	log.FromContext(ctx).Infof("Config: %#v", config)
 
-	_, ipnet, err := net.ParseCIDR(config.CidrPrefix)
-	if err != nil {
-		log.FromContext(ctx).Fatalf("error parsing cidr: %+v", err)
-	}
+	// _, ipnet, err := net.ParseCIDR(config.CidrPrefix)
+	// if err != nil {
+	// 	log.FromContext(ctx).Fatalf("error parsing cidr: %+v", err)
+	// }
 
-	ipamServiceIPPort := "ipam-service:7777"
+	// ipamServiceIPPort := "ipam-service:7777"
 
 	responderEndpoint := []networkservice.NetworkServiceServer{
 		// point2pointipam.NewServer(ipnet),
-		ipam.NewIpamEndpoint(ipnet, ipamServiceIPPort),
+		// ipam.NewIpamEndpoint(ipnet, ipamServiceIPPort),
 		recvfd.NewServer(),
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 			kernelmech.MECHANISM: kernel.NewServer(),
@@ -79,7 +77,7 @@ func main() {
 
 	ep := endpoint.NewEndpoint(ctx, config)
 
-	err = ep.Start(responderEndpoint...)
+	err := ep.Start(responderEndpoint...)
 	if err != nil {
 		log.FromContext(ctx).Fatalf("unable to start nse %+v", err)
 	}

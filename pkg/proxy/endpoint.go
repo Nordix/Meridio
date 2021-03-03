@@ -11,6 +11,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/nordix/nvip/pkg/endpoint"
 	"github.com/nordix/nvip/pkg/networking"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -19,6 +20,7 @@ import (
 type ProxyEndpoint struct {
 	temporaryNSMInterfaces     map[string]*TemporaryNSMInterface
 	interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber
+	nseConnectionFactory       endpoint.NSEConnectionFactory
 }
 
 type TemporaryNSMInterface struct {
@@ -27,23 +29,30 @@ type TemporaryNSMInterface struct {
 	neighborIPs   []*netlink.Addr
 }
 
-func NewProxyEndpoint(interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber) *ProxyEndpoint {
+func NewProxyEndpoint(interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber, nseConnectionFactory endpoint.NSEConnectionFactory) *ProxyEndpoint {
 	return &ProxyEndpoint{
 		interfaceMonitorSubscriber: interfaceMonitorSubscriber,
 		temporaryNSMInterfaces:     make(map[string]*TemporaryNSMInterface),
+		nseConnectionFactory:       nseConnectionFactory,
 	}
 }
 
 func (pe *ProxyEndpoint) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 
+	ipContext, err := pe.nseConnectionFactory.NewNSEIPContext()
+	if err != nil {
+		logrus.Errorf("ProxyEndpoint: err creating new IP context: %v", err)
+	}
+	request.GetConnection().GetContext().IpContext = ipContext
+
 	localIP, err := netlink.ParseAddr(request.GetConnection().GetContext().GetIpContext().DstIpAddr)
 	if err != nil {
 		logrus.Errorf("ProxyEndpoint: err parsing local IP: %v", err)
 	}
-	neighborIP, err := netlink.ParseAddr(request.GetConnection().GetContext().GetIpContext().SrcIpAddr)
-	if err != nil {
-		logrus.Errorf("ProxyEndpoint: err parsing neighbor IP: %v", err)
-	}
+	// neighborIP, err := netlink.ParseAddr(request.GetConnection().GetContext().GetIpContext().SrcIpAddr)
+	// if err != nil {
+	// 	logrus.Errorf("ProxyEndpoint: err parsing neighbor IP: %v", err)
+	// }
 
 	// TODO name generation
 	randomID := rand.Intn(1000)
@@ -52,7 +61,8 @@ func (pe *ProxyEndpoint) Request(ctx context.Context, request *networkservice.Ne
 	request.GetConnection().Mechanism.GetParameters()[kernel.InterfaceNameKey] = interfaceName
 
 	localIPs := []*netlink.Addr{localIP}
-	neighborIPs := []*netlink.Addr{neighborIP}
+	// neighborIPs := []*netlink.Addr{neighborIP}
+	neighborIPs := []*netlink.Addr{}
 
 	temporaryNSMInterface := &TemporaryNSMInterface{
 		interfaceName: interfaceName,

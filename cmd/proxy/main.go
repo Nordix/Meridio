@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"net"
 	"os"
 
 	nested "github.com/antonfisher/nested-logrus-formatter"
@@ -16,12 +15,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
 	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	"github.com/nordix/nvip/pkg/client"
 	"github.com/nordix/nvip/pkg/endpoint"
+	"github.com/nordix/nvip/pkg/ipam"
 	"github.com/nordix/nvip/pkg/networking"
 	"github.com/nordix/nvip/pkg/nsm"
 	"github.com/nordix/nvip/pkg/proxy"
@@ -54,6 +53,22 @@ func main() {
 	jaegerCloser := jaeger.InitJaeger(ctx, "proxy")
 	defer func() { _ = jaegerCloser.Close() }()
 
+	// get Proxy subnet
+
+	subnetPool, err := netlink.ParseAddr("169.255.0.0/16")
+	if err != nil {
+		log.FromContext(ctx).Fatalf("Error Parsing subnet pool: %+v", err)
+	}
+	ipamServiceIPPort := "ipam-service:7777"
+	ipamClient, err := ipam.NewIpamClient(ipamServiceIPPort)
+	if err != nil {
+		log.FromContext(ctx).Fatalf("Error creating New Ipam Client: %+v", err)
+	}
+	proxySubnet, err := ipamClient.AllocateSubnet(subnetPool, 24)
+	if err != nil {
+		log.FromContext(ctx).Fatalf("Error AllocateSubnet: %+v", err)
+	}
+
 	// ********************************************************************************
 	// Start the Proxy (NSE + NSC)
 	// ********************************************************************************
@@ -64,15 +79,15 @@ func main() {
 	if err != nil {
 		log.FromContext(ctx).Fatalf("Error creating link monitor: %+v", err)
 	}
-	p := proxy.NewProxy(vip)
-	proxyEndpoint := proxy.NewProxyEndpoint(p)
+	p := proxy.NewProxy(vip, proxySubnet)
+	proxyEndpoint := proxy.NewProxyEndpoint(p, p)
 	linkMonitor.Subscribe(proxyEndpoint)
 
-	go StartNSC(ctx, p)
+	go StartNSC(ctx, p, p)
 	StartNSE(ctx, proxyEndpoint)
 }
 
-func StartNSC(ctx context.Context, interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber) {
+func StartNSC(ctx context.Context, interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber, nscConnectionFactory client.NSCConnectionFactory) {
 	rootConf := &client.Config{}
 	if err := envconfig.Usage("nsm", rootConf); err != nil {
 		log.FromContext(ctx).Fatal(err)
@@ -85,6 +100,7 @@ func StartNSC(ctx context.Context, interfaceMonitorSubscriber networking.Interfa
 	apiClient := nsm.NewAPIClient(ctx, rootConf)
 	monitor := client.NewMonitor("load-balancer", apiClient, apiClient)
 	monitor.SetInterfaceMonitorSubscriber(interfaceMonitorSubscriber)
+	monitor.SetNSCConnectionFactory(nscConnectionFactory)
 	monitor.Start()
 }
 
@@ -97,13 +113,13 @@ func StartNSE(ctx context.Context, proxyEndpoint *proxy.ProxyEndpoint) {
 
 	log.FromContext(ctx).Infof("Config: %#v", config)
 
-	_, ipnet, err := net.ParseCIDR(config.CidrPrefix)
-	if err != nil {
-		log.FromContext(ctx).Fatalf("error parsing cidr: %+v", err)
-	}
+	// _, ipnet, err := net.ParseCIDR(config.CidrPrefix)
+	// if err != nil {
+	// 	log.FromContext(ctx).Fatalf("error parsing cidr: %+v", err)
+	// }
 
 	responderEndpoint := []networkservice.NetworkServiceServer{
-		point2pointipam.NewServer(ipnet),
+		// point2pointipam.NewServer(ipnet),
 		recvfd.NewServer(),
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 			kernelmech.MECHANISM: kernel.NewServer(),
@@ -115,7 +131,7 @@ func StartNSE(ctx context.Context, proxyEndpoint *proxy.ProxyEndpoint) {
 
 	ep := endpoint.NewEndpoint(ctx, config)
 
-	err = ep.Start(responderEndpoint...)
+	err := ep.Start(responderEndpoint...)
 	if err != nil {
 		log.FromContext(ctx).Fatalf("unable to start nse %+v", err)
 	}

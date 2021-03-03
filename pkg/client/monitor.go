@@ -16,6 +16,7 @@ type Monitor struct {
 	registryClient                RegistryClient
 	nsmgrClient                   NSMgrClient
 	interfaceMonitorSubscriber    networking.InterfaceMonitorSubscriber
+	nscConnectionFactory          NSCConnectionFactory
 }
 
 type RegistryClient interface {
@@ -72,6 +73,7 @@ func (m *Monitor) endpointAdded(networkServiceEndpoint *registry.NetworkServiceE
 	networkServiceClient := NewNetworkServiceClient(m.networkServiceName, m.nsmgrClient)
 	networkServiceClient.NetworkServiceEndpointName = networkServiceEndpoint.Name
 	networkServiceClient.InterfaceMonitorSubscriber = m.interfaceMonitorSubscriber
+	networkServiceClient.nscConnectionFactory = m.nscConnectionFactory
 	go networkServiceClient.Request()
 	m.networkServiceClients[networkServiceEndpoint.Name] = networkServiceClient
 }
@@ -107,6 +109,10 @@ func (m *Monitor) SetInterfaceMonitorSubscriber(interfaceMonitorSubscriber netwo
 	for _, nsc := range m.networkServiceClients {
 		nsc.InterfaceMonitorSubscriber = interfaceMonitorSubscriber
 	}
+}
+
+func (m *Monitor) SetNSCConnectionFactory(nscConnectionFactory NSCConnectionFactory) {
+	m.nscConnectionFactory = nscConnectionFactory
 }
 
 // NewMonitor - Create a struct monitoring NSEs of a Network Service

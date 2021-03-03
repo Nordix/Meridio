@@ -27,6 +27,7 @@ type NetworkServiceClient struct {
 	InterfaceName              string
 	InterfaceMonitorSubscriber networking.InterfaceMonitorSubscriber
 	intf                       *networking.Interface
+	nscConnectionFactory       NSCConnectionFactory
 }
 
 type NSMgrClient interface {
@@ -67,16 +68,16 @@ func (nsc *NetworkServiceClient) setIntf() {
 		logrus.Errorf("Network Service Client: GetIndexFromName err: %v", err)
 	}
 
-	localIP, err := netlink.ParseAddr(nsc.Connection.GetContext().GetIpContext().SrcIpAddr)
-	if err != nil {
-		logrus.Errorf("Network Service Client: err parsing local IP: %v", err)
-	}
+	// localIP, err := netlink.ParseAddr(nsc.Connection.GetContext().GetIpContext().SrcIpAddr)
+	// if err != nil {
+	// 	logrus.Errorf("Network Service Client: err parsing local IP: %v", err)
+	// }
 	neighborIP, err := netlink.ParseAddr(nsc.Connection.GetContext().GetIpContext().DstIpAddr)
 	if err != nil {
 		logrus.Errorf("Network Service Client: err parsing neighbor IP: %v", err)
 	}
 
-	nsc.intf = networking.NewInterface(index, []*netlink.Addr{localIP}, []*netlink.Addr{neighborIP})
+	nsc.intf = networking.NewInterface(index, []*netlink.Addr{}, []*netlink.Addr{neighborIP})
 	nsc.intf.InteraceType = networking.NSC
 }
 
@@ -90,6 +91,20 @@ func (nsc *NetworkServiceClient) advertiseInterfaceDeletion() {
 	if nsc.InterfaceMonitorSubscriber != nil {
 		nsc.InterfaceMonitorSubscriber.InterfaceDeleted(nsc.intf)
 	}
+}
+
+func (nsc *NetworkServiceClient) prepareIpContext() *networkservice.IPContext {
+	var ipContext *networkservice.IPContext
+	if nsc.nscConnectionFactory != nil {
+		var err error
+		ipContext, err = nsc.nscConnectionFactory.NewNSCIPContext()
+		if err != nil {
+			logrus.Errorf("Network Service Client: err creating IP Context: %v", err)
+			return nil
+		}
+		return ipContext
+	}
+	return nil
 }
 
 func (nsc *NetworkServiceClient) prepareRequest() *networkservice.NetworkServiceRequest {
@@ -109,6 +124,9 @@ func (nsc *NetworkServiceClient) prepareRequest() *networkservice.NetworkService
 			NetworkService:             nsc.NetworkServiceName,
 			Labels:                     nsc.Labels,
 			NetworkServiceEndpointName: nsc.NetworkServiceEndpointName,
+			Context: &networkservice.ConnectionContext{
+				IpContext: nsc.prepareIpContext(),
+			},
 		},
 		MechanismPreferences: []*networkservice.Mechanism{
 			outgoingMechanism,
