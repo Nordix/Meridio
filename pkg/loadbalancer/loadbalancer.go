@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"strconv"
 
-	"github.com/nordix/nvip/pkg/networking"
+	"github.com/nordix/meridio/pkg/networking"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )

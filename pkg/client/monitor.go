@@ -5,7 +5,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/nordix/nvip/pkg/networking"
+	"github.com/nordix/meridio/pkg/networking"
 	"github.com/sirupsen/logrus"
 )
 

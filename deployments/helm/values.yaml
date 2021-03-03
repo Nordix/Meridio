@@ -1,7 +1,7 @@
 ---
 
 registry: localhost:5000
-organization: nvip
+organization: meridio
 tag: latest
 pullPolicy: IfNotPresent
 

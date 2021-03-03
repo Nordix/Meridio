@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/nordix/nvip/pkg/ipam"
-	"github.com/nordix/nvip/pkg/networking"
+	"github.com/nordix/meridio/pkg/ipam"
+	"github.com/nordix/meridio/pkg/networking"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )

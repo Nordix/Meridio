@@ -11,7 +11,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
-	"github.com/nordix/nvip/pkg/networking"
+	"github.com/nordix/meridio/pkg/networking"
 	"github.com/vishvananda/netlink"
 
 	"github.com/sirupsen/logrus"

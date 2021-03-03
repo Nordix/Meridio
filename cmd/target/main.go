@@ -11,8 +11,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
-	"github.com/nordix/nvip/pkg/client"
-	"github.com/nordix/nvip/pkg/nsm"
+	"github.com/nordix/meridio/pkg/client"
+	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/sirupsen/logrus"
 )
 

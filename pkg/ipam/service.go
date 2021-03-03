@@ -6,7 +6,7 @@ import (
 	"net"
 	"strconv"
 
-	ipamAPI "github.com/nordix/nvip/api/ipam"
+	ipamAPI "github.com/nordix/meridio/api/ipam"
 	"github.com/vishvananda/netlink"
 
 	"github.com/golang/protobuf/ptypes/empty"

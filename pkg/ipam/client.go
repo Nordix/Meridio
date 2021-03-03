@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	ipamAPI "github.com/nordix/nvip/api/ipam"
+	ipamAPI "github.com/nordix/meridio/api/ipam"
 	"github.com/vishvananda/netlink"
 	"google.golang.org/grpc"
 )

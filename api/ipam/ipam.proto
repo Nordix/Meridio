@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package ipam;
-option go_package = "github.com/nordix/nvip/api/ipam";
+option go_package = "github.com/nordix/meridio/api/ipam";
 import "google/protobuf/empty.proto";
 
 service IpamService {

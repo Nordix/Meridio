@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/nordix/nvip/pkg/ipam"
+	"github.com/nordix/meridio/pkg/ipam"
 	"github.com/sirupsen/logrus"
 )
 

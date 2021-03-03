@@ -4,7 +4,7 @@ VERSION_PROXY ?= $(VERSION)
 VERSION_TARGET ?= $(VERSION)
 VERSION_IPAM ?= $(VERSION)
 
-REGISTRY ?= localhost:5000/nvip
+REGISTRY ?= localhost:5000/meridio
 
 .PHONY: all
 all: default

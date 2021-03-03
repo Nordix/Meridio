@@ -9,7 +9,7 @@ import (
 	goipam "github.com/metal-stack/go-ipam"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	ipamAPI "github.com/nordix/nvip/api/ipam"
+	ipamAPI "github.com/nordix/meridio/api/ipam"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )

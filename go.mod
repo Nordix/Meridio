@@ -1,4 +1,4 @@
-module github.com/nordix/nvip
+module github.com/nordix/meridio
 
 go 1.15
 
