@@ -3,6 +3,7 @@ VERSION_LOAD_BALANCER ?= $(VERSION)
 VERSION_PROXY ?= $(VERSION)
 VERSION_TARGET ?= $(VERSION)
 VERSION_IPAM ?= $(VERSION)
+VERSION_NSP ?= $(VERSION)
 
 REGISTRY ?= localhost:5000/meridio
 
@@ -35,6 +36,10 @@ target:
 ipam:
 	VERSION=$(VERSION_IPAM) IMAGE=ipam $(MAKE) build tag push
 
+.PHONY: nsp
+nsp:
+	VERSION=$(VERSION_NSP) IMAGE=nsp $(MAKE) build tag push
+
 .PHONY: ipam-proto
 ipam-proto:
 	protoc --go_out=plugins=grpc:. --go_opt=paths=source_relative api/ipam/ipam.proto
@@ -50,4 +55,4 @@ proto: ipam-proto nsp-proto
 clear:
 
 .PHONY: default
-default: load-balancer proxy target ipam
+default: load-balancer proxy target ipam nsp

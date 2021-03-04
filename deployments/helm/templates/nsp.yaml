@@ -1,0 +1,25 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nsp
+  namespace: default
+  labels:
+    app: nsp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nsp
+  template:
+    metadata:
+      labels:
+        app: nsp
+    spec:
+      containers:
+        - name: nsp
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.nspImage }}:{{ .Values.nspVersion }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          env:
+            - name: NSP_PORT
+              value: "{{ .Values.nspTargetPort }}"
