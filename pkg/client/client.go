@@ -68,16 +68,27 @@ func (nsc *NetworkServiceClient) setIntf() {
 		logrus.Errorf("Network Service Client: GetIndexFromName err: %v", err)
 	}
 
-	// localIP, err := netlink.ParseAddr(nsc.Connection.GetContext().GetIpContext().SrcIpAddr)
-	// if err != nil {
-	// 	logrus.Errorf("Network Service Client: err parsing local IP: %v", err)
-	// }
-	neighborIP, err := netlink.ParseAddr(nsc.Connection.GetContext().GetIpContext().DstIpAddr)
-	if err != nil {
-		logrus.Errorf("Network Service Client: err parsing neighbor IP: %v", err)
+	localIPs := []*netlink.Addr{}
+	neighborIPs := []*netlink.Addr{}
+
+	ConnectionContext := nsc.Connection.GetContext()
+	if ConnectionContext != nil {
+		IpContext := ConnectionContext.GetIpContext()
+		if IpContext != nil {
+			localIP, err := netlink.ParseAddr(IpContext.SrcIpAddr)
+			if err != nil {
+				logrus.Errorf("Network Service Client: err parsing local IP: %v", err)
+			}
+			localIPs = []*netlink.Addr{localIP}
+			neighborIP, err := netlink.ParseAddr(IpContext.DstIpAddr)
+			if err != nil {
+				logrus.Errorf("Network Service Client: err parsing neighbor IP: %v", err)
+			}
+			neighborIPs = []*netlink.Addr{neighborIP}
+		}
 	}
 
-	nsc.intf = networking.NewInterface(index, []*netlink.Addr{}, []*netlink.Addr{neighborIP})
+	nsc.intf = networking.NewInterface(index, localIPs, neighborIPs)
 	nsc.intf.InteraceType = networking.NSC
 }
 
