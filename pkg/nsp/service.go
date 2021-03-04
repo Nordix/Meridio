@@ -78,7 +78,7 @@ func (nsps *NetworkServicePlateformService) Register(ctx context.Context, target
 
 func (nsps *NetworkServicePlateformService) Unregister(ctx context.Context, target *nspAPI.Target) (*empty.Empty, error) {
 	err := nsps.removeTarget(target)
-	return nil, err
+	return &empty.Empty{}, err
 }
 
 func (nsps *NetworkServicePlateformService) Monitor(empty *empty.Empty, stream nspAPI.NetworkServicePlateformService_MonitorServer) error {
@@ -102,9 +102,9 @@ func (nsps *NetworkServicePlateformService) GetTargets(ctx context.Context, targ
 
 // Start -
 func (nsps *NetworkServicePlateformService) Start() {
-	logrus.Infof("IPAM Service: Start the service (port: %v)", nsps.Port)
+	logrus.Infof("NSP Service: Start the service (port: %v)", nsps.Port)
 	if err := nsps.Server.Serve(nsps.Listener); err != nil {
-		logrus.Errorf("IPAM Service: failed to serve: %v", err)
+		logrus.Errorf("NSP Service: failed to serve: %v", err)
 	}
 }
 
@@ -112,7 +112,7 @@ func (nsps *NetworkServicePlateformService) Start() {
 func NewNetworkServicePlateformService(port int) (*NetworkServicePlateformService, error) {
 	lis, err := net.Listen("tcp", fmt.Sprintf("[::]:%s", strconv.Itoa(port)))
 	if err != nil {
-		logrus.Errorf("IPAM Service: failed to listen: %v", err)
+		logrus.Errorf("NSP Service: failed to listen: %v", err)
 		return nil, err
 	}
 

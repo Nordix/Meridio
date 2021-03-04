@@ -19,7 +19,7 @@ ipamVersion: latest
 ipamPort: 7777
 ipamTargetPort: 7777
 
-nspImage: ipam
+nspImage: nsp
 nspVersion: latest
 nspPort: 7778
 nspTargetPort: 7778
