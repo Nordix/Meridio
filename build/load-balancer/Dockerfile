@@ -27,6 +27,8 @@ RUN gcc -o /lb lb.c maglev.c -lmnl -lnetfilter_queue -lrt
 FROM ubuntu:20.10
 
 RUN apt-get update -y
+run apt-get install -y libmnl-dev
+run apt-get install -y libnetfilter-queue-dev
 RUN apt-get install -y iproute2 tcpdump iptables net-tools iputils-ping ipvsadm  
 
 WORKDIR /root/
