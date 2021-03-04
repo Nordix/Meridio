@@ -39,8 +39,12 @@ ipam:
 ipam-proto:
 	protoc --go_out=plugins=grpc:. --go_opt=paths=source_relative api/ipam/ipam.proto
 
+.PHONY: nsp-proto
+nsp-proto:
+	protoc --go_out=plugins=grpc:. --go_opt=paths=source_relative api/nsp/nsp.proto
+
 .PHONY: proto
-proto: ipam-proto
+proto: ipam-proto nsp-proto
 
 .PHONY: clear
 clear:

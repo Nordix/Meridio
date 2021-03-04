@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package nsp;
+option go_package = "github.com/nordix/meridio/api/nsp";
+import "google/protobuf/empty.proto";
+
+service NetworkServicePlateformService {
+    rpc Register(Target) returns (google.protobuf.Empty) {}
+    rpc Unregister(Target) returns (google.protobuf.Empty) {}
+    rpc Monitor(google.protobuf.Empty) returns (stream Target) {}
+    rpc GetTargets(google.protobuf.Empty) returns (GetTargetsResponse) {}
+}
+
+message GetTargetsResponse {
+    repeated Target targets = 1;
+}
+
+message Target {
+    string ip = 1;
+    map<string, string> context = 2;
+    Status status = 3;
+}
+
+enum Status {
+	Register = 0;
+	Unregister = 1;
+}
