@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"hash/fnv"
 	"os"
+	"strconv"
 	"time"
 
 	nested "github.com/antonfisher/nested-logrus-formatter"
@@ -12,7 +14,9 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	"github.com/nordix/meridio/pkg/client"
+	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
+	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/sirupsen/logrus"
 )
 
@@ -54,13 +58,45 @@ func main() {
 	log.FromContext(ctx).Infof("rootConf: %+v", rootConf)
 
 	// ********************************************************************************
-	// Full Mesh client
+	// Simple Target
 	// ********************************************************************************
+
+	nspServiceIPPort := "nsp-service:7778"
+	nspClient, _ := nsp.NewNetworkServicePlateformClient(nspServiceIPPort)
+	hostname, _ := os.Hostname()
+	identifier := Hash(hostname, 100)
+	st := &SimpleTarget{
+		networkServicePlateformClient: nspClient,
+		identifier:                    identifier,
+	}
+
 	apiClient := nsm.NewAPIClient(ctx, rootConf)
-	monitor := client.NewNetworkServiceClient("proxy", apiClient)
-	monitor.Request()
+	client := client.NewNetworkServiceClient("proxy", apiClient)
+	client.InterfaceMonitorSubscriber = st
+	client.Request()
 
 	for {
 		time.Sleep(10 * time.Second)
 	}
+}
+
+func Hash(s string, n int) int {
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return int(h.Sum32())%n + 1
+}
+
+type SimpleTarget struct {
+	networkServicePlateformClient *nsp.NetworkServicePlateformClient
+	identifier                    int
+}
+
+func (st *SimpleTarget) InterfaceCreated(intf *networking.Interface) {
+	context := make(map[string]string)
+	context["identifier"] = strconv.Itoa(st.identifier)
+	st.networkServicePlateformClient.Register(intf.LocalIPs[0].String(), context)
+}
+
+func (st *SimpleTarget) InterfaceDeleted(intf *networking.Interface) {
+	st.networkServicePlateformClient.Unregister(intf.LocalIPs[0].String())
 }
