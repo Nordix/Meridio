@@ -56,3 +56,7 @@ clear:
 
 .PHONY: default
 default: load-balancer proxy target ipam nsp
+
+.PHONY: lint
+lint: 
+	golangci-lint run ./...
