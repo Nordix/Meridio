@@ -2,6 +2,7 @@ package loadbalancer
 
 import (
 	"errors"
+	"fmt"
 	"os/exec"
 	"strconv"
 
@@ -31,7 +32,7 @@ func (lb *LoadBalancer) Start() error {
 
 // AddTarget -
 func (lb *LoadBalancer) AddTarget(target *Target) error {
-	if lb.TargetExists(target) == false {
+	if lb.TargetExists(target) == true {
 		return errors.New("The target is already existing.")
 	}
 	fwMark, err := networking.NewFWMarkRoute(target.ip, target.identifier, target.identifier)
@@ -40,7 +41,7 @@ func (lb *LoadBalancer) AddTarget(target *Target) error {
 	}
 	err = lb.activateIdentifier(target.identifier)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w; activateIdentifier: %v", err, target.identifier)
 	}
 	lb.targets[target.identifier] = &configuredTarget{
 		target: target,
@@ -107,14 +108,13 @@ func (lb *LoadBalancer) desactivateAll() error {
 	return nil
 }
 
-func NewLoadBalancer(vip *netlink.Addr) *LoadBalancer {
+func NewLoadBalancer(vip *netlink.Addr, m int, n int) *LoadBalancer {
 	loadBalancer := &LoadBalancer{
-		m:       0,
-		n:       0,
+		m:       m,
+		n:       n,
 		vip:     vip,
 		targets: make(map[int]*configuredTarget),
 	}
-
 	loadBalancer.configure()
 	return loadBalancer
 }

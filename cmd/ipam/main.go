@@ -17,7 +17,7 @@ func main() {
 
 	port, err := strconv.Atoi(os.Getenv("IPAM_PORT"))
 	if err != nil || port <= 0 {
-		port = 100
+		port = 7777
 	}
 
 	i, _ := ipam.NewIpamService(port)

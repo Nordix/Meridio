@@ -1,6 +1,7 @@
 package networking
 
 import (
+	"fmt"
 	"os/exec"
 	"strconv"
 
@@ -23,13 +24,13 @@ func (fwmr *FWMarkRoute) configure() error {
 	_, err := exec.Command("bash", "-c", cmd).Output()
 
 	if err != nil {
-		return err
+		return fmt.Errorf("%w; FWMarkRoute configure: %v", err, cmd)
 	}
 
-	cmd = " /usr/sbin/ip route add default via " + fwmr.ip.String() + " table " + strconv.Itoa(fwmr.tableId)
+	cmd = "/usr/sbin/ip route add default via " + fwmr.ip.IP.String() + " table " + strconv.Itoa(fwmr.tableId)
 	_, err = exec.Command("bash", "-c", cmd).Output()
 	if err != nil {
-		return err
+		return fmt.Errorf("%w; FWMarkRoute configure: %v", err, cmd)
 	}
 
 	return nil
