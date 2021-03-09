@@ -1,41 +1,52 @@
 package networking
 
 import (
-	"os/exec"
-	"strconv"
+	"net"
 
 	"github.com/vishvananda/netlink"
 )
 
-type OutgoingRoute struct {
-	tableId  int
+// SourceBasedRoute -
+type SourceBasedRoute struct {
+	tableID  int
 	vip      *netlink.Addr
 	nexthops []*netlink.Addr
 }
 
-func (or *OutgoingRoute) create() error {
-	ipRuleCmd := "/usr/sbin/ip rule add from " + or.vip.IP.String() + " table " + strconv.Itoa(or.tableId) + " priority 10"
-	cmd := exec.Command("bash", "-c", ipRuleCmd)
-	_, err := cmd.Output()
-	return err
-}
-
-func (or *OutgoingRoute) updateRoute() error {
-	routeCmd := "/usr/sbin/ip route replace table " + strconv.Itoa(or.tableId) + " default "
-	for _, nexthop := range or.nexthops {
-		routeCmd += " nexthop via " + nexthop.IP.String()
+func (or *SourceBasedRoute) create() error {
+	rule := netlink.NewRule()
+	rule.Table = or.tableID
+	rule.Src = &net.IPNet{
+		IP:   or.vip.IP,
+		Mask: or.vip.Mask,
 	}
-	cmd := exec.Command("bash", "-c", routeCmd)
-	_, err := cmd.Output()
-	return err
+	return netlink.RuleAdd(rule)
 }
 
-func (or *OutgoingRoute) AddNexthop(nexthop *netlink.Addr) error {
+func (or *SourceBasedRoute) updateRoute() error {
+	nexthops := []*netlink.NexthopInfo{}
+	for _, nexthop := range or.nexthops {
+		nexthops = append(nexthops, &netlink.NexthopInfo{
+			Gw: nexthop.IP,
+		})
+	}
+
+	route := &netlink.Route{
+		Table:     or.tableID,
+		MultiPath: nexthops,
+		Src:       net.IPv4(0, 0, 0, 0),
+	}
+	return netlink.RouteReplace(route)
+}
+
+// AddNexthop -
+func (or *SourceBasedRoute) AddNexthop(nexthop *netlink.Addr) error {
 	or.nexthops = append(or.nexthops, nexthop)
 	return or.updateRoute()
 }
 
-func (or *OutgoingRoute) RemoveNexthop(nexthop *netlink.Addr) error {
+// RemoveNexthop -
+func (or *SourceBasedRoute) RemoveNexthop(nexthop *netlink.Addr) error {
 	for index, current := range or.nexthops {
 		if nexthop.IP.String() == current.IP.String() {
 			or.nexthops = append(or.nexthops[:index], or.nexthops[index+1:]...)
@@ -44,9 +55,10 @@ func (or *OutgoingRoute) RemoveNexthop(nexthop *netlink.Addr) error {
 	return or.updateRoute()
 }
 
-func NewOutgoingRoute(tableId int, vip *netlink.Addr) *OutgoingRoute {
-	outgoingRoute := &OutgoingRoute{
-		tableId:  tableId,
+// NewSourceBasedRoute -
+func NewSourceBasedRoute(tableID int, vip *netlink.Addr) *SourceBasedRoute {
+	outgoingRoute := &SourceBasedRoute{
+		tableID:  tableID,
 		vip:      vip,
 		nexthops: []*netlink.Addr{},
 	}
