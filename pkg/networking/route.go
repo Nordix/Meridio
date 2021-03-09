@@ -56,13 +56,19 @@ func (or *SourceBasedRoute) RemoveNexthop(nexthop *netlink.Addr) error {
 }
 
 // NewSourceBasedRoute -
-func NewSourceBasedRoute(tableID int, vip *netlink.Addr) *SourceBasedRoute {
-	outgoingRoute := &SourceBasedRoute{
+func NewSourceBasedRoute(tableID int, vip *netlink.Addr) (*SourceBasedRoute, error) {
+	sourceBasedRoute := &SourceBasedRoute{
 		tableID:  tableID,
 		vip:      vip,
 		nexthops: []*netlink.Addr{},
 	}
-	outgoingRoute.create()
-	outgoingRoute.updateRoute()
-	return outgoingRoute
+	err := sourceBasedRoute.create()
+	if err != nil {
+		return nil, err
+	}
+	err = sourceBasedRoute.updateRoute()
+	if err != nil {
+		return nil, err
+	}
+	return sourceBasedRoute, nil
 }

@@ -32,7 +32,7 @@ func (lb *LoadBalancer) Start() error {
 
 // AddTarget -
 func (lb *LoadBalancer) AddTarget(target *Target) error {
-	if lb.TargetExists(target) == true {
+	if lb.TargetExists(target) {
 		return errors.New("The target is already existing.")
 	}
 	fwMark, err := networking.NewFWMarkRoute(target.ip, target.identifier, target.identifier)
@@ -52,10 +52,10 @@ func (lb *LoadBalancer) AddTarget(target *Target) error {
 
 // RemoveTarget -
 func (lb *LoadBalancer) RemoveTarget(target *Target) error {
-	if lb.TargetExists(target) == false {
+	if !lb.TargetExists(target) {
 		return errors.New("The target does not exist.")
 	}
-	configuredTarget, _ := lb.targets[target.identifier]
+	configuredTarget := lb.targets[target.identifier]
 	err := configuredTarget.fwMark.Delete()
 	if err != nil {
 		return err
@@ -84,18 +84,25 @@ func (lb *LoadBalancer) desactivateIdentifier(identifier int) error {
 	return err
 }
 
-func (lb *LoadBalancer) configure() {
+func (lb *LoadBalancer) configure() error {
 	_, err := exec.Command("lb",
 		"create",
 		strconv.Itoa(lb.m),
 		strconv.Itoa(lb.n)).Output()
-	lb.desactivateAll()
-
+	if err != nil {
+		return err
+	}
+	err = lb.desactivateAll()
+	if err != nil {
+		return err
+	}
 	nfqueue, err := networking.NewNFQueue(lb.vip, 2)
 	if err != nil {
 		logrus.Errorf("Load Balancer: error configuring nfqueue (iptables): %v", err)
+		return err
 	}
 	lb.nfQueue = nfqueue
+	return nil
 }
 
 func (lb *LoadBalancer) desactivateAll() error {
@@ -108,13 +115,16 @@ func (lb *LoadBalancer) desactivateAll() error {
 	return nil
 }
 
-func NewLoadBalancer(vip *netlink.Addr, m int, n int) *LoadBalancer {
+func NewLoadBalancer(vip *netlink.Addr, m int, n int) (*LoadBalancer, error) {
 	loadBalancer := &LoadBalancer{
 		m:       m,
 		n:       n,
 		vip:     vip,
 		targets: make(map[int]*configuredTarget),
 	}
-	loadBalancer.configure()
-	return loadBalancer
+	err := loadBalancer.configure()
+	if err != nil {
+		return nil, err
+	}
+	return loadBalancer, nil
 }

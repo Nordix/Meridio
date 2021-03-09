@@ -122,7 +122,7 @@ func (sns *SimpleNetworkService) recv() {
 		}
 
 		identifierStr, exists := target.Context["identifier"]
-		if exists == false {
+		if !exists {
 			logrus.Errorf("SimpleNetworkService: identifier does not exist: %v", target.Context)
 			continue
 		}
@@ -147,7 +147,7 @@ func (sns *SimpleNetworkService) recv() {
 				continue
 			}
 		} else if target.Status == nspAPI.Status_Unregister {
-			sns.loadbalancer.RemoveTarget(lbTarget)
+			err = sns.loadbalancer.RemoveTarget(lbTarget)
 			logrus.Infof("SimpleNetworkService: Remove Target: %v", target)
 			if err != nil {
 				logrus.Errorf("SimpleNetworkService: err RemoveTarget (%v): %v", target, err)
@@ -158,8 +158,11 @@ func (sns *SimpleNetworkService) recv() {
 }
 
 func NewSimpleNetworkService(vip *netlink.Addr, networkServicePlateformClient *nsp.NetworkServicePlateformClient) *SimpleNetworkService {
-	loadbalancer := loadbalancer.NewLoadBalancer(vip, 9973, 100)
-	err := loadbalancer.Start()
+	loadbalancer, err := loadbalancer.NewLoadBalancer(vip, 9973, 100)
+	if err != nil {
+		logrus.Errorf("SimpleNetworkService: NewLoadBalancer err: %v", err)
+	}
+	err = loadbalancer.Start()
 	if err != nil {
 		logrus.Errorf("SimpleNetworkService: LoadBalancer start err: %v", err)
 	}

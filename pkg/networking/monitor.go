@@ -61,7 +61,7 @@ func (im *InterfaceMonitor) start() {
 			case syscall.RTM_DELLINK:
 				im.interfaceDeleted(update.Link)
 			}
-		case _ = <-im.flush:
+		case <-im.flush:
 			continue
 		}
 	}

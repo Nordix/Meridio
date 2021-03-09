@@ -38,7 +38,7 @@ func (nsps *NetworkServicePlateformService) addTarget(target *nspAPI.Target) err
 }
 
 func (nsps *NetworkServicePlateformService) removeTarget(target *nspAPI.Target) error {
-	if nsps.targetExists(target) == false {
+	if !nsps.targetExists(target) {
 		return errors.New("Target is not already existing")
 	}
 	target.Status = nspAPI.Status_Unregister
@@ -62,7 +62,7 @@ func (nsps *NetworkServicePlateformService) notifyMonitorStreams(target *nspAPI.
 }
 
 func (nsps *NetworkServicePlateformService) notifyMonitorStream(stream nspAPI.NetworkServicePlateformService_MonitorServer, target *nspAPI.Target) {
-	if nsps.monitorStreams[stream] == false {
+	if !nsps.monitorStreams[stream] {
 		return
 	}
 	err := stream.Send(target)

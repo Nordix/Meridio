@@ -38,7 +38,7 @@ type NSMgrClient interface {
 // Request
 func (nsc *NetworkServiceClient) Request() {
 	request := nsc.prepareRequest()
-	for true {
+	for {
 		var err error
 		nsc.Connection, err = nsc.nsmgrClient.Request(request)
 		if err != nil {

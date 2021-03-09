@@ -87,7 +87,7 @@ func (b *Bridge) LinkInterface(intf *Interface) error {
 }
 
 func (b *Bridge) UnLinkInterface(intf *Interface) error {
-	if b.interfaceIsLinked(intf) == false {
+	if !b.interfaceIsLinked(intf) {
 		return nil // TODO
 	}
 	b.removeFromlinkedInterfaces(intf)

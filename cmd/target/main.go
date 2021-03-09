@@ -82,7 +82,10 @@ func main() {
 
 func Hash(s string, n int) int {
 	h := fnv.New32a()
-	h.Write([]byte(s))
+	_, err := h.Write([]byte(s))
+	if err != nil {
+		logrus.Fatalf("error hashing: %+v", err)
+	}
 	return int(h.Sum32())%n + 1
 }
 
@@ -94,9 +97,15 @@ type SimpleTarget struct {
 func (st *SimpleTarget) InterfaceCreated(intf *networking.Interface) {
 	context := make(map[string]string)
 	context["identifier"] = strconv.Itoa(st.identifier)
-	st.networkServicePlateformClient.Register(intf.LocalIPs[0].String(), context)
+	err := st.networkServicePlateformClient.Register(intf.LocalIPs[0].String(), context)
+	if err != nil {
+		logrus.Errorf("SimpleTarget: Register err: %v", err)
+	}
 }
 
 func (st *SimpleTarget) InterfaceDeleted(intf *networking.Interface) {
-	st.networkServicePlateformClient.Unregister(intf.LocalIPs[0].String())
+	err := st.networkServicePlateformClient.Unregister(intf.LocalIPs[0].String())
+	if err != nil {
+		logrus.Errorf("SimpleTarget: Unregister err: %v", err)
+	}
 }
