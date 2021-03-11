@@ -113,7 +113,6 @@ func (p *Proxy) NewNSEIPContext() (*networkservice.IPContext, error) {
 		SrcIpAddr: srcIPAddr, // IP on the target
 		DstIpAddr: dstIPAddr, // IP on the NSE
 	}
-	logrus.Infof("Proxy: koukou NSE: %v", ipContext)
 	return ipContext, nil
 }
 

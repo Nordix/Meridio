@@ -13,46 +13,45 @@ type SourceBasedRoute struct {
 	nexthops []*netlink.Addr
 }
 
-func (or *SourceBasedRoute) create() error {
+func (sbr *SourceBasedRoute) create() error {
 	rule := netlink.NewRule()
-	rule.Table = or.tableID
+	rule.Table = sbr.tableID
 	rule.Src = &net.IPNet{
-		IP:   or.vip.IP,
-		Mask: or.vip.Mask,
+		IP:   sbr.vip.IP,
+		Mask: sbr.vip.Mask,
 	}
 	return netlink.RuleAdd(rule)
 }
 
-func (or *SourceBasedRoute) updateRoute() error {
+func (sbr *SourceBasedRoute) updateRoute() error {
 	nexthops := []*netlink.NexthopInfo{}
-	for _, nexthop := range or.nexthops {
+	for _, nexthop := range sbr.nexthops {
 		nexthops = append(nexthops, &netlink.NexthopInfo{
 			Gw: nexthop.IP,
 		})
 	}
-
 	route := &netlink.Route{
-		Table:     or.tableID,
-		MultiPath: nexthops,
+		Table:     sbr.tableID,
 		Src:       net.IPv4(0, 0, 0, 0),
+		MultiPath: nexthops,
 	}
 	return netlink.RouteReplace(route)
 }
 
 // AddNexthop -
-func (or *SourceBasedRoute) AddNexthop(nexthop *netlink.Addr) error {
-	or.nexthops = append(or.nexthops, nexthop)
-	return or.updateRoute()
+func (sbr *SourceBasedRoute) AddNexthop(nexthop *netlink.Addr) error {
+	sbr.nexthops = append(sbr.nexthops, nexthop)
+	return sbr.updateRoute()
 }
 
 // RemoveNexthop -
-func (or *SourceBasedRoute) RemoveNexthop(nexthop *netlink.Addr) error {
-	for index, current := range or.nexthops {
+func (sbr *SourceBasedRoute) RemoveNexthop(nexthop *netlink.Addr) error {
+	for index, current := range sbr.nexthops {
 		if nexthop.IP.String() == current.IP.String() {
-			or.nexthops = append(or.nexthops[:index], or.nexthops[index+1:]...)
+			sbr.nexthops = append(sbr.nexthops[:index], sbr.nexthops[index+1:]...)
 		}
 	}
-	return or.updateRoute()
+	return sbr.updateRoute()
 }
 
 // NewSourceBasedRoute -
@@ -63,10 +62,6 @@ func NewSourceBasedRoute(tableID int, vip *netlink.Addr) (*SourceBasedRoute, err
 		nexthops: []*netlink.Addr{},
 	}
 	err := sourceBasedRoute.create()
-	if err != nil {
-		return nil, err
-	}
-	err = sourceBasedRoute.updateRoute()
 	if err != nil {
 		return nil, err
 	}
