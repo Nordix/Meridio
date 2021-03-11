@@ -10,14 +10,16 @@ import (
 	vfiomech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vfio"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/mechanisms/vfio"
-	"github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/token"
+	sriovtoken "github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/token"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/nsurl"
 	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
-	"github.com/networkservicemesh/sdk/pkg/tools/spiffejwt"
 	nsc "github.com/nordix/meridio/pkg/client"
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
@@ -66,21 +68,18 @@ func (apiClient *APIClient) getX509Source() *workloadapi.X509Source {
 }
 
 func (apiClient *APIClient) setNetworkServiceClient() {
-	tokenClient := token.NewClient()
-	sendfdClient := sendfd.NewClient()
-
-	apiClient.networkServiceClient = client.NewClient(
-		apiClient.context,
-		apiClient.config.Name,
-		nil,
-		spiffejwt.TokenGeneratorFunc(apiClient.x509source, apiClient.config.MaxTokenLifetime),
+	apiClient.networkServiceClient = client.NewClient(apiClient.context,
 		apiClient.grpcClient,
-		append(
-			apiClient.getAdditionalFunctionality(),
-			tokenClient,
-			sendfdClient,
-		)...,
-	)
+		client.WithName(apiClient.config.Name),
+		client.WithAuthorizeClient(authorize.NewClient()),
+		client.WithAdditionalFunctionality(
+			sriovtoken.NewClient(),
+			mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
+				vfiomech.MECHANISM:   chain.NewNetworkServiceClient(vfio.NewClient()),
+				kernelmech.MECHANISM: chain.NewNetworkServiceClient(kernel.NewClient()),
+			}),
+			sendfd.NewClient(),
+		))
 }
 
 func (apiClient *APIClient) setNetworkServiceDiscoveryClient() {
