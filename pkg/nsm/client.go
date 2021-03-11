@@ -20,6 +20,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/nsurl"
 	"github.com/networkservicemesh/sdk/pkg/tools/opentracing"
+	"github.com/networkservicemesh/sdk/pkg/tools/spiffejwt"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 	nsc "github.com/nordix/meridio/pkg/client"
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
@@ -115,7 +117,12 @@ func (apiClient *APIClient) dial() {
 		connectCtx,
 		grpcutils.URLToTarget(&apiClient.config.ConnectTo),
 		append(opentracing.WithTracingDial(),
-			grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
+			grpcfd.WithChainStreamInterceptor(),
+			grpcfd.WithChainUnaryInterceptor(),
+			grpc.WithDefaultCallOptions(
+				grpc.WaitForReady(true),
+				grpc.PerRPCCredentials(token.NewPerRPCCredentials(spiffejwt.TokenGeneratorFunc(apiClient.x509source, apiClient.config.MaxTokenLifetime))),
+			),
 			grpc.WithTransportCredentials(
 				grpcfd.TransportCredentials(
 					credentials.NewTLS(
