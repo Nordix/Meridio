@@ -23,3 +23,6 @@ nspImage: nsp
 nspVersion: latest
 nspPort: 7778
 nspTargetPort: 7778
+
+vip: 20.0.0.1/32
+SubnetPool: 169.255.0.0/16

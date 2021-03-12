@@ -31,16 +31,18 @@ spec:
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
-            - name: NSE_NAME
+            - name: NSM_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: NSE_CONNECT_TO
+            - name: NSM_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
-            - name: NSE_CIDR_PREFIX
-              value: 169.254.0.0/16
-            - name: NSE_SERVICE_NAME
+            - name: NSM_SERVICE_NAME
               value: load-balancer
+            - name: NSM_VIP
+              value: {{ .Values.vip }}
+            - name: NSM_NSP_SERVICE
+              value: nsp-service:{{ .Values.nspTargetPort }}
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

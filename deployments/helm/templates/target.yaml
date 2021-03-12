@@ -26,8 +26,16 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: NSM_NETWORK_SERVICES
-              value: kernel://proxy/nsm
+            # - name: NSM_NETWORK_SERVICES
+            #   value: kernel://proxy/nsm
+            - name: NSM_CONNECT_TO
+              value: unix:///var/lib/networkservicemesh/nsm.io.sock
+            - name: NSM_PROXY_NETWORK_SERVICE_NAME
+              value: proxy
+            - name: NSM_VIP
+              value: {{ .Values.vip }}
+            - name: NSM_NSP_SERVICE
+              value: nsp-service:{{ .Values.nspTargetPort }}
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

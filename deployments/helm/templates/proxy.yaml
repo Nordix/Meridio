@@ -34,14 +34,20 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: NSM_NETWORK_SERVICES
-              value: kernel://load-balancer/nsm
-            - name: NSE_CONNECT_TO
-              value: unix:///var/lib/networkservicemesh/nsm.io.sock
-            - name: NSE_CIDR_PREFIX
-              value: 169.255.0.0/16
-            - name: NSE_SERVICE_NAME
+            - name: NSM_SERVICE_NAME
               value: proxy
+            - name: NSM_CONNECT_TO
+              value: unix:///var/lib/networkservicemesh/nsm.io.sock
+            # - name: NSM_NETWORK_SERVICES
+            #   value: kernel://load-balancer/nsm
+            - name: NSM_VIP
+              value: {{ .Values.vip }}
+            - name: NSM_SUBNET_POOL
+              value: {{ .Values.SubnetPool }}
+            - name: NSM_IPAM_SERVICE
+              value: ipam-service:{{ .Values.ipamTargetPort }}
+            - name: NSM_NETWORK_SERVICE_NAME
+              value: load-balancer
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
