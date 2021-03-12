@@ -3,10 +3,7 @@ module github.com/nordix/meridio
 go 1.15
 
 require (
-	github.com/antonfisher/nested-logrus-formatter v1.3.1
-	github.com/edwarnicke/debug v1.0.0
 	github.com/edwarnicke/grpcfd v0.0.0-20210219150442-10fb469a6976
-	github.com/edwarnicke/signalctx v0.0.0-20201105214533-3a35840b3011
 	github.com/golang/protobuf v1.4.3
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/metal-stack/go-ipam v1.8.2

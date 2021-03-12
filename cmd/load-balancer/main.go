@@ -6,9 +6,7 @@ import (
 	"os"
 	"strconv"
 
-	nested "github.com/antonfisher/nested-logrus-formatter"
-	"github.com/edwarnicke/debug"
-	"github.com/edwarnicke/signalctx"
+	"github.com/kelseyhightower/envconfig"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/noop"
@@ -17,12 +15,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
-	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	nspAPI "github.com/nordix/meridio/api/nsp"
 	"github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/loadbalancer"
+	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -30,38 +26,22 @@ import (
 
 func main() {
 
-	// ********************************************************************************
-	// setup context to catch signals
-	// ********************************************************************************
-	ctx := signalctx.WithSignals(context.Background())
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// ********************************************************************************
-	// setup logging
-	// ********************************************************************************
-	logrus.SetFormatter(&nested.Formatter{})
-	ctx = log.WithFields(ctx, map[string]interface{}{"cmd": os.Args[0]})
-	ctx = log.WithLog(ctx, logruslogger.New(ctx))
+	logrus.SetOutput(os.Stdout)
+	logrus.SetLevel(logrus.DebugLevel)
 
-	if err := debug.Self(); err != nil {
-		log.FromContext(ctx).Infof("%s", err)
+	var config Config
+	err := envconfig.Process("nsm", &config)
+	if err != nil {
+		logrus.Fatalf("%v", err)
 	}
 
-	// ********************************************************************************
-	// Configure open tracing
-	// ********************************************************************************
-	log.EnableTracing(true)
-	jaegerCloser := jaeger.InitJaeger(ctx, "load-balancer")
-	defer func() { _ = jaegerCloser.Close() }()
-
-	// get config from environment
-	config := new(endpoint.Config)
-	if err := config.Process(); err != nil {
-		logrus.Fatal(err.Error())
+	vip, err := netlink.ParseAddr(config.VIP)
+	if err != nil {
+		logrus.Fatalf("Error Parsing the VIP: %v", err)
 	}
-
-	log.FromContext(ctx).Infof("Config: %#v", config)
 
 	responderEndpoint := []networkservice.NetworkServiceServer{
 		recvfd.NewServer(),
@@ -72,19 +52,32 @@ func main() {
 		sendfd.NewServer(),
 	}
 
-	vip, _ := netlink.ParseAddr("20.0.0.1/32")
-	nspServiceIPPort := "nsp-service:7778"
-	nspClient, err := nsp.NewNetworkServicePlateformClient(nspServiceIPPort)
+	nspClient, err := nsp.NewNetworkServicePlateformClient(config.NSPService)
 	if err != nil {
 		logrus.Errorf("NewNetworkServicePlateformClient: %v", err)
 	}
 	sns := NewSimpleNetworkService(vip, nspClient)
 
-	ep := endpoint.NewEndpoint(ctx, config)
+	apiClientConfig := &nsm.Config{
+		Name:             config.Name,
+		ConnectTo:        config.ConnectTo,
+		DialTimeout:      config.DialTimeout,
+		RequestTimeout:   config.RequestTimeout,
+		MaxTokenLifetime: config.MaxTokenLifetime,
+	}
+	nsmAPIClient := nsm.NewAPIClient(ctx, apiClientConfig)
+
+	endpointConfig := &endpoint.Config{
+		Name:             config.Name,
+		ServiceName:      config.ServiceName,
+		Labels:           config.Labels,
+		MaxTokenLifetime: config.MaxTokenLifetime,
+	}
+	ep := endpoint.NewEndpoint(ctx, endpointConfig, nsmAPIClient.NetworkServiceRegistryClient, nsmAPIClient.NetworkServiceEndpointRegistryClient)
 
 	err = ep.Start(responderEndpoint...)
 	if err != nil {
-		log.FromContext(ctx).Fatalf("unable to start nse %+v", err)
+		logrus.Fatalf("unable to start nse %+v", err)
 	}
 
 	defer ep.Delete()
@@ -94,6 +87,7 @@ func main() {
 	<-ctx.Done()
 }
 
+// SimpleNetworkService -
 type SimpleNetworkService struct {
 	loadbalancer                         *loadbalancer.LoadBalancer
 	networkServicePlateformClient        *nsp.NetworkServicePlateformClient
@@ -101,6 +95,7 @@ type SimpleNetworkService struct {
 	networkServicePlateformServiceStream nspAPI.NetworkServicePlateformService_MonitorClient
 }
 
+// Start -
 func (sns *SimpleNetworkService) Start() {
 	var err error
 	sns.networkServicePlateformServiceStream, err = sns.networkServicePlateformClient.Monitor()
@@ -157,6 +152,7 @@ func (sns *SimpleNetworkService) recv() {
 	}
 }
 
+// NewSimpleNetworkService -
 func NewSimpleNetworkService(vip *netlink.Addr, networkServicePlateformClient *nsp.NetworkServicePlateformClient) *SimpleNetworkService {
 	loadbalancer, err := loadbalancer.NewLoadBalancer(vip, 9973, 100)
 	if err != nil {

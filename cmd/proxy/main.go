@@ -19,79 +19,95 @@ import (
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/proxy"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
 func main() {
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	logrus.SetOutput(os.Stdout)
 	logrus.SetLevel(logrus.DebugLevel)
 
-	subnetPool, err := netlink.ParseAddr("169.255.0.0/16")
+	var config Config
+	err := envconfig.Process("nsm", &config)
 	if err != nil {
-		logrus.Errorf("Error Parsing subnet pool: %+v", err)
+		logrus.Fatalf("%v", err)
 	}
 
-	ipamServiceIPPort := "ipam-service:7777"
-	ipamClient, err := ipam.NewIpamClient(ipamServiceIPPort)
+	proxySubnet, err := getProxySubnet(config)
 	if err != nil {
-		logrus.Errorf("Error creating New Ipam Client: %+v", err)
-	}
-	proxySubnet, err := ipamClient.AllocateSubnet(subnetPool, 24)
-	if err != nil {
-		logrus.Errorf("Error AllocateSubnet: %+v", err)
+		logrus.Fatalf("%v", err)
 	}
 
-	// ********************************************************************************
-	// Start the Proxy (NSE + NSC)
-	// ********************************************************************************
-
-	vip, _ := netlink.ParseAddr("20.0.0.1/32")
+	vip, _ := netlink.ParseAddr(config.VIP)
+	if err != nil {
+		logrus.Fatalf("Error Parsing the VIP: %v", err)
+	}
 
 	linkMonitor, err := networking.NewLinkMonitor()
 	if err != nil {
-		logrus.Errorf("Error creating link monitor: %+v", err)
+		logrus.Fatalf("Error creating link monitor: %+v", err)
 	}
+
 	p := proxy.NewProxy(vip, proxySubnet)
 	interfaceMonitorEndpoint := nsm.NewInterfaceMonitorEndpoint(p)
 	proxyEndpoint := proxy.NewProxyEndpoint(p)
 	linkMonitor.Subscribe(interfaceMonitorEndpoint)
 
-	go StartNSC(ctx, p, p)
-	StartNSE(ctx, proxyEndpoint, interfaceMonitorEndpoint)
+	apiClientConfig := &nsm.Config{
+		Name:             config.Name,
+		ConnectTo:        config.ConnectTo,
+		DialTimeout:      config.DialTimeout,
+		RequestTimeout:   config.RequestTimeout,
+		MaxTokenLifetime: config.MaxTokenLifetime,
+	}
+	nsmAPIClient := nsm.NewAPIClient(ctx, apiClientConfig)
+
+	go startNSC(nsmAPIClient, config.NetworkServiceName, p, p)
+
+	endpointConfig := &endpoint.Config{
+		Name:             config.Name,
+		ServiceName:      config.ServiceName,
+		MaxTokenLifetime: config.MaxTokenLifetime,
+	}
+	startNSE(ctx, endpointConfig, nsmAPIClient, proxyEndpoint, interfaceMonitorEndpoint)
 }
 
-// StartNSC -
-func StartNSC(ctx context.Context, interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber, nscConnectionFactory client.NSCConnectionFactory) {
-	rootConf := &client.Config{}
-	if err := envconfig.Usage("nsm", rootConf); err != nil {
-		logrus.Errorf("%+v", err)
+func getProxySubnet(config Config) (*netlink.Addr, error) {
+	subnetPool, err := netlink.ParseAddr(config.SubnetPool)
+	if err != nil {
+		return nil, errors.Wrap(err, "Error Parsing subnet pool")
 	}
-	if err := envconfig.Process("nsm", rootConf); err != nil {
-		logrus.Errorf("error processing rootConf from env: %+v", err)
+	ipamClient, err := ipam.NewIpamClient(config.IPAMService)
+	if err != nil {
+		return nil, errors.Wrap(err, "Error creating new ipam client")
 	}
-	logrus.Infof("rootConf: %+v", rootConf)
+	proxySubnet, err := ipamClient.AllocateSubnet(subnetPool, 24)
+	if err != nil {
+		return nil, errors.Wrap(err, "Error AllocateSubnet")
+	}
+	return proxySubnet, nil
+}
 
-	apiClient := nsm.NewAPIClient(ctx, rootConf)
-	monitor := client.NewMonitor("load-balancer", apiClient, apiClient)
+func startNSC(nsmAPIClient *nsm.APIClient,
+	networkServiceName string,
+	interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber,
+	nscConnectionFactory client.NSCConnectionFactory) {
+
+	monitor := client.NewMonitor(networkServiceName, nsmAPIClient, nsmAPIClient)
 	monitor.SetInterfaceMonitorSubscriber(interfaceMonitorSubscriber)
 	monitor.SetNSCConnectionFactory(nscConnectionFactory)
 	monitor.Start()
 }
 
-// StartNSE -
-func StartNSE(ctx context.Context, proxyEndpoint *proxy.ProxyEndpoint, interfaceMonitorEndpoint *nsm.InterfaceMonitorEndpoint) {
-	// get config from environment
-	config := new(endpoint.Config)
-	if err := config.Process(); err != nil {
-		logrus.Fatal(err.Error())
-	}
-
-	logrus.Infof("Config: %#v", config)
+func startNSE(ctx context.Context,
+	config *endpoint.Config,
+	nsmAPIClient *nsm.APIClient,
+	proxyEndpoint *proxy.ProxyEndpoint,
+	interfaceMonitorEndpoint *nsm.InterfaceMonitorEndpoint) {
 
 	responderEndpoint := []networkservice.NetworkServiceServer{
 		recvfd.NewServer(),
@@ -104,7 +120,7 @@ func StartNSE(ctx context.Context, proxyEndpoint *proxy.ProxyEndpoint, interface
 		sendfd.NewServer(),
 	}
 
-	ep := endpoint.NewEndpoint(ctx, config)
+	ep := endpoint.NewEndpoint(ctx, config, nsmAPIClient.NetworkServiceRegistryClient, nsmAPIClient.NetworkServiceEndpointRegistryClient)
 
 	err := ep.Start(responderEndpoint...)
 	if err != nil {

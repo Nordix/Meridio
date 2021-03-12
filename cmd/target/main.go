@@ -7,12 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	nested "github.com/antonfisher/nested-logrus-formatter"
-	"github.com/edwarnicke/signalctx"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/networkservicemesh/sdk/pkg/tools/jaeger"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	"github.com/nordix/meridio/pkg/client"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
@@ -21,48 +16,24 @@ import (
 )
 
 func main() {
-	// ********************************************************************************
-	// Configure signal handling context
-	// ********************************************************************************
-	ctx := signalctx.WithSignals(context.Background())
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// ********************************************************************************
-	// Setup logger
-	// ********************************************************************************
-	logrus.Info("Starting NetworkServiceMesh Client ...")
-	logrus.SetFormatter(&nested.Formatter{})
-	ctx = log.WithFields(ctx, map[string]interface{}{"cmd": os.Args[:1]})
-	ctx = log.WithLog(ctx, logruslogger.New(ctx))
+	logrus.SetOutput(os.Stdout)
+	logrus.SetLevel(logrus.DebugLevel)
 
-	// ********************************************************************************
-	// Configure open tracing
-	// ********************************************************************************
-	// Enable Jaeger
-	log.EnableTracing(true)
-	jaegerCloser := jaeger.InitJaeger(ctx, "nsc")
-	defer func() { _ = jaegerCloser.Close() }()
-
-	// ********************************************************************************
-	// Get config from environment
-	// ********************************************************************************
-	rootConf := &client.Config{}
-	if err := envconfig.Usage("nsm", rootConf); err != nil {
-		log.FromContext(ctx).Fatal(err)
+	var config Config
+	err := envconfig.Process("nsm", &config)
+	if err != nil {
+		logrus.Fatalf("%v", err)
 	}
-	if err := envconfig.Process("nsm", rootConf); err != nil {
-		log.FromContext(ctx).Fatalf("error processing rootConf from env: %+v", err)
-	}
-	log.FromContext(ctx).Infof("rootConf: %+v", rootConf)
 
-	// ********************************************************************************
-	// Simple Target
-	// ********************************************************************************
+	// todo
+	// temporary solution
+	// Wait for the proxies to be created
+	time.Sleep(35 * time.Second)
 
-	nspServiceIPPort := "nsp-service:7778"
-	nspClient, _ := nsp.NewNetworkServicePlateformClient(nspServiceIPPort)
+	nspClient, _ := nsp.NewNetworkServicePlateformClient(config.NSPService)
 	hostname, _ := os.Hostname()
 	identifier := Hash(hostname, 100)
 	st := &SimpleTarget{
@@ -70,8 +41,16 @@ func main() {
 		identifier:                    identifier,
 	}
 
-	apiClient := nsm.NewAPIClient(ctx, rootConf)
-	client := client.NewNetworkServiceClient("proxy", apiClient)
+	apiClientConfig := &nsm.Config{
+		Name:             config.Name,
+		ConnectTo:        config.ConnectTo,
+		DialTimeout:      config.DialTimeout,
+		RequestTimeout:   config.RequestTimeout,
+		MaxTokenLifetime: config.MaxTokenLifetime,
+	}
+	apiClient := nsm.NewAPIClient(ctx, apiClientConfig)
+
+	client := client.NewNetworkServiceClient(config.ProxyNetworkServiceName, apiClient)
 	client.InterfaceMonitorSubscriber = st
 	client.Request()
 
@@ -80,6 +59,7 @@ func main() {
 	}
 }
 
+// Hash -
 func Hash(s string, n int) int {
 	h := fnv.New32a()
 	_, err := h.Write([]byte(s))
@@ -89,11 +69,13 @@ func Hash(s string, n int) int {
 	return int(h.Sum32())%n + 1
 }
 
+// SimpleTarget -
 type SimpleTarget struct {
 	networkServicePlateformClient *nsp.NetworkServicePlateformClient
 	identifier                    int
 }
 
+// InterfaceCreated -
 func (st *SimpleTarget) InterfaceCreated(intf *networking.Interface) {
 	context := make(map[string]string)
 	context["identifier"] = strconv.Itoa(st.identifier)
@@ -103,6 +85,7 @@ func (st *SimpleTarget) InterfaceCreated(intf *networking.Interface) {
 	}
 }
 
+// InterfaceDeleted -
 func (st *SimpleTarget) InterfaceDeleted(intf *networking.Interface) {
 	err := st.networkServicePlateformClient.Unregister(intf.LocalIPs[0].String())
 	if err != nil {
