@@ -38,7 +38,10 @@ func (nspc *NetworkServicePlateformClient) GetTargets() error {
 }
 
 func (nspc *NetworkServicePlateformClient) connect(ipamServiceIPPort string) error {
-	conn, err := grpc.Dial(ipamServiceIPPort, grpc.WithInsecure())
+	conn, err := grpc.Dial(ipamServiceIPPort, grpc.WithInsecure(),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+		))
 	if err != nil {
 		return nil
 	}

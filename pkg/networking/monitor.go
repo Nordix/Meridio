@@ -4,6 +4,7 @@ import (
 	"syscall"
 
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 type InterfaceMonitor struct {
@@ -57,11 +58,13 @@ func (im *InterfaceMonitor) start() {
 			}
 			switch update.Header.Type {
 			case syscall.RTM_NEWLINK:
-				im.interfaceCreated(update.Link)
+				if update.Link.Attrs().Flags&unix.IFF_UP != 0 {
+					im.interfaceCreated(update.Link)
+				}
 			case syscall.RTM_DELLINK:
 				im.interfaceDeleted(update.Link)
 			}
-		case <-im.flush:
+		case _ = <-im.flush:
 			continue
 		}
 	}

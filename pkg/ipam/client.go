@@ -31,7 +31,10 @@ func (ic *IpamClient) AllocateSubnet(subnetPool *netlink.Addr, prefixLength int)
 }
 
 func (ic *IpamClient) connect(ipamServiceIPPort string) error {
-	conn, err := grpc.Dial(ipamServiceIPPort, grpc.WithInsecure())
+	conn, err := grpc.Dial(ipamServiceIPPort, grpc.WithInsecure(),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+		))
 	if err != nil {
 		return nil
 	}
