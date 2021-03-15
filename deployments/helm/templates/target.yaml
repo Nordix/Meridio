@@ -16,6 +16,9 @@ spec:
         app: target
     spec:
       containers:
+        - name: ctraffic
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ctrafficImage }}:{{ .Values.ctrafficVersion }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
         - name: target
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.targetImage }}:{{ .Values.targetVersion }}
           imagePullPolicy: {{ .Values.pullPolicy }}

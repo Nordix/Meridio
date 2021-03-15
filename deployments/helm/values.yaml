@@ -14,6 +14,9 @@ proxyVersion: latest
 targetImage: target
 targetVersion: latest
 
+ctrafficImage: ctraffic
+ctrafficVersion: latest
+
 ipamImage: ipam
 ipamVersion: latest
 ipamPort: 7777

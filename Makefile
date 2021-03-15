@@ -4,6 +4,7 @@ VERSION_PROXY ?= $(VERSION)
 VERSION_TARGET ?= $(VERSION)
 VERSION_IPAM ?= $(VERSION)
 VERSION_NSP ?= $(VERSION)
+VERSION_CTRAFFIC ?= $(VERSION)
 
 REGISTRY ?= localhost:5000/meridio
 
@@ -40,6 +41,10 @@ ipam:
 nsp:
 	VERSION=$(VERSION_NSP) IMAGE=nsp $(MAKE) build tag push
 
+.PHONY: ctraffic
+ctraffic:
+	VERSION=$(VERSION_CTRAFFIC) IMAGE=ctraffic $(MAKE) build tag push
+
 .PHONY: ipam-proto
 ipam-proto:
 	protoc --go_out=plugins=grpc:. --go_opt=paths=source_relative api/ipam/ipam.proto
@@ -55,7 +60,7 @@ proto: ipam-proto nsp-proto
 clear:
 
 .PHONY: default
-default: load-balancer proxy target ipam nsp
+default: load-balancer proxy target ipam nsp ctraffic
 
 .PHONY: lint
 lint: 

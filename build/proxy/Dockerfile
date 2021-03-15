@@ -16,7 +16,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"' -o proxy 
 FROM ubuntu:20.10
 
 RUN apt-get update -y
-RUN apt-get install -y iproute2 tcpdump iptables net-tools iputils-ping ipvsadm  
+RUN apt-get install -y iproute2 tcpdump iptables net-tools iputils-ping ipvsadm netcat
 
 WORKDIR /root/
 COPY --from=build /app/proxy .

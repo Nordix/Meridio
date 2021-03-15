@@ -29,7 +29,7 @@ FROM ubuntu:20.10
 RUN apt-get update -y
 run apt-get install -y libmnl-dev
 run apt-get install -y libnetfilter-queue-dev
-RUN apt-get install -y iproute2 tcpdump iptables net-tools iputils-ping ipvsadm  
+RUN apt-get install -y iproute2 tcpdump iptables net-tools iputils-ping ipvsadm netcat
 
 WORKDIR /root/
 COPY --from=build /app/load-balancer .
