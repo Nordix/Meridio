@@ -34,11 +34,6 @@ func main() {
 		logrus.Fatalf("Error Parsing the VIP: %v", err)
 	}
 
-	// todo
-	// temporary solution
-	// Wait for the proxies to be created
-	time.Sleep(35 * time.Second)
-
 	nspClient, _ := nsp.NewNetworkServicePlateformClient(config.NSPService)
 	hostname, _ := os.Hostname()
 	identifier := Hash(hostname, 100)
