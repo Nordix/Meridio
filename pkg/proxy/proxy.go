@@ -3,6 +3,7 @@ package proxy
 import (
 	"fmt"
 	"strconv"
+	"sync"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/nordix/meridio/pkg/ipam"
@@ -18,6 +19,7 @@ type Proxy struct {
 	vip              *netlink.Addr
 	subnet           *netlink.Addr
 	ipam             *ipam.Ipam
+	mutex            sync.Mutex
 }
 
 func (p *Proxy) isNSMInterface(intf *networking.Interface) bool {
@@ -72,6 +74,7 @@ func (p *Proxy) InterfaceDeleted(intf *networking.Interface) {
 func (p *Proxy) NewNSCIPContext() (*networkservice.IPContext, error) {
 	prefixLength, _ := p.subnet.Mask.Size()
 
+	p.mutex.Lock()
 	ip, err := p.ipam.AllocateIP(p.subnet)
 	if err != nil {
 		return nil, err
@@ -83,6 +86,7 @@ func (p *Proxy) NewNSCIPContext() (*networkservice.IPContext, error) {
 		return nil, err
 	}
 	srcIPAddr := fmt.Sprintf("%s/%s", ip.IP.String(), strconv.Itoa(prefixLength))
+	p.mutex.Unlock()
 
 	ipContext := &networkservice.IPContext{
 		// DstIpAddr: dstIpAddr, // IP on the NSE
@@ -96,6 +100,7 @@ func (p *Proxy) NewNSCIPContext() (*networkservice.IPContext, error) {
 func (p *Proxy) NewNSEIPContext() (*networkservice.IPContext, error) {
 	prefixLength, _ := p.subnet.Mask.Size()
 
+	p.mutex.Lock()
 	ip, err := p.ipam.AllocateIP(p.subnet)
 	if err != nil {
 		return nil, err
@@ -107,6 +112,7 @@ func (p *Proxy) NewNSEIPContext() (*networkservice.IPContext, error) {
 		return nil, err
 	}
 	dstIPAddr := fmt.Sprintf("%s/%s", ip.IP.String(), strconv.Itoa(prefixLength))
+	p.mutex.Unlock()
 
 	ipContext := &networkservice.IPContext{
 		// SrcIpAddr: srcIpAddr, // IP on the target

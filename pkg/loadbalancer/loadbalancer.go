@@ -41,6 +41,7 @@ func (lb *LoadBalancer) AddTarget(target *Target) error {
 	}
 	err = lb.activateIdentifier(target.identifier)
 	if err != nil {
+		fwMark.Delete()
 		return fmt.Errorf("%w; activateIdentifier: %v", err, target.identifier)
 	}
 	lb.targets[target.identifier] = &configuredTarget{
@@ -72,6 +73,15 @@ func (lb *LoadBalancer) RemoveTarget(target *Target) error {
 func (lb *LoadBalancer) TargetExists(target *Target) bool {
 	_, exists := lb.targets[target.identifier]
 	return exists
+}
+
+// TargetExists -
+func (lb *LoadBalancer) GetTargets() []*Target {
+	targets := []*Target{}
+	for _, configuredTarget := range lb.targets {
+		targets = append(targets, configuredTarget.target)
+	}
+	return targets
 }
 
 func (lb *LoadBalancer) activateIdentifier(identifier int) error {

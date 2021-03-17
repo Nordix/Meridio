@@ -33,8 +33,12 @@ func (nspc *NetworkServicePlateformClient) Monitor() (nspAPI.NetworkServicePlate
 	return nspc.networkServicePlateformClient.Monitor(context.Background(), &empty.Empty{})
 }
 
-func (nspc *NetworkServicePlateformClient) GetTargets() error {
-	return nil
+func (nspc *NetworkServicePlateformClient) GetTargets() ([]*nspAPI.Target, error) {
+	GetTargetsResponse, err := nspc.networkServicePlateformClient.GetTargets(context.Background(), &empty.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return GetTargetsResponse.Targets, nil
 }
 
 func (nspc *NetworkServicePlateformClient) connect(ipamServiceIPPort string) error {
