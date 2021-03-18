@@ -53,9 +53,9 @@ func (m *Monitor) recv() {
 			break
 		}
 
-		if !m.networkServiceClientExists(networkServiceEndpoint.Name) {
+		if !m.expirationTimeIsNull(networkServiceEndpoint.ExpirationTime) {
 			m.endpointAdded(networkServiceEndpoint)
-		} else if m.expirationTimeIsNull(networkServiceEndpoint.ExpirationTime) {
+		} else {
 			m.endpointRemoved(networkServiceEndpoint)
 		}
 	}
@@ -69,7 +69,10 @@ func (m *Monitor) expirationTimeIsNull(expirationTime *timestamp.Timestamp) bool
 }
 
 func (m *Monitor) endpointAdded(networkServiceEndpoint *registry.NetworkServiceEndpoint) {
-	logrus.Infof("Full Mesh Client Monitor (%v): event add: %v", m.networkServiceName, networkServiceEndpoint.Name)
+	if m.networkServiceClientExists(networkServiceEndpoint.Name) {
+		return
+	}
+	logrus.Infof("Full Mesh Client Monitor (%v): event add: %v", m.networkServiceName, networkServiceEndpoint.Name, networkServiceEndpoint.ExpirationTime)
 	networkServiceClient := NewNetworkServiceClient(m.networkServiceName, m.nsmgrClient)
 	networkServiceClient.NetworkServiceEndpointName = networkServiceEndpoint.Name
 	networkServiceClient.InterfaceMonitorSubscriber = m.interfaceMonitorSubscriber
@@ -80,11 +83,11 @@ func (m *Monitor) endpointAdded(networkServiceEndpoint *registry.NetworkServiceE
 
 func (m *Monitor) endpointRemoved(networkServiceEndpoint *registry.NetworkServiceEndpoint) {
 	logrus.Infof("Full Mesh Client Monitor (%v): event delete: %v", m.networkServiceName, networkServiceEndpoint.Name)
-	networkServiceClient, exists := m.networkServiceClients[networkServiceEndpoint.Name]
-	if !exists {
+	if !m.networkServiceClientExists(networkServiceEndpoint.Name) {
 		return
 	}
-	go networkServiceClient.Close()
+	// todo
+	// go networkServiceClient.Close()
 	delete(m.networkServiceClients, networkServiceEndpoint.Name)
 }
 

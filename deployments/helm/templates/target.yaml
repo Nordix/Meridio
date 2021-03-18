@@ -19,6 +19,8 @@ spec:
         - name: ctraffic
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ctrafficImage }}:{{ .Values.ctrafficVersion }}
           imagePullPolicy: {{ .Values.pullPolicy }}
+          securityContext:
+            privileged: true
         - name: target
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.targetImage }}:{{ .Values.targetVersion }}
           imagePullPolicy: {{ .Values.pullPolicy }}
