@@ -11,7 +11,6 @@ import (
 	"github.com/nordix/meridio/pkg/client"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
-	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
@@ -34,14 +33,14 @@ func main() {
 		logrus.Fatalf("Error Parsing the VIP: %v", err)
 	}
 
-	nspClient, _ := nsp.NewNetworkServicePlateformClient(config.NSPService)
+	// nspClient, _ := nsp.NewNetworkServicePlateformClient(config.NSPService)
 	hostname, _ := os.Hostname()
 	identifier := Hash(hostname, 100)
 	// st := &SimpleTarget{
 	// 	networkServicePlateformClient: nspClient,
 	// 	identifier:                    identifier,
 	// }
-	st := NewSimpleTarget(nspClient, identifier, vip)
+	st := NewSimpleTarget(identifier, vip)
 
 	apiClientConfig := &nsm.Config{
 		Name:             config.Name,
@@ -52,8 +51,12 @@ func main() {
 	}
 	apiClient := nsm.NewAPIClient(ctx, apiClientConfig)
 
+	extraContext := make(map[string]string)
+	extraContext["identifier"] = strconv.Itoa(st.identifier)
+
 	client := client.NewNetworkServiceClient(config.ProxyNetworkServiceName, apiClient)
 	client.InterfaceMonitorSubscriber = st
+	client.ExtraContext = extraContext
 	client.Request()
 
 	for {
@@ -73,21 +76,14 @@ func Hash(s string, n int) int {
 
 // SimpleTarget -
 type SimpleTarget struct {
-	networkServicePlateformClient *nsp.NetworkServicePlateformClient
-	identifier                    int
-	sourceBasedRoute              *networking.SourceBasedRoute
-	vip                           *netlink.Addr
+	identifier       int
+	sourceBasedRoute *networking.SourceBasedRoute
+	vip              *netlink.Addr
 }
 
 // InterfaceCreated -
 func (st *SimpleTarget) InterfaceCreated(intf *networking.Interface) {
-	context := make(map[string]string)
-	context["identifier"] = strconv.Itoa(st.identifier)
-	err := st.networkServicePlateformClient.Register(intf.LocalIPs[0].String(), context)
-	if err != nil {
-		logrus.Errorf("SimpleTarget: Register err: %v", err)
-	}
-	err = st.sourceBasedRoute.AddNexthop(intf.NeighborIPs[0])
+	err := st.sourceBasedRoute.AddNexthop(intf.NeighborIPs[0])
 	if err != nil {
 		logrus.Errorf("SimpleTarget: Adding nexthop (%v) to source base route err: %v", intf.NeighborIPs[0], err)
 	}
@@ -95,13 +91,13 @@ func (st *SimpleTarget) InterfaceCreated(intf *networking.Interface) {
 
 // InterfaceDeleted -
 func (st *SimpleTarget) InterfaceDeleted(intf *networking.Interface) {
-	err := st.networkServicePlateformClient.Unregister(intf.LocalIPs[0].String())
+	err := st.sourceBasedRoute.RemoveNexthop(intf.NeighborIPs[0])
 	if err != nil {
-		logrus.Errorf("SimpleTarget: Unregister err: %v", err)
+		logrus.Errorf("SimpleTarget: Removing nexthop (%v) from source base route err: %v", intf.NeighborIPs[0], err)
 	}
 }
 
-func NewSimpleTarget(networkServicePlateformClient *nsp.NetworkServicePlateformClient, identifier int, vip *netlink.Addr) *SimpleTarget {
+func NewSimpleTarget(identifier int, vip *netlink.Addr) *SimpleTarget {
 	sourceBasedRoute, err := networking.NewSourceBasedRoute(10, vip)
 	if err != nil {
 		logrus.Errorf("SimpleTarget: NewSourceBasedRoute err: %v", err)
@@ -111,10 +107,9 @@ func NewSimpleTarget(networkServicePlateformClient *nsp.NetworkServicePlateformC
 		logrus.Errorf("SimpleTarget: err AddVIP: %v", err)
 	}
 	simpleTarget := &SimpleTarget{
-		networkServicePlateformClient: networkServicePlateformClient,
-		identifier:                    identifier,
-		sourceBasedRoute:              sourceBasedRoute,
-		vip:                           vip,
+		identifier:       identifier,
+		sourceBasedRoute: sourceBasedRoute,
+		vip:              vip,
 	}
 	return simpleTarget
 }

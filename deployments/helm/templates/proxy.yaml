@@ -48,6 +48,8 @@ spec:
               value: ipam-service:{{ .Values.ipamTargetPort }}
             - name: NSM_NETWORK_SERVICE_NAME
               value: load-balancer
+            - name: NSM_NSP_SERVICE
+              value: nsp-service:{{ .Values.nspTargetPort }}
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

@@ -18,6 +18,7 @@ import (
 	"github.com/nordix/meridio/pkg/ipam"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
+	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/nordix/meridio/pkg/proxy"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -73,7 +74,7 @@ func main() {
 		ServiceName:      config.ServiceName,
 		MaxTokenLifetime: config.MaxTokenLifetime,
 	}
-	startNSE(ctx, endpointConfig, nsmAPIClient, proxyEndpoint, interfaceMonitorEndpoint)
+	startNSE(ctx, endpointConfig, nsmAPIClient, proxyEndpoint, interfaceMonitorEndpoint, config.NSPService)
 }
 
 func getProxySubnet(config Config) (*netlink.Addr, error) {
@@ -107,7 +108,8 @@ func startNSE(ctx context.Context,
 	config *endpoint.Config,
 	nsmAPIClient *nsm.APIClient,
 	proxyEndpoint *proxy.ProxyEndpoint,
-	interfaceMonitorEndpoint *nsm.InterfaceMonitorEndpoint) {
+	interfaceMonitorEndpoint *nsm.InterfaceMonitorEndpoint,
+	nspService string) {
 
 	responderEndpoint := []networkservice.NetworkServiceServer{
 		recvfd.NewServer(),
@@ -118,6 +120,7 @@ func startNSE(ctx context.Context,
 		nsm.NewInterfaceNameEndpoint(),
 		proxyEndpoint,
 		interfaceMonitorEndpoint,
+		nsp.NewNSPEndpoint(nspService),
 		sendfd.NewServer(),
 	}
 

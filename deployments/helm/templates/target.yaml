@@ -39,8 +39,6 @@ spec:
               value: proxy
             - name: NSM_VIP
               value: {{ .Values.vip }}
-            - name: NSM_NSP_SERVICE
-              value: nsp-service:{{ .Values.nspTargetPort }}
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

@@ -22,6 +22,7 @@ type NetworkServiceClient struct {
 	NetworkServiceName         string
 	NetworkServiceEndpointName string
 	Labels                     map[string]string
+	ExtraContext               map[string]string
 	Connection                 *networkservice.Connection
 	nsmgrClient                NSMgrClient
 	InterfaceName              string
@@ -136,7 +137,8 @@ func (nsc *NetworkServiceClient) prepareRequest() *networkservice.NetworkService
 			Labels:                     nsc.Labels,
 			NetworkServiceEndpointName: nsc.NetworkServiceEndpointName,
 			Context: &networkservice.ConnectionContext{
-				IpContext: nsc.prepareIpContext(),
+				IpContext:    nsc.prepareIpContext(),
+				ExtraContext: nsc.ExtraContext,
 			},
 		},
 		MechanismPreferences: []*networkservice.Mechanism{

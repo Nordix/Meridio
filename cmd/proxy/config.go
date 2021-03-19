@@ -19,6 +19,7 @@ type Config struct {
 	IPAMService        string        `default:"ipam-service:7777" desc:"IP (or domain) and port of the IPAM Service" split_words:"true"`
 	Host               string        `default:"" desc:"Host name the proxy is running on" split_words:"true"`
 	NetworkServiceName string        `default:"load-balancer" desc:"Name of the network service the proxy request the connection" split_words:"true"`
+	NSPService         string        `default:"nsp-service:7778" desc:"IP (or domain) and port of the NSP Service" split_words:"true"`
 }
 
 // IsValid checks if the configuration is valid
