@@ -26,7 +26,7 @@ func (nspe *NSPEndpoint) Request(ctx context.Context, request *networkservice.Ne
 		ip := request.GetConnection().GetContext().GetIpContext().GetSrcIpAddr()
 		context := request.GetConnection().GetContext().GetExtraContext()
 		err := nspe.networkServicePlateformClient.Register(ip, context)
-		logrus.Infof("NSPEndpoint: Register ip: ", ip, err)
+		logrus.Infof("NSPEndpoint: Register ip: %v %v", ip, err)
 	}
 	return next.Server(ctx).Request(ctx, request)
 }

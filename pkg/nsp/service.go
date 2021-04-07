@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -18,12 +19,12 @@ type NetworkServicePlateformService struct {
 	Listener       net.Listener
 	Server         *grpc.Server
 	Port           int
-	targets        map[string]*nspAPI.Target
-	monitorStreams map[nspAPI.NetworkServicePlateformService_MonitorServer]bool
+	targets        sync.Map // map[string]*nspAPI.Target
+	monitorStreams sync.Map // map[nspAPI.NetworkServicePlateformService_MonitorServer]bool
 }
 
 func (nsps *NetworkServicePlateformService) targetExists(target *nspAPI.Target) bool {
-	_, exists := nsps.targets[target.Ip]
+	_, exists := nsps.targets.Load(target.Ip)
 	return exists
 }
 
@@ -31,9 +32,10 @@ func (nsps *NetworkServicePlateformService) addTarget(target *nspAPI.Target) err
 	if nsps.targetExists(target) {
 		return errors.New("Target already exists")
 	}
+	logrus.Infof("Add Target: %v", target)
 	target.Status = nspAPI.Status_Register
 	nsps.notifyMonitorStreams(target)
-	nsps.targets[target.Ip] = target
+	nsps.targets.Store(target.Ip, target)
 	return nil
 }
 
@@ -41,33 +43,36 @@ func (nsps *NetworkServicePlateformService) removeTarget(target *nspAPI.Target) 
 	if !nsps.targetExists(target) {
 		return errors.New("Target is not existing")
 	}
+	logrus.Infof("Remove Target: %v", target)
 	target.Status = nspAPI.Status_Unregister
 	nsps.notifyMonitorStreams(target)
-	delete(nsps.targets, target.Ip)
+	nsps.targets.Delete(target.Ip)
 	return nil
 }
 
 func (nsps *NetworkServicePlateformService) getTargetSlice() []*nspAPI.Target {
 	targets := []*nspAPI.Target{}
-	for _, target := range nsps.targets {
-		targets = append(targets, target)
-	}
+	nsps.targets.Range(func(key interface{}, value interface{}) bool {
+		targets = append(targets, value.(*nspAPI.Target))
+		return true
+	})
 	return targets
 }
 
 func (nsps *NetworkServicePlateformService) notifyMonitorStreams(target *nspAPI.Target) {
-	for stream := range nsps.monitorStreams {
-		nsps.notifyMonitorStream(stream, target)
-	}
+	nsps.monitorStreams.Range(func(key interface{}, value interface{}) bool {
+		nsps.notifyMonitorStream(key.(nspAPI.NetworkServicePlateformService_MonitorServer), target)
+		return true
+	})
 }
 
 func (nsps *NetworkServicePlateformService) notifyMonitorStream(stream nspAPI.NetworkServicePlateformService_MonitorServer, target *nspAPI.Target) {
-	if !nsps.monitorStreams[stream] {
+	if !nsps.streamAlive(stream) {
 		return
 	}
 	err := stream.Send(target)
 	if err != nil {
-		nsps.monitorStreams[stream] = false
+		nsps.monitorStreams.Store(stream, false)
 	}
 }
 
@@ -82,15 +87,21 @@ func (nsps *NetworkServicePlateformService) Unregister(ctx context.Context, targ
 }
 
 func (nsps *NetworkServicePlateformService) Monitor(empty *empty.Empty, stream nspAPI.NetworkServicePlateformService_MonitorServer) error {
-	nsps.monitorStreams[stream] = true
-	for _, target := range nsps.targets {
-		nsps.notifyMonitorStream(stream, target)
-	}
-	for nsps.monitorStreams[stream] {
+	nsps.monitorStreams.Store(stream, true)
+	nsps.targets.Range(func(key interface{}, value interface{}) bool {
+		nsps.notifyMonitorStream(stream, value.(*nspAPI.Target))
+		return true
+	})
+	for nsps.streamAlive(stream) {
 		time.Sleep(1 * time.Second)
 	}
-	delete(nsps.monitorStreams, stream)
+	nsps.monitorStreams.Delete(stream)
 	return nil
+}
+
+func (nsps *NetworkServicePlateformService) streamAlive(stream nspAPI.NetworkServicePlateformService_MonitorServer) bool {
+	value, ok := nsps.monitorStreams.Load(stream)
+	return ok && value.(bool)
 }
 
 func (nsps *NetworkServicePlateformService) GetTargets(ctx context.Context, target *empty.Empty) (*nspAPI.GetTargetsResponse, error) {
@@ -119,11 +130,9 @@ func NewNetworkServicePlateformService(port int) (*NetworkServicePlateformServic
 	s := grpc.NewServer()
 
 	networkServicePlateformService := &NetworkServicePlateformService{
-		Listener:       lis,
-		Server:         s,
-		Port:           port,
-		targets:        make(map[string]*nspAPI.Target),
-		monitorStreams: make(map[nspAPI.NetworkServicePlateformService_MonitorServer]bool),
+		Listener: lis,
+		Server:   s,
+		Port:     port,
 	}
 
 	nspAPI.RegisterNetworkServicePlateformServiceServer(s, networkServicePlateformService)
