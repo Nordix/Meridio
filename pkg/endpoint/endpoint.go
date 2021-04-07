@@ -39,13 +39,12 @@ type Endpoint struct {
 
 // Start -
 func (e *Endpoint) Start(additionalFunctionality ...networkservice.NetworkServiceServer) error {
-	// create grpc server
-	responderEndpoint := endpoint.NewServer(
-		e.context,
-		e.config.Name,
-		authorize.NewServer(),
+
+	responderEndpoint := endpoint.NewServer(e.context,
 		spiffejwt.TokenGeneratorFunc(e.source, e.config.MaxTokenLifetime),
-		additionalFunctionality...)
+		endpoint.WithName(e.config.Name),
+		endpoint.WithAuthorizeServer(authorize.NewServer()),
+		endpoint.WithAdditionalFunctionality(additionalFunctionality...))
 
 	options := append(
 		opentracing.WithTracing(),
@@ -68,7 +67,7 @@ func (e *Endpoint) Start(additionalFunctionality ...networkservice.NetworkServic
 	e.listenOn = &(url.URL{Scheme: "unix", Path: filepath.Join(e.tmpDir, "listen.on")})
 	srvErrCh := grpcutils.ListenAndServe(e.context, e.listenOn, server)
 	go e.errorHandler(srvErrCh)
-	logrus.Infof("grpc server started")
+	logrus.Infof("Endpoint: grpc server started")
 
 	return e.register()
 }
@@ -100,10 +99,11 @@ func (e *Endpoint) setSource() error {
 }
 
 func (e *Endpoint) register() error {
-	_, err := e.networkServiceRegistryClient.Register(context.Background(), &registryapi.NetworkService{
+	networkService, err := e.networkServiceRegistryClient.Register(context.Background(), &registryapi.NetworkService{
 		Name:    e.config.ServiceName,
-		Payload: payload.IP,
+		Payload: payload.Ethernet,
 	})
+	logrus.Infof("Endpoint: ns: %+v", networkService)
 
 	if err != nil {
 		return errors.Wrap(err, "Error register network service")
@@ -119,7 +119,7 @@ func (e *Endpoint) register() error {
 		},
 		Url: e.listenOn.String(),
 	})
-	logrus.Infof("nse: %+v", nse)
+	logrus.Infof("Endpoint: nse: %+v", nse)
 
 	return err
 }

@@ -45,7 +45,7 @@ type APIClient struct {
 
 // Find -
 func (apiClient *APIClient) Find(networkServiceEndpointQuery *registry.NetworkServiceEndpointQuery) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	return apiClient.NetworkServiceEndpointRegistryClient.Find(apiClient.context, networkServiceEndpointQuery)
+	return apiClient.NetworkServiceEndpointRegistryClient.Find(context.Background(), networkServiceEndpointQuery)
 }
 
 // Request -
