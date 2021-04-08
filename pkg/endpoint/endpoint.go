@@ -129,7 +129,7 @@ func NewEndpoint(
 	context context.Context,
 	config *Config,
 	networkServiceRegistryClient registryapi.NetworkServiceRegistryClient,
-	networkServiceEndpointRegistryClient registryapi.NetworkServiceEndpointRegistryClient) *Endpoint {
+	networkServiceEndpointRegistryClient registryapi.NetworkServiceEndpointRegistryClient) (*Endpoint, error) {
 
 	endpoint := &Endpoint{
 		context:                              context,
@@ -138,7 +138,10 @@ func NewEndpoint(
 		networkServiceEndpointRegistryClient: networkServiceEndpointRegistryClient,
 	}
 
-	endpoint.setSource()
+	err := endpoint.setSource()
+	if err != nil {
+		return nil, errors.Wrap(err, "Error register network service")
+	}
 
-	return endpoint
+	return endpoint, nil
 }

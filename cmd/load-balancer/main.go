@@ -85,7 +85,10 @@ func main() {
 		Labels:           config.Labels,
 		MaxTokenLifetime: config.MaxTokenLifetime,
 	}
-	ep := endpoint.NewEndpoint(ctx, endpointConfig, nsmAPIClient.NetworkServiceRegistryClient, nsmAPIClient.NetworkServiceEndpointRegistryClient)
+	ep, err := endpoint.NewEndpoint(ctx, endpointConfig, nsmAPIClient.NetworkServiceRegistryClient, nsmAPIClient.NetworkServiceEndpointRegistryClient)
+	if err != nil {
+		logrus.Fatalf("unable to create a new nse %+v", err)
+	}
 
 	err = ep.Start(responderEndpoint...)
 	if err != nil {

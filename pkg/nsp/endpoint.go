@@ -36,7 +36,7 @@ func (nspe *NSPEndpoint) Close(ctx context.Context, conn *networkservice.Connect
 	if conn.GetContext() != nil && conn.GetContext().GetIpContext() != nil {
 		ip := conn.GetContext().GetIpContext().GetSrcIpAddr()
 		err := nspe.networkServicePlateformClient.Unregister(ip)
-		logrus.Infof("NSPEndpoint: Unregister ip: ", ip, err)
+		logrus.Infof("NSPEndpoint: Unregister ip: %v %v", ip, err)
 	}
 	return next.Server(ctx).Close(ctx, conn)
 }

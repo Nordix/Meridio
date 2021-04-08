@@ -84,7 +84,7 @@ func (m *Monitor) endpointAdded(networkServiceEndpoint *registry.NetworkServiceE
 func (m *Monitor) endpointRemoved(networkServiceEndpoint *registry.NetworkServiceEndpoint) {
 	logrus.Infof("Full Mesh Client Monitor (%v): event delete: %v", m.networkServiceName, networkServiceEndpoint.Name)
 	networkServiceClient, exists := m.networkServiceClients[networkServiceEndpoint.Name]
-	if exists == false {
+	if !exists {
 		return
 	}
 	// todo

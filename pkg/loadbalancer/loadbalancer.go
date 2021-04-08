@@ -41,8 +41,12 @@ func (lb *LoadBalancer) AddTarget(target *Target) error {
 	}
 	err = lb.activateIdentifier(target.identifier)
 	if err != nil {
-		fwMark.Delete()
-		return fmt.Errorf("%w; activateIdentifier: %v", err, target.identifier)
+		returnErr := err
+		err := fwMark.Delete()
+		if err != nil {
+			return fmt.Errorf("%w; activateIdentifier fwMark.Delete: %v", err, target.identifier)
+		}
+		return fmt.Errorf("%w; activateIdentifier: %v", returnErr, target.identifier)
 	}
 	lb.targets[target.identifier] = &configuredTarget{
 		target: target,
