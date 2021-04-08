@@ -1,5 +1,7 @@
 # Meridio
 
+[Demo instructions](https://github.com/Nordix/Meridio/tree/master/docs/demo/)
+
 List of projects:
 1. ctraffic
 2. ipam
@@ -45,4 +47,9 @@ make proto
 Check code
 ```
 make check
+```
+
+Deploy
+```
+helm install deployments/helm/ --generate-name
 ```

@@ -43,8 +43,12 @@ func NewFWMarkRoute(ip *netlink.Addr, fwmark int, tableID int) (*FWMarkRoute, er
 	}
 	err := fwMarkRoute.configure()
 	if err != nil {
-		fwMarkRoute.Delete()
-		return nil, err
+		returnErr := err
+		err := fwMarkRoute.Delete()
+		if err != nil {
+			return nil, err
+		}
+		return nil, returnErr
 	}
 	return fwMarkRoute, nil
 }

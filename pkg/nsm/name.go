@@ -7,7 +7,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
@@ -29,7 +29,7 @@ func (ine *InterfaceNameEndpoint) Request(ctx context.Context, request *networks
 	// TODO name generation
 	randomID := rand.Intn(1000)
 	interfaceName := "nse" + strconv.Itoa(randomID)
-	request.GetConnection().GetMechanism().GetParameters()[kernel.InterfaceNameKey] = interfaceName
+	request.GetConnection().GetMechanism().GetParameters()[common.InterfaceNameKey] = interfaceName
 
 	return next.Server(ctx).Request(ctx, request)
 }

@@ -3,7 +3,6 @@ package client
 import (
 	"fmt"
 	"math/rand"
-	"net/url"
 	"strconv"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/vishvananda/netlink"
 
@@ -56,11 +56,11 @@ func (nsc *NetworkServiceClient) Request() {
 // Close -
 func (nsc *NetworkServiceClient) Close() {
 	nsc.advertiseInterfaceDeletion()
-	var err error
-	_, err = nsc.nsmgrClient.Close(nsc.Connection)
-	if err != nil {
-		logrus.Errorf("Network Service Client: Close err: %v", err)
-	}
+	// var err error
+	// _, err = nsc.nsmgrClient.Close(nsc.Connection)
+	// if err != nil {
+	// 	logrus.Errorf("Network Service Client: Close err: %v", err)
+	// }
 }
 
 func (nsc *NetworkServiceClient) setIntf() {
@@ -125,7 +125,6 @@ func (nsc *NetworkServiceClient) prepareRequest() *networkservice.NetworkService
 		Cls:  cls.LOCAL,
 		Type: kernel.MECHANISM,
 		Parameters: map[string]string{
-			kernel.NetNSURL:         (&url.URL{Scheme: "file", Path: "/proc/thread-self/ns/net"}).String(),
 			kernel.InterfaceNameKey: nsc.InterfaceName,
 		},
 	}
@@ -136,6 +135,7 @@ func (nsc *NetworkServiceClient) prepareRequest() *networkservice.NetworkService
 			NetworkService:             nsc.NetworkServiceName,
 			Labels:                     nsc.Labels,
 			NetworkServiceEndpointName: nsc.NetworkServiceEndpointName,
+			Payload:                    payload.Ethernet,
 			Context: &networkservice.ConnectionContext{
 				IpContext:    nsc.prepareIpContext(),
 				ExtraContext: nsc.ExtraContext,

@@ -124,9 +124,12 @@ func startNSE(ctx context.Context,
 		sendfd.NewServer(),
 	}
 
-	ep := endpoint.NewEndpoint(ctx, config, nsmAPIClient.NetworkServiceRegistryClient, nsmAPIClient.NetworkServiceEndpointRegistryClient)
+	ep, err := endpoint.NewEndpoint(ctx, config, nsmAPIClient.NetworkServiceRegistryClient, nsmAPIClient.NetworkServiceEndpointRegistryClient)
+	if err != nil {
+		logrus.Fatalf("unable to create a new nse %+v", err)
+	}
 
-	err := ep.Start(responderEndpoint...)
+	err = ep.Start(responderEndpoint...)
 	if err != nil {
 		logrus.Errorf("unable to start nse %+v", err)
 	}
