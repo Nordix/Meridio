@@ -40,7 +40,7 @@ spec:
             - name: NSM_SERVICE_NAME
               value: load-balancer
             - name: NSM_VIP
-              value: {{ .Values.vip }}
+              value: {{ template "meridio.vip" . }}
             - name: NSM_NSP_SERVICE
               value: nsp-service:{{ .Values.nspTargetPort }}
           volumeMounts:

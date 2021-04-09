@@ -39,9 +39,11 @@ spec:
             - name: NSM_SERVICE_NAME
               value: proxy
             - name: NSM_VIP
-              value: {{ .Values.vip }}
+              value: {{ template "meridio.vip" . }}
             - name: NSM_SUBNET_POOL
-              value: {{ .Values.SubnetPool }}
+              value: {{ template "meridio.subnetPool" . }}
+            - name: NSM_SUBNET_PREFIX_LENGTH
+              value: {{ template "meridio.subnetPrefixLength" . }}
             - name: NSM_IPAM_SERVICE
               value: ipam-service:{{ .Values.ipamTargetPort }}
             - name: NSM_NETWORK_SERVICE_NAME

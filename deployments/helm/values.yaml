@@ -27,5 +27,13 @@ nspVersion: latest
 nspPort: 7778
 nspTargetPort: 7778
 
-vip: 20.0.0.1/32
-SubnetPool: 172.16.0.0/16
+ipFamily: ipv4
+
+vipIPv4: 20.0.0.1/32
+vipIPv6: 2000::1/128
+
+subnetPoolIPv4: 172.16.0.0/16
+subnetPoolIPv6: fd00::/48
+
+subnetPrefixLengthIPv4: 24
+subnetPrefixLengthIPv6: 64
