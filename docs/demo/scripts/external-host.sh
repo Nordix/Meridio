@@ -13,6 +13,9 @@ docker exec -it ubuntu-ext gunzip ctraffic.gz
 docker exec -it ubuntu-ext chmod u+x ctraffic
 docker exec -it ubuntu-ext mv ctraffic /usr/bin/
 
+docker exec -it ubuntu-ext sysctl -w net.ipv4.fib_multipath_hash_policy=1
+docker exec -it ubuntu-ext sysctl -w net.ipv6.fib_multipath_hash_policy=1
+
 vlan_id="1500"
 parent_if_name="eth0"
 vlan_if_name="vxlan-ext"
