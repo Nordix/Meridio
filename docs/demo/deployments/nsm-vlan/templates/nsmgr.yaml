@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: nsmgr
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.nsmgrImage }}:latest
+          image: registry.nordix.org/cloud-native/nsm/cmd-nsmgr:fwsel0
           imagePullPolicy: {{ .Values.pullPolicy }}
           ports:
             - containerPort: 5001
