@@ -37,7 +37,7 @@ do
     docker exec -it ubuntu-ext ip addr add $ip6 dev $if_name
     docker exec -it ubuntu-ext ip link set $if_name up
 
-    echo "if name: $if_name ; vni: $vni ; ip: $ip"
+    echo "if name: $if_name ; vni: $vni ; ip: $ip ; ipv6: $ip6"
 done
 
 docker exec -it ubuntu-ext ip route replace 20.0.0.1/32 nexthop via 192.168.1.1 nexthop via 192.168.2.1

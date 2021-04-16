@@ -128,7 +128,7 @@ func (nsc *NetworkServiceClient) prepareRequest() *networkservice.NetworkService
 			kernel.InterfaceNameKey: nsc.InterfaceName,
 		},
 	}
-
+	nsc.Labels["forwarder"] = "forwarder-vpp"
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id:                         nsc.Id,

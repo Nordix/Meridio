@@ -27,6 +27,10 @@ nspVersion: latest
 nspPort: 7778
 nspTargetPort: 7778
 
+# vlanNSEImage: vlan-nse
+vlanNSEImage: cmd-nse-icmp-responder
+vlanNSEVersion: latest
+
 ipFamily: ipv4
 
 vipIPv4: 20.0.0.1/32

@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: nse
-          image: registry.nordix.org/cloud-native/nsm/cmd-nse-icmp-responder:latest
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.vlanNSEImage }}:{{ .Values.vlanNSEVersion }}
           imagePullPolicy: IfNotPresent
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
