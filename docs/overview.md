@@ -15,21 +15,21 @@
 
 The load balancer is using a user space [Maglev](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/44824.pdf) implementation to load balance traffic among multiple targets.
 
-On Start, the load balancer is subscribing to events to the NSP Service to get notifications on target registration / unregistration in order to update the identifiers in the [lb program](https://github.com/Nordix/Meridio/tree/master/third_party/lb), the IP rules and the IP routes.
+At Start, the load balancer is subscribing to events from the NSP Service to get notifications about target registration / unregistration in order to update the identifiers in the [lb program](https://github.com/Nordix/Meridio/tree/master/third_party/lb), the IP rules and the IP routes.
 
-Since the [lb program](https://github.com/Nordix/Meridio/tree/master/third_party/lb) is running on the user space, iptables together with nfqueue are used to bring traffic from kernel space to user space. The [lb program](https://github.com/Nordix/Meridio/tree/master/third_party/lb) will then add a forwarding mark on the traffic based on [Maglev](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/44824.pdf) and registered identifiers, and will return the traffic to the kernel space. Using the forwarding mark, IP rules and IP routes, the traffic will be forwarded to a right target.
+Since the [lb program](https://github.com/Nordix/Meridio/tree/master/third_party/lb) is running in user space, iptables together with nfqueue are used to bring traffic from kernel space to user space. The [lb program](https://github.com/Nordix/Meridio/tree/master/third_party/lb) will then add a forwarding mark on the traffic based on [Maglev](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/44824.pdf) and according to the registered target identifiers, and will return the traffic to the kernel space. Using the forwarding mark, IP rules and IP routes, the traffic will be forwarded to the selected target.
 
 ### Proxy
 
-The proxy allows targets (e.g. TCP application) to be connected to multiple network service instances (e.g. load-balancer) on Network Service Mesh.
+The proxy allows targets (e.g. TCP application) to be connected to multiple network service instances (e.g. load-balancer) via Network Service Mesh.
 
-For the traffic flow, this component is used as a bridge for the traffic coming from the services (load-balancer) and as a gateway for the traffic coming from the targets (application). To allow this, all NSM network interfaces are connected to a bridge. In addition, source based routes (with the VIP as source IP) are created to load balancer the egress traffic among the network service instances (load balancer instances).
+For the different traffic flows, this component is used as a bridge for the traffic coming from the services (load-balancer) and as a gateway for the traffic coming from the targets (application). To allow this, all NSM network interfaces are connected to a bridge. In addition, source based routes (with the VIP as source IP) are created to distribute the egress traffic among the network service instances (load balancer instances).
 
-When started, the proxy requests a subnet to the IPAM Service, so each proxy instance will own a subnet. In addition, the proxy subscribes to network service instances events (Creation / Deletion of instances) using the NSM API in order to always be connected to all network service instances (load balancer instances).
+When started, the proxy requests a subnet from the IPAM Service, so each proxy instance will own a subnet. In addition, the proxy subscribes to network service instances events (Creation / Deletion of instances) using the NSM API in order to always be connected to all network service instances (load balancer instances).
 
-Used as a NSE for the target and NSC for the network services (load balancer), the proxy is consuming the IPAM Service to generate IPs in the associated subnet for all requests: incoming requests as NSE from targets and sent requests as NSC to connect to the network service instances and create a full mesh.
+Used as a NSE for the target and NSC for the network services (load balancer), the proxy is utilizing a local IPAM to generate IPs in the associated subnet for all requests: incoming requests as NSE from targets and sent requests as NSC to connect to the network service instances and create a full mesh.
 
-Since the proxy receives the target identifiers and IPs included in requests and closes (not supported yet) calls from the targets, the proxy can then register or unregister the targets using the NSP service.
+Since the proxy receives the target identifiers and IPs included in requests and closes (not supported yet) calls from the targets, the proxy can register or unregister the targets at the NSP service.
 
 ### Target
 
