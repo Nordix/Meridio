@@ -1,6 +1,6 @@
 ---
 apiVersion: apps/v1
-kind: DaemonSet
+kind: Deployment
 metadata:
   name: load-balancer
   labels:
@@ -9,11 +9,22 @@ spec:
   selector:
     matchLabels:
       app: load-balancer
+  replicas: 4
   template:
     metadata:
       labels:
         app: load-balancer
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - "load-balancer"
+            topologyKey: kubernetes.io/hostname
       initContainers:
         - name: sysctl-init
           image: {{ .Values.registry }}/{{ .Values.organization }}/busybox:1.29

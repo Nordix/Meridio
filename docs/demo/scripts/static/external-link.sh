@@ -11,10 +11,18 @@ attach_load_balancers () {
 
     pods=($(kubectl get pods --sort-by=.metadata.creationTimestamp --selector=app=$app_name --no-headers | awk '{print $1}'))
     hosts=($(kubectl get pods --sort-by=.metadata.creationTimestamp --selector=app=$app_name --no-headers -o wide | awk '{print $7}'))
+    states=($(kubectl get pods --sort-by=.metadata.creationTimestamp --selector=app=$app_name --no-headers -o wide | awk '{print $3}'))
     for index in ${!pods[@]}
     do
         pod=${pods[index]}
         host=${hosts[index]}
+        state=${states[index]}
+
+        if [ $state != "Running" ]
+        then
+            continue
+        fi
+
         echo "Setting link: $pod - $host";
 
         if $(kubectl exec $pod -- ip a | grep -q "192.168.")
