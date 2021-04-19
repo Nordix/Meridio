@@ -1,6 +1,6 @@
 ---
 apiVersion: apps/v1
-kind: Deployment
+kind: DaemonSet
 metadata:
   name: load-balancer
   labels:
@@ -9,7 +9,6 @@ spec:
   selector:
     matchLabels:
       app: load-balancer
-  replicas: 2
   template:
     metadata:
       labels:
@@ -23,7 +22,7 @@ spec:
           command: ["/bin/sh"]
           args:
             - -c
-            - sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv4.conf.all.forwarding=1
+            - sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1
       containers:
         - name: load-balancer
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.loadBalancerImage }}:{{ .Values.loadBalancerVersion }}
@@ -40,7 +39,7 @@ spec:
             - name: NSM_SERVICE_NAME
               value: load-balancer
             - name: NSM_VIP
-              value: {{ .Values.vip }}
+              value: {{ template "meridio.vip" . }}
             - name: NSM_NSP_SERVICE
               value: nsp-service:{{ .Values.nspTargetPort }}
           volumeMounts:
@@ -52,6 +51,29 @@ spec:
               readOnly: false
           securityContext:
             privileged: true
+        - name: nsc
+          image: registry.nordix.org/cloud-native/nsm/cmd-nsc:latest
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NSM_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NSM_NETWORK_SERVICES
+              value: kernel://external-vlan/ext-vlan?forwarder=forwarder-kernel
+            - name: NSM_DIAL_TIMEOUT
+              value: "30s"
+            - name: NSM_REQUEST_TIMEOUT
+              value: "300s"
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: nsm-socket
+              mountPath: /var/lib/networkservicemesh
+              readOnly: true
       volumes:
         - name: spire-agent-socket
           hostPath:

@@ -23,6 +23,10 @@ Configure Spire
 
 Deploy NSM
 ```
+# VLAN as external connectivity
+helm install docs/demo/deployments/nsm-vlan/ --generate-name
+
+# Static script as external connectivity
 helm install docs/demo/deployments/nsm/ --generate-name
 ```
 
@@ -30,24 +34,31 @@ helm install docs/demo/deployments/nsm/ --generate-name
 
 Install Meridio
 ```
+# ipv4
 helm install deployments/helm/ --generate-name
+# ipv6
+helm install deployments/helm/ --generate-name --set ipFamily=ipv6 
 ```
 
-### Demo environment
+### External host / External connectivity
+
+#### VLAN
 
 Deploy a external host
 ```
-./docs/demo/scripts/external-host.sh
+./docs/demo/scripts/vlan/external-host.sh
 ```
 
-Add Routes to the load balancer service
+#### Static
+
+Deploy a external host
 ```
-docker exec -it ubuntu-ext ip route replace 20.0.0.1/32 nexthop via 192.168.1.1 nexthop via 192.168.2.1
+./docs/demo/scripts/static/external-host.sh
 ```
 
 Attach LBs to the external host
 ```
-./docs/demo/scripts/external-link.sh
+./docs/demo/scripts/static/external-link.sh
 ```
 
 ## Traffic
@@ -59,7 +70,10 @@ docker exec -it ubuntu-ext bash
 
 Generate traffic
 ```
+# ipv4
 ctraffic -address 20.0.0.1:5000 -nconn 400 -rate 100 -monitor -stats all > v4traffic.json
+# ipv6
+ctraffic -address [2000::1]:5000 -nconn 400 -rate 100 -monitor -stats all > v4traffic.json
 ```
 
 Verification
@@ -77,5 +91,11 @@ kubectl scale deployment target --replicas=5
 Scale-In/Scale-Out load-balancer
 ```
 kubectl scale deployment load-balancer --replicas=1
+
 # TODO: reconfigure links between the external host and the LBs
+
+# ipv4
+docker exec -it ubuntu-ext ip route replace 20.0.0.1/32 nexthop via 192.168.1.1 nexthop via 192.168.2.1
+# ipv6
+docker exec -it ubuntu-ext ip route replace 2000::1/128 nexthop via 1500:1::1 nexthop via 1500:2::1
 ```

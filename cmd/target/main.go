@@ -83,17 +83,27 @@ type SimpleTarget struct {
 
 // InterfaceCreated -
 func (st *SimpleTarget) InterfaceCreated(intf *networking.Interface) {
-	err := st.sourceBasedRoute.AddNexthop(intf.NeighborIPs[0])
+	if len(intf.Gateways) <= 0 {
+		logrus.Errorf("SimpleTarget: Adding nexthop: no gateway: %v", intf)
+		return
+	}
+	gateway := intf.Gateways[0]
+	err := st.sourceBasedRoute.AddNexthop(gateway)
 	if err != nil {
-		logrus.Errorf("SimpleTarget: Adding nexthop (%v) to source base route err: %v", intf.NeighborIPs[0], err)
+		logrus.Errorf("SimpleTarget: Adding nexthop (%v) to source base route err: %v", gateway, err)
 	}
 }
 
 // InterfaceDeleted -
 func (st *SimpleTarget) InterfaceDeleted(intf *networking.Interface) {
-	err := st.sourceBasedRoute.RemoveNexthop(intf.NeighborIPs[0])
+	if len(intf.Gateways) <= 0 {
+		logrus.Errorf("SimpleTarget: Removing nexthop: no gateway: %v", intf)
+		return
+	}
+	gateway := intf.Gateways[0]
+	err := st.sourceBasedRoute.RemoveNexthop(gateway)
 	if err != nil {
-		logrus.Errorf("SimpleTarget: Removing nexthop (%v) from source base route err: %v", intf.NeighborIPs[0], err)
+		logrus.Errorf("SimpleTarget: Removing nexthop (%v) from source base route err: %v", gateway, err)
 	}
 }
 

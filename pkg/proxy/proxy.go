@@ -116,10 +116,19 @@ func (p *Proxy) NewNSEIPContext() (*networkservice.IPContext, error) {
 
 	ipContext := &networkservice.IPContext{
 		// SrcIpAddr: srcIpAddr, // IP on the target
-		SrcIpAddr: srcIPAddr, // IP on the target
-		DstIpAddr: dstIPAddr, // IP on the NSE
+		SrcIpAddr:     srcIPAddr, // IP on the target
+		DstIpAddr:     dstIPAddr, // IP on the NSE
+		ExtraPrefixes: p.getBridgeRoutes(),
 	}
 	return ipContext, nil
+}
+
+func (p *Proxy) getBridgeRoutes() []string {
+	routes := []string{}
+	for _, ip := range p.bridge.LocalIPs {
+		routes = append(routes, ip.String())
+	}
+	return routes
 }
 
 func (p *Proxy) setBridgeIP() error {
@@ -131,6 +140,7 @@ func (p *Proxy) setBridgeIP() error {
 	if err != nil {
 		return err
 	}
+	p.bridge.LocalIPs = append(p.bridge.LocalIPs, ip)
 	return nil
 }
 

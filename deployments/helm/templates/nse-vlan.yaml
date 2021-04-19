@@ -1,47 +1,43 @@
 ---
 apiVersion: apps/v1
-kind: DaemonSet
+kind: Deployment
 metadata:
-  name: nsmgr
+  name: nse-vlan
   labels:
-    app: nsmgr
+    app: nse-vlan
 spec:
   selector:
     matchLabels:
-      app: nsmgr
+      app: nse-vlan
   template:
     metadata:
       labels:
-        app: nsmgr
+        app: nse-vlan
     spec:
       containers:
-        - name: nsmgr
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.nsmgrImage }}:latest
-          imagePullPolicy: {{ .Values.pullPolicy }}
-          ports:
-            - containerPort: 5001
-              hostPort: 5001
+        - name: nse
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.vlanNSEImage }}:{{ .Values.vlanNSEVersion }}
+          imagePullPolicy: IfNotPresent
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
-            - name: NSM_NAME
+            - name: NSE_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: NSM_REGISTRY_URL
-              value: "nsm-registry-svc:5002"
-            - name: POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-            - name: NSM_LISTEN_ON
-              value: unix:///var/lib/networkservicemesh/nsm.io.sock,tcp://:5001
+            - name: NSE_CONNECT_TO
+              value: unix:///var/lib/networkservicemesh/nsm.io.sock
+            - name: NSE_SERVICE_NAME
+              value: external-vlan
+            - name: NSE_CIDR_PREFIX
+              value: {{ template "meridio.vlanPrefix" . }}
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
               readOnly: true
             - name: nsm-socket
               mountPath: /var/lib/networkservicemesh
+              readOnly: false
       volumes:
         - name: spire-agent-socket
           hostPath:

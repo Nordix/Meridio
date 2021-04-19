@@ -86,7 +86,7 @@ func getProxySubnet(config Config) (*netlink.Addr, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "Error creating new ipam client")
 	}
-	proxySubnet, err := ipamClient.AllocateSubnet(subnetPool, 24)
+	proxySubnet, err := ipamClient.AllocateSubnet(subnetPool, config.SubnetPrefixLength)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error AllocateSubnet")
 	}

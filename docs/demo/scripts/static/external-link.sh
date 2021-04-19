@@ -28,14 +28,17 @@ attach_load_balancers () {
             vni=$((vlan_id + id))
             if_name="${vlan_if_name}-${id}"
             ip="192.168.${id}.1/24"
+            ip6="1500:${id}::1/64"
 
-            echo "ns: $pod_ns_name ; pod if name: $if_name ; vni: $vni ; ip: $ip"
+            echo "ns: $pod_ns_name ; pod if name: $if_name ; vni: $vni ; ip: $ip ; ipv6: $ip6"
 
             docker exec -it $host ip link add $if_name type vxlan id $vni group 239.1.$id.1 dev $parent_if_name dstport 4789
             docker exec -it $host ip link set $if_name netns $pod_ns_name
-            kubectl exec $pod -- ip link set $if_name up
-            kubectl exec $pod -- ip addr add $ip dev $if_name
-            kubectl exec $pod -- ip route add 192.168.0.0/16 dev $if_name
+            kubectl exec $pod -c load-balancer -- ip link set $if_name up
+            kubectl exec $pod -c load-balancer -- ip addr add $ip dev $if_name
+            kubectl exec $pod -c load-balancer -- ip addr add $ip6 dev $if_name
+            kubectl exec $pod -c load-balancer -- ip route add 192.168.0.0/16 dev $if_name
+            kubectl exec $pod -c load-balancer -- ip -6 route add 1500::0/16 dev $if_name
         fi
     done
 }

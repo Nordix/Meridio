@@ -190,7 +190,7 @@ func (sns *SimpleNetworkService) InterfaceCreated(intf *networking.Interface) {
 				logrus.Errorf("SimpleNetworkService: parseLoadBalancerTarget err: %v", err)
 				continue
 			}
-			if !intf.LocalIPs[0].Contains(lbTarget.GetIP().IP) {
+			if len(intf.LocalIPs) >= 1 && !intf.LocalIPs[0].Contains(lbTarget.GetIP().IP) {
 				continue
 			}
 			if !sns.loadbalancer.TargetExists(lbTarget) {

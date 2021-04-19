@@ -16,6 +16,7 @@ type Config struct {
 	MaxTokenLifetime   time.Duration `default:"24h" desc:"maximum lifetime of tokens" split_words:"true"`
 	VIP                string        `default:"20.0.0.1/32" desc:"Virtual IP address" split_words:"true"`
 	SubnetPool         string        `default:"169.255.0.0/16" desc:"SubnetPool from which the proxy subnet will be allocated" split_words:"true"`
+	SubnetPrefixLength int           `default:"24" desc:"Subnet prefix length which will be allocated" split_words:"true"`
 	IPAMService        string        `default:"ipam-service:7777" desc:"IP (or domain) and port of the IPAM Service" split_words:"true"`
 	Host               string        `default:"" desc:"Host name the proxy is running on" split_words:"true"`
 	NetworkServiceName string        `default:"load-balancer" desc:"Name of the network service the proxy request the connection" split_words:"true"`

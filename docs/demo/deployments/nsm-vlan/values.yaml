@@ -1,0 +1,17 @@
+---
+# Default values for nsm.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+tag: latest
+pullPolicy: IfNotPresent
+
+# registry: docker.pkg.github.com
+# organization: networkservicemesh
+
+registry: registry.nordix.org
+organization: cloud-native/nsm
+
+forwarderVPPImage: cmd-forwarder-vpp
+registryMemoryImage: cmd-registry-memory
+nsmgrImage: cmd-nsmgr
