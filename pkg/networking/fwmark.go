@@ -15,6 +15,7 @@ type FWMarkRoute struct {
 func (fwmr *FWMarkRoute) Delete() error {
 	rule := netlink.NewRule()
 	rule.Table = fwmr.tableID
+	rule.Family = fwmr.family()
 	return netlink.RuleDel(rule)
 }
 
@@ -22,6 +23,7 @@ func (fwmr *FWMarkRoute) configure() error {
 	rule := netlink.NewRule()
 	rule.Table = fwmr.tableID
 	rule.Mark = fwmr.fwmark
+	rule.Family = fwmr.family()
 	err := netlink.RuleAdd(rule)
 	if err != nil {
 		return err
@@ -32,6 +34,13 @@ func (fwmr *FWMarkRoute) configure() error {
 		Table: fwmr.tableID,
 	}
 	return netlink.RouteAdd(route)
+}
+
+func (fwmr *FWMarkRoute) family() int {
+	if fwmr.ip.IP.To4() != nil {
+		return netlink.FAMILY_V4
+	}
+	return netlink.FAMILY_V6
 }
 
 // NewFWMarkRoute -

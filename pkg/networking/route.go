@@ -20,6 +20,7 @@ func (sbr *SourceBasedRoute) create() error {
 		IP:   sbr.vip.IP,
 		Mask: sbr.vip.Mask,
 	}
+	rule.Family = sbr.family()
 	return netlink.RuleAdd(rule)
 }
 
@@ -30,9 +31,13 @@ func (sbr *SourceBasedRoute) updateRoute() error {
 			Gw: nexthop.IP,
 		})
 	}
+	src := net.IPv4(0, 0, 0, 0)
+	if sbr.family() == netlink.FAMILY_V6 {
+		src = net.ParseIP("::")
+	}
 	route := &netlink.Route{
 		Table:     sbr.tableID,
-		Src:       net.IPv4(0, 0, 0, 0),
+		Src:       src,
 		MultiPath: nexthops,
 	}
 	return netlink.RouteReplace(route)
@@ -52,6 +57,13 @@ func (sbr *SourceBasedRoute) RemoveNexthop(nexthop *netlink.Addr) error {
 		}
 	}
 	return sbr.updateRoute()
+}
+
+func (sbr *SourceBasedRoute) family() int {
+	if sbr.vip.IP.To4() != nil {
+		return netlink.FAMILY_V4
+	}
+	return netlink.FAMILY_V6
 }
 
 // NewSourceBasedRoute -

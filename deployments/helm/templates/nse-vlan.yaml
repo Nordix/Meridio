@@ -29,6 +29,8 @@ spec:
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSE_SERVICE_NAME
               value: external-vlan
+            - name: NSE_CIDR_PREFIX
+              value: {{ template "meridio.vlanPrefix" . }}
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

@@ -41,3 +41,6 @@ subnetPoolIPv6: fd00::/48
 
 subnetPrefixLengthIPv4: 24
 subnetPrefixLengthIPv6: 64
+
+vlanIPv4Prefix: 169.254.0.0/24
+vlanIPv6Prefix: 100::/64

@@ -13,7 +13,8 @@ type NFQueue struct {
 }
 
 func (nfq *NFQueue) configure() error {
-	ipTablesCmd := exec.Command("iptables",
+	iptables := nfq.iptables()
+	ipTablesCmd := exec.Command(iptables,
 		"-t",
 		"mangle",
 		"-A",
@@ -26,6 +27,13 @@ func (nfq *NFQueue) configure() error {
 		strconv.Itoa(nfq.queueNum))
 	_, err := ipTablesCmd.Output()
 	return err
+}
+
+func (nfq *NFQueue) iptables() string {
+	if nfq.ip.IP.To4() != nil {
+		return "iptables"
+	}
+	return "ip6tables"
 }
 
 func NewNFQueue(ip *netlink.Addr, queueNum int) (*NFQueue, error) {

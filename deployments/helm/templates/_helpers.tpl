@@ -27,3 +27,10 @@ Set IP Family
 {{- end -}}
 {{- end -}}
 
+{{- define "meridio.vlanPrefix" -}}
+{{- if eq .Values.ipFamily "ipv6" -}}
+{{- .Values.vlanIPv6Prefix | quote -}}
+{{- else -}}
+{{- .Values.vlanIPv4Prefix | quote -}}
+{{- end -}}
+{{- end -}}
