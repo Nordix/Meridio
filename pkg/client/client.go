@@ -71,6 +71,7 @@ func (nsc *NetworkServiceClient) setIntf() {
 
 	localIPs := []*netlink.Addr{}
 	neighborIPs := []*netlink.Addr{}
+	gateways := []*netlink.Addr{}
 
 	ConnectionContext := nsc.Connection.GetContext()
 	if ConnectionContext != nil {
@@ -86,11 +87,19 @@ func (nsc *NetworkServiceClient) setIntf() {
 				logrus.Errorf("Network Service Client: err parsing neighbor IP: %v", err)
 			}
 			neighborIPs = []*netlink.Addr{neighborIP}
+			if len(IpContext.ExtraPrefixes) > 0 {
+				gateway, err := netlink.ParseAddr(IpContext.ExtraPrefixes[0])
+				if err != nil {
+					logrus.Errorf("Network Service Client: err parsing routes IP: %v", err)
+				}
+				gateways = []*netlink.Addr{gateway}
+			}
 		}
 	}
 
 	nsc.intf = networking.NewInterface(index, localIPs, neighborIPs)
 	nsc.intf.InteraceType = networking.NSC
+	nsc.intf.Gateways = gateways
 }
 
 func (nsc *NetworkServiceClient) advertiseInterfaceCreation() {

@@ -17,6 +17,7 @@ type Interface struct {
 	index        int
 	LocalIPs     []*netlink.Addr
 	NeighborIPs  []*netlink.Addr
+	Gateways     []*netlink.Addr
 	InteraceType InteraceType
 }
 
