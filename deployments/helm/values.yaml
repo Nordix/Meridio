@@ -7,9 +7,11 @@ pullPolicy: IfNotPresent
 
 loadBalancerImage: load-balancer
 loadBalancerVersion: latest
+loadBalancerNetworkServiceName: load-balancer
 
 proxyImage: proxy
 proxyVersion: latest
+proxyNetworkServiceName: proxy
 
 targetImage: target
 targetVersion: latest

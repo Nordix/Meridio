@@ -34,3 +34,12 @@ Set IP Family
 {{- .Values.vlanIPv4Prefix | quote -}}
 {{- end -}}
 {{- end -}}
+
+{{- define "meridio.proxyNetworkServiceName" -}}
+{{- printf "%s.%s" .Values.proxyNetworkServiceName .Release.Namespace -}}
+{{- end -}}
+
+{{- define "meridio.loadBalancerNetworkServiceName" -}}
+{{- printf "%s.%s" .Values.loadBalancerNetworkServiceName .Release.Namespace -}}
+{{- end -}}
+

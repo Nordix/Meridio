@@ -48,7 +48,7 @@ spec:
             - name: NSM_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
-              value: load-balancer
+              value: {{ template "meridio.loadBalancerNetworkServiceName" . }}
             - name: NSM_VIP
               value: {{ template "meridio.vip" . }}
             - name: NSM_NSP_SERVICE
