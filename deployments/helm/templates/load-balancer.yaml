@@ -9,7 +9,7 @@ spec:
   selector:
     matchLabels:
       app: load-balancer
-  replicas: 4
+  replicas: 2
   template:
     metadata:
       labels:
