@@ -66,5 +66,9 @@ default: load-balancer proxy target ipam nsp ctraffic
 lint: 
 	golangci-lint run ./...
 
+.PHONY: test
+test: 
+	go test ./...
+
 .PHONY: check
-check: lint
+check: lint test

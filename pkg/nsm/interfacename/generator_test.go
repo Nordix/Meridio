@@ -14,6 +14,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package interfacename contains code implementing NetworkServiceServer and NetworkServiceClient
-// to generate and set the name of the interface in the mechanism set in the connection
-package interfacename // import "github.com/nordix/meridio/pkg/nsm/interfacename"
+package interfacename_test
+
+import (
+	"testing"
+
+	"github.com/nordix/meridio/pkg/nsm/interfacename"
+	"github.com/stretchr/testify/assert"
+)
+
+func Test_Generate(t *testing.T) {
+	generator := &interfacename.RandomGenerator{}
+
+	stringGenerated := generator.Generate("", 10)
+	assert.NotEmpty(t, stringGenerated)
+	assert.LessOrEqual(t, len(stringGenerated), 10)
+
+	stringGenerated = generator.Generate("abc", 10)
+	assert.Contains(t, stringGenerated, "abc")
+	assert.LessOrEqual(t, len(stringGenerated), 10)
+}
