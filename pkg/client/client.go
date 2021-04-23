@@ -12,7 +12,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/nordix/meridio/pkg/networking"
-	"github.com/vishvananda/netlink"
+	nsm "github.com/nordix/meridio/pkg/nsm/utils"
 
 	"github.com/sirupsen/logrus"
 )
@@ -27,7 +27,7 @@ type NetworkServiceClient struct {
 	nsmgrClient                NSMgrClient
 	InterfaceName              string
 	InterfaceMonitorSubscriber networking.InterfaceMonitorSubscriber
-	intf                       *networking.Interface
+	intf                       networking.Iface
 	nscConnectionFactory       NSCConnectionFactory
 }
 
@@ -47,7 +47,10 @@ func (nsc *NetworkServiceClient) Request() {
 			logrus.Errorf("Network Service Client: Request err: %v", err)
 			continue
 		}
-		nsc.setIntf()
+		nsc.intf, err = nsm.ConvertConnectionToInterface(nsc.InterfaceName, nsc.Connection, networking.NSC)
+		if err != nil {
+			logrus.Errorf("Network Service Client: ConvertConnectionToInterface err: %v", err)
+		}
 		nsc.advertiseInterfaceCreation()
 		break
 	}
@@ -61,45 +64,6 @@ func (nsc *NetworkServiceClient) Close() {
 	// if err != nil {
 	// 	logrus.Errorf("Network Service Client: Close err: %v", err)
 	// }
-}
-
-func (nsc *NetworkServiceClient) setIntf() {
-	index, err := networking.GetIndexFromName(nsc.InterfaceName)
-	if err != nil {
-		logrus.Errorf("Network Service Client: GetIndexFromName err: %v", err)
-	}
-
-	localIPs := []*netlink.Addr{}
-	neighborIPs := []*netlink.Addr{}
-	gateways := []*netlink.Addr{}
-
-	ConnectionContext := nsc.Connection.GetContext()
-	if ConnectionContext != nil {
-		IpContext := ConnectionContext.GetIpContext()
-		if IpContext != nil {
-			localIP, err := netlink.ParseAddr(IpContext.SrcIpAddr)
-			if err != nil {
-				logrus.Errorf("Network Service Client: err parsing local IP: %v", err)
-			}
-			localIPs = []*netlink.Addr{localIP}
-			neighborIP, err := netlink.ParseAddr(IpContext.DstIpAddr)
-			if err != nil {
-				logrus.Errorf("Network Service Client: err parsing neighbor IP: %v", err)
-			}
-			neighborIPs = []*netlink.Addr{neighborIP}
-			if len(IpContext.ExtraPrefixes) > 0 {
-				gateway, err := netlink.ParseAddr(IpContext.ExtraPrefixes[0])
-				if err != nil {
-					logrus.Errorf("Network Service Client: err parsing routes IP: %v", err)
-				}
-				gateways = []*netlink.Addr{gateway}
-			}
-		}
-	}
-
-	nsc.intf = networking.NewInterface(index, localIPs, neighborIPs)
-	nsc.intf.InteraceType = networking.NSC
-	nsc.intf.Gateways = gateways
 }
 
 func (nsc *NetworkServiceClient) advertiseInterfaceCreation() {

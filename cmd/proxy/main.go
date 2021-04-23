@@ -16,8 +16,11 @@ import (
 	"github.com/nordix/meridio/pkg/client"
 	"github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/ipam"
+	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
+	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
+	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/nordix/meridio/pkg/proxy"
 	"github.com/pkg/errors"
@@ -43,20 +46,14 @@ func main() {
 		logrus.Fatalf("%v", err)
 	}
 
-	vip, _ := netlink.ParseAddr(config.VIP)
+	_, err = netlink.ParseAddr(config.VIP)
 	if err != nil {
 		logrus.Fatalf("Error Parsing the VIP: %v", err)
 	}
 
-	linkMonitor, err := networking.NewLinkMonitor()
-	if err != nil {
-		logrus.Fatalf("Error creating link monitor: %+v", err)
-	}
+	netUtils := &linuxKernel.KernelUtils{}
 
-	p := proxy.NewProxy(vip, proxySubnet)
-	interfaceMonitorEndpoint := nsm.NewInterfaceMonitorEndpoint(p)
-	proxyEndpoint := proxy.NewProxyEndpoint(p)
-	linkMonitor.Subscribe(interfaceMonitorEndpoint)
+	p := proxy.NewProxy(config.VIP, proxySubnet, netUtils)
 
 	apiClientConfig := &nsm.Config{
 		Name:             config.Name,
@@ -74,21 +71,21 @@ func main() {
 		ServiceName:      config.ServiceName,
 		MaxTokenLifetime: config.MaxTokenLifetime,
 	}
-	startNSE(ctx, endpointConfig, nsmAPIClient, proxyEndpoint, interfaceMonitorEndpoint, config.NSPService)
+	startNSE(ctx, endpointConfig, nsmAPIClient, p, netUtils, config.NSPService)
 }
 
-func getProxySubnet(config Config) (*netlink.Addr, error) {
-	subnetPool, err := netlink.ParseAddr(config.SubnetPool)
+func getProxySubnet(config Config) (string, error) {
+	_, err := netlink.ParseAddr(config.SubnetPool)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error Parsing subnet pool")
+		return "", errors.Wrap(err, "Error Parsing subnet pool")
 	}
 	ipamClient, err := ipam.NewIpamClient(config.IPAMService)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error creating new ipam client")
+		return "", errors.Wrap(err, "Error creating new ipam client")
 	}
-	proxySubnet, err := ipamClient.AllocateSubnet(subnetPool, config.SubnetPrefixLength)
+	proxySubnet, err := ipamClient.AllocateSubnet(config.SubnetPool, config.SubnetPrefixLength)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error AllocateSubnet")
+		return "", errors.Wrap(err, "Error AllocateSubnet")
 	}
 	return proxySubnet, nil
 }
@@ -107,9 +104,17 @@ func startNSC(nsmAPIClient *nsm.APIClient,
 func startNSE(ctx context.Context,
 	config *endpoint.Config,
 	nsmAPIClient *nsm.APIClient,
-	proxyEndpoint *proxy.ProxyEndpoint,
-	interfaceMonitorEndpoint *nsm.InterfaceMonitorEndpoint,
+	p *proxy.Proxy,
+	netUtils networking.Utils,
 	nspService string) {
+
+	linkMonitor, err := netUtils.NewLinkMonitor()
+	if err != nil {
+		logrus.Fatalf("Error creating link monitor: %+v", err)
+	}
+	interfaceMonitorEndpoint := interfacemonitor.NewServer(p, netUtils)
+	proxyEndpoint := proxy.NewProxyEndpoint(p)
+	linkMonitor.Subscribe(interfaceMonitorEndpoint)
 
 	responderEndpoint := []networkservice.NetworkServiceServer{
 		recvfd.NewServer(),
@@ -117,7 +122,7 @@ func startNSE(ctx context.Context,
 			kernelmech.MECHANISM: kernel.NewServer(),
 			noop.MECHANISM:       null.NewServer(),
 		}),
-		nsm.NewInterfaceNameEndpoint(),
+		interfacename.NewServer("nse", &interfacename.RandomGenerator{}),
 		proxyEndpoint,
 		interfaceMonitorEndpoint,
 		nsp.NewNSPEndpoint(nspService),

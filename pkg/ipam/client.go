@@ -13,21 +13,25 @@ type IpamClient struct {
 	ipamServiceClient ipamAPI.IpamServiceClient
 }
 
-func (ic *IpamClient) AllocateSubnet(subnetPool *netlink.Addr, prefixLength int) (*netlink.Addr, error) {
-	subnetPoolPrefixLength, _ := subnetPool.Mask.Size()
+func (ic *IpamClient) AllocateSubnet(subnetPool string, prefixLength int) (string, error) {
+	subnetPoolAddr, err := netlink.ParseAddr(subnetPool)
+	if err != nil {
+		return "", err
+	}
+	subnetPoolPrefixLength, _ := subnetPoolAddr.Mask.Size()
 	subnetRequest := &ipamAPI.SubnetRequest{
 		SubnetPool: &ipamAPI.Subnet{
-			Address:      subnetPool.IP.String(),
+			Address:      subnetPoolAddr.IP.String(),
 			PrefixLength: int32(subnetPoolPrefixLength),
 		},
 		PrefixLength: int32(prefixLength),
 	}
 	allocatedSubnet, err := ic.ipamServiceClient.Allocate(context.Background(), subnetRequest)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	allocatedSubnetCIDR := fmt.Sprintf("%s/%d", allocatedSubnet.Address, allocatedSubnet.PrefixLength)
-	return netlink.ParseAddr(allocatedSubnetCIDR)
+	return allocatedSubnetCIDR, nil
 }
 
 func (ic *IpamClient) connect(ipamServiceIPPort string) error {

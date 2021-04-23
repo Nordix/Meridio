@@ -22,20 +22,28 @@ func (ipam *Ipam) registerPrefix(prefix string) error {
 	return err
 }
 
-func (ipam *Ipam) AllocateSubnet(subnetPool *netlink.Addr, prefixLength int) (*netlink.Addr, error) {
-	err := ipam.registerPrefix(subnetPool.String())
+func (ipam *Ipam) AllocateSubnet(subnetPool string, prefixLength int) (string, error) {
+	_, err := netlink.ParseAddr(subnetPool)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	child, err := ipam.goIpam.AcquireChildPrefix(subnetPool.String(), uint8(prefixLength))
+	err = ipam.registerPrefix(subnetPool)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return netlink.ParseAddr(child.Cidr)
+	child, err := ipam.goIpam.AcquireChildPrefix(subnetPool, uint8(prefixLength))
+	if err != nil {
+		return "", err
+	}
+	return child.Cidr, nil
 }
 
-func (ipam *Ipam) ReleaseSubnet(subnet *netlink.Addr) error {
-	err := ipam.registerPrefix(subnet.String())
+func (ipam *Ipam) ReleaseSubnet(subnet string) error {
+	_, err := netlink.ParseAddr(subnet)
+	if err != nil {
+		return err
+	}
+	err = ipam.registerPrefix(subnet)
 	if err != nil {
 		return err
 	}
@@ -43,22 +51,30 @@ func (ipam *Ipam) ReleaseSubnet(subnet *netlink.Addr) error {
 	return nil
 }
 
-func (ipam *Ipam) AllocateIP(subnet *netlink.Addr) (*netlink.Addr, error) {
-	err := ipam.registerPrefix(subnet.String())
+func (ipam *Ipam) AllocateIP(subnet string) (string, error) {
+	netlinkSubnet, err := netlink.ParseAddr(subnet)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	ip, err := ipam.goIpam.AcquireIP(subnet.String())
+	err = ipam.registerPrefix(subnet)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	prefixLength, _ := subnet.Mask.Size()
+	ip, err := ipam.goIpam.AcquireIP(subnet)
+	if err != nil {
+		return "", err
+	}
+	prefixLength, _ := netlinkSubnet.Mask.Size()
 	ipCidr := fmt.Sprintf("%s/%s", ip.IP.String(), strconv.Itoa(prefixLength))
-	return netlink.ParseAddr(ipCidr)
+	return ipCidr, nil
 }
 
-func (ipam *Ipam) ReleaseIP(ip *netlink.Addr) error {
-	err := ipam.registerPrefix(ip.Network())
+func (ipam *Ipam) ReleaseIP(ip string) error {
+	Addr, err := netlink.ParseAddr(ip)
+	if err != nil {
+		return err
+	}
+	err = ipam.registerPrefix(Addr.Network())
 	if err != nil {
 		return err
 	}

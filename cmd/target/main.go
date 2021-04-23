@@ -9,6 +9,7 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/nordix/meridio/pkg/client"
+	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/sirupsen/logrus"
@@ -28,10 +29,12 @@ func main() {
 		logrus.Fatalf("%v", err)
 	}
 
-	vip, err := netlink.ParseAddr(config.VIP)
+	_, err = netlink.ParseAddr(config.VIP)
 	if err != nil {
 		logrus.Fatalf("Error Parsing the VIP: %v", err)
 	}
+
+	netUtils := &linuxKernel.KernelUtils{}
 
 	// nspClient, _ := nsp.NewNetworkServicePlateformClient(config.NSPService)
 	hostname, _ := os.Hostname()
@@ -40,7 +43,7 @@ func main() {
 	// 	networkServicePlateformClient: nspClient,
 	// 	identifier:                    identifier,
 	// }
-	st := NewSimpleTarget(identifier, vip)
+	st := NewSimpleTarget(identifier, config.VIP, netUtils)
 
 	apiClientConfig := &nsm.Config{
 		Name:             config.Name,
@@ -77,17 +80,17 @@ func Hash(s string, n int) int {
 // SimpleTarget -
 type SimpleTarget struct {
 	identifier       int
-	sourceBasedRoute *networking.SourceBasedRoute
-	vip              *netlink.Addr
+	sourceBasedRoute networking.SourceBasedRoute
+	vip              string
 }
 
 // InterfaceCreated -
-func (st *SimpleTarget) InterfaceCreated(intf *networking.Interface) {
-	if len(intf.Gateways) <= 0 {
+func (st *SimpleTarget) InterfaceCreated(intf networking.Iface) {
+	if len(intf.GetGatewayPrefixes()) <= 0 {
 		logrus.Errorf("SimpleTarget: Adding nexthop: no gateway: %v", intf)
 		return
 	}
-	gateway := intf.Gateways[0]
+	gateway := intf.GetGatewayPrefixes()[0]
 	err := st.sourceBasedRoute.AddNexthop(gateway)
 	if err != nil {
 		logrus.Errorf("SimpleTarget: Adding nexthop (%v) to source base route err: %v", gateway, err)
@@ -95,24 +98,24 @@ func (st *SimpleTarget) InterfaceCreated(intf *networking.Interface) {
 }
 
 // InterfaceDeleted -
-func (st *SimpleTarget) InterfaceDeleted(intf *networking.Interface) {
-	if len(intf.Gateways) <= 0 {
+func (st *SimpleTarget) InterfaceDeleted(intf networking.Iface) {
+	if len(intf.GetGatewayPrefixes()) <= 0 {
 		logrus.Errorf("SimpleTarget: Removing nexthop: no gateway: %v", intf)
 		return
 	}
-	gateway := intf.Gateways[0]
+	gateway := intf.GetGatewayPrefixes()[0]
 	err := st.sourceBasedRoute.RemoveNexthop(gateway)
 	if err != nil {
 		logrus.Errorf("SimpleTarget: Removing nexthop (%v) from source base route err: %v", gateway, err)
 	}
 }
 
-func NewSimpleTarget(identifier int, vip *netlink.Addr) *SimpleTarget {
-	sourceBasedRoute, err := networking.NewSourceBasedRoute(10, vip)
+func NewSimpleTarget(identifier int, vip string, netUtils networking.Utils) *SimpleTarget {
+	sourceBasedRoute, err := netUtils.NewSourceBasedRoute(10, vip)
 	if err != nil {
 		logrus.Errorf("SimpleTarget: NewSourceBasedRoute err: %v", err)
 	}
-	err = networking.AddVIP(vip)
+	err = netUtils.AddVIP(vip)
 	if err != nil {
 		logrus.Errorf("SimpleTarget: err AddVIP: %v", err)
 	}

@@ -1,4 +1,4 @@
-package networking
+package kernel
 
 import (
 	"os/exec"
@@ -10,6 +10,10 @@ import (
 type NFQueue struct {
 	ip       *netlink.Addr
 	queueNum int
+}
+
+func (nfq *NFQueue) Delete() error {
+	return nil
 }
 
 func (nfq *NFQueue) configure() error {
@@ -36,12 +40,16 @@ func (nfq *NFQueue) iptables() string {
 	return "ip6tables"
 }
 
-func NewNFQueue(ip *netlink.Addr, queueNum int) (*NFQueue, error) {
+func NewNFQueue(ip string, queueNum int) (*NFQueue, error) {
+	netlinkAddr, err := netlink.ParseAddr(ip)
+	if err != nil {
+		return nil, err
+	}
 	nfQueue := &NFQueue{
-		ip:       ip,
+		ip:       netlinkAddr,
 		queueNum: queueNum,
 	}
-	err := nfQueue.configure()
+	err = nfQueue.configure()
 	if err != nil {
 		return nil, err
 	}

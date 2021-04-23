@@ -1,4 +1,4 @@
-package networking
+package kernel
 
 import (
 	"github.com/vishvananda/netlink"
@@ -44,13 +44,17 @@ func (fwmr *FWMarkRoute) family() int {
 }
 
 // NewFWMarkRoute -
-func NewFWMarkRoute(ip *netlink.Addr, fwmark int, tableID int) (*FWMarkRoute, error) {
+func NewFWMarkRoute(ip string, fwmark int, tableID int) (*FWMarkRoute, error) {
+	netlinkAddr, err := netlink.ParseAddr(ip)
+	if err != nil {
+		return nil, err
+	}
 	fwMarkRoute := &FWMarkRoute{
-		ip:      ip,
+		ip:      netlinkAddr,
 		fwmark:  fwmark,
 		tableID: tableID,
 	}
-	err := fwMarkRoute.configure()
+	err = fwMarkRoute.configure()
 	if err != nil {
 		returnErr := err
 		err := fwMarkRoute.Delete()

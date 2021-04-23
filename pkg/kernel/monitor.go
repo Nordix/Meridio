@@ -1,8 +1,9 @@
-package networking
+package kernel
 
 import (
 	"syscall"
 
+	"github.com/nordix/meridio/pkg/networking"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
@@ -11,21 +12,16 @@ type InterfaceMonitor struct {
 	ch          chan netlink.LinkUpdate
 	done        chan struct{}
 	flush       chan struct{}
-	subscribers []InterfaceMonitorSubscriber
-}
-
-type InterfaceMonitorSubscriber interface {
-	InterfaceCreated(*Interface)
-	InterfaceDeleted(*Interface)
+	subscribers []networking.InterfaceMonitorSubscriber
 }
 
 // Subscribe -
-func (im *InterfaceMonitor) Subscribe(subscriber InterfaceMonitorSubscriber) {
+func (im *InterfaceMonitor) Subscribe(subscriber networking.InterfaceMonitorSubscriber) {
 	im.subscribers = append(im.subscribers, subscriber)
 }
 
 // UnSubscribe -
-func (im *InterfaceMonitor) UnSubscribe(subscriber InterfaceMonitorSubscriber) {
+func (im *InterfaceMonitor) UnSubscribe(subscriber networking.InterfaceMonitorSubscriber) {
 	for index, current := range im.subscribers {
 		if subscriber == current {
 			im.subscribers = append(im.subscribers[:index], im.subscribers[index+1:]...)
@@ -35,14 +31,14 @@ func (im *InterfaceMonitor) UnSubscribe(subscriber InterfaceMonitorSubscriber) {
 
 func (im *InterfaceMonitor) interfaceCreated(link netlink.Link) {
 	for _, subscriber := range im.subscribers {
-		intf := NewInterface(link.Attrs().Index, []*netlink.Addr{}, []*netlink.Addr{})
+		intf := NewInterface(link.Attrs().Index)
 		subscriber.InterfaceCreated(intf)
 	}
 }
 
 func (im *InterfaceMonitor) interfaceDeleted(link netlink.Link) {
 	for _, subscriber := range im.subscribers {
-		intf := NewInterface(link.Attrs().Index, []*netlink.Addr{}, []*netlink.Addr{})
+		intf := NewInterface(link.Attrs().Index)
 		subscriber.InterfaceDeleted(intf)
 	}
 }
