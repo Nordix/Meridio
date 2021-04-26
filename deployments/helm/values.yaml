@@ -29,10 +29,6 @@ nspVersion: latest
 nspPort: 7778
 nspTargetPort: 7778
 
-# vlanNSEImage: vlan-nse
-vlanNSEImage: cmd-nse-icmp-responder
-vlanNSEVersion: latest
-
 ipFamily: ipv4
 
 vipIPv4: 20.0.0.1/32
@@ -44,5 +40,11 @@ subnetPoolIPv6: fd00::/48
 subnetPrefixLengthIPv4: 24
 subnetPrefixLengthIPv6: 64
 
+# vlanNSEImage: vlan-nse
+vlanNSEImage: cmd-nse-icmp-responder
+vlanNSEVersion: latest
+
+vlanServiceName: external-vlan
+vlanID: 100
 vlanIPv4Prefix: 169.254.0.0/24
 vlanIPv6Prefix: 100::/64

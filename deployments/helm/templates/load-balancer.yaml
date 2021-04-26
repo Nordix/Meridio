@@ -63,7 +63,7 @@ spec:
           securityContext:
             privileged: true
         - name: nsc
-          image: registry.nordix.org/cloud-native/nsm/cmd-nsc:latest
+          image: registry.nordix.org/cloud-native/nsm/cmd-nsc:vlan-0.1
           imagePullPolicy: {{ .Values.pullPolicy }}
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
@@ -73,7 +73,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: NSM_NETWORK_SERVICES
-              value: kernel://external-vlan/ext-vlan?forwarder=forwarder-kernel
+              value: vlan://{{ template "meridio.vlanServiceName" . }}/ext-vlan?vlan-id={{ .Values.vlanID }}&base=eth0&forwarder=forwarder-kernel
             - name: NSM_DIAL_TIMEOUT
               value: "30s"
             - name: NSM_REQUEST_TIMEOUT

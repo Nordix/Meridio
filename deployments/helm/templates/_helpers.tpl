@@ -43,3 +43,6 @@ Set IP Family
 {{- printf "%s.%s" .Values.loadBalancerNetworkServiceName .Release.Namespace -}}
 {{- end -}}
 
+{{- define "meridio.vlanServiceName" -}}
+{{- printf "%s.%s" .Values.vlanServiceName .Release.Namespace -}}
+{{- end -}}
