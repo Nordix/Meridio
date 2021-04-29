@@ -108,13 +108,13 @@ func startNSE(ctx context.Context,
 	netUtils networking.Utils,
 	nspService string) {
 
-	linkMonitor, err := netUtils.NewLinkMonitor()
+	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
 	if err != nil {
 		logrus.Fatalf("Error creating link monitor: %+v", err)
 	}
-	interfaceMonitorEndpoint := interfacemonitor.NewServer(p, netUtils)
+	interfaceMonitorEndpoint := interfacemonitor.NewServer(interfaceMonitor, p, netUtils)
 	proxyEndpoint := proxy.NewProxyEndpoint(p)
-	linkMonitor.Subscribe(interfaceMonitorEndpoint)
+	// linkMonitor.Subscribe(interfaceMonitorEndpoint)
 
 	responderEndpoint := []networkservice.NetworkServiceServer{
 		recvfd.NewServer(),

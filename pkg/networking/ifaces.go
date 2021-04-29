@@ -35,7 +35,7 @@ type Utils interface {
 	NewNFQueue(prefix string, queueNum int) (NFQueue, error)
 	NewSourceBasedRoute(tableID int, prefix string) (SourceBasedRoute, error)
 
-	NewLinkMonitor() (InterfaceMonitor, error)
+	NewInterfaceMonitor() (InterfaceMonitor, error)
 
 	GetIndexFromName(name string) (int, error)
 	AddVIP(vip string) error

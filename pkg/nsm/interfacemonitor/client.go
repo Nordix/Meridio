@@ -15,13 +15,19 @@ type interfaceMonitorClient struct {
 	*interfaceMonitor
 }
 
-// NewClient -
-func NewClient(interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber, netUtils networking.Utils) networkservice.NetworkServiceClient {
+// NewClient implements NetworkServiceClient to advertise the interfaceMonitorSubscriber when a
+// NSM interface has been created / removed in the pod
+// A networking.InterfaceMonitor is required to get events on interface creation / deletion on the pod
+// A networkingUtils (e.g. kernel implementation) is needed in order to check if an interface is
+// existing in the pod, and to create the interface to return to the interfaceMonitorSubscriber
+func NewClient(interfaceMonitor networking.InterfaceMonitor, interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber, netUtils networkingUtils) networkservice.NetworkServiceClient {
 	return &interfaceMonitorClient{
-		NewInterfaceMonitor(interfaceMonitorSubscriber, netUtils),
+		newInterfaceMonitor(interfaceMonitor, interfaceMonitorSubscriber, netUtils),
 	}
 }
 
+// Request will call the InterfaceCreated function in the interfaceMonitorSubscriber when
+// the network interface requested will be created in the pod
 func (inc *interfaceMonitorClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
@@ -31,6 +37,7 @@ func (inc *interfaceMonitorClient) Request(ctx context.Context, request *network
 	return conn, err
 }
 
+// Close will call the InterfaceDeleted function in the interfaceMonitorSubscriber
 func (inc *interfaceMonitorClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	if conn != nil {
 		inc.ConnectionClosed(&connection{conn}, networking.NSC)

@@ -28,8 +28,8 @@ func (ku *KernelUtils) NewSourceBasedRoute(tableID int, prefix string) (networki
 	return NewSourceBasedRoute(tableID, prefix)
 }
 
-func (ku *KernelUtils) NewLinkMonitor() (networking.InterfaceMonitor, error) {
-	return NewLinkMonitor()
+func (ku *KernelUtils) NewInterfaceMonitor() (networking.InterfaceMonitor, error) {
+	return NewInterfaceMonitor()
 }
 
 // func (ku *KernelUtils) IfaceByName(name string) (networking.Iface, error) {

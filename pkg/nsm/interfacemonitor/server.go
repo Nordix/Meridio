@@ -9,19 +9,23 @@ import (
 	"github.com/nordix/meridio/pkg/networking"
 )
 
-// InterfaceMonitorEndpoint -
 type interfaceMonitorEndpoint struct {
 	*interfaceMonitor
 }
 
-// NewInterfaceMonitorEndpoint -
-func NewServer(interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber, netUtils networking.Utils) *interfaceMonitorEndpoint {
+// NewServer implements NetworkServiceServer to advertise the interfaceMonitorSubscriber when a
+// NSM interface has been created / removed in the pod
+// A networking.InterfaceMonitor is required to get events on interface creation / deletion on the pod
+// A networkingUtils (e.g. kernel implementation) is needed in order to check if an interface is
+// existing in the pod, and to create the interface to return to the interfaceMonitorSubscriber
+func NewServer(interfaceMonitor networking.InterfaceMonitor, interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber, netUtils networkingUtils) networkservice.NetworkServiceServer {
 	return &interfaceMonitorEndpoint{
-		NewInterfaceMonitor(interfaceMonitorSubscriber, netUtils),
+		newInterfaceMonitor(interfaceMonitor, interfaceMonitorSubscriber, netUtils),
 	}
 }
 
-// Request -
+// Request will call the InterfaceCreated function in the interfaceMonitorSubscriber when
+// the network interface requested will be created in the pod
 func (ime *interfaceMonitorEndpoint) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	if request != nil && request.GetConnection() != nil {
 		ime.ConnectionRequested(&connection{request.GetConnection()}, networking.NSE)
@@ -29,7 +33,7 @@ func (ime *interfaceMonitorEndpoint) Request(ctx context.Context, request *netwo
 	return next.Server(ctx).Request(ctx, request)
 }
 
-// Close -
+// Close will call the InterfaceDeleted function in the interfaceMonitorSubscriber
 func (ime *interfaceMonitorEndpoint) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	if conn != nil {
 		ime.ConnectionClosed(&connection{conn}, networking.NSE)

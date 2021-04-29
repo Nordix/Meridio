@@ -79,8 +79,8 @@ func (im *InterfaceMonitor) Close() {
 	close(im.done)
 }
 
-// NewLinkMonitor -
-func NewLinkMonitor() (*InterfaceMonitor, error) {
+// NewInterfaceMonitor -
+func NewInterfaceMonitor() (*InterfaceMonitor, error) {
 	interfaceMonitor := &InterfaceMonitor{
 		ch:    make(chan netlink.LinkUpdate),
 		done:  make(chan struct{}),

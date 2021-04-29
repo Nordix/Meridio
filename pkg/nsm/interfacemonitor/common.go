@@ -8,13 +8,19 @@ import (
 
 type ipList []string
 
+type networkingUtils interface {
+	NewInterface(index int) networking.Iface
+	GetIndexFromName(name string) (int, error)
+}
+
 type connection struct {
 	*networkservice.Connection
 }
 
 type interfaceMonitor struct {
+	networkInterfaceMonitor    networking.InterfaceMonitor
 	interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber
-	netUtils                   networking.Utils
+	netUtils                   networkingUtils
 	pendingInterfaces          map[string]*pendingInterface
 }
 
@@ -30,9 +36,14 @@ func (im *interfaceMonitor) ConnectionRequested(conn *connection, interaceType n
 	interfaceName := conn.getInterfaceName()
 	pendingInterface := &pendingInterface{
 		interfaceName: interfaceName,
-		localIPs:      conn.getLocalIPs(),
-		neighborIPs:   conn.getNeighborIPs(),
 		gateways:      conn.getGatewayIPs(),
+	}
+	if interaceType == networking.NSC {
+		pendingInterface.localIPs = conn.getSrcIPs()
+		pendingInterface.neighborIPs = conn.getDstIPs()
+	} else if interaceType == networking.NSE {
+		pendingInterface.localIPs = conn.getDstIPs()
+		pendingInterface.neighborIPs = conn.getSrcIPs()
 	}
 
 	index, err := im.netUtils.GetIndexFromName(interfaceName)
@@ -78,12 +89,17 @@ func (im *interfaceMonitor) advertiseInterfaceDeletion(index int, interaceType n
 	im.interfaceMonitorSubscriber.InterfaceDeleted(newInterface)
 }
 
-func NewInterfaceMonitor(interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber, netUtils networking.Utils) *interfaceMonitor {
-	return &interfaceMonitor{
+func newInterfaceMonitor(networkInterfaceMonitor networking.InterfaceMonitor, interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber, netUtils networkingUtils) *interfaceMonitor {
+	im := &interfaceMonitor{
+		networkInterfaceMonitor:    networkInterfaceMonitor,
 		interfaceMonitorSubscriber: interfaceMonitorSubscriber,
 		pendingInterfaces:          make(map[string]*pendingInterface),
 		netUtils:                   netUtils,
 	}
+	if networkInterfaceMonitor != nil {
+		networkInterfaceMonitor.Subscribe(im)
+	}
+	return im
 }
 
 func (conn *connection) getInterfaceName() string {
@@ -93,22 +109,18 @@ func (conn *connection) getInterfaceName() string {
 	return conn.GetMechanism().GetParameters()[common.InterfaceNameKey]
 }
 
-func (conn *connection) getLocalIPs() []string {
-	localIPs := []string{}
+func (conn *connection) getDstIPs() []string {
 	if conn == nil || conn.GetContext() == nil || conn.GetContext().GetIpContext() == nil {
-		return localIPs
+		return []string{}
 	}
-	localIPs = append(localIPs, conn.GetContext().GetIpContext().GetDstIpAddr())
-	return localIPs
+	return []string{conn.GetContext().GetIpContext().GetDstIpAddr()}
 }
 
-func (conn *connection) getNeighborIPs() []string {
-	neighborIPs := []string{}
+func (conn *connection) getSrcIPs() []string {
 	if conn == nil || conn.GetContext() == nil || conn.GetContext().GetIpContext() == nil {
-		return neighborIPs
+		return []string{}
 	}
-	neighborIPs = append(neighborIPs, conn.GetContext().GetIpContext().GetSrcIpAddr())
-	return neighborIPs
+	return []string{conn.GetContext().GetIpContext().GetSrcIpAddr()}
 }
 
 func (conn *connection) getGatewayIPs() []string {

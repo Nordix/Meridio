@@ -57,12 +57,11 @@ func main() {
 	}
 	sns := NewSimpleNetworkService(config.VIP, nspClient, netUtils)
 
-	linkMonitor, err := netUtils.NewLinkMonitor()
+	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
 	if err != nil {
 		logrus.Fatalf("Error creating link monitor: %+v", err)
 	}
-	interfaceMonitorEndpoint := interfacemonitor.NewServer(sns, netUtils)
-	linkMonitor.Subscribe(interfaceMonitorEndpoint)
+	interfaceMonitorEndpoint := interfacemonitor.NewServer(interfaceMonitor, sns, netUtils)
 
 	responderEndpoint := []networkservice.NetworkServiceServer{
 		recvfd.NewServer(),
@@ -164,7 +163,7 @@ func (sns *SimpleNetworkService) parseLoadBalancerTarget(target *nspAPI.Target) 
 	identifierStr, exists := target.Context["identifier"]
 	if !exists {
 		logrus.Errorf("SimpleNetworkService: identifier does not exist: %v", target.Context)
-		return nil, errors.New("Identifier does not exist")
+		return nil, errors.New("identifier does not exist")
 	}
 	identifier, err := strconv.Atoi(identifierStr)
 	if err != nil {
