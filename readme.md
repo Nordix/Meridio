@@ -1,6 +1,8 @@
 # Meridio
 
-[Demo instructions](https://github.com/Nordix/Meridio/tree/master/docs/demo/)
+- [Demo instructions](https://github.com/Nordix/Meridio/tree/master/docs/demo/)
+- [Documentation](https://github.com/Nordix/Meridio/tree/master/docs)
+- [Multi-trenches example](https://github.com/Nordix/Meridio/tree/master/examples/trenches)
 
 List of projects:
 1. ctraffic

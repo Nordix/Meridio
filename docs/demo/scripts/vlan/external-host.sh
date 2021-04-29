@@ -20,10 +20,6 @@ parent_if_name="eth0"
 vlan_if_name="vlan"
 vlan_id="100"
 
-# docker exec -it ubuntu-ext ip link add link $parent_if_name name $vlan_if_name type vlan id $vlan_id
-# docker exec -it ubuntu-ext ip link set $vlan_if_name up
-# docker exec -it ubuntu-ext ip addr add 169.254.100.150/24 dev $vlan_if_name
-
 for index in {0..5}
 do
     if_name="${vlan_if_name}-${index}"
@@ -35,6 +31,5 @@ do
 
     docker exec -it ubuntu-ext ip addr add $ip dev $if_name
 done
-
 
 docker exec -it ubuntu-ext ip route replace 20.0.0.1/32 nexthop via 169.254.100.1 nexthop via 169.254.100.2

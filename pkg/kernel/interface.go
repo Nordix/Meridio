@@ -100,36 +100,6 @@ func (intf *Interface) Equals(iface networking.Iface) bool {
 	return reflect.DeepEqual(intf, iface)
 }
 
-// func (intf *Interface) AddAddress(address *netlink.Addr) error {
-// 	address.Label = ""
-// 	i, err := intf.getLink()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	err = netlink.AddrAdd(i, address)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
-
-// func (intf *Interface) RemoveAddress(address *netlink.Addr) error {
-// 	i, err := intf.getLink()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	err = netlink.AddrDel(i, address)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
-
-// // Get the index of an interface from its name
-// func (intf *Interface) Equals(intf2 *Interface) bool {
-// 	return reflect.DeepEqual(intf, intf2)
-// }
-
 func NewInterface(index int) *Interface {
 	intf := &Interface{
 		index:        index,
