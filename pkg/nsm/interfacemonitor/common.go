@@ -1,6 +1,8 @@
 package interfacemonitor
 
 import (
+	"sync"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 	"github.com/nordix/meridio/pkg/networking"
@@ -21,7 +23,7 @@ type interfaceMonitor struct {
 	networkInterfaceMonitor    networking.InterfaceMonitor
 	interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber
 	netUtils                   networkingUtils
-	pendingInterfaces          map[string]*pendingInterface
+	pendingInterfaces          sync.Map // map[string]*pendingInterface
 }
 
 type pendingInterface struct {
@@ -29,19 +31,20 @@ type pendingInterface struct {
 	localIPs      ipList
 	neighborIPs   ipList
 	gateways      ipList
-	InteraceType  networking.InteraceType
+	InterfaceType networking.InterfaceType
 }
 
-func (im *interfaceMonitor) ConnectionRequested(conn *connection, interaceType networking.InteraceType) {
+func (im *interfaceMonitor) ConnectionRequested(conn *connection, interfaceType networking.InterfaceType) {
 	interfaceName := conn.getInterfaceName()
 	pendingInterface := &pendingInterface{
 		interfaceName: interfaceName,
 		gateways:      conn.getGatewayIPs(),
+		InterfaceType: interfaceType,
 	}
-	if interaceType == networking.NSC {
+	if interfaceType == networking.NSC {
 		pendingInterface.localIPs = conn.getSrcIPs()
 		pendingInterface.neighborIPs = conn.getDstIPs()
-	} else if interaceType == networking.NSE {
+	} else if interfaceType == networking.NSE {
 		pendingInterface.localIPs = conn.getDstIPs()
 		pendingInterface.neighborIPs = conn.getSrcIPs()
 	}
@@ -50,23 +53,23 @@ func (im *interfaceMonitor) ConnectionRequested(conn *connection, interaceType n
 	if err == nil {
 		im.advertiseInterfaceCreation(index, pendingInterface)
 	} else {
-		im.pendingInterfaces[interfaceName] = pendingInterface
+		im.pendingInterfaces.Store(interfaceName, pendingInterface)
 	}
 }
 
-func (im *interfaceMonitor) ConnectionClosed(conn *connection, interaceType networking.InteraceType) {
+func (im *interfaceMonitor) ConnectionClosed(conn *connection, interfaceType networking.InterfaceType) {
 	index, err := im.netUtils.GetIndexFromName(conn.getInterfaceName())
 	if err != nil {
 		return
 	}
-	im.advertiseInterfaceDeletion(index, interaceType)
+	im.advertiseInterfaceDeletion(index, interfaceType)
 }
 
 // InterfaceCreated -
 func (im *interfaceMonitor) InterfaceCreated(intf networking.Iface) {
-	if nsmInterface, ok := im.pendingInterfaces[intf.GetName()]; ok {
-		delete(im.pendingInterfaces, intf.GetName())
-		im.advertiseInterfaceCreation(intf.GetIndex(), nsmInterface)
+	if nsmInterface, ok := im.pendingInterfaces.Load(intf.GetName()); ok {
+		im.pendingInterfaces.Delete(intf.GetName())
+		im.advertiseInterfaceCreation(intf.GetIndex(), nsmInterface.(*pendingInterface))
 	}
 }
 
@@ -79,13 +82,13 @@ func (im *interfaceMonitor) advertiseInterfaceCreation(index int, pendingInterfa
 	newInterface.SetLocalPrefixes(pendingInterface.localIPs)
 	newInterface.SetNeighborPrefixes(pendingInterface.neighborIPs)
 	newInterface.SetGatewayPrefixes(pendingInterface.gateways)
-	newInterface.SetInteraceType(pendingInterface.InteraceType)
+	newInterface.SetInterfaceType(pendingInterface.InterfaceType)
 	im.interfaceMonitorSubscriber.InterfaceCreated(newInterface)
 }
 
-func (im *interfaceMonitor) advertiseInterfaceDeletion(index int, interaceType networking.InteraceType) {
+func (im *interfaceMonitor) advertiseInterfaceDeletion(index int, interfaceType networking.InterfaceType) {
 	newInterface := im.netUtils.NewInterface(index)
-	newInterface.SetInteraceType(interaceType)
+	newInterface.SetInterfaceType(interfaceType)
 	im.interfaceMonitorSubscriber.InterfaceDeleted(newInterface)
 }
 
@@ -93,7 +96,6 @@ func newInterfaceMonitor(networkInterfaceMonitor networking.InterfaceMonitor, in
 	im := &interfaceMonitor{
 		networkInterfaceMonitor:    networkInterfaceMonitor,
 		interfaceMonitorSubscriber: interfaceMonitorSubscriber,
-		pendingInterfaces:          make(map[string]*pendingInterface),
 		netUtils:                   netUtils,
 	}
 	if networkInterfaceMonitor != nil {
