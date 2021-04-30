@@ -2,16 +2,30 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"hash/fnv"
 	"os"
 	"strconv"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
+	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
+	vfiomech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vfio"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
+	"github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/mechanisms/vfio"
+	sriovtoken "github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/token"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/nordix/meridio/pkg/client"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
+	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
+	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
@@ -35,14 +49,13 @@ func main() {
 	}
 
 	netUtils := &linuxKernel.KernelUtils{}
+	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
+	if err != nil {
+		logrus.Fatalf("Error creating link monitor: %+v", err)
+	}
 
-	// nspClient, _ := nsp.NewNetworkServicePlateformClient(config.NSPService)
 	hostname, _ := os.Hostname()
 	identifier := Hash(hostname, 100)
-	// st := &SimpleTarget{
-	// 	networkServicePlateformClient: nspClient,
-	// 	identifier:                    identifier,
-	// }
 	st := NewSimpleTarget(identifier, config.VIP, netUtils)
 
 	apiClientConfig := &nsm.Config{
@@ -57,10 +70,45 @@ func main() {
 	extraContext := make(map[string]string)
 	extraContext["identifier"] = strconv.Itoa(st.identifier)
 
-	client := client.NewNetworkServiceClient(config.ProxyNetworkServiceName, apiClient)
-	client.InterfaceMonitorSubscriber = st
-	client.ExtraContext = extraContext
-	client.Request()
+	logrus.Infof("%v", apiClient)
+
+	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, st, netUtils)
+
+	networkServiceClient := chain.NewNetworkServiceClient(
+		sriovtoken.NewClient(),
+		mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
+			vfiomech.MECHANISM:   chain.NewNetworkServiceClient(vfio.NewClient()),
+			kernelmech.MECHANISM: chain.NewNetworkServiceClient(kernel.NewClient()),
+		}),
+		interfacename.NewClient("nsc", &interfacename.RandomGenerator{}),
+		interfaceMonitorClient,
+		sendfd.NewClient(),
+	)
+	clientConfig := &client.Config{
+		Name:           config.Name,
+		RequestTimeout: config.RequestTimeout,
+	}
+	client := client.NewNetworkServiceClient(clientConfig, apiClient.GRPCClient, networkServiceClient)
+	err = client.Request(&networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id:             fmt.Sprintf("%s-%s-%d", config.Name, config.ProxyNetworkServiceName, 0),
+			NetworkService: config.ProxyNetworkServiceName,
+			Labels:         map[string]string{"forwarder": "forwarder-vpp"},
+			Payload:        payload.Ethernet,
+			Context: &networkservice.ConnectionContext{
+				ExtraContext: extraContext,
+			},
+		},
+		MechanismPreferences: []*networkservice.Mechanism{
+			{
+				Cls:  cls.LOCAL,
+				Type: kernelmech.MECHANISM,
+			},
+		},
+	})
+	if err != nil {
+		logrus.Fatalf("client.Request err: %+v", err)
+	}
 
 	for {
 		time.Sleep(10 * time.Second)

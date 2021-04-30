@@ -8,7 +8,7 @@ import (
 	"github.com/nordix/meridio/pkg/networking"
 )
 
-func ConvertConnectionToInterface(interfaceName string, conn *networkservice.Connection, interfaceType networking.InteraceType) (networking.Iface, error) {
+func ConvertConnectionToInterface(interfaceName string, conn *networkservice.Connection, interfaceType networking.InterfaceType) (networking.Iface, error) {
 
 	// netUtils networking.Utils
 	netUtils := &kernel.KernelUtils{}
@@ -19,7 +19,7 @@ func ConvertConnectionToInterface(interfaceName string, conn *networkservice.Con
 	}
 
 	intf := netUtils.NewInterface(index)
-	intf.SetInteraceType(interfaceType)
+	intf.SetInterfaceType(interfaceType)
 
 	ConnectionContext := conn.GetContext()
 	if ConnectionContext == nil {

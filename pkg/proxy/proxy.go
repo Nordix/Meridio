@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"errors"
 	"sync"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -20,7 +21,7 @@ type Proxy struct {
 }
 
 func (p *Proxy) isNSMInterface(intf networking.Iface) bool {
-	return intf.GetInteraceType() == networking.NSE || intf.GetInteraceType() == networking.NSC
+	return intf.GetInterfaceType() == networking.NSE || intf.GetInterfaceType() == networking.NSC
 }
 
 // InterfaceCreated -
@@ -34,7 +35,7 @@ func (p *Proxy) InterfaceCreated(intf networking.Iface) {
 	if err != nil {
 		logrus.Errorf("Proxy: Error LinkInterface: %v", err)
 	}
-	if intf.GetInteraceType() == networking.NSC {
+	if intf.GetInterfaceType() == networking.NSC {
 		// Add the neighbor IPs of the interface to the nexthops (outgoing traffic)
 		for _, ip := range intf.GetNeighborPrefixes() {
 			err = p.sourceBasedRoute.AddNexthop(ip)
@@ -56,7 +57,7 @@ func (p *Proxy) InterfaceDeleted(intf networking.Iface) {
 	if err != nil {
 		logrus.Errorf("Proxy: Error UnLinkInterface: %v", err)
 	}
-	if intf.GetInteraceType() == networking.NSC {
+	if intf.GetInterfaceType() == networking.NSC {
 		// Remove the neighbor IPs of the interface from the nexthops (outgoing traffic)
 		for _, ip := range intf.GetNeighborPrefixes() {
 			err = p.sourceBasedRoute.RemoveNexthop(ip)
@@ -67,49 +68,38 @@ func (p *Proxy) InterfaceDeleted(intf networking.Iface) {
 	}
 }
 
-// NewNSCIPContext -
-func (p *Proxy) NewNSCIPContext() (*networkservice.IPContext, error) {
+// SetIPContext
+func (p *Proxy) SetIPContext(conn *networkservice.Connection, interfaceType networking.InterfaceType) error {
 	p.mutex.Lock()
-	dstIPAddr, err := p.ipam.AllocateIP(p.subnet)
-	if err != nil {
-		return nil, err
+	defer p.mutex.Unlock()
+
+	if conn == nil {
+		return errors.New("connection is nil")
+	}
+
+	if conn.GetContext() == nil {
+		conn.Context = &networkservice.ConnectionContext{}
 	}
 
 	srcIPAddr, err := p.ipam.AllocateIP(p.subnet)
 	if err != nil {
-		return nil, err
-	}
-	p.mutex.Unlock()
-
-	ipContext := &networkservice.IPContext{
-		// DstIpAddr: dstIpAddr, // IP on the NSE
-		DstIpAddr: dstIPAddr, // IP on the NSE
-		SrcIpAddr: srcIPAddr, // IP on the target
-	}
-	return ipContext, nil
-}
-
-// NewNSEIPContext -
-func (p *Proxy) NewNSEIPContext() (*networkservice.IPContext, error) {
-	p.mutex.Lock()
-	srcIPAddr, err := p.ipam.AllocateIP(p.subnet)
-	if err != nil {
-		return nil, err
+		return err
 	}
 
 	dstIPAddr, err := p.ipam.AllocateIP(p.subnet)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	p.mutex.Unlock()
-
-	ipContext := &networkservice.IPContext{
-		// SrcIpAddr: srcIpAddr, // IP on the target
-		SrcIpAddr:     srcIPAddr, // IP on the target
-		DstIpAddr:     dstIPAddr, // IP on the NSE
-		ExtraPrefixes: p.bridge.GetLocalPrefixes(),
+	conn.GetContext().IpContext = &networkservice.IPContext{}
+	if interfaceType == networking.NSE {
+		conn.GetContext().IpContext.SrcIpAddr = srcIPAddr
+		conn.GetContext().IpContext.DstIpAddr = dstIPAddr
+		conn.GetContext().GetIpContext().ExtraPrefixes = p.bridge.GetLocalPrefixes()
+	} else if interfaceType == networking.NSC {
+		conn.GetContext().IpContext.SrcIpAddr = dstIPAddr
+		conn.GetContext().IpContext.DstIpAddr = srcIPAddr
 	}
-	return ipContext, nil
+	return nil
 }
 
 func (p *Proxy) setBridgeIP() error {

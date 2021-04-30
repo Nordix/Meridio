@@ -8,11 +8,11 @@ import (
 )
 
 type Interface struct {
-	index        int
-	LocalIPs     []string
-	NeighborIPs  []string
-	Gateways     []string
-	InteraceType networking.InteraceType
+	index         int
+	LocalIPs      []string
+	NeighborIPs   []string
+	Gateways      []string
+	InterfaceType networking.InterfaceType
 }
 
 func (intf *Interface) getLink() (netlink.Link, error) {
@@ -55,12 +55,12 @@ func (intf *Interface) SetGatewayPrefixes(gateways []string) {
 	intf.Gateways = gateways
 }
 
-func (intf *Interface) GetInteraceType() networking.InteraceType {
-	return intf.InteraceType
+func (intf *Interface) GetInterfaceType() networking.InterfaceType {
+	return intf.InterfaceType
 }
 
-func (intf *Interface) SetInteraceType(ifaceType networking.InteraceType) {
-	intf.InteraceType = ifaceType
+func (intf *Interface) SetInterfaceType(ifaceType networking.InterfaceType) {
+	intf.InterfaceType = ifaceType
 }
 
 func (intf *Interface) AddLocalPrefix(prefix string) error {
@@ -102,11 +102,11 @@ func (intf *Interface) Equals(iface networking.Iface) bool {
 
 func NewInterface(index int) *Interface {
 	intf := &Interface{
-		index:        index,
-		LocalIPs:     []string{},
-		NeighborIPs:  []string{},
-		Gateways:     []string{},
-		InteraceType: -1,
+		index:         index,
+		LocalIPs:      []string{},
+		NeighborIPs:   []string{},
+		Gateways:      []string{},
+		InterfaceType: -1,
 	}
 	return intf
 }

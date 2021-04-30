@@ -5,7 +5,7 @@ const (
 	NSC        // Interface linked to a NSE (e.g. Load balancer)
 )
 
-type InteraceType int
+type InterfaceType int
 
 type Iface interface {
 	GetIndex() int
@@ -22,8 +22,8 @@ type Iface interface {
 	GetGatewayPrefixes() []string
 	SetGatewayPrefixes(gateways []string)
 
-	GetInteraceType() InteraceType
-	SetInteraceType(ifaceType InteraceType)
+	GetInterfaceType() InterfaceType
+	SetInterfaceType(ifaceType InterfaceType)
 
 	Equals(Iface) bool
 }

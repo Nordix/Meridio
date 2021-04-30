@@ -6,21 +6,27 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/noop"
+	vfiomech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vfio"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
+	"github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/mechanisms/vfio"
+	sriovtoken "github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/token"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/nordix/meridio/pkg/client"
 	"github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/ipam"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
-	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
 	"github.com/nordix/meridio/pkg/nsm/interfacename"
+	"github.com/nordix/meridio/pkg/nsm/ipcontext"
 	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/nordix/meridio/pkg/proxy"
 	"github.com/pkg/errors"
@@ -53,6 +59,11 @@ func main() {
 
 	netUtils := &linuxKernel.KernelUtils{}
 
+	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
+	if err != nil {
+		logrus.Fatalf("Error creating link monitor: %+v", err)
+	}
+
 	p := proxy.NewProxy(config.VIP, proxySubnet, netUtils)
 
 	apiClientConfig := &nsm.Config{
@@ -64,14 +75,20 @@ func main() {
 	}
 	nsmAPIClient := nsm.NewAPIClient(ctx, apiClientConfig)
 
-	go startNSC(nsmAPIClient, config.NetworkServiceName, p, p)
+	clientConfig := &client.Config{
+		Name:           config.Name,
+		RequestTimeout: config.RequestTimeout,
+	}
+	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, p, netUtils)
+	go startNSC(ctx, clientConfig, nsmAPIClient, config.NetworkServiceName, p, interfaceMonitorClient)
 
 	endpointConfig := &endpoint.Config{
 		Name:             config.Name,
 		ServiceName:      config.ServiceName,
 		MaxTokenLifetime: config.MaxTokenLifetime,
 	}
-	startNSE(ctx, endpointConfig, nsmAPIClient, p, netUtils, config.NSPService)
+	interfaceMonitorServer := interfacemonitor.NewServer(interfaceMonitor, p, netUtils)
+	startNSE(ctx, endpointConfig, nsmAPIClient, p, interfaceMonitorServer, config.NSPService)
 }
 
 func getProxySubnet(config Config) (string, error) {
@@ -90,31 +107,50 @@ func getProxySubnet(config Config) (string, error) {
 	return proxySubnet, nil
 }
 
-func startNSC(nsmAPIClient *nsm.APIClient,
+func startNSC(ctx context.Context,
+	config *client.Config,
+	nsmAPIClient *nsm.APIClient,
 	networkServiceName string,
-	interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber,
-	nscConnectionFactory client.NSCConnectionFactory) {
+	p *proxy.Proxy,
+	interfaceMonitorClient networkservice.NetworkServiceClient) {
 
-	monitor := client.NewMonitor(networkServiceName, nsmAPIClient, nsmAPIClient)
-	monitor.SetInterfaceMonitorSubscriber(interfaceMonitorSubscriber)
-	monitor.SetNSCConnectionFactory(nscConnectionFactory)
-	monitor.Start()
+	networkServiceClient := chain.NewNetworkServiceClient(
+		sriovtoken.NewClient(),
+		mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
+			vfiomech.MECHANISM:   chain.NewNetworkServiceClient(vfio.NewClient()),
+			kernelmech.MECHANISM: chain.NewNetworkServiceClient(kernel.NewClient()),
+		}),
+		interfacename.NewClient("nsc", &interfacename.RandomGenerator{}),
+		ipcontext.NewClient(p),
+		interfaceMonitorClient,
+		sendfd.NewClient(),
+	)
+	fullMeshClient := client.NewFullMeshNetworkServiceClient(config, nsmAPIClient.GRPCClient, networkServiceClient)
+	err := fullMeshClient.Request(&networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			NetworkService: networkServiceName,
+			Labels:         map[string]string{"forwarder": "forwarder-vpp"},
+			Payload:        payload.Ethernet,
+		},
+		MechanismPreferences: []*networkservice.Mechanism{
+			{
+				Cls:  cls.LOCAL,
+				Type: kernelmech.MECHANISM,
+			},
+		},
+	})
+	if err != nil {
+		logrus.Fatalf("fullMeshClient.Request err: %+v", err)
+	}
+
 }
 
 func startNSE(ctx context.Context,
 	config *endpoint.Config,
 	nsmAPIClient *nsm.APIClient,
 	p *proxy.Proxy,
-	netUtils networking.Utils,
+	interfaceMonitorServer networkservice.NetworkServiceServer,
 	nspService string) {
-
-	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
-	if err != nil {
-		logrus.Fatalf("Error creating link monitor: %+v", err)
-	}
-	interfaceMonitorEndpoint := interfacemonitor.NewServer(interfaceMonitor, p, netUtils)
-	proxyEndpoint := proxy.NewProxyEndpoint(p)
-	// linkMonitor.Subscribe(interfaceMonitorEndpoint)
 
 	responderEndpoint := []networkservice.NetworkServiceServer{
 		recvfd.NewServer(),
@@ -123,8 +159,8 @@ func startNSE(ctx context.Context,
 			noop.MECHANISM:       null.NewServer(),
 		}),
 		interfacename.NewServer("nse", &interfacename.RandomGenerator{}),
-		proxyEndpoint,
-		interfaceMonitorEndpoint,
+		ipcontext.NewServer(p),
+		interfaceMonitorServer,
 		nsp.NewNSPEndpoint(nspService),
 		sendfd.NewServer(),
 	}
