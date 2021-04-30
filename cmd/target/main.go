@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"hash/fnv"
 	"os"
+	"os/signal"
 	"strconv"
-	"time"
+	"syscall"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -31,7 +32,13 @@ import (
 )
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGHUP,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
 	defer cancel()
 
 	logrus.SetOutput(os.Stdout)
@@ -70,8 +77,6 @@ func main() {
 	extraContext := make(map[string]string)
 	extraContext["identifier"] = strconv.Itoa(st.identifier)
 
-	logrus.Infof("%v", apiClient)
-
 	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, st, netUtils)
 
 	networkServiceClient := chain.NewNetworkServiceClient(
@@ -109,10 +114,9 @@ func main() {
 	if err != nil {
 		logrus.Fatalf("client.Request err: %+v", err)
 	}
+	defer client.Close()
 
-	for {
-		time.Sleep(10 * time.Second)
-	}
+	<-ctx.Done()
 }
 
 // Hash -
