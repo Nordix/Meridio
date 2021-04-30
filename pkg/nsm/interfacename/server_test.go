@@ -43,6 +43,10 @@ func Test_Server_Request(t *testing.T) {
 		Connection: &networkservice.Connection{
 			Mechanism: &networkservice.Mechanism{},
 		},
+		MechanismPreferences: []*networkservice.Mechanism{
+			{},
+			{},
+		},
 	}
 
 	conn, err := networkServiceServer.Request(context.Background(), request)
@@ -52,6 +56,8 @@ func Test_Server_Request(t *testing.T) {
 	assert.NotNil(t, conn.GetMechanism().GetParameters())
 	assert.Contains(t, conn.GetMechanism().GetParameters(), common.InterfaceNameKey)
 	assert.Equal(t, conn.GetMechanism().GetParameters()[common.InterfaceNameKey], "NewInterfaceName")
+	assert.Equal(t, request.GetMechanismPreferences()[0].GetParameters()[common.InterfaceNameKey], "NewInterfaceName")
+	assert.Equal(t, request.GetMechanismPreferences()[1].GetParameters()[common.InterfaceNameKey], "NewInterfaceName")
 }
 
 func Test_Server_Request_Nil_Mechanism(t *testing.T) {
@@ -80,6 +86,14 @@ func Test_Server_Request_Overwrite(t *testing.T) {
 				Parameters: map[string]string{common.InterfaceNameKey: "default"},
 			},
 		},
+		MechanismPreferences: []*networkservice.Mechanism{
+			{
+				Parameters: map[string]string{common.InterfaceNameKey: "default-A"},
+			},
+			{
+				Parameters: map[string]string{common.InterfaceNameKey: "default-B"},
+			},
+		},
 	}
 
 	conn, err := networkServiceServer.Request(context.Background(), request)
@@ -89,4 +103,6 @@ func Test_Server_Request_Overwrite(t *testing.T) {
 	assert.NotNil(t, conn.GetMechanism().GetParameters())
 	assert.Contains(t, conn.GetMechanism().GetParameters(), common.InterfaceNameKey)
 	assert.Equal(t, conn.GetMechanism().GetParameters()[common.InterfaceNameKey], "NewInterfaceName")
+	assert.Equal(t, request.GetMechanismPreferences()[0].GetParameters()[common.InterfaceNameKey], "NewInterfaceName")
+	assert.Equal(t, request.GetMechanismPreferences()[1].GetParameters()[common.InterfaceNameKey], "NewInterfaceName")
 }

@@ -15,5 +15,6 @@ limitations under the License.
 */
 
 // Package interfacename contains code implementing NetworkServiceServer and NetworkServiceClient
-// to generate and set the name of the interface in the mechanism set in the connection
+// to generate and set the name of the interface in the mechanism and the mechanism preferences
+// of the requests
 package interfacename // import "github.com/nordix/meridio/pkg/nsm/interfacename"

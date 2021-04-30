@@ -30,6 +30,11 @@ type interfaceNameSetter struct {
 }
 
 func (ins *interfaceNameSetter) SetInterfaceName(request *networkservice.NetworkServiceRequest) {
+	ins.setInterfaceNameMechanism(request)
+	ins.setInterfaceNameMechanismPreferences(request)
+}
+
+func (ins *interfaceNameSetter) setInterfaceNameMechanism(request *networkservice.NetworkServiceRequest) {
 	if request == nil || request.GetConnection() == nil || request.GetConnection().GetMechanism() == nil {
 		return
 	}
@@ -38,6 +43,18 @@ func (ins *interfaceNameSetter) SetInterfaceName(request *networkservice.Network
 		mechanism.Parameters = make(map[string]string)
 	}
 	mechanism.GetParameters()[common.InterfaceNameKey] = ins.nameGenerator.Generate(ins.prefix, ins.maxLength)
+}
+
+func (ins *interfaceNameSetter) setInterfaceNameMechanismPreferences(request *networkservice.NetworkServiceRequest) {
+	if request == nil || request.GetMechanismPreferences() == nil {
+		return
+	}
+	for _, mechanism := range request.GetMechanismPreferences() {
+		if mechanism.Parameters == nil {
+			mechanism.Parameters = map[string]string{}
+		}
+		mechanism.Parameters[common.InterfaceNameKey] = ins.nameGenerator.Generate(ins.prefix, ins.maxLength)
+	}
 }
 
 // NewInterfaceNameEndpoint -

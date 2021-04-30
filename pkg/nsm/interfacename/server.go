@@ -28,7 +28,8 @@ type interfaceNameServer struct {
 	*interfaceNameSetter
 }
 
-// NewServer implements NetworkServiceServer to generate and add the interface name in the connection.
+// NewServer implements NetworkServiceServer to generate and add the interface name in the
+// mechanism and mechanism preferences of the requests
 func NewServer(prefix string, generator NameGenerator) networkservice.NetworkServiceServer {
 	return &interfaceNameServer{
 		newInterfaceNameSetter(prefix, generator, MAX_INTERFACE_NAME_LENGTH),
