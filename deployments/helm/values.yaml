@@ -47,4 +47,4 @@ vlanNSEVersion: latest
 vlanServiceName: external-vlan
 vlanID: 100
 vlanIPv4Prefix: 169.254.100.0/24
-vlanIPv6Prefix: 100::/64
+vlanIPv6Prefix: 100:100::/64
