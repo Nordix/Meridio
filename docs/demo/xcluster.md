@@ -1,4 +1,4 @@
-# Demo Kind - vlan
+# Demo - xcluster - vlan
 
 * [Kind - VLAN](readme.md) - Demo running on [Kind](https://kind.sigs.k8s.io/) using a vlan-forwarder to link the network service to an external host.
 * [Kind - Static](static.md) - Demo running on [Kind](https://kind.sigs.k8s.io/) using a script to link the network service to an external host.
@@ -8,9 +8,9 @@
 
 ### Kubernetes cluster
 
-Deploy a Kubernetes cluster with Kind
+Deploy a Kubernetes cluster with xcluster
 ```
-kind create cluster --config docs/demo/kind.yaml
+xc mkcdrom; xc starts --nets_vm=0,1,2 --nvm=2
 ```
 
 ### NSM
@@ -35,7 +35,7 @@ helm install docs/demo/deployments/nsm-vlan/ --generate-name
 Install Meridio
 ```
 # ipv4
-helm install deployments/helm/ --generate-name
+helm install deployments/helm/ --generate-name --set vlanInterface=eth1
 # ipv6
 helm install deployments/helm/ --generate-name --set ipFamily=ipv6 
 ```
@@ -44,14 +44,18 @@ helm install deployments/helm/ --generate-name --set ipFamily=ipv6
 
 Deploy a external host
 ```
-./docs/demo/scripts/vlan/external-host.sh
+./docs/demo/scripts/xcluster/external-host.sh
 ```
 
 ## Traffic
 
 Connect to the external host
 ```
-docker exec -it ubuntu-ext bash
+ssh root@192.168.0.202
+# or
+vm 202
+# or
+ssh root@localhost -p 12502
 ```
 
 Generate traffic
@@ -77,11 +81,4 @@ kubectl scale deployment target --replicas=5
 Scale-In/Scale-Out load-balancer
 ```
 kubectl scale deployment load-balancer --replicas=1
-
-# TODO: reconfigure links between the external host and the LBs
-
-# ipv4
-docker exec -it ubuntu-ext ip route replace 20.0.0.1/32 nexthop via 192.168.1.1 nexthop via 192.168.2.1
-# ipv6
-docker exec -it ubuntu-ext ip route replace 2000::1/128 nexthop via 1500:1::1 nexthop via 1500:2::1
 ```

@@ -1,4 +1,4 @@
-# Demo Kind - vlan
+# Demo - Kind - static
 
 * [Kind - VLAN](readme.md) - Demo running on [Kind](https://kind.sigs.k8s.io/) using a vlan-forwarder to link the network service to an external host.
 * [Kind - Static](static.md) - Demo running on [Kind](https://kind.sigs.k8s.io/) using a script to link the network service to an external host.
@@ -27,7 +27,7 @@ Configure Spire
 
 Deploy NSM
 ```
-helm install docs/demo/deployments/nsm-vlan/ --generate-name
+helm install docs/demo/deployments/nsm/ --generate-name
 ```
 
 ### Meridio
@@ -44,7 +44,12 @@ helm install deployments/helm/ --generate-name --set ipFamily=ipv6
 
 Deploy a external host
 ```
-./docs/demo/scripts/vlan/external-host.sh
+./docs/demo/scripts/static/external-host.sh
+```
+
+Attach LBs to the external host
+```
+./docs/demo/scripts/static/external-link.sh
 ```
 
 ## Traffic
