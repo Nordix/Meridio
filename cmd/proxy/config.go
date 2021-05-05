@@ -9,7 +9,7 @@ import (
 // Config for the proxy
 type Config struct {
 	Name               string        `default:"proxy" desc:"Pod Name"`
-	ServiceName        string        `default:"proxy" desc:"Name of the Network Service"`
+	ServiceName        string        `default:"proxy" desc:"Name of the Network Service" split_words:"true"`
 	ConnectTo          url.URL       `default:"unix:///var/lib/networkservicemesh/nsm.io.sock" desc:"url to connect to NSM" split_words:"true"`
 	DialTimeout        time.Duration `default:"5s" desc:"timeout to dial NSMgr" split_words:"true"`
 	RequestTimeout     time.Duration `default:"15s" desc:"timeout to request NSE" split_words:"true"`

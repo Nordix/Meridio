@@ -1,4 +1,10 @@
-# Demo
+# Demo - Kind - vlan
+
+* [Kind - VLAN](readme.md) - Demo running on [Kind](https://kind.sigs.k8s.io/) using a vlan-forwarder to link the network service to an external host.
+* [Kind - Static](static.md) - Demo running on [Kind](https://kind.sigs.k8s.io/) using a script to link the network service to an external host.
+* [xcluster - VLAN](xcluster.md) - Demo running on [xcluster](https://github.com/Nordix/xcluster) using a vlan-forwarder to link the network service to an external host.
+* [Kind - VLAN - Multi-trenches](multi-trenches.md) - Demo running 2 trenches on [Kind](https://kind.sigs.k8s.io/) using vlan-forwarders to link the network services to an external host.
+
 
 ## Installation
 
@@ -23,11 +29,7 @@ Configure Spire
 
 Deploy NSM
 ```
-# VLAN as external connectivity
 helm install docs/demo/deployments/nsm-vlan/ --generate-name
-
-# Static script as external connectivity
-helm install docs/demo/deployments/nsm/ --generate-name
 ```
 
 ### Meridio
@@ -42,23 +44,9 @@ helm install deployments/helm/ --generate-name --set ipFamily=ipv6
 
 ### External host / External connectivity
 
-#### VLAN
-
 Deploy a external host
 ```
 ./docs/demo/scripts/vlan/external-host.sh
-```
-
-#### Static
-
-Deploy a external host
-```
-./docs/demo/scripts/static/external-host.sh
-```
-
-Attach LBs to the external host
-```
-./docs/demo/scripts/static/external-link.sh
 ```
 
 ## Traffic

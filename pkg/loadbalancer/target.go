@@ -1,21 +1,19 @@
 package loadbalancer
 
-import "github.com/vishvananda/netlink"
-
 type Target struct {
 	identifier int
-	ip         *netlink.Addr
+	ip         string
 }
 
 func (t *Target) GetIdentifier() int {
 	return t.identifier
 }
 
-func (t *Target) GetIP() *netlink.Addr {
+func (t *Target) GetIP() string {
 	return t.ip
 }
 
-func NewTarget(identifier int, ip *netlink.Addr) *Target {
+func NewTarget(identifier int, ip string) *Target {
 	target := &Target{
 		identifier: identifier,
 		ip:         ip,

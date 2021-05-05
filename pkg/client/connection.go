@@ -7,3 +7,8 @@ import (
 type NSCConnectionFactory interface {
 	NewNSCIPContext() (*networkservice.IPContext, error)
 }
+
+type NetworkServiceClient interface {
+	Request(request *networkservice.NetworkServiceRequest) error
+	Close() error
+}

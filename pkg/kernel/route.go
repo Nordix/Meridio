@@ -1,4 +1,4 @@
-package networking
+package kernel
 
 import (
 	"net"
@@ -44,19 +44,31 @@ func (sbr *SourceBasedRoute) updateRoute() error {
 }
 
 // AddNexthop -
-func (sbr *SourceBasedRoute) AddNexthop(nexthop *netlink.Addr) error {
-	sbr.nexthops = append(sbr.nexthops, nexthop)
+func (sbr *SourceBasedRoute) AddNexthop(nexthop string) error {
+	netlinkAddr, err := netlink.ParseAddr(nexthop)
+	if err != nil {
+		return err
+	}
+	sbr.nexthops = append(sbr.nexthops, netlinkAddr)
 	return sbr.updateRoute()
 }
 
 // RemoveNexthop -
-func (sbr *SourceBasedRoute) RemoveNexthop(nexthop *netlink.Addr) error {
+func (sbr *SourceBasedRoute) RemoveNexthop(nexthop string) error {
+	_, err := netlink.ParseAddr(nexthop)
+	if err != nil {
+		return err
+	}
 	for index, current := range sbr.nexthops {
-		if nexthop.IP.String() == current.IP.String() {
+		if nexthop == current.IP.String() {
 			sbr.nexthops = append(sbr.nexthops[:index], sbr.nexthops[index+1:]...)
 		}
 	}
 	return sbr.updateRoute()
+}
+
+func (sbr *SourceBasedRoute) Delete() error {
+	return nil
 }
 
 func (sbr *SourceBasedRoute) family() int {
@@ -67,13 +79,17 @@ func (sbr *SourceBasedRoute) family() int {
 }
 
 // NewSourceBasedRoute -
-func NewSourceBasedRoute(tableID int, vip *netlink.Addr) (*SourceBasedRoute, error) {
+func NewSourceBasedRoute(tableID int, vip string) (*SourceBasedRoute, error) {
+	netlinkAddr, err := netlink.ParseAddr(vip)
+	if err != nil {
+		return nil, err
+	}
 	sourceBasedRoute := &SourceBasedRoute{
 		tableID:  tableID,
-		vip:      vip,
+		vip:      netlinkAddr,
 		nexthops: []*netlink.Addr{},
 	}
-	err := sourceBasedRoute.create()
+	err = sourceBasedRoute.create()
 	if err != nil {
 		return nil, err
 	}

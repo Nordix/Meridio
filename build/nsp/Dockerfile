@@ -1,4 +1,4 @@
-FROM golang:alpine as build
+FROM golang:1.16 as build
 
 ENV GO111MODULE=on
 
@@ -21,4 +21,4 @@ RUN apt-get install -y iproute2 tcpdump iptables net-tools iputils-ping ipvsadm
 WORKDIR /root/
 COPY --from=build /app/nsp .
 
-CMD ./nsp
+CMD ["./nsp"]

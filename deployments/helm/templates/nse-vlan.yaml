@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
         - name: nse
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.vlanNSEImage }}:{{ .Values.vlanNSEVersion }}
+          # image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.vlanNSEImage }}:{{ .Values.vlanNSEVersion }}
+          image: registry.nordix.org/cloud-native/nsm/nse-generic:vlan-0.1
           imagePullPolicy: IfNotPresent
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
@@ -28,9 +29,11 @@ spec:
             - name: NSE_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSE_SERVICE_NAME
-              value: external-vlan
+              value: {{ template "meridio.vlanServiceName" . }}
             - name: NSE_CIDR_PREFIX
               value: {{ template "meridio.vlanPrefix" . }}
+            - name: NSE_POINT2_POINT
+              value: "False"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

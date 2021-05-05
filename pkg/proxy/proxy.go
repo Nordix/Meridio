@@ -1,33 +1,31 @@
 package proxy
 
 import (
-	"fmt"
-	"strconv"
+	"errors"
 	"sync"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/nordix/meridio/pkg/ipam"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
 )
 
 // Proxy -
 type Proxy struct {
-	bridge           *networking.Bridge
-	sourceBasedRoute *networking.SourceBasedRoute
-	vip              *netlink.Addr
-	subnet           *netlink.Addr
+	bridge           networking.Bridge
+	sourceBasedRoute networking.SourceBasedRoute
+	vip              string
+	subnet           string
 	ipam             *ipam.Ipam
 	mutex            sync.Mutex
 }
 
-func (p *Proxy) isNSMInterface(intf *networking.Interface) bool {
-	return intf.InteraceType == networking.NSE || intf.InteraceType == networking.NSC
+func (p *Proxy) isNSMInterface(intf networking.Iface) bool {
+	return intf.GetInterfaceType() == networking.NSE || intf.GetInterfaceType() == networking.NSC
 }
 
 // InterfaceCreated -
-func (p *Proxy) InterfaceCreated(intf *networking.Interface) {
+func (p *Proxy) InterfaceCreated(intf networking.Iface) {
 	if !p.isNSMInterface(intf) {
 		return
 	}
@@ -37,9 +35,9 @@ func (p *Proxy) InterfaceCreated(intf *networking.Interface) {
 	if err != nil {
 		logrus.Errorf("Proxy: Error LinkInterface: %v", err)
 	}
-	if intf.InteraceType == networking.NSC {
+	if intf.GetInterfaceType() == networking.NSC {
 		// Add the neighbor IPs of the interface to the nexthops (outgoing traffic)
-		for _, ip := range intf.NeighborIPs {
+		for _, ip := range intf.GetNeighborPrefixes() {
 			err = p.sourceBasedRoute.AddNexthop(ip)
 			if err != nil {
 				logrus.Errorf("Proxy: Error adding nexthop: %v", err)
@@ -49,7 +47,7 @@ func (p *Proxy) InterfaceCreated(intf *networking.Interface) {
 }
 
 // InterfaceDeleted -
-func (p *Proxy) InterfaceDeleted(intf *networking.Interface) {
+func (p *Proxy) InterfaceDeleted(intf networking.Iface) {
 	if !p.isNSMInterface(intf) {
 		return
 	}
@@ -59,9 +57,9 @@ func (p *Proxy) InterfaceDeleted(intf *networking.Interface) {
 	if err != nil {
 		logrus.Errorf("Proxy: Error UnLinkInterface: %v", err)
 	}
-	if intf.InteraceType == networking.NSC {
+	if intf.GetInterfaceType() == networking.NSC {
 		// Remove the neighbor IPs of the interface from the nexthops (outgoing traffic)
-		for _, ip := range intf.NeighborIPs {
+		for _, ip := range intf.GetNeighborPrefixes() {
 			err = p.sourceBasedRoute.RemoveNexthop(ip)
 			if err != nil {
 				logrus.Errorf("Proxy: Error removing nexthop: %v", err)
@@ -70,87 +68,60 @@ func (p *Proxy) InterfaceDeleted(intf *networking.Interface) {
 	}
 }
 
-// NewNSCIPContext -
-func (p *Proxy) NewNSCIPContext() (*networkservice.IPContext, error) {
-	prefixLength, _ := p.subnet.Mask.Size()
-
+// SetIPContext
+func (p *Proxy) SetIPContext(conn *networkservice.Connection, interfaceType networking.InterfaceType) error {
 	p.mutex.Lock()
-	ip, err := p.ipam.AllocateIP(p.subnet)
+	defer p.mutex.Unlock()
+
+	if conn == nil {
+		return errors.New("connection is nil")
+	}
+
+	if conn.GetContext() == nil {
+		conn.Context = &networkservice.ConnectionContext{}
+	}
+
+	srcIPAddr, err := p.ipam.AllocateIP(p.subnet)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	dstIPAddr := fmt.Sprintf("%s/%s", ip.IP.String(), strconv.Itoa(prefixLength))
 
-	ip, err = p.ipam.AllocateIP(p.subnet)
+	dstIPAddr, err := p.ipam.AllocateIP(p.subnet)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	srcIPAddr := fmt.Sprintf("%s/%s", ip.IP.String(), strconv.Itoa(prefixLength))
-	p.mutex.Unlock()
-
-	ipContext := &networkservice.IPContext{
-		// DstIpAddr: dstIpAddr, // IP on the NSE
-		DstIpAddr: dstIPAddr, // IP on the NSE
-		SrcIpAddr: srcIPAddr, // IP on the target
+	conn.GetContext().IpContext = &networkservice.IPContext{}
+	if interfaceType == networking.NSE {
+		conn.GetContext().IpContext.SrcIpAddr = srcIPAddr
+		conn.GetContext().IpContext.DstIpAddr = dstIPAddr
+		conn.GetContext().GetIpContext().ExtraPrefixes = p.bridge.GetLocalPrefixes()
+	} else if interfaceType == networking.NSC {
+		conn.GetContext().IpContext.SrcIpAddr = dstIPAddr
+		conn.GetContext().IpContext.DstIpAddr = srcIPAddr
 	}
-	return ipContext, nil
-}
-
-// NewNSEIPContext -
-func (p *Proxy) NewNSEIPContext() (*networkservice.IPContext, error) {
-	prefixLength, _ := p.subnet.Mask.Size()
-
-	p.mutex.Lock()
-	ip, err := p.ipam.AllocateIP(p.subnet)
-	if err != nil {
-		return nil, err
-	}
-	srcIPAddr := fmt.Sprintf("%s/%s", ip.IP.String(), strconv.Itoa(prefixLength))
-
-	ip, err = p.ipam.AllocateIP(p.subnet)
-	if err != nil {
-		return nil, err
-	}
-	dstIPAddr := fmt.Sprintf("%s/%s", ip.IP.String(), strconv.Itoa(prefixLength))
-	p.mutex.Unlock()
-
-	ipContext := &networkservice.IPContext{
-		// SrcIpAddr: srcIpAddr, // IP on the target
-		SrcIpAddr:     srcIPAddr, // IP on the target
-		DstIpAddr:     dstIPAddr, // IP on the NSE
-		ExtraPrefixes: p.getBridgeRoutes(),
-	}
-	return ipContext, nil
-}
-
-func (p *Proxy) getBridgeRoutes() []string {
-	routes := []string{}
-	for _, ip := range p.bridge.LocalIPs {
-		routes = append(routes, ip.String())
-	}
-	return routes
+	return nil
 }
 
 func (p *Proxy) setBridgeIP() error {
-	ip, err := p.ipam.AllocateIP(p.subnet)
+	prefix, err := p.ipam.AllocateIP(p.subnet)
 	if err != nil {
 		return err
 	}
-	err = p.bridge.AddAddress(ip)
+	err = p.bridge.AddLocalPrefix(prefix)
 	if err != nil {
 		return err
 	}
-	p.bridge.LocalIPs = append(p.bridge.LocalIPs, ip)
+	p.bridge.SetLocalPrefixes(append(p.bridge.GetLocalPrefixes(), prefix))
 	return nil
 }
 
 // NewProxy -
-func NewProxy(vip *netlink.Addr, subnet *netlink.Addr) *Proxy {
-	bridge, err := networking.NewBridge("bridge0")
+func NewProxy(vip string, subnet string, netUtils networking.Utils) *Proxy {
+	bridge, err := netUtils.NewBridge("bridge0")
 	if err != nil {
 		logrus.Errorf("Proxy: Error creating the bridge: %v", err)
 	}
-	sourceBasedRoute, err := networking.NewSourceBasedRoute(10, vip)
+	sourceBasedRoute, err := netUtils.NewSourceBasedRoute(10, vip)
 	if err != nil {
 		logrus.Errorf("Proxy: Error creating sourceBasedRoute: %v", err)
 	}

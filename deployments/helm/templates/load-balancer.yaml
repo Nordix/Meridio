@@ -1,6 +1,6 @@
 ---
 apiVersion: apps/v1
-kind: DaemonSet
+kind: Deployment
 metadata:
   name: load-balancer
   labels:
@@ -9,11 +9,22 @@ spec:
   selector:
     matchLabels:
       app: load-balancer
+  replicas: 2
   template:
     metadata:
       labels:
         app: load-balancer
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - "load-balancer"
+            topologyKey: kubernetes.io/hostname
       initContainers:
         - name: sysctl-init
           image: {{ .Values.registry }}/{{ .Values.organization }}/busybox:1.29
@@ -37,7 +48,7 @@ spec:
             - name: NSM_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
-              value: load-balancer
+              value: {{ template "meridio.loadBalancerNetworkServiceName" . }}
             - name: NSM_VIP
               value: {{ template "meridio.vip" . }}
             - name: NSM_NSP_SERVICE
@@ -52,7 +63,7 @@ spec:
           securityContext:
             privileged: true
         - name: nsc
-          image: registry.nordix.org/cloud-native/nsm/cmd-nsc:latest
+          image: registry.nordix.org/cloud-native/nsm/cmd-nsc:vlan-0.1
           imagePullPolicy: {{ .Values.pullPolicy }}
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
@@ -62,7 +73,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: NSM_NETWORK_SERVICES
-              value: kernel://external-vlan/ext-vlan?forwarder=forwarder-kernel
+              value: vlan://{{ template "meridio.vlanServiceName" . }}/ext-vlan?vlan-id={{ .Values.vlanID }}&base={{ .Values.vlanInterface }}&forwarder=forwarder-kernel
             - name: NSM_DIAL_TIMEOUT
               value: "30s"
             - name: NSM_REQUEST_TIMEOUT

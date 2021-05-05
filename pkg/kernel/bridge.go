@@ -1,13 +1,13 @@
-package networking
+package kernel
 
 import (
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/networking"
 	"github.com/vishvananda/netlink"
 )
 
 type Bridge struct {
 	name             string
-	linkedInterfaces []*Interface
+	linkedInterfaces []networking.Iface
 	Interface
 }
 
@@ -26,7 +26,6 @@ func (b *Bridge) create() error {
 		return err
 	}
 	b.index = bridge.Index
-	logrus.Infof("Bridge: Creation (id : %v), (name: %v)", b.index, b.name)
 	return nil
 }
 
@@ -36,7 +35,6 @@ func (b *Bridge) useExistingBridge() error {
 		return err
 	}
 	b.index = index
-	logrus.Infof("Bridge: Use existing (id : %v), (name: %v)", b.index, b.name)
 	return nil
 }
 
@@ -44,11 +42,11 @@ func (b *Bridge) Delete() error {
 	return nil
 }
 
-func (b *Bridge) addTolinkedInterfaces(intf *Interface) {
+func (b *Bridge) addTolinkedInterfaces(intf networking.Iface) {
 	b.linkedInterfaces = append(b.linkedInterfaces, intf)
 }
 
-func (b *Bridge) removeFromlinkedInterfaces(intf *Interface) {
+func (b *Bridge) removeFromlinkedInterfaces(intf networking.Iface) {
 	for index, i := range b.linkedInterfaces {
 		if i.Equals(intf) {
 			b.linkedInterfaces = append(b.linkedInterfaces[:index], b.linkedInterfaces[index+1:]...)
@@ -56,7 +54,7 @@ func (b *Bridge) removeFromlinkedInterfaces(intf *Interface) {
 	}
 }
 
-func (b *Bridge) interfaceIsLinked(intf *Interface) bool {
+func (b *Bridge) interfaceIsLinked(intf networking.Iface) bool {
 	for _, i := range b.linkedInterfaces {
 		if i.Equals(intf) {
 			return true
@@ -66,7 +64,7 @@ func (b *Bridge) interfaceIsLinked(intf *Interface) bool {
 }
 
 // LinkInterface set the bridge as master of another interface
-func (b *Bridge) LinkInterface(intf *Interface) error {
+func (b *Bridge) LinkInterface(intf networking.Iface) error {
 	if b.interfaceIsLinked(intf) {
 		return nil // TODO
 	}
@@ -75,7 +73,7 @@ func (b *Bridge) LinkInterface(intf *Interface) error {
 	if err != nil {
 		return err
 	}
-	interfaceLink, err := intf.getLink()
+	interfaceLink, err := getLink(intf)
 	if err != nil {
 		return err
 	}
@@ -86,12 +84,12 @@ func (b *Bridge) LinkInterface(intf *Interface) error {
 	return nil
 }
 
-func (b *Bridge) UnLinkInterface(intf *Interface) error {
+func (b *Bridge) UnLinkInterface(intf networking.Iface) error {
 	if !b.interfaceIsLinked(intf) {
 		return nil // TODO
 	}
 	b.removeFromlinkedInterfaces(intf)
-	interfaceLink, err := intf.getLink()
+	interfaceLink, err := getLink(intf)
 	if err != nil {
 		return err
 	}
@@ -101,7 +99,7 @@ func (b *Bridge) UnLinkInterface(intf *Interface) error {
 func NewBridge(name string) (*Bridge, error) {
 	bridge := &Bridge{
 		name:             name,
-		linkedInterfaces: []*Interface{},
+		linkedInterfaces: []networking.Iface{},
 		Interface:        Interface{},
 	}
 	err := bridge.create()

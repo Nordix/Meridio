@@ -17,7 +17,7 @@ spec:
       hostNetwork: true
       containers:
         - name: forwarder-kernel
-          image: registry.nordix.org/cloud-native/nsm/forwarder-kernel:eth0
+          image: registry.nordix.org/cloud-native/nsm/forwarder-kernel:vlan-0.1
           imagePullPolicy: {{ .Values.pullPolicy }}
           securityContext:
             privileged: true

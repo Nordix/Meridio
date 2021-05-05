@@ -1,4 +1,4 @@
-FROM golang:alpine as build
+FROM golang:1.16 as build
 
 ENV GO111MODULE=on
 
@@ -35,4 +35,4 @@ WORKDIR /root/
 COPY --from=build /app/load-balancer .
 COPY --from=lb-builder /lb /bin/lb
 
-CMD ./load-balancer
+CMD ["./load-balancer"]

@@ -13,24 +13,30 @@ docker exec -it ubuntu-ext gunzip ctraffic.gz
 docker exec -it ubuntu-ext chmod u+x ctraffic
 docker exec -it ubuntu-ext mv ctraffic /usr/bin/
 
+docker exec -it ubuntu-ext sysctl -w net.ipv6.conf.all.disable_ipv6=0
 docker exec -it ubuntu-ext sysctl -w net.ipv4.fib_multipath_hash_policy=1
 docker exec -it ubuntu-ext sysctl -w net.ipv6.fib_multipath_hash_policy=1
+docker exec -it ubuntu-ext sysctl -w net.ipv6.conf.all.forwarding=1
+docker exec -it ubuntu-ext sysctl -w net.ipv4.conf.all.forwarding=1
+docker exec -it ubuntu-ext sysctl -w net.ipv6.conf.all.accept_dad=0
 
 parent_if_name="eth0"
-vlan_if_name="vlan0"
-vlan_id="101"
+vlan_if_name="vlan"
+vlan_id="100"
 
-docker exec -it ubuntu-ext ip link add link $parent_if_name name $vlan_if_name type vlan id $vlan_id
-docker exec -it ubuntu-ext ip link set $vlan_if_name up
+for index in {0..5}
+do
+    if_name="${vlan_if_name}-${index}"
+    vi=$((vlan_id + index))
+    ip="169.254.${vi}.150/24"
+    ip6="100:${vi}::150/64"
 
-docker exec -it ubuntu-ext ip addr add 169.254.0.0/32 dev $vlan_if_name
-docker exec -it ubuntu-ext ip addr add 169.254.0.2/32 dev $vlan_if_name
-docker exec -it ubuntu-ext ip addr add 169.254.0.4/32 dev $vlan_if_name
-docker exec -it ubuntu-ext ip addr add 169.254.0.6/32 dev $vlan_if_name
+    docker exec -it ubuntu-ext ip link add link $parent_if_name name $if_name type vlan id $vi
+    docker exec -it ubuntu-ext ip link set $if_name up
 
-docker exec -it ubuntu-ext ip route add 169.254.0.1 dev vlan0 src 169.254.0.0
-docker exec -it ubuntu-ext ip route add 169.254.0.3 dev vlan0 src 169.254.0.2
-docker exec -it ubuntu-ext ip route add 169.254.0.5 dev vlan0 src 169.254.0.4
-docker exec -it ubuntu-ext ip route add 169.254.0.7 dev vlan0 src 169.254.0.6
+    docker exec -it ubuntu-ext ip addr add $ip dev $if_name
+    docker exec -it ubuntu-ext ip addr add $ip6 dev $if_name
+done
 
-docker exec -it ubuntu-ext ip route replace 20.0.0.1/32 nexthop via 169.254.0.1 nexthop via 169.254.0.3
+docker exec -it ubuntu-ext ip route replace 20.0.0.1/32 nexthop via 169.254.100.1 nexthop via 169.254.100.2
+docker exec -it ubuntu-ext ip route replace 2000::1/128 nexthop via 100:100::1 nexthop via 100:100::2

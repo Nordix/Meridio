@@ -8,21 +8,21 @@ import (
 
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
 )
 
 // LoadBalancer -
 type LoadBalancer struct {
-	m       int
-	n       int
-	nfQueue *networking.NFQueue
-	vip     *netlink.Addr
-	targets map[int]*configuredTarget // key: Identifier
+	m        int
+	n        int
+	nfQueue  networking.NFQueue
+	vip      string
+	targets  map[int]*configuredTarget // key: Identifier
+	netUtils networking.Utils
 }
 
 type configuredTarget struct {
 	target *Target
-	fwMark *networking.FWMarkRoute
+	fwMark networking.FWMarkRoute
 }
 
 // Start -
@@ -35,7 +35,7 @@ func (lb *LoadBalancer) AddTarget(target *Target) error {
 	if lb.TargetExists(target) {
 		return errors.New("The target is already existing.")
 	}
-	fwMark, err := networking.NewFWMarkRoute(target.ip, target.identifier, target.identifier)
+	fwMark, err := lb.netUtils.NewFWMarkRoute(target.ip, target.identifier, target.identifier)
 	if err != nil {
 		return err
 	}
@@ -110,7 +110,7 @@ func (lb *LoadBalancer) configure() error {
 	if err != nil {
 		return err
 	}
-	nfqueue, err := networking.NewNFQueue(lb.vip, 2)
+	nfqueue, err := lb.netUtils.NewNFQueue(lb.vip, 2)
 	if err != nil {
 		logrus.Errorf("Load Balancer: error configuring nfqueue (iptables): %v", err)
 		return err
@@ -129,12 +129,13 @@ func (lb *LoadBalancer) desactivateAll() error {
 	return nil
 }
 
-func NewLoadBalancer(vip *netlink.Addr, m int, n int) (*LoadBalancer, error) {
+func NewLoadBalancer(vip string, m int, n int, netUtils networking.Utils) (*LoadBalancer, error) {
 	loadBalancer := &LoadBalancer{
-		m:       m,
-		n:       n,
-		vip:     vip,
-		targets: make(map[int]*configuredTarget),
+		m:        m,
+		n:        n,
+		vip:      vip,
+		targets:  make(map[int]*configuredTarget),
+		netUtils: netUtils,
 	}
 	err := loadBalancer.configure()
 	if err != nil {

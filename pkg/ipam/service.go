@@ -33,18 +33,19 @@ func (is *IpamService) Start() {
 // Allocate -
 func (is *IpamService) Allocate(ctx context.Context, subnetRequest *ipamAPI.SubnetRequest) (*ipamAPI.Subnet, error) {
 	subnetRequestedCidr := fmt.Sprintf("%s/%s", subnetRequest.SubnetPool.Address, strconv.Itoa(int(subnetRequest.SubnetPool.PrefixLength)))
-	subnetNetlink, err := netlink.ParseAddr(subnetRequestedCidr)
+
+	subnet, err := is.ipam.AllocateSubnet(subnetRequestedCidr, int(subnetRequest.PrefixLength))
 	if err != nil {
 		return nil, err
 	}
 
-	subnet, err := is.ipam.AllocateSubnet(subnetNetlink, int(subnetRequest.PrefixLength))
+	subnetAddr, err := netlink.ParseAddr(subnet)
 	if err != nil {
 		return nil, err
 	}
 
 	return &ipamAPI.Subnet{
-		Address:      subnet.IP.String(),
+		Address:      subnetAddr.IP.String(),
 		PrefixLength: subnetRequest.PrefixLength,
 	}, nil
 }

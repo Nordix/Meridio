@@ -37,7 +37,7 @@ spec:
             - name: NSM_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
-              value: proxy
+              value: {{ template "meridio.proxyNetworkServiceName" . }}
             - name: NSM_VIP
               value: {{ template "meridio.vip" . }}
             - name: NSM_SUBNET_POOL
@@ -47,7 +47,7 @@ spec:
             - name: NSM_IPAM_SERVICE
               value: ipam-service:{{ .Values.ipamTargetPort }}
             - name: NSM_NETWORK_SERVICE_NAME
-              value: load-balancer
+              value: {{ template "meridio.loadBalancerNetworkServiceName" . }}
             - name: NSM_NSP_SERVICE
               value: nsp-service:{{ .Values.nspTargetPort }}
           volumeMounts:

@@ -30,7 +30,7 @@ func (nsps *NetworkServicePlateformService) targetExists(target *nspAPI.Target) 
 
 func (nsps *NetworkServicePlateformService) addTarget(target *nspAPI.Target) error {
 	if nsps.targetExists(target) {
-		return errors.New("Target already exists")
+		return errors.New("target already exists")
 	}
 	logrus.Infof("Add Target: %v", target)
 	target.Status = nspAPI.Status_Register
@@ -40,9 +40,11 @@ func (nsps *NetworkServicePlateformService) addTarget(target *nspAPI.Target) err
 }
 
 func (nsps *NetworkServicePlateformService) removeTarget(target *nspAPI.Target) error {
-	if !nsps.targetExists(target) {
-		return errors.New("Target is not existing")
+	t, exists := nsps.targets.Load(target.Ip)
+	if !exists {
+		return errors.New("target is not existing")
 	}
+	target = t.(*nspAPI.Target)
 	logrus.Infof("Remove Target: %v", target)
 	target.Status = nspAPI.Status_Unregister
 	nsps.notifyMonitorStreams(target)
