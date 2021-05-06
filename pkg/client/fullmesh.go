@@ -84,7 +84,7 @@ func (fmnsc *fullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 	request.Connection.NetworkServiceEndpointName = networkServiceEndpointName
 	request.Connection.Id = fmt.Sprintf("%s-%s-%d", fmnsc.config.Name, request.Connection.NetworkService, fmnsc.nscIndex)
 	fmnsc.nscIndex++
-	logrus.Infof("Full Mesh Client (%v): event add: %v", fmnsc.baseRequest.Connection.NetworkService, networkServiceEndpointName)
+	logrus.Infof("Full Mesh Client (%v - %v): event add: %v", request.Connection.Id, request.Connection.NetworkService, networkServiceEndpointName)
 	err := networkServiceClient.Request(request)
 	fmnsc.networkServiceClients[networkServiceEndpointName] = networkServiceClient
 	if err != nil {

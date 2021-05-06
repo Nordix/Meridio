@@ -115,14 +115,14 @@ func (conn *connection) getDstIPs() []string {
 	if conn == nil || conn.GetContext() == nil || conn.GetContext().GetIpContext() == nil {
 		return []string{}
 	}
-	return []string{conn.GetContext().GetIpContext().GetDstIpAddr()}
+	return conn.GetContext().GetIpContext().GetDstIpAddrs()
 }
 
 func (conn *connection) getSrcIPs() []string {
 	if conn == nil || conn.GetContext() == nil || conn.GetContext().GetIpContext() == nil {
 		return []string{}
 	}
-	return []string{conn.GetContext().GetIpContext().GetSrcIpAddr()}
+	return conn.GetContext().GetIpContext().GetSrcIpAddrs()
 }
 
 func (conn *connection) getGatewayIPs() []string {

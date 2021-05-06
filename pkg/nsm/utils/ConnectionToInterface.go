@@ -31,8 +31,8 @@ func ConvertConnectionToInterface(interfaceName string, conn *networkservice.Con
 		return intf, nil
 	}
 
-	intf.SetLocalPrefixes([]string{IpContext.DstIpAddr})
-	intf.SetNeighborPrefixes([]string{IpContext.DstIpAddr})
+	intf.SetLocalPrefixes(IpContext.DstIpAddrs)
+	intf.SetNeighborPrefixes(IpContext.DstIpAddrs)
 	intf.SetGatewayPrefixes(IpContext.ExtraPrefixes)
 
 	return intf, nil

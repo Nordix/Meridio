@@ -23,7 +23,7 @@ func NewNSPEndpoint(nspService string) *NSPEndpoint {
 func (nspe *NSPEndpoint) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	logrus.Infof("NSPEndpoint: Request")
 	if request.GetConnection().GetContext() != nil && request.GetConnection().GetContext().GetIpContext() != nil {
-		ip := request.GetConnection().GetContext().GetIpContext().GetSrcIpAddr()
+		ip := request.GetConnection().GetContext().GetIpContext().GetSrcIpAddrs()[0]
 		context := request.GetConnection().GetContext().GetExtraContext()
 		err := nspe.networkServicePlateformClient.Register(ip, context)
 		logrus.Infof("NSPEndpoint: Register ip: %v %v", ip, err)
@@ -34,7 +34,7 @@ func (nspe *NSPEndpoint) Request(ctx context.Context, request *networkservice.Ne
 func (nspe *NSPEndpoint) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	logrus.Infof("NSPEndpoint: Close")
 	if conn.GetContext() != nil && conn.GetContext().GetIpContext() != nil {
-		ip := conn.GetContext().GetIpContext().GetSrcIpAddr()
+		ip := conn.GetContext().GetIpContext().GetSrcIpAddrs()[0]
 		err := nspe.networkServicePlateformClient.Unregister(ip)
 		logrus.Infof("NSPEndpoint: Unregister ip: %v %v", ip, err)
 	}
