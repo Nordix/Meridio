@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -35,7 +37,13 @@ import (
 )
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGHUP,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
 	defer cancel()
 
 	logrus.SetOutput(os.Stdout)
@@ -80,15 +88,25 @@ func main() {
 		RequestTimeout: config.RequestTimeout,
 	}
 	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, p, netUtils)
-	go startNSC(ctx, clientConfig, nsmAPIClient, config.NetworkServiceName, p, interfaceMonitorClient)
+	client := getNSC(ctx, clientConfig, nsmAPIClient, p, interfaceMonitorClient)
+	defer client.Close()
+	go startNSC(client, config.NetworkServiceName)
 
+	labels := map[string]string{}
+	if config.Host != "" {
+		labels["host"] = config.Host
+	}
 	endpointConfig := &endpoint.Config{
 		Name:             config.Name,
 		ServiceName:      config.ServiceName,
 		MaxTokenLifetime: config.MaxTokenLifetime,
+		Labels:           labels,
 	}
 	interfaceMonitorServer := interfacemonitor.NewServer(interfaceMonitor, p, netUtils)
-	startNSE(ctx, endpointConfig, nsmAPIClient, p, interfaceMonitorServer, config.NSPService)
+	ep := startNSE(ctx, endpointConfig, nsmAPIClient, p, interfaceMonitorServer, config.NSPService)
+	defer ep.Delete()
+
+	<-ctx.Done()
 }
 
 func getProxySubnet(config Config) (string, error) {
@@ -107,12 +125,11 @@ func getProxySubnet(config Config) (string, error) {
 	return proxySubnet, nil
 }
 
-func startNSC(ctx context.Context,
+func getNSC(ctx context.Context,
 	config *client.Config,
 	nsmAPIClient *nsm.APIClient,
-	networkServiceName string,
 	p *proxy.Proxy,
-	interfaceMonitorClient networkservice.NetworkServiceClient) {
+	interfaceMonitorClient networkservice.NetworkServiceClient) client.NetworkServiceClient {
 
 	networkServiceClient := chain.NewNetworkServiceClient(
 		sriovtoken.NewClient(),
@@ -126,6 +143,10 @@ func startNSC(ctx context.Context,
 		sendfd.NewClient(),
 	)
 	fullMeshClient := client.NewFullMeshNetworkServiceClient(config, nsmAPIClient.GRPCClient, networkServiceClient)
+	return fullMeshClient
+}
+
+func startNSC(fullMeshClient client.NetworkServiceClient, networkServiceName string) {
 	err := fullMeshClient.Request(&networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkService: networkServiceName,
@@ -142,7 +163,6 @@ func startNSC(ctx context.Context,
 	if err != nil {
 		logrus.Fatalf("fullMeshClient.Request err: %+v", err)
 	}
-
 }
 
 func startNSE(ctx context.Context,
@@ -150,7 +170,7 @@ func startNSE(ctx context.Context,
 	nsmAPIClient *nsm.APIClient,
 	p *proxy.Proxy,
 	interfaceMonitorServer networkservice.NetworkServiceServer,
-	nspService string) {
+	nspService string) *endpoint.Endpoint {
 
 	responderEndpoint := []networkservice.NetworkServiceServer{
 		recvfd.NewServer(),
@@ -174,8 +194,5 @@ func startNSE(ctx context.Context,
 	if err != nil {
 		logrus.Errorf("unable to start nse %+v", err)
 	}
-
-	defer ep.Delete()
-
-	<-ctx.Done()
+	return ep
 }

@@ -79,6 +79,11 @@ func main() {
 
 	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, st, netUtils)
 
+	labels := map[string]string{"forwarder": "forwarder-vpp"}
+	if config.Host != "" {
+		labels["host"] = config.Host
+	}
+
 	networkServiceClient := chain.NewNetworkServiceClient(
 		sriovtoken.NewClient(),
 		mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
@@ -98,7 +103,7 @@ func main() {
 		Connection: &networkservice.Connection{
 			Id:             fmt.Sprintf("%s-%s-%d", config.Name, config.ProxyNetworkServiceName, 0),
 			NetworkService: config.ProxyNetworkServiceName,
-			Labels:         map[string]string{"forwarder": "forwarder-vpp"},
+			Labels:         labels,
 			Payload:        payload.Ethernet,
 			Context: &networkservice.ConnectionContext{
 				ExtraContext: extraContext,
