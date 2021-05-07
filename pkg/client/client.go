@@ -10,32 +10,32 @@ import (
 	"google.golang.org/grpc"
 )
 
-type networkServiceClient struct {
+type SimpleNetworkServiceClient struct {
 	networkServiceClient networkservice.NetworkServiceClient
 	config               *Config
-	connection           *networkservice.Connection
+	Connection           *networkservice.Connection
 }
 
-func (nsc *networkServiceClient) Request(request *networkservice.NetworkServiceRequest) error {
-	if !nsc.requestIsValid(request) {
+func (snsc *SimpleNetworkServiceClient) Request(request *networkservice.NetworkServiceRequest) error {
+	if !snsc.requestIsValid(request) {
 		return errors.New("request is not valid")
 	}
 	for {
-		connection, err := nsc.networkServiceClient.Request(context.Background(), request)
+		connection, err := snsc.networkServiceClient.Request(context.Background(), request)
 		if err != nil {
 			time.Sleep(15 * time.Second)
 			logrus.Errorf("Network Service Client: Request err: %v", err)
 			continue
 		}
-		nsc.connection = connection
+		snsc.Connection = connection
 		break
 	}
 	return nil
 }
 
-func (nsc *networkServiceClient) Close() error {
+func (snsc *SimpleNetworkServiceClient) Close() error {
 	for {
-		_, err := nsc.networkServiceClient.Close(context.Background(), nsc.connection)
+		_, err := snsc.networkServiceClient.Close(context.Background(), snsc.Connection)
 		if err != nil {
 			time.Sleep(15 * time.Second)
 			logrus.Errorf("Network Service Client: Request err: %v", err)
@@ -46,7 +46,7 @@ func (nsc *networkServiceClient) Close() error {
 	return nil
 }
 
-func (nsc *networkServiceClient) requestIsValid(request *networkservice.NetworkServiceRequest) bool {
+func (snsc *SimpleNetworkServiceClient) requestIsValid(request *networkservice.NetworkServiceRequest) bool {
 	if request == nil {
 		return false
 	}
@@ -60,11 +60,11 @@ func (nsc *networkServiceClient) requestIsValid(request *networkservice.NetworkS
 }
 
 // NewnetworkServiceClient
-func NewNetworkServiceClient(config *Config, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) NetworkServiceClient {
-	networkServiceClient := &networkServiceClient{
+func NewSimpleNetworkServiceClient(config *Config, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) NetworkServiceClient {
+	simpleNetworkServiceClient := &SimpleNetworkServiceClient{
 		config:               config,
 		networkServiceClient: newClient(context.Background(), config.Name, cc, additionalFunctionality...),
 	}
 
-	return networkServiceClient
+	return simpleNetworkServiceClient
 }

@@ -16,19 +16,19 @@ import (
 	"google.golang.org/grpc"
 )
 
-type fullMeshNetworkServiceClient struct {
+type FullMeshNetworkServiceClient struct {
 	networkServiceClient                 networkservice.NetworkServiceClient
 	networkServiceEndpointRegistryClient registry.NetworkServiceEndpointRegistryClient
 	baseRequest                          *networkservice.NetworkServiceRequest
-	NetworkServiceDiscoveryStream        registry.NetworkServiceEndpointRegistry_FindClient
+	networkServiceDiscoveryStream        registry.NetworkServiceEndpointRegistry_FindClient
 	config                               *Config
 	nscIndex                             int
 	mu                                   sync.Mutex
-	networkServiceClients                map[string]*networkServiceClient
+	networkServiceClients                map[string]*SimpleNetworkServiceClient
 }
 
 // Request -
-func (fmnsc *fullMeshNetworkServiceClient) Request(request *networkservice.NetworkServiceRequest) error {
+func (fmnsc *FullMeshNetworkServiceClient) Request(request *networkservice.NetworkServiceRequest) error {
 	if !fmnsc.requestIsValid(request) {
 		return errors.New("request is not valid")
 	}
@@ -36,7 +36,7 @@ func (fmnsc *fullMeshNetworkServiceClient) Request(request *networkservice.Netwo
 	query := fmnsc.prepareQuery()
 	var err error
 	// TODO: Context
-	fmnsc.NetworkServiceDiscoveryStream, err = fmnsc.networkServiceEndpointRegistryClient.Find(context.Background(), query)
+	fmnsc.networkServiceDiscoveryStream, err = fmnsc.networkServiceEndpointRegistryClient.Find(context.Background(), query)
 	if err != nil {
 		return err
 	}
@@ -44,16 +44,16 @@ func (fmnsc *fullMeshNetworkServiceClient) Request(request *networkservice.Netwo
 }
 
 // Close -
-func (fmnsc *fullMeshNetworkServiceClient) Close() error {
+func (fmnsc *FullMeshNetworkServiceClient) Close() error {
 	for networkServiceEndpointName := range fmnsc.networkServiceClients {
 		fmnsc.deleteNetworkServiceClient(networkServiceEndpointName)
 	}
 	return nil
 }
 
-func (fmnsc *fullMeshNetworkServiceClient) recv() error {
+func (fmnsc *FullMeshNetworkServiceClient) recv() error {
 	for {
-		networkServiceEndpoint, err := fmnsc.NetworkServiceDiscoveryStream.Recv()
+		networkServiceEndpoint, err := fmnsc.networkServiceDiscoveryStream.Recv()
 		if err == io.EOF {
 			break
 		}
@@ -70,13 +70,13 @@ func (fmnsc *fullMeshNetworkServiceClient) recv() error {
 	return nil
 }
 
-func (fmnsc *fullMeshNetworkServiceClient) addNetworkServiceClient(networkServiceEndpointName string) {
+func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServiceEndpointName string) {
 	fmnsc.mu.Lock()
 	defer fmnsc.mu.Unlock()
 	if fmnsc.networkServiceClientExists(networkServiceEndpointName) {
 		return
 	}
-	networkServiceClient := &networkServiceClient{
+	networkServiceClient := &SimpleNetworkServiceClient{
 		networkServiceClient: fmnsc.networkServiceClient,
 		config:               fmnsc.config,
 	}
@@ -92,7 +92,7 @@ func (fmnsc *fullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 	}
 }
 
-func (fmnsc *fullMeshNetworkServiceClient) deleteNetworkServiceClient(networkServiceEndpointName string) {
+func (fmnsc *FullMeshNetworkServiceClient) deleteNetworkServiceClient(networkServiceEndpointName string) {
 	fmnsc.mu.Lock()
 	defer fmnsc.mu.Unlock()
 	networkServiceClient, exists := fmnsc.networkServiceClients[networkServiceEndpointName]
@@ -107,12 +107,12 @@ func (fmnsc *fullMeshNetworkServiceClient) deleteNetworkServiceClient(networkSer
 	}
 }
 
-func (fmnsc *fullMeshNetworkServiceClient) networkServiceClientExists(networkServiceEndpointName string) bool {
+func (fmnsc *FullMeshNetworkServiceClient) networkServiceClientExists(networkServiceEndpointName string) bool {
 	_, ok := fmnsc.networkServiceClients[networkServiceEndpointName]
 	return ok
 }
 
-func (fmnsc *fullMeshNetworkServiceClient) requestIsValid(request *networkservice.NetworkServiceRequest) bool {
+func (fmnsc *FullMeshNetworkServiceClient) requestIsValid(request *networkservice.NetworkServiceRequest) bool {
 	if request == nil {
 		return false
 	}
@@ -125,7 +125,7 @@ func (fmnsc *fullMeshNetworkServiceClient) requestIsValid(request *networkservic
 	return true
 }
 
-func (fmnsc *fullMeshNetworkServiceClient) prepareQuery() *registry.NetworkServiceEndpointQuery {
+func (fmnsc *FullMeshNetworkServiceClient) prepareQuery() *registry.NetworkServiceEndpointQuery {
 	networkServiceEndpoint := &registry.NetworkServiceEndpoint{
 		NetworkServiceNames: []string{fmnsc.baseRequest.Connection.NetworkService},
 	}
@@ -138,10 +138,10 @@ func (fmnsc *fullMeshNetworkServiceClient) prepareQuery() *registry.NetworkServi
 
 // NewFullMeshNetworkServiceClient -
 func NewFullMeshNetworkServiceClient(config *Config, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) NetworkServiceClient {
-	fullMeshNetworkServiceClient := &fullMeshNetworkServiceClient{
+	fullMeshNetworkServiceClient := &FullMeshNetworkServiceClient{
 		config:                config,
 		networkServiceClient:  newClient(context.Background(), config.Name, cc, additionalFunctionality...),
-		networkServiceClients: make(map[string]*networkServiceClient),
+		networkServiceClients: make(map[string]*SimpleNetworkServiceClient),
 		nscIndex:              0,
 	}
 

@@ -93,7 +93,7 @@ func main() {
 		Name:           config.Name,
 		RequestTimeout: config.RequestTimeout,
 	}
-	client := client.NewNetworkServiceClient(clientConfig, apiClient.GRPCClient, networkServiceClient)
+	client := client.NewSimpleNetworkServiceClient(clientConfig, apiClient.GRPCClient, networkServiceClient)
 	err = client.Request(&networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id:             fmt.Sprintf("%s-%s-%d", config.Name, config.ProxyNetworkServiceName, 0),
