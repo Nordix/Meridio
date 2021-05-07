@@ -92,12 +92,12 @@ func (p *Proxy) SetIPContext(conn *networkservice.Connection, interfaceType netw
 	}
 	conn.GetContext().IpContext = &networkservice.IPContext{}
 	if interfaceType == networking.NSE {
-		conn.GetContext().IpContext.SrcIpAddr = srcIPAddr
-		conn.GetContext().IpContext.DstIpAddr = dstIPAddr
+		conn.GetContext().IpContext.SrcIpAddrs = []string{srcIPAddr}
+		conn.GetContext().IpContext.DstIpAddrs = []string{dstIPAddr}
 		conn.GetContext().GetIpContext().ExtraPrefixes = p.bridge.GetLocalPrefixes()
 	} else if interfaceType == networking.NSC {
-		conn.GetContext().IpContext.SrcIpAddr = dstIPAddr
-		conn.GetContext().IpContext.DstIpAddr = srcIPAddr
+		conn.GetContext().IpContext.SrcIpAddrs = []string{dstIPAddr}
+		conn.GetContext().IpContext.DstIpAddrs = []string{srcIPAddr}
 	}
 	return nil
 }

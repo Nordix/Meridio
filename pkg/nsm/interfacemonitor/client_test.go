@@ -30,8 +30,8 @@ func Test_Client_Request_NonExistingInterface(t *testing.T) {
 		Connection: &networkservice.Connection{
 			Context: &networkservice.ConnectionContext{
 				IpContext: &networkservice.IPContext{
-					SrcIpAddr:     "172.16.0.2",
-					DstIpAddr:     "172.16.0.1",
+					SrcIpAddrs:    []string{"172.16.0.2"},
+					DstIpAddrs:    []string{"172.16.0.1"},
 					ExtraPrefixes: []string{"172.16.0.1"},
 				},
 			},
@@ -73,8 +73,8 @@ func Test_Client_Request_ExistingInterface(t *testing.T) {
 		Connection: &networkservice.Connection{
 			Context: &networkservice.ConnectionContext{
 				IpContext: &networkservice.IPContext{
-					SrcIpAddr:     "172.16.0.2",
-					DstIpAddr:     "172.16.0.1",
+					SrcIpAddrs:    []string{"172.16.0.2"},
+					DstIpAddrs:    []string{"172.16.0.1"},
 					ExtraPrefixes: []string{"172.16.0.1"},
 				},
 			},
