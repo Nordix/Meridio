@@ -5,7 +5,9 @@ import (
 	"errors"
 	"io"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
@@ -31,8 +33,13 @@ import (
 )
 
 func main() {
-
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGHUP,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
 	defer cancel()
 
 	logrus.SetOutput(os.Stdout)
