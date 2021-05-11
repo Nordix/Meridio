@@ -16,7 +16,16 @@ func (fwmr *FWMarkRoute) Delete() error {
 	rule := netlink.NewRule()
 	rule.Table = fwmr.tableID
 	rule.Family = fwmr.family()
-	return netlink.RuleDel(rule)
+	err := netlink.RuleDel(rule)
+	if err != nil {
+		return err
+	}
+
+	route := &netlink.Route{
+		Gw:    fwmr.ip.IP,
+		Table: fwmr.tableID,
+	}
+	return netlink.RouteDel(route)
 }
 
 func (fwmr *FWMarkRoute) configure() error {
