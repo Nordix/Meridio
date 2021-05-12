@@ -39,8 +39,8 @@ spec:
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_PROXY_NETWORK_SERVICE_NAME
               value: {{ template "meridio.proxyNetworkServiceName" . }}
-            - name: NSM_VIP
-              value: {{ template "meridio.vip" . }}
+            - name: NSM_VIPS
+              value: {{ template "meridio.vips" . }}
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

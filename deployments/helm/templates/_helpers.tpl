@@ -3,24 +3,30 @@
 {{/*
 Set IP Family
 */}}
-{{- define "meridio.vip" -}}
-{{- if eq .Values.ipFamily "ipv6" -}}
+{{- define "meridio.vips" -}}
+{{- if eq .Values.ipFamily "dualstack" -}}
+{{- (printf "%s,%s" .Values.vipIPv4 .Values.vipIPv6) | quote -}}
+{{- else if eq .Values.ipFamily "ipv6" -}}
 {{- printf .Values.vipIPv6 -}}
 {{- else -}}
 {{- printf .Values.vipIPv4 -}}
 {{- end -}}
 {{- end -}}
 
-{{- define "meridio.subnetPool" -}}
-{{- if eq .Values.ipFamily "ipv6" -}}
+{{- define "meridio.subnetPools" -}}
+{{- if eq .Values.ipFamily "dualstack" -}}
+{{- (printf "%s,%s" .Values.subnetPoolIPv4 .Values.subnetPoolIPv6) | quote -}}
+{{- else if eq .Values.ipFamily "ipv6" -}}
 {{- printf .Values.subnetPoolIPv6 -}}
 {{- else -}}
 {{- printf .Values.subnetPoolIPv4 -}}
 {{- end -}}
 {{- end -}}
 
-{{- define "meridio.subnetPrefixLength" -}}
-{{- if eq .Values.ipFamily "ipv6" -}}
+{{- define "meridio.subnetPrefixLengths" -}}
+{{- if eq .Values.ipFamily "dualstack" -}}
+{{- (printf "%d,%d" (int64 .Values.subnetPrefixLengthIPv4) (int64 .Values.subnetPrefixLengthIPv6)) | quote -}}
+{{- else if eq .Values.ipFamily "ipv6" -}}
 {{- .Values.subnetPrefixLengthIPv6 | quote -}}
 {{- else -}}
 {{- .Values.subnetPrefixLengthIPv4 | quote -}}
@@ -28,7 +34,9 @@ Set IP Family
 {{- end -}}
 
 {{- define "meridio.vlanPrefix" -}}
-{{- if eq .Values.ipFamily "ipv6" -}}
+{{- if eq .Values.ipFamily "dualstack" -}}
+{{- .Values.vlanIPv4Prefix | quote -}}
+{{- else if eq .Values.ipFamily "ipv6" -}}
 {{- .Values.vlanIPv6Prefix | quote -}}
 {{- else -}}
 {{- .Values.vlanIPv4Prefix | quote -}}

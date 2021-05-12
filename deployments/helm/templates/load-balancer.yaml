@@ -49,8 +49,8 @@ spec:
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
               value: {{ template "meridio.loadBalancerNetworkServiceName" . }}
-            - name: NSM_VIP
-              value: {{ template "meridio.vip" . }}
+            - name: NSM_VIPS
+              value: {{ template "meridio.vips" . }}
             - name: NSM_NSP_SERVICE
               value: nsp-service:{{ .Values.nspTargetPort }}
           volumeMounts:
@@ -74,6 +74,8 @@ spec:
                   fieldPath: metadata.name
             - name: NSM_NETWORK_SERVICES
               value: vlan://{{ template "meridio.vlanServiceName" . }}/ext-vlan?vlan-id={{ .Values.vlanID }}&base={{ .Values.vlanInterface }}&forwarder=forwarder-kernel
+            # - name: NSM_NETWORK_SERVICES
+            #   value: vlan://{{ template "meridio.vlanServiceName" . }}/ext-vlan?forwarder=forwarder-kernel
             - name: NSM_DIAL_TIMEOUT
               value: "30s"
             - name: NSM_REQUEST_TIMEOUT
