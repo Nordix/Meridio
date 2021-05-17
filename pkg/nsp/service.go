@@ -2,7 +2,6 @@ package nsp
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -19,46 +18,30 @@ type NetworkServicePlateformService struct {
 	Listener       net.Listener
 	Server         *grpc.Server
 	Port           int
-	targets        sync.Map // map[string]*nspAPI.Target
+	targets        *targetList
 	monitorStreams sync.Map // map[nspAPI.NetworkServicePlateformService_MonitorServer]bool
 }
 
-func (nsps *NetworkServicePlateformService) targetExists(target *nspAPI.Target) bool {
-	_, exists := nsps.targets.Load(target.Ip)
-	return exists
-}
-
 func (nsps *NetworkServicePlateformService) addTarget(target *nspAPI.Target) error {
-	if nsps.targetExists(target) {
-		return errors.New("target already exists")
-	}
 	logrus.Infof("Add Target: %v", target)
+	err := nsps.targets.Add(target)
+	if err != nil {
+		return err
+	}
 	target.Status = nspAPI.Status_Register
 	nsps.notifyMonitorStreams(target)
-	nsps.targets.Store(target.Ip, target)
 	return nil
 }
 
 func (nsps *NetworkServicePlateformService) removeTarget(target *nspAPI.Target) error {
-	t, exists := nsps.targets.Load(target.Ip)
-	if !exists {
-		return errors.New("target is not existing")
+	err := nsps.targets.Remove(target)
+	if err != nil {
+		return err
 	}
-	target = t.(*nspAPI.Target)
 	logrus.Infof("Remove Target: %v", target)
 	target.Status = nspAPI.Status_Unregister
 	nsps.notifyMonitorStreams(target)
-	nsps.targets.Delete(target.Ip)
 	return nil
-}
-
-func (nsps *NetworkServicePlateformService) getTargetSlice() []*nspAPI.Target {
-	targets := []*nspAPI.Target{}
-	nsps.targets.Range(func(key interface{}, value interface{}) bool {
-		targets = append(targets, value.(*nspAPI.Target))
-		return true
-	})
-	return targets
 }
 
 func (nsps *NetworkServicePlateformService) notifyMonitorStreams(target *nspAPI.Target) {
@@ -90,10 +73,9 @@ func (nsps *NetworkServicePlateformService) Unregister(ctx context.Context, targ
 
 func (nsps *NetworkServicePlateformService) Monitor(empty *empty.Empty, stream nspAPI.NetworkServicePlateformService_MonitorServer) error {
 	nsps.monitorStreams.Store(stream, true)
-	nsps.targets.Range(func(key interface{}, value interface{}) bool {
-		nsps.notifyMonitorStream(stream, value.(*nspAPI.Target))
-		return true
-	})
+	for _, target := range nsps.targets.Get() {
+		nsps.notifyMonitorStream(stream, target)
+	}
 	for nsps.streamAlive(stream) {
 		time.Sleep(1 * time.Second)
 	}
@@ -108,7 +90,7 @@ func (nsps *NetworkServicePlateformService) streamAlive(stream nspAPI.NetworkSer
 
 func (nsps *NetworkServicePlateformService) GetTargets(ctx context.Context, target *empty.Empty) (*nspAPI.GetTargetsResponse, error) {
 	response := &nspAPI.GetTargetsResponse{
-		Targets: nsps.getTargetSlice(),
+		Targets: nsps.targets.Get(),
 	}
 	return response, nil
 }
@@ -135,6 +117,7 @@ func NewNetworkServicePlateformService(port int) (*NetworkServicePlateformServic
 		Listener: lis,
 		Server:   s,
 		Port:     port,
+		targets:  &targetList{},
 	}
 
 	nspAPI.RegisterNetworkServicePlateformServiceServer(s, networkServicePlateformService)

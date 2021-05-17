@@ -28,7 +28,6 @@ import (
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
 	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
 )
 
 func main() {
@@ -50,11 +49,6 @@ func main() {
 		logrus.Fatalf("%v", err)
 	}
 
-	_, err = netlink.ParseAddr(config.VIP)
-	if err != nil {
-		logrus.Fatalf("Error Parsing the VIP: %v", err)
-	}
-
 	netUtils := &linuxKernel.KernelUtils{}
 	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
 	if err != nil {
@@ -63,7 +57,7 @@ func main() {
 
 	hostname, _ := os.Hostname()
 	identifier := Hash(hostname, 100)
-	st := NewSimpleTarget(identifier, config.VIP, netUtils)
+	st := NewSimpleTarget(identifier, config.VIPs, netUtils)
 
 	apiClientConfig := &nsm.Config{
 		Name:             config.Name,
@@ -136,9 +130,10 @@ func Hash(s string, n int) int {
 
 // SimpleTarget -
 type SimpleTarget struct {
-	identifier       int
-	sourceBasedRoute networking.SourceBasedRoute
-	vip              string
+	identifier        int
+	sourceBasedRoutes []networking.SourceBasedRoute
+	vips              []string
+	netUtils          networking.Utils
 }
 
 // InterfaceCreated -
@@ -147,10 +142,13 @@ func (st *SimpleTarget) InterfaceCreated(intf networking.Iface) {
 		logrus.Errorf("SimpleTarget: Adding nexthop: no gateway: %v", intf)
 		return
 	}
-	gateway := intf.GetGatewayPrefixes()[0]
-	err := st.sourceBasedRoute.AddNexthop(gateway)
-	if err != nil {
-		logrus.Errorf("SimpleTarget: Adding nexthop (%v) to source base route err: %v", gateway, err)
+	for _, gateway := range intf.GetGatewayPrefixes() {
+		for _, sourceBasedRoute := range st.sourceBasedRoutes {
+			err := sourceBasedRoute.AddNexthop(gateway)
+			if err != nil {
+				logrus.Errorf("SimpleTarget: Adding nexthop (%v) to source base route err: %v", gateway, err)
+			}
+		}
 	}
 }
 
@@ -160,26 +158,53 @@ func (st *SimpleTarget) InterfaceDeleted(intf networking.Iface) {
 		logrus.Errorf("SimpleTarget: Removing nexthop: no gateway: %v", intf)
 		return
 	}
-	gateway := intf.GetGatewayPrefixes()[0]
-	err := st.sourceBasedRoute.RemoveNexthop(gateway)
-	if err != nil {
-		logrus.Errorf("SimpleTarget: Removing nexthop (%v) from source base route err: %v", gateway, err)
+
+	for _, gateway := range intf.GetGatewayPrefixes() {
+		for _, sourceBasedRoute := range st.sourceBasedRoutes {
+			err := sourceBasedRoute.RemoveNexthop(gateway)
+			if err != nil {
+				logrus.Errorf("SimpleTarget: Removing nexthop (%v) from source base route err: %v", gateway, err)
+			}
+		}
 	}
 }
 
-func NewSimpleTarget(identifier int, vip string, netUtils networking.Utils) *SimpleTarget {
-	sourceBasedRoute, err := netUtils.NewSourceBasedRoute(10, vip)
-	if err != nil {
-		logrus.Errorf("SimpleTarget: NewSourceBasedRoute err: %v", err)
+func (st *SimpleTarget) createSourceBaseRoutes() error {
+	for index, vip := range st.vips {
+		sourceBasedRoute, err := st.netUtils.NewSourceBasedRoute(index, vip)
+		if err != nil {
+			logrus.Errorf("Proxy: Error creating sourceBasedRoute: %v", err)
+			return err
+		}
+		st.sourceBasedRoutes = append(st.sourceBasedRoutes, sourceBasedRoute)
 	}
-	err = netUtils.AddVIP(vip)
-	if err != nil {
-		logrus.Errorf("SimpleTarget: err AddVIP: %v", err)
+	return nil
+}
+
+func (st *SimpleTarget) addVIPs() error {
+	for _, vip := range st.vips {
+		err := st.netUtils.AddVIP(vip)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
+}
+
+func NewSimpleTarget(identifier int, vips []string, netUtils networking.Utils) *SimpleTarget {
 	simpleTarget := &SimpleTarget{
-		identifier:       identifier,
-		sourceBasedRoute: sourceBasedRoute,
-		vip:              vip,
+		identifier:        identifier,
+		sourceBasedRoutes: []networking.SourceBasedRoute{},
+		vips:              vips,
+		netUtils:          netUtils,
+	}
+	err := simpleTarget.addVIPs()
+	if err != nil {
+		logrus.Errorf("SimpleTarget: err addVIPs: %v", err)
+	}
+	err = simpleTarget.createSourceBaseRoutes()
+	if err != nil {
+		logrus.Errorf("SimpleTarget: createSourceBaseRoutes err: %v", err)
 	}
 	return simpleTarget
 }

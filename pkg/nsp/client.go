@@ -12,18 +12,18 @@ type NetworkServicePlateformClient struct {
 	networkServicePlateformClient nspAPI.NetworkServicePlateformServiceClient
 }
 
-func (nspc *NetworkServicePlateformClient) Register(ip string, targetContext map[string]string) error {
+func (nspc *NetworkServicePlateformClient) Register(ips []string, targetContext map[string]string) error {
 	target := &nspAPI.Target{
-		Ip:      ip,
+		Ips:     ips,
 		Context: targetContext,
 	}
 	_, err := nspc.networkServicePlateformClient.Register(context.Background(), target)
 	return err
 }
 
-func (nspc *NetworkServicePlateformClient) Unregister(ip string) error {
+func (nspc *NetworkServicePlateformClient) Unregister(ips []string) error {
 	target := &nspAPI.Target{
-		Ip: ip,
+		Ips: ips,
 	}
 	_, err := nspc.networkServicePlateformClient.Unregister(context.Background(), target)
 	return err

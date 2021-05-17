@@ -51,18 +51,13 @@ func main() {
 		logrus.Fatalf("%v", err)
 	}
 
-	_, err = netlink.ParseAddr(config.VIP)
-	if err != nil {
-		logrus.Fatalf("Error Parsing the VIP: %v", err)
-	}
-
 	netUtils := &linuxKernel.KernelUtils{}
 
 	nspClient, err := nsp.NewNetworkServicePlateformClient(config.NSPService)
 	if err != nil {
 		logrus.Errorf("NewNetworkServicePlateformClient: %v", err)
 	}
-	sns := NewSimpleNetworkService(config.VIP, nspClient, netUtils)
+	sns := NewSimpleNetworkService(config.VIPs, nspClient, netUtils)
 
 	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
 	if err != nil {
@@ -117,7 +112,7 @@ func main() {
 type SimpleNetworkService struct {
 	loadbalancer                         *loadbalancer.LoadBalancer
 	networkServicePlateformClient        *nsp.NetworkServicePlateformClient
-	vip                                  string
+	vips                                 []string
 	networkServicePlateformServiceStream nspAPI.NetworkServicePlateformService_MonitorClient
 }
 
@@ -177,12 +172,7 @@ func (sns *SimpleNetworkService) parseLoadBalancerTarget(target *nspAPI.Target) 
 		logrus.Errorf("SimpleNetworkService: cannot parse identifier (%v): %v", identifierStr, err)
 		return nil, err
 	}
-	_, err = netlink.ParseAddr(target.Ip)
-	if err != nil {
-		logrus.Errorf("SimpleNetworkService: cannot parse IP (%v): %v", target.Ip, err)
-		return nil, err
-	}
-	return loadbalancer.NewTarget(identifier, target.Ip), nil
+	return loadbalancer.NewTarget(identifier, target.Ips), nil
 }
 
 // InterfaceCreated -
@@ -205,7 +195,7 @@ func (sns *SimpleNetworkService) InterfaceCreated(intf networking.Iface) {
 			if len(intf.GetLocalPrefixes()) <= 0 {
 				continue
 			}
-			contains, err := sns.prefixContainsIP(intf.GetLocalPrefixes()[0], lbTarget.GetIP())
+			contains, err := sns.prefixesContainsIPs(intf.GetLocalPrefixes(), lbTarget.GetIPs())
 			if !contains || err != nil {
 				continue
 			}
@@ -222,7 +212,7 @@ func (sns *SimpleNetworkService) InterfaceCreated(intf networking.Iface) {
 // InterfaceDeleted -
 func (sns *SimpleNetworkService) InterfaceDeleted(intf networking.Iface) {
 	for _, lbTarget := range sns.loadbalancer.GetTargets() {
-		contains, err := sns.prefixContainsIP(intf.GetLocalPrefixes()[0], lbTarget.GetIP())
+		contains, err := sns.prefixesContainsIPs(intf.GetLocalPrefixes(), lbTarget.GetIPs())
 		if contains && err == nil {
 			err := sns.loadbalancer.RemoveTarget(lbTarget)
 			if err != nil {
@@ -230,6 +220,26 @@ func (sns *SimpleNetworkService) InterfaceDeleted(intf networking.Iface) {
 			}
 		}
 	}
+}
+
+func (sns *SimpleNetworkService) prefixesContainsIPs(prefixes []string, ips []string) (bool, error) {
+	for _, ip := range ips {
+		containedInPrefixes := false
+		for _, prefix := range prefixes {
+			contains, err := sns.prefixContainsIP(prefix, ip)
+			if err != nil {
+				return false, err
+			}
+			if contains {
+				containedInPrefixes = true
+				break
+			}
+		}
+		if !containedInPrefixes {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func (sns *SimpleNetworkService) prefixContainsIP(prefix string, ip string) (bool, error) {
@@ -245,8 +255,8 @@ func (sns *SimpleNetworkService) prefixContainsIP(prefix string, ip string) (boo
 }
 
 // NewSimpleNetworkService -
-func NewSimpleNetworkService(vip string, networkServicePlateformClient *nsp.NetworkServicePlateformClient, netUtils networking.Utils) *SimpleNetworkService {
-	loadbalancer, err := loadbalancer.NewLoadBalancer(vip, 9973, 100, netUtils)
+func NewSimpleNetworkService(vips []string, networkServicePlateformClient *nsp.NetworkServicePlateformClient, netUtils networking.Utils) *SimpleNetworkService {
+	loadbalancer, err := loadbalancer.NewLoadBalancer(vips, 9973, 100, netUtils)
 	if err != nil {
 		logrus.Errorf("SimpleNetworkService: NewLoadBalancer err: %v", err)
 	}
@@ -256,7 +266,7 @@ func NewSimpleNetworkService(vip string, networkServicePlateformClient *nsp.Netw
 	}
 	simpleNetworkService := &SimpleNetworkService{
 		loadbalancer:                  loadbalancer,
-		vip:                           vip,
+		vips:                          vips,
 		networkServicePlateformClient: networkServicePlateformClient,
 	}
 	return simpleNetworkService
