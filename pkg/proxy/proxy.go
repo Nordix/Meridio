@@ -139,7 +139,7 @@ func (p *Proxy) setBridgeIPs() error {
 
 func (p *Proxy) createSourceBaseRoutes() error {
 	for index, vip := range p.vips {
-		sourceBasedRoute, err := p.netUtils.NewSourceBasedRoute(index, vip)
+		sourceBasedRoute, err := p.netUtils.NewSourceBasedRoute(index+1, vip)
 		logrus.Infof("Proxy: sourceBasedRoute index - vip: %v - %v", index, vip)
 		if err != nil {
 			return err

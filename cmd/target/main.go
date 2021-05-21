@@ -171,7 +171,7 @@ func (st *SimpleTarget) InterfaceDeleted(intf networking.Iface) {
 
 func (st *SimpleTarget) createSourceBaseRoutes() error {
 	for index, vip := range st.vips {
-		sourceBasedRoute, err := st.netUtils.NewSourceBasedRoute(index, vip)
+		sourceBasedRoute, err := st.netUtils.NewSourceBasedRoute(index+1, vip)
 		if err != nil {
 			logrus.Errorf("Proxy: Error creating sourceBasedRoute: %v", err)
 			return err

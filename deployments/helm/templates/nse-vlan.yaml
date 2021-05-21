@@ -16,8 +16,7 @@ spec:
     spec:
       containers:
         - name: nse
-          # image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.vlanNSEImage }}:{{ .Values.vlanNSEVersion }}
-          image: registry.nordix.org/cloud-native/nsm/nse-generic:vlan-0.2
+          image: registry.nordix.org/cloud-native/nsm/nse-vlan:latest
           imagePullPolicy: IfNotPresent
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
@@ -35,7 +34,9 @@ spec:
             - name: NSE_SERVICE_NAME
               value: {{ template "meridio.vlanServiceName" . }}
             - name: NSE_CIDR_PREFIX
-              value: {{ template "meridio.vlanPrefix" . }}
+              value: "{{ .Values.vlanIPv4Prefix }}"
+            - name: NSE_IPV6_PREFIX
+              value: "{{ .Values.vlanIPv6Prefix }}"
             - name: NSE_POINT2POINT
               value: "False"
           volumeMounts:

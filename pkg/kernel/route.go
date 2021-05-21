@@ -2,6 +2,7 @@ package kernel
 
 import (
 	"net"
+	"sync"
 
 	"github.com/vishvananda/netlink"
 )
@@ -11,6 +12,7 @@ type SourceBasedRoute struct {
 	tableID  int
 	vip      *netlink.Addr
 	nexthops []*netlink.Addr
+	mu       sync.Mutex
 }
 
 func (sbr *SourceBasedRoute) create() error {
@@ -43,28 +45,43 @@ func (sbr *SourceBasedRoute) updateRoute() error {
 	return netlink.RouteReplace(route)
 }
 
+func (sbr *SourceBasedRoute) removeFromList(nexthop *netlink.Addr) {
+	for index, current := range sbr.nexthops {
+		if nexthop.Equal(*current) {
+			sbr.nexthops = append(sbr.nexthops[:index], sbr.nexthops[index+1:]...)
+			return
+		}
+	}
+}
+
 // AddNexthop -
 func (sbr *SourceBasedRoute) AddNexthop(nexthop string) error {
+	sbr.mu.Lock()
+	defer sbr.mu.Unlock()
 	netlinkAddr, err := netlink.ParseAddr(nexthop)
 	if err != nil {
 		return err
 	}
 	sbr.nexthops = append(sbr.nexthops, netlinkAddr)
-	return sbr.updateRoute()
+	err = sbr.updateRoute()
+	if err != nil {
+		sbr.removeFromList(netlinkAddr)
+		return err
+	}
+	return err
 }
 
 // RemoveNexthop -
 func (sbr *SourceBasedRoute) RemoveNexthop(nexthop string) error {
-	_, err := netlink.ParseAddr(nexthop)
+	sbr.mu.Lock()
+	defer sbr.mu.Unlock()
+	netlinkAddr, err := netlink.ParseAddr(nexthop)
 	if err != nil {
 		return err
 	}
-	for index, current := range sbr.nexthops {
-		if nexthop == current.IP.String() {
-			sbr.nexthops = append(sbr.nexthops[:index], sbr.nexthops[index+1:]...)
-		}
-	}
-	return sbr.updateRoute()
+	sbr.removeFromList(netlinkAddr)
+	err = sbr.updateRoute()
+	return err
 }
 
 func (sbr *SourceBasedRoute) Delete() error {

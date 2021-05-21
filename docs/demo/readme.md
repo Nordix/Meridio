@@ -40,6 +40,8 @@ Install Meridio
 helm install deployments/helm/ --generate-name
 # ipv6
 helm install deployments/helm/ --generate-name --set ipFamily=ipv6 
+# dualstack
+helm install deployments/helm/ --generate-name --set ipFamily=dualstack 
 ```
 
 ### External host / External connectivity
