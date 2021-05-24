@@ -19,6 +19,8 @@ package interfacename
 import (
 	"math/rand"
 	"strconv"
+	"sync"
+	"time"
 )
 
 type NameGenerator interface {
@@ -26,10 +28,25 @@ type NameGenerator interface {
 }
 
 type RandomGenerator struct {
+	mu        sync.Mutex
+	usedNames map[string]struct{}
 }
 
 func (rg *RandomGenerator) Generate(prefix string, maxLength int) string {
-	randomID := rand.Intn(1000)
-	randomName := prefix + strconv.Itoa(randomID)
+	rg.mu.Lock()
+	defer rg.mu.Unlock()
+	if rg.usedNames == nil {
+		rg.usedNames = make(map[string]struct{})
+	}
+	randomName := ""
+	for randomName == "" {
+		rand.Seed(time.Now().UnixNano())
+		randomID := rand.Intn(1000)
+		randomName = prefix + strconv.Itoa(randomID)
+		if _, ok := rg.usedNames[randomName]; ok {
+			randomName = ""
+		}
+	}
+	rg.usedNames[randomName] = struct{}{}
 	return randomName
 }

@@ -17,7 +17,8 @@ spec:
       hostNetwork: true
       containers:
         - name: forwarder-vpp
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.forwarderVPPImage }}:latest
+          # image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.forwarderVPPImage }}:latest
+          image: registry.nordix.org/cloud-native/nsm/cmd-forwarder-vpp:fwsel0
           imagePullPolicy: {{ .Values.pullPolicy }}
           securityContext:
             privileged: true

@@ -16,7 +16,7 @@ message GetTargetsResponse {
 }
 
 message Target {
-    string ip = 1;
+    repeated string ips = 1;
     map<string, string> context = 2;
     Status status = 3;
 }

@@ -44,6 +44,8 @@ Install Meridio trench-a
 helm install deployments/helm/ --generate-name --create-namespace --namespace trench-a --set vlanID=100 --set vlanIPv4Prefix=169.254.100.0/24
 # ipv6
 helm install deployments/helm/ --generate-name --create-namespace --namespace trench-a --set vlanID=100 --set vlanIPv4Prefix=100:100::/64 --set ipFamily=ipv6 
+# dualstack
+helm install deployments/helm/ --generate-name --create-namespace --namespace trench-a --set vlanID=100 --set vlanIPv4Prefix=100:100::/64 --set ipFamily=dualstack 
 ```
 
 Install Meridio trench-b
@@ -52,6 +54,8 @@ Install Meridio trench-b
 helm install deployments/helm/ --generate-name --create-namespace --namespace trench-b --set vlanID=101 --set vlanIPv4Prefix=169.254.101.0/24
 # ipv6
 helm install deployments/helm/ --generate-name --create-namespace --namespace trench-b --set vlanID=101 --set vlanIPv4Prefix=100:101::/64 --set ipFamily=ipv6 
+# dualstack
+helm install deployments/helm/ --generate-name --create-namespace --namespace trench-b --set vlanID=101 --set vlanIPv4Prefix=100:101::/64 --set ipFamily=dualstack 
 ```
 
 ### External host / External connectivity

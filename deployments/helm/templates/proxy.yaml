@@ -42,12 +42,12 @@ spec:
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
               value: {{ template "meridio.proxyNetworkServiceName" . }}
-            - name: NSM_VIP
-              value: {{ template "meridio.vip" . }}
-            - name: NSM_SUBNET_POOL
-              value: {{ template "meridio.subnetPool" . }}
-            - name: NSM_SUBNET_PREFIX_LENGTH
-              value: {{ template "meridio.subnetPrefixLength" . }}
+            - name: NSM_VIPS
+              value: {{ template "meridio.vips" . }}
+            - name: NSM_SUBNET_POOLS
+              value: {{ template "meridio.subnetPools" . }}
+            - name: NSM_SUBNET_PREFIX_LENGTHS
+              value: {{ template "meridio.subnetPrefixLengths" . }}
             - name: NSM_IPAM_SERVICE
               value: ipam-service:{{ .Values.ipamTargetPort }}
             - name: NSM_NETWORK_SERVICE_NAME

@@ -55,16 +55,10 @@ func main() {
 		logrus.Fatalf("%v", err)
 	}
 
-	proxySubnet, err := getProxySubnet(config)
+	proxySubnets, err := getProxySubnets(config)
 	if err != nil {
 		logrus.Fatalf("%v", err)
 	}
-
-	_, err = netlink.ParseAddr(config.VIP)
-	if err != nil {
-		logrus.Fatalf("Error Parsing the VIP: %v", err)
-	}
-
 	netUtils := &linuxKernel.KernelUtils{}
 
 	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
@@ -72,7 +66,7 @@ func main() {
 		logrus.Fatalf("Error creating link monitor: %+v", err)
 	}
 
-	p := proxy.NewProxy(config.VIP, proxySubnet, netUtils)
+	p := proxy.NewProxy(config.VIPs, proxySubnets, netUtils)
 
 	apiClientConfig := &nsm.Config{
 		Name:             config.Name,
@@ -109,20 +103,24 @@ func main() {
 	<-ctx.Done()
 }
 
-func getProxySubnet(config Config) (string, error) {
-	_, err := netlink.ParseAddr(config.SubnetPool)
-	if err != nil {
-		return "", errors.Wrap(err, "Error Parsing subnet pool")
+func getProxySubnets(config Config) ([]string, error) {
+	proxySubnets := []string{}
+	for index, subnetPool := range config.SubnetPools {
+		_, err := netlink.ParseAddr(subnetPool)
+		if err != nil {
+			return []string{}, errors.Wrap(err, "Error Parsing subnet pool")
+		}
+		ipamClient, err := ipam.NewIpamClient(config.IPAMService)
+		if err != nil {
+			return []string{}, errors.Wrap(err, "Error creating new ipam client")
+		}
+		proxySubnet, err := ipamClient.AllocateSubnet(subnetPool, config.SubnetPrefixLengths[index])
+		if err != nil {
+			return []string{}, errors.Wrap(err, "Error AllocateSubnet")
+		}
+		proxySubnets = append(proxySubnets, proxySubnet)
 	}
-	ipamClient, err := ipam.NewIpamClient(config.IPAMService)
-	if err != nil {
-		return "", errors.Wrap(err, "Error creating new ipam client")
-	}
-	proxySubnet, err := ipamClient.AllocateSubnet(config.SubnetPool, config.SubnetPrefixLength)
-	if err != nil {
-		return "", errors.Wrap(err, "Error AllocateSubnet")
-	}
-	return proxySubnet, nil
+	return proxySubnets, nil
 }
 
 func getNSC(ctx context.Context,

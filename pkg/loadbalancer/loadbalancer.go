@@ -14,15 +14,10 @@ import (
 type LoadBalancer struct {
 	m        int
 	n        int
-	nfQueue  networking.NFQueue
-	vip      string
-	targets  map[int]*configuredTarget // key: Identifier
+	nfQueues []networking.NFQueue
+	vips     []string
+	targets  map[int]*Target // key: Identifier
 	netUtils networking.Utils
-}
-
-type configuredTarget struct {
-	target *Target
-	fwMark networking.FWMarkRoute
 }
 
 // Start -
@@ -33,35 +28,32 @@ func (lb *LoadBalancer) Start() error {
 // AddTarget -
 func (lb *LoadBalancer) AddTarget(target *Target) error {
 	if lb.TargetExists(target) {
-		return errors.New("The target is already existing.")
+		return errors.New("the target is already existing")
 	}
-	fwMark, err := lb.netUtils.NewFWMarkRoute(target.ip, target.identifier, target.identifier)
+	err := target.Configure(lb.netUtils)
 	if err != nil {
 		return err
 	}
 	err = lb.activateIdentifier(target.identifier)
 	if err != nil {
 		returnErr := err
-		err := fwMark.Delete()
+		err = target.Delete()
 		if err != nil {
-			return fmt.Errorf("%w; activateIdentifier fwMark.Delete: %v", err, target.identifier)
+			return fmt.Errorf("%w; target.Delete: %v", err, target.identifier)
 		}
 		return fmt.Errorf("%w; activateIdentifier: %v", returnErr, target.identifier)
 	}
-	lb.targets[target.identifier] = &configuredTarget{
-		target: target,
-		fwMark: fwMark,
-	}
+	lb.targets[target.identifier] = target
 	return nil
 }
 
 // RemoveTarget -
 func (lb *LoadBalancer) RemoveTarget(target *Target) error {
 	if !lb.TargetExists(target) {
-		return errors.New("The target does not exist.")
+		return errors.New("the target does not exist")
 	}
-	configuredTarget := lb.targets[target.identifier]
-	err := configuredTarget.fwMark.Delete()
+	t := lb.targets[target.identifier]
+	err := t.Delete()
 	if err != nil {
 		return err
 	}
@@ -82,8 +74,8 @@ func (lb *LoadBalancer) TargetExists(target *Target) bool {
 // TargetExists -
 func (lb *LoadBalancer) GetTargets() []*Target {
 	targets := []*Target{}
-	for _, configuredTarget := range lb.targets {
-		targets = append(targets, configuredTarget.target)
+	for _, target := range lb.targets {
+		targets = append(targets, target)
 	}
 	return targets
 }
@@ -110,12 +102,14 @@ func (lb *LoadBalancer) configure() error {
 	if err != nil {
 		return err
 	}
-	nfqueue, err := lb.netUtils.NewNFQueue(lb.vip, 2)
-	if err != nil {
-		logrus.Errorf("Load Balancer: error configuring nfqueue (iptables): %v", err)
-		return err
+	for _, vip := range lb.vips {
+		nfqueue, err := lb.netUtils.NewNFQueue(vip, 2)
+		if err != nil {
+			logrus.Errorf("Load Balancer: error configuring nfqueue (iptables): %v", err)
+			return err
+		}
+		lb.nfQueues = append(lb.nfQueues, nfqueue)
 	}
-	lb.nfQueue = nfqueue
 	return nil
 }
 
@@ -129,12 +123,13 @@ func (lb *LoadBalancer) desactivateAll() error {
 	return nil
 }
 
-func NewLoadBalancer(vip string, m int, n int, netUtils networking.Utils) (*LoadBalancer, error) {
+func NewLoadBalancer(vips []string, m int, n int, netUtils networking.Utils) (*LoadBalancer, error) {
 	loadBalancer := &LoadBalancer{
 		m:        m,
 		n:        n,
-		vip:      vip,
-		targets:  make(map[int]*configuredTarget),
+		vips:     vips,
+		targets:  make(map[int]*Target),
+		nfQueues: []networking.NFQueue{},
 		netUtils: netUtils,
 	}
 	err := loadBalancer.configure()

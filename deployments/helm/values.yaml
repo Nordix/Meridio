@@ -29,7 +29,7 @@ nspVersion: latest
 nspPort: 7778
 nspTargetPort: 7778
 
-ipFamily: ipv4
+ipFamily: ipv4 # ipv4 / ipv6 / dualstack
 
 vipIPv4: 20.0.0.1/32
 vipIPv6: 2000::1/128
