@@ -73,7 +73,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: NSM_NETWORK_SERVICES
-              value: vlan://{{ template "meridio.vlanServiceName" . }}/ext-vlan?forwarder=forwarder-kernel
+              value: vlan://{{ template "meridio.vlanServiceName" . }}/ext-vlan?forwarder=forwarder-vlan
             - name: NSM_DIAL_TIMEOUT
               value: "30s"
             - name: NSM_REQUEST_TIMEOUT
