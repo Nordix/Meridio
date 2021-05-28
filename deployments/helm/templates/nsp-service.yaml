@@ -9,5 +9,5 @@ spec:
   type: ClusterIP
   ports:
     - protocol: TCP
-      port: {{ .Values.nspPort }}
-      targetPort: {{ .Values.nspTargetPort }}
+      port: {{ .Values.nsp.port }}
+      targetPort: {{ .Values.nsp.targetPort }}

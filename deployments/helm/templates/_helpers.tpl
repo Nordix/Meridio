@@ -5,42 +5,42 @@ Set IP Family
 */}}
 {{- define "meridio.vips" -}}
 {{- if eq .Values.ipFamily "dualstack" -}}
-{{- (printf "%s,%s" .Values.vipIPv4 .Values.vipIPv6) | quote -}}
+{{- (printf "%s,%s" .Values.vip.ipv4 .Values.vip.ipv6) | quote -}}
 {{- else if eq .Values.ipFamily "ipv6" -}}
-{{- printf .Values.vipIPv6 -}}
+{{- printf .Values.vip.ipv6 -}}
 {{- else -}}
-{{- printf .Values.vipIPv4 -}}
+{{- printf .Values.vip.ipv4 -}}
 {{- end -}}
 {{- end -}}
 
-{{- define "meridio.subnetPools" -}}
+{{- define "meridio.subnetPool.prefixes" -}}
 {{- if eq .Values.ipFamily "dualstack" -}}
-{{- (printf "%s,%s" .Values.subnetPoolIPv4 .Values.subnetPoolIPv6) | quote -}}
+{{- (printf "%s,%s" .Values.subnetPool.ipv4 .Values.subnetPool.ipv6) | quote -}}
 {{- else if eq .Values.ipFamily "ipv6" -}}
-{{- printf .Values.subnetPoolIPv6 -}}
+{{- printf .Values.subnetPool.ipv6 -}}
 {{- else -}}
-{{- printf .Values.subnetPoolIPv4 -}}
+{{- printf .Values.subnetPool.ipv4 -}}
 {{- end -}}
 {{- end -}}
 
-{{- define "meridio.subnetPrefixLengths" -}}
+{{- define "meridio.subnetPool.prefixLengths" -}}
 {{- if eq .Values.ipFamily "dualstack" -}}
-{{- (printf "%d,%d" (int64 .Values.subnetPrefixLengthIPv4) (int64 .Values.subnetPrefixLengthIPv6)) | quote -}}
+{{- (printf "%d,%d" (int64 .Values.subnetPool.prefixLength.ipv4) (int64 .Values.subnetPool.prefixLength.ipv6)) | quote -}}
 {{- else if eq .Values.ipFamily "ipv6" -}}
-{{- .Values.subnetPrefixLengthIPv6 | quote -}}
+{{- .Values.subnetPool.prefixLength.ipv6 | quote -}}
 {{- else -}}
-{{- .Values.subnetPrefixLengthIPv4 | quote -}}
+{{- .Values.subnetPool.prefixLength.ipv4 | quote -}}
 {{- end -}}
 {{- end -}}
 
-{{- define "meridio.proxyNetworkServiceName" -}}
-{{- printf "%s.%s" .Values.proxyNetworkServiceName .Release.Namespace -}}
+{{- define "meridio.proxy.networkServiceName" -}}
+{{- printf "%s.%s" .Values.proxy.networkServiceName .Release.Namespace -}}
 {{- end -}}
 
-{{- define "meridio.loadBalancerNetworkServiceName" -}}
-{{- printf "%s.%s" .Values.loadBalancerNetworkServiceName .Release.Namespace -}}
+{{- define "meridio.loadBalancer.networkServiceName" -}}
+{{- printf "%s.%s" .Values.loadBalancer.networkServiceName .Release.Namespace -}}
 {{- end -}}
 
-{{- define "meridio.vlanServiceName" -}}
-{{- printf "%s.%s" .Values.vlanServiceName .Release.Namespace -}}
+{{- define "meridio.vlan.networkServiceName" -}}
+{{- printf "%s.%s" .Values.vlan.networkServiceName .Release.Namespace -}}
 {{- end -}}

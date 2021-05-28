@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
         - name: nsp
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.nspImage }}:{{ .Values.nspVersion }}
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.nsp.image }}:{{ .Values.nsp.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           env:
             - name: NSP_PORT
-              value: "{{ .Values.nspTargetPort }}"
+              value: "{{ .Values.nsp.targetPort }}"

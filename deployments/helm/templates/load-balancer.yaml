@@ -36,7 +36,7 @@ spec:
             - sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1
       containers:
         - name: load-balancer
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.loadBalancerImage }}:{{ .Values.loadBalancerVersion }}
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.loadBalancer.image }}:{{ .Values.loadBalancer.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
@@ -48,11 +48,11 @@ spec:
             - name: NSM_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
-              value: {{ template "meridio.loadBalancerNetworkServiceName" . }}
+              value: {{ template "meridio.loadBalancer.networkServiceName" . }}
             - name: NSM_VIPS
               value: {{ template "meridio.vips" . }}
             - name: NSM_NSP_SERVICE
-              value: nsp-service:{{ .Values.nspTargetPort }}
+              value: nsp-service:{{ .Values.nsp.targetPort }}
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
@@ -73,7 +73,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: NSM_NETWORK_SERVICES
-              value: vlan://{{ template "meridio.vlanServiceName" . }}/ext-vlan?forwarder=forwarder-vlan
+              value: vlan://{{ template "meridio.vlan.networkServiceName" . }}/ext-vlan?forwarder=forwarder-vlan
             - name: NSM_DIAL_TIMEOUT
               value: "30s"
             - name: NSM_REQUEST_TIMEOUT

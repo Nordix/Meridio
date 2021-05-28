@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
         - name: ipam
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ipamImage }}:{{ .Values.ipamVersion }}
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ipam.image }}:{{ .Values.ipam.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           env:
             - name: IPAM_PORT
-              value: "{{ .Values.ipamTargetPort }}"
+              value: "{{ .Values.ipam.targetPort }}"

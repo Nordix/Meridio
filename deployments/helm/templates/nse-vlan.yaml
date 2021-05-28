@@ -28,15 +28,15 @@ spec:
             - name: NSE_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSE_VLAN_BASE_IFNAME
-              value: {{ .Values.vlanInterface }}
+              value: {{ .Values.vlan.interface }}
             - name: NSE_VLAN_ID
-              value: "{{ .Values.vlanID }}"
+              value: "{{ .Values.vlan.id }}"
             - name: NSE_SERVICE_NAME
-              value: {{ template "meridio.vlanServiceName" . }}
+              value: {{ template "meridio.vlan.networkServiceName" . }}
             - name: NSE_CIDR_PREFIX
-              value: "{{ .Values.vlanIPv4Prefix }}"
+              value: "{{ .Values.vlan.ipv4Prefix }}"
             - name: NSE_IPV6_PREFIX
-              value: "{{ .Values.vlanIPv6Prefix }}"
+              value: "{{ .Values.vlan.ipv6Prefix }}"
             - name: NSE_POINT2POINT
               value: "False"
           volumeMounts:
