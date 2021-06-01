@@ -20,6 +20,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	nspAPI "github.com/nordix/meridio/api/nsp"
+	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/nordix/meridio/pkg/endpoint"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/loadbalancer"
@@ -105,7 +106,19 @@ func main() {
 
 	sns.Start()
 
-	<-ctx.Done()
+	configWatcher := make(chan *configuration.Config)
+	configurationWatcher := configuration.NewWatcher("meridio-configuration", "default", configWatcher)
+	go configurationWatcher.Start()
+
+	for {
+		select {
+		case config := <-configWatcher:
+			sns.SetVIPs(config.VIPs)
+		case <-ctx.Done():
+			return
+		}
+	}
+
 }
 
 // SimpleNetworkService -
@@ -252,6 +265,10 @@ func (sns *SimpleNetworkService) prefixContainsIP(prefix string, ip string) (boo
 		return false, err
 	}
 	return prefixAddr.Contains(ipAddr.IP), nil
+}
+
+func (sns *SimpleNetworkService) SetVIPs(vips []string) {
+	sns.loadbalancer.SetVIPs(vips)
 }
 
 // NewSimpleNetworkService -

@@ -22,6 +22,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/nordix/meridio/pkg/client"
+	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/ipam"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
@@ -100,7 +101,18 @@ func main() {
 	ep := startNSE(ctx, endpointConfig, nsmAPIClient, p, interfaceMonitorServer, config.NSPService)
 	defer ep.Delete()
 
-	<-ctx.Done()
+	configWatcher := make(chan *configuration.Config)
+	configurationWatcher := configuration.NewWatcher("meridio-configuration", "default", configWatcher)
+	go configurationWatcher.Start()
+
+	for {
+		select {
+		case config := <-configWatcher:
+			p.SetVIPs(config.VIPs)
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func getProxySubnets(config Config) ([]string, error) {

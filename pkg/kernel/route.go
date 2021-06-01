@@ -85,7 +85,28 @@ func (sbr *SourceBasedRoute) RemoveNexthop(nexthop string) error {
 }
 
 func (sbr *SourceBasedRoute) Delete() error {
-	return nil
+	// Delete Rule
+	rule := netlink.NewRule()
+	rule.Table = sbr.tableID
+	rule.Src = &net.IPNet{
+		IP:   sbr.vip.IP,
+		Mask: sbr.vip.Mask,
+	}
+	rule.Family = sbr.family()
+	err := netlink.RuleDel(rule)
+	if err != nil {
+		return err
+	}
+	// Delete Route
+	src := net.IPv4(0, 0, 0, 0)
+	if sbr.family() == netlink.FAMILY_V6 {
+		src = net.ParseIP("::")
+	}
+	route := &netlink.Route{
+		Table: sbr.tableID,
+		Src:   src,
+	}
+	return netlink.RouteDel(route)
 }
 
 func (sbr *SourceBasedRoute) family() int {

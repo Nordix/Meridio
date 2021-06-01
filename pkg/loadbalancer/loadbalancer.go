@@ -14,8 +14,7 @@ import (
 type LoadBalancer struct {
 	m        int
 	n        int
-	nfQueues []networking.NFQueue
-	vips     []string
+	vips     []*virtualIP
 	targets  map[int]*Target // key: Identifier
 	netUtils networking.Utils
 }
@@ -102,14 +101,6 @@ func (lb *LoadBalancer) configure() error {
 	if err != nil {
 		return err
 	}
-	for _, vip := range lb.vips {
-		nfqueue, err := lb.netUtils.NewNFQueue(vip, 2)
-		if err != nil {
-			logrus.Errorf("Load Balancer: error configuring nfqueue (iptables): %v", err)
-			return err
-		}
-		lb.nfQueues = append(lb.nfQueues, nfqueue)
-	}
 	return nil
 }
 
@@ -123,15 +114,43 @@ func (lb *LoadBalancer) desactivateAll() error {
 	return nil
 }
 
+func (lb *LoadBalancer) SetVIPs(vips []string) {
+	currentVIPs := make(map[string]*virtualIP)
+	for _, vip := range lb.vips {
+		currentVIPs[vip.prefix] = vip
+	}
+	for _, vip := range vips {
+		if _, ok := currentVIPs[vip]; !ok {
+			newVIP, err := newVirtualIP(vip, lb.netUtils)
+			if err != nil {
+				logrus.Errorf("Load Balancer: Error adding SourceBaseRoute: %v", err)
+				continue
+			}
+			lb.vips = append(lb.vips, newVIP)
+		}
+		delete(currentVIPs, vip)
+	}
+	// delete remaining vips
+	for index, vip := range lb.vips {
+		if _, ok := currentVIPs[vip.prefix]; ok {
+			lb.vips = append(lb.vips[:index], lb.vips[index+1:]...)
+			err := vip.Delete()
+			if err != nil {
+				logrus.Errorf("Load Balancer: Error deleting vip: %v", err)
+			}
+		}
+	}
+}
+
 func NewLoadBalancer(vips []string, m int, n int, netUtils networking.Utils) (*LoadBalancer, error) {
 	loadBalancer := &LoadBalancer{
 		m:        m,
 		n:        n,
-		vips:     vips,
+		vips:     []*virtualIP{},
 		targets:  make(map[int]*Target),
-		nfQueues: []networking.NFQueue{},
 		netUtils: netUtils,
 	}
+	loadBalancer.SetVIPs(vips)
 	err := loadBalancer.configure()
 	if err != nil {
 		return nil, err

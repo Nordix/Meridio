@@ -12,13 +12,14 @@ import (
 
 // Proxy -
 type Proxy struct {
-	bridge            networking.Bridge
-	sourceBasedRoutes []networking.SourceBasedRoute
-	vips              []string
-	subnets           []string
-	ipam              *ipam.Ipam
-	mutex             sync.Mutex
-	netUtils          networking.Utils
+	bridge   networking.Bridge
+	vips     []*virtualIP
+	subnets  []string
+	ipam     *ipam.Ipam
+	mutex    sync.Mutex
+	netUtils networking.Utils
+	nexthops []string
+	tableID  int
 }
 
 func (p *Proxy) isNSMInterface(intf networking.Iface) bool {
@@ -39,12 +40,13 @@ func (p *Proxy) InterfaceCreated(intf networking.Iface) {
 	if intf.GetInterfaceType() == networking.NSC {
 		// 	Add the neighbor IPs of the interface to the nexthops (outgoing traffic)
 		for _, ip := range intf.GetNeighborPrefixes() {
-			for _, sourceBasedRoute := range p.sourceBasedRoutes {
-				err = sourceBasedRoute.AddNexthop(ip)
+			for _, vip := range p.vips {
+				err = vip.AddNexthop(ip)
 				if err != nil {
 					logrus.Errorf("Proxy: Error adding nexthop: %v", err)
 				}
 			}
+			p.nexthops = append(p.nexthops, ip)
 		}
 	}
 }
@@ -63,10 +65,15 @@ func (p *Proxy) InterfaceDeleted(intf networking.Iface) {
 	if intf.GetInterfaceType() == networking.NSC {
 		// 	Remove the neighbor IPs of the interface from the nexthops (outgoing traffic)
 		for _, ip := range intf.GetNeighborPrefixes() {
-			for _, sourceBasedRoute := range p.sourceBasedRoutes {
-				err = sourceBasedRoute.RemoveNexthop(ip)
+			for _, vip := range p.vips {
+				err = vip.RemoveNexthop(ip)
 				if err != nil {
 					logrus.Errorf("Proxy: Error removing nexthop: %v", err)
+				}
+			}
+			for index, nexthop := range p.nexthops {
+				if nexthop == ip {
+					p.nexthops = append(p.nexthops[:index], p.nexthops[index+1:]...)
 				}
 			}
 		}
@@ -137,16 +144,39 @@ func (p *Proxy) setBridgeIPs() error {
 	return nil
 }
 
-func (p *Proxy) createSourceBaseRoutes() error {
-	for index, vip := range p.vips {
-		sourceBasedRoute, err := p.netUtils.NewSourceBasedRoute(index+1, vip)
-		logrus.Infof("Proxy: sourceBasedRoute index - vip: %v - %v", index, vip)
-		if err != nil {
-			return err
-		}
-		p.sourceBasedRoutes = append(p.sourceBasedRoutes, sourceBasedRoute)
+func (p *Proxy) SetVIPs(vips []string) {
+	currentVIPs := make(map[string]*virtualIP)
+	for _, vip := range p.vips {
+		currentVIPs[vip.prefix] = vip
 	}
-	return nil
+	for _, vip := range vips {
+		if _, ok := currentVIPs[vip]; !ok {
+			newVIP, err := newVirtualIP(vip, p.tableID, p.netUtils)
+			if err != nil {
+				logrus.Errorf("Proxy: Error adding SourceBaseRoute: %v", err)
+				continue
+			}
+			p.tableID++
+			p.vips = append(p.vips, newVIP)
+			for _, nexthop := range p.nexthops {
+				err = newVIP.AddNexthop(nexthop)
+				if err != nil {
+					logrus.Errorf("Proxy: Error adding nexthop: %v", err)
+				}
+			}
+		}
+		delete(currentVIPs, vip)
+	}
+	// delete remaining vips
+	for index, vip := range p.vips {
+		if _, ok := currentVIPs[vip.prefix]; ok {
+			p.vips = append(p.vips[:index], p.vips[index+1:]...)
+			err := vip.Delete()
+			if err != nil {
+				logrus.Errorf("Proxy: Error deleting vip: %v", err)
+			}
+		}
+	}
 }
 
 // NewProxy -
@@ -157,20 +187,18 @@ func NewProxy(vips []string, subnets []string, netUtils networking.Utils) *Proxy
 	}
 	ipam := ipam.NewIpam()
 	proxy := &Proxy{
-		bridge:            bridge,
-		sourceBasedRoutes: []networking.SourceBasedRoute{},
-		vips:              vips,
-		subnets:           subnets,
-		ipam:              ipam,
-		netUtils:          netUtils,
+		bridge:   bridge,
+		subnets:  subnets,
+		ipam:     ipam,
+		netUtils: netUtils,
+		nexthops: []string{},
+		vips:     []*virtualIP{},
+		tableID:  1,
 	}
 	err = proxy.setBridgeIPs()
 	if err != nil {
 		logrus.Errorf("Proxy: Error setting the bridge IP: %v", err)
 	}
-	err = proxy.createSourceBaseRoutes()
-	if err != nil {
-		logrus.Errorf("Proxy: Error createSourceBaseRoutes: %v", err)
-	}
+	proxy.SetVIPs(vips)
 	return proxy
 }

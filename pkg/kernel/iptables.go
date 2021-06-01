@@ -13,7 +13,20 @@ type NFQueue struct {
 }
 
 func (nfq *NFQueue) Delete() error {
-	return nil
+	iptables := nfq.iptables()
+	ipTablesCmd := exec.Command(iptables,
+		"-t",
+		"mangle",
+		"-D",
+		"PREROUTING",
+		"-d",
+		nfq.ip.String(),
+		"-j",
+		"NFQUEUE",
+		"--queue-num",
+		strconv.Itoa(nfq.queueNum))
+	_, err := ipTablesCmd.Output()
+	return err
 }
 
 func (nfq *NFQueue) configure() error {

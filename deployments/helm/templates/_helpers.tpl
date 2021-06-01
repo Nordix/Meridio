@@ -5,7 +5,7 @@ Set IP Family
 */}}
 {{- define "meridio.vips" -}}
 {{- if eq .Values.ipFamily "dualstack" -}}
-{{- (printf "%s,%s" .Values.vip.ipv4 .Values.vip.ipv6) | quote -}}
+{{- (printf "%s,%s" .Values.vip.ipv4 .Values.vip.ipv6) -}}
 {{- else if eq .Values.ipFamily "ipv6" -}}
 {{- printf .Values.vip.ipv6 -}}
 {{- else -}}

@@ -15,6 +15,7 @@ spec:
       labels:
         app: load-balancer
     spec:
+      serviceAccountName: meridio
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
