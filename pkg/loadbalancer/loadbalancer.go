@@ -21,7 +21,7 @@ type LoadBalancer struct {
 
 // Start -
 func (lb *LoadBalancer) Start() error {
-	return exec.Command("lb", "run", "-p").Start()
+	return exec.Command("nfqlb", "lb").Start()
 }
 
 // AddTarget -
@@ -56,7 +56,7 @@ func (lb *LoadBalancer) RemoveTarget(target *Target) error {
 	if err != nil {
 		return err
 	}
-	err = lb.desactivateIdentifier(target.identifier)
+	err = lb.deactivateIdentifier(target.identifier)
 	if err != nil {
 		return err
 	}
@@ -80,20 +80,22 @@ func (lb *LoadBalancer) GetTargets() []*Target {
 }
 
 func (lb *LoadBalancer) activateIdentifier(identifier int) error {
-	_, err := exec.Command("lb", "activate", strconv.Itoa(identifier)).Output()
+	_, err := exec.Command("nfqlb", "activate", strconv.Itoa(identifier)).Output()
 	return err
 }
 
-func (lb *LoadBalancer) desactivateIdentifier(identifier int) error {
-	_, err := exec.Command("lb", "deactivate", strconv.Itoa(identifier)).Output()
+func (lb *LoadBalancer) deactivateIdentifier(identifier int) error {
+	_, err := exec.Command("nfqlb", "deactivate", strconv.Itoa(identifier)).Output()
 	return err
 }
 
 func (lb *LoadBalancer) configure() error {
-	_, err := exec.Command("lb",
-		"create",
-		strconv.Itoa(lb.m),
-		strconv.Itoa(lb.n)).Output()
+	_, err := exec.Command("nfqlb",
+		"init",
+		"--ownfw=0",
+		"--toffset=0",
+		fmt.Sprintf("--M=%s", strconv.Itoa(lb.m)),
+		fmt.Sprintf("--N=%s", strconv.Itoa(lb.n))).Output()
 	if err != nil {
 		return err
 	}
@@ -106,7 +108,7 @@ func (lb *LoadBalancer) configure() error {
 
 func (lb *LoadBalancer) desactivateAll() error {
 	for i := 1; i <= lb.n; i++ {
-		err := lb.desactivateIdentifier(i)
+		err := lb.deactivateIdentifier(i)
 		if err != nil {
 			return err
 		}
