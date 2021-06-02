@@ -212,9 +212,11 @@ func (st *SimpleTarget) SetVIPs(vips []string) {
 		delete(currentVIPs, vip)
 	}
 	// delete remaining vips
-	for index, vip := range st.vips {
+	for index := 0; index < len(st.vips); index++ {
+		vip := st.vips[index]
 		if _, ok := currentVIPs[vip.prefix]; ok {
 			st.vips = append(st.vips[:index], st.vips[index+1:]...)
+			index--
 			err := vip.Delete()
 			if err != nil {
 				logrus.Errorf("SimpleTarget: Error deleting vip: %v", err)

@@ -168,9 +168,11 @@ func (p *Proxy) SetVIPs(vips []string) {
 		delete(currentVIPs, vip)
 	}
 	// delete remaining vips
-	for index, vip := range p.vips {
+	for index := 0; index < len(p.vips); index++ {
+		vip := p.vips[index]
 		if _, ok := currentVIPs[vip.prefix]; ok {
 			p.vips = append(p.vips[:index], p.vips[index+1:]...)
+			index--
 			err := vip.Delete()
 			if err != nil {
 				logrus.Errorf("Proxy: Error deleting vip: %v", err)

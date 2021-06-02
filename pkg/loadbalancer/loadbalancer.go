@@ -133,9 +133,11 @@ func (lb *LoadBalancer) SetVIPs(vips []string) {
 		delete(currentVIPs, vip)
 	}
 	// delete remaining vips
-	for index, vip := range lb.vips {
+	for index := 0; index < len(lb.vips); index++ {
+		vip := lb.vips[index]
 		if _, ok := currentVIPs[vip.prefix]; ok {
 			lb.vips = append(lb.vips[:index], lb.vips[index+1:]...)
+			index--
 			err := vip.Delete()
 			if err != nil {
 				logrus.Errorf("Load Balancer: Error deleting vip: %v", err)
