@@ -43,6 +43,6 @@ do
     docker exec -it ubuntu-ext ip netns exec $ns ip addr add $ip dev $if_name
     docker exec -it ubuntu-ext ip netns exec $ns ip addr add $ip6 dev $if_name
 
-    docker exec -it ubuntu-ext ip netns exec $ns ip route replace 20.0.0.1/32 nexthop via 169.254.${vi}.1 nexthop via 169.254.${vi}.2
-    docker exec -it ubuntu-ext ip netns exec $ns ip route replace 2000::1/128 nexthop via 100:${vi}::1 nexthop via 100:${vi}::2
+    docker exec -it ubuntu-ext ip netns exec $ns ip route replace 20.0.0.1/32 nexthop via 169.254.${vi}.2 nexthop via 169.254.${vi}.3
+    docker exec -it ubuntu-ext ip netns exec $ns ip route replace 2000::1/128 nexthop via 100:${vi}::2 nexthop via 100:${vi}::3
 done
