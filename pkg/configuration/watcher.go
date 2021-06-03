@@ -29,7 +29,8 @@ func (w *Watcher) Start() {
 		watcher, err := w.clientset.CoreV1().ConfigMaps(w.namespace).Watch(context.TODO(),
 			metav1.SingleObject(metav1.ObjectMeta{Name: w.configMap, Namespace: w.namespace}))
 		if err != nil {
-			logrus.Errorf("Unable to eatch configmap: %v", err)
+			logrus.Errorf("Unable to watch configmap: %v", err)
+			return
 		}
 		w.updateCurrentEndpoint(watcher.ResultChan())
 	}

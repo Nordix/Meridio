@@ -17,6 +17,8 @@ type Config struct {
 	MaxTokenLifetime time.Duration     `default:"24h" desc:"maximum lifetime of tokens" split_words:"true"`
 	VIPs             []string          `default:"20.0.0.1/32" desc:"Virtual IP address"`
 	NSPService       string            `default:"nsp-service:7778" desc:"IP (or domain) and port of the NSP Service" split_words:"true"`
+	Namespace        string            `default:"default" desc:"Namespace the pod is running on" split_words:"true"`
+	ConfigMapName    string            `default:"meridio-configuration" desc:"Name of the ConfigMap containing the configuration" split_words:"true"`
 	// Labels           []string      `default:"" desc:"A list of client labels with format key1=val1,key2=val2, will be used a primary list for network services" split_words:"true"`
 	// Mechanism        string        `default:"kernel" desc:"Default Mechanism to use, supported values: kernel, vfio" split_words:"true"`
 	// NetworkServices  []url.URL     `default:"" desc:"A list of Network Service Requests" split_words:"true"`

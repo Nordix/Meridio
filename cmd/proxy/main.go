@@ -101,8 +101,8 @@ func main() {
 	ep := startNSE(ctx, endpointConfig, nsmAPIClient, p, interfaceMonitorServer, config.NSPService)
 	defer ep.Delete()
 
-	configWatcher := make(chan *configuration.Config)
-	configurationWatcher := configuration.NewWatcher("meridio-configuration", "default", configWatcher)
+	configWatcher := make(chan *configuration.Config, 10)
+	configurationWatcher := configuration.NewWatcher(config.ConfigMapName, config.Namespace, configWatcher)
 	go configurationWatcher.Start()
 
 	for {

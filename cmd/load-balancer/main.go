@@ -107,7 +107,7 @@ func main() {
 	sns.Start()
 
 	configWatcher := make(chan *configuration.Config)
-	configurationWatcher := configuration.NewWatcher("meridio-configuration", "default", configWatcher)
+	configurationWatcher := configuration.NewWatcher(config.ConfigMapName, config.Namespace, configWatcher)
 	go configurationWatcher.Start()
 
 	for {
