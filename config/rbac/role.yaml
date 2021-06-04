@@ -1,0 +1,34 @@
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - trenches
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - trenches/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - trenches/status
+  verbs:
+  - get
+  - patch
+  - update
