@@ -36,10 +36,14 @@ spec:
           spec:
             description: TrenchSpec defines the desired state of Trench
             properties:
-              foo:
-                description: Foo is an example field of Trench. Edit trench_types.go
-                  to remove/update
+              configMapName:
+                description: ConfigMapName
                 type: string
+              vips:
+                description: VIPs
+                items:
+                  type: string
+                type: array
             type: object
           status:
             description: TrenchStatus defines the observed state of Trench

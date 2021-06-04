@@ -28,8 +28,10 @@ type TrenchSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of Trench. Edit trench_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// ConfigMapName
+	ConfigMapName string `json:"configMapName,omitempty"`
+	// VIPs
+	VIPs []string `json:"vips,omitempty"`
 }
 
 // TrenchStatus defines the observed state of Trench
