@@ -3,5 +3,8 @@ kind: Trench
 metadata:
   name: trench-sample
 spec:
-  # Add fields here
-  foo: bar
+  configMapName: "meridio-configuration"
+  vips: 
+    - "20.0.0.1/32"
+    - "2000::1/128"
+    - "172.10.1.1/32"
