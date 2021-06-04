@@ -5,6 +5,9 @@
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
 VERSION ?= 0.0.1
 
+# https://sdk.operatorframework.io/docs/faqs/#when-invoking-make-targets-why-do-i-see-errors-like-forkexec-usrlocalkubebuilderbinetcd-no-such-file-or-directory-occurred
+SHELL := /bin/bash
+
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
