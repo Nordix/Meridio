@@ -15,6 +15,11 @@ make docker-build
 make docker-builddocker-push IMG="localhost:5000/meridio/meridio-operator:v0.0.1"
 ```
 
+Deploy cert manager
+```
+kubectl apply -f https://github.com/jetstack/cert-manager/releases/latest/download/cert-manager.yaml
+```
+
 Deploy
 ```
 make deploy
