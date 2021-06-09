@@ -76,7 +76,7 @@ func (r *TrenchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	// Check if the configmap already exists, if not create a new one
 	configMap := &corev1.ConfigMap{}
-	err = r.Client.Get(ctx, client.ObjectKey{Namespace: trench.Namespace, Name: trench.Spec.ConfigMapName}, configMap)
+	err = r.Client.Get(ctx, client.ObjectKey{Namespace: trench.Name, Name: trench.Spec.ConfigMapName}, configMap)
 	if apierrors.IsNotFound(err) {
 		configMap = r.buildConfigMap(trench)
 		err := r.Client.Create(ctx, configMap)
@@ -120,7 +120,7 @@ func (r *TrenchReconciler) buildConfigMap(trench *meridiov1alpha1.Trench) *corev
 	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      trench.Spec.ConfigMapName,
-			Namespace: trench.Namespace,
+			Namespace: trench.Name,
 		},
 	}
 	r.setConfigMapData(trench, configMap)

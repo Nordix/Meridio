@@ -1,7 +1,7 @@
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Trench
 metadata:
-  name: trench-sample
+  name: trench-a
 spec:
   configMapName: "meridio-configuration"
   vips: 
