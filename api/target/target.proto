@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package target;
+option go_package = "github.com/nordix/meridio/api/target";
+import "google/protobuf/empty.proto";
+
+service Ambassador {
+    rpc Request(Connection) returns (google.protobuf.Empty) {}
+    rpc Close(Connection) returns (google.protobuf.Empty) {}
+}
+
+message Connection {
+    string networkServiceName = 1;
+}
+
