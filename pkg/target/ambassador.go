@@ -84,7 +84,11 @@ func (a *Ambassador) Start(ctx context.Context) error {
 	}
 }
 
-func (a *Ambassador) Stop() {
+func (a *Ambassador) Delete() {
+	a.server.Stop()
+	for _, connection := range a.connections {
+		a.deleteConnection(connection.networkServiceName)
+	}
 }
 
 func NewAmbassador(port int, trench string, nsmConfig *nsm.Config, configWatcher <-chan *configuration.Config, netUtils networking.Utils) (*Ambassador, error) {

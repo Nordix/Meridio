@@ -52,6 +52,7 @@ func main() {
 		logrus.Fatalf("Error creating new ambassador: %v", err)
 	}
 	err = ambassador.Start(ctx)
+	defer ambassador.Delete()
 	if err != nil {
 		logrus.Fatalf("Error starting ambassador: %v", err)
 	}
