@@ -5,47 +5,56 @@ organization: cloud-native/meridio
 tag: latest
 pullPolicy: IfNotPresent
 
-loadBalancerImage: load-balancer
-loadBalancerVersion: latest
-loadBalancerNetworkServiceName: load-balancer
+loadBalancer:
+  image: load-balancer
+  version: latest
+  networkServiceName: load-balancer
 
-proxyImage: proxy
-proxyVersion: latest
-proxyNetworkServiceName: proxy
+proxy:
+  image: proxy
+  version: latest
+  networkServiceName: proxy
 
-targetImage: target
-targetVersion: latest
+target:
+  image: target
+  version: latest
 
-ctrafficImage: ctraffic
-ctrafficVersion: latest
+ctraffic:
+  image: ctraffic
+  version: latest
 
-ipamImage: ipam
-ipamVersion: latest
-ipamPort: 7777
-ipamTargetPort: 7777
+ipam:
+  image: ipam
+  version: latest
+  port: 7777
+  targetPort: 7777
 
-nspImage: nsp
-nspVersion: latest
-nspPort: 7778
-nspTargetPort: 7778
+nsp:
+  image: nsp
+  version: latest
+  port: 7778
+  targetPort: 7778
 
 ipFamily: ipv4 # ipv4 / ipv6 / dualstack
 
-vipIPv4: 20.0.0.1/32
-vipIPv6: 2000::1/128
+vip:
+  ipv4: 20.0.0.1/32
+  ipv6: 2000::1/128
 
-subnetPoolIPv4: 172.16.0.0/16
-subnetPoolIPv6: fd00::/48
+subnetPool:
+  ipv4: 172.16.0.0/16
+  ipv6: fd00::/48
+  prefixLength:
+    ipv4: 24
+    ipv6: 64
 
-subnetPrefixLengthIPv4: 24
-subnetPrefixLengthIPv6: 64
+vlanNSE:
+  image: cmd-nse-icmp-responder
+  version: latest
 
-# vlanNSEImage: vlan-nse
-vlanNSEImage: cmd-nse-icmp-responder
-vlanNSEVersion: latest
-
-vlanServiceName: external-vlan
-vlanID: 100
-vlanInterface: eth0
-vlanIPv4Prefix: 169.254.100.0/24
-vlanIPv6Prefix: 100:100::/64
+vlan:
+  networkServiceName: external-vlan
+  id: 100
+  interface: eth0
+  ipv4Prefix: 169.254.100.0/24
+  ipv6Prefix: 100:100::/64

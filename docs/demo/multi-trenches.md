@@ -41,21 +41,21 @@ Configure Spire
 Install Meridio trench-a
 ```
 # ipv4
-helm install deployments/helm/ --generate-name --create-namespace --namespace trench-a --set vlanID=100 --set vlanIPv4Prefix=169.254.100.0/24
+helm install deployments/helm/ --generate-name --create-namespace --namespace trench-a --set vlan.id=100 --set vlan.ipv4Prefix=169.254.100.0/24
 # ipv6
-helm install deployments/helm/ --generate-name --create-namespace --namespace trench-a --set vlanID=100 --set vlanIPv4Prefix=100:100::/64 --set ipFamily=ipv6 
+helm install deployments/helm/ --generate-name --create-namespace --namespace trench-a --set vlan.id=100 --set vlan.ipv6Prefix=100:100::/64 --set ipFamily=ipv6 
 # dualstack
-helm install deployments/helm/ --generate-name --create-namespace --namespace trench-a --set vlanID=100 --set vlanIPv4Prefix=100:100::/64 --set ipFamily=dualstack 
+helm install deployments/helm/ --generate-name --create-namespace --namespace trench-a --set vlan.id=100 --set vlan.ipv4Prefix=169.254.100.0/24 --set vlan.ipv6Prefix=100:100::/64 --set ipFamily=dualstack 
 ```
 
 Install Meridio trench-b
 ```
 # ipv4
-helm install deployments/helm/ --generate-name --create-namespace --namespace trench-b --set vlanID=101 --set vlanIPv4Prefix=169.254.101.0/24
+helm install deployments/helm/ --generate-name --create-namespace --namespace trench-b --set vlan.id=101 --set vlan.ipv4Prefix=169.254.101.0/24
 # ipv6
-helm install deployments/helm/ --generate-name --create-namespace --namespace trench-b --set vlanID=101 --set vlanIPv4Prefix=100:101::/64 --set ipFamily=ipv6 
+helm install deployments/helm/ --generate-name --create-namespace --namespace trench-b --set vlan.id=101 --set vlan.ipv6Prefix=100:101::/64 --set ipFamily=ipv6 
 # dualstack
-helm install deployments/helm/ --generate-name --create-namespace --namespace trench-b --set vlanID=101 --set vlanIPv4Prefix=100:101::/64 --set ipFamily=dualstack 
+helm install deployments/helm/ --generate-name --create-namespace --namespace trench-b --set vlan.id=101 --set vlan.ipv4Prefix=169.254.101.0/24 --set vlan.ipv6Prefix=100:101::/64 --set ipFamily=dualstack 
 ```
 
 ### External host / External connectivity

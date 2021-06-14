@@ -15,14 +15,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"' -o load-b
 
 FROM ubuntu:20.10 as lb-builder
 
+WORKDIR /
 RUN apt-get update -y --fix-missing
-RUN apt-get install -y build-essential
-run apt-get install -y libmnl-dev
-run apt-get install -y libnetfilter-queue-dev
-
-COPY ./third_party/lb /lb-src
-WORKDIR /lb-src
-RUN gcc -o /lb lb.c maglev.c -lmnl -lnetfilter_queue -lrt
+RUN apt-get install -y wget xz-utils
+RUN wget https://github.com/Nordix/nfqueue-loadbalancer/releases/download/0.1.0/nfqlb-0.1.0.tar.xz
+RUN tar -xvf /nfqlb-0.1.0.tar.xz
+RUN mv nfqlb-0.1.0 nfqlb
 
 FROM ubuntu:20.10
 
@@ -33,6 +31,8 @@ RUN apt-get install -y iproute2 tcpdump iptables net-tools iputils-ping ipvsadm 
 
 WORKDIR /root/
 COPY --from=build /app/load-balancer .
-COPY --from=lb-builder /lb /bin/lb
+COPY --from=lb-builder /nfqlb /nfqlb
+
+ENV PATH="/nfqlb/bin:${PATH}"
 
 CMD ["./load-balancer"]

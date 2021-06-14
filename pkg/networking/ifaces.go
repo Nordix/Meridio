@@ -39,6 +39,7 @@ type Utils interface {
 
 	GetIndexFromName(name string) (int, error)
 	AddVIP(vip string) error
+	DeleteVIP(vip string) error
 }
 
 type Bridge interface {

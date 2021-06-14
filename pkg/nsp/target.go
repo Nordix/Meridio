@@ -79,7 +79,7 @@ func (tl *targetList) Add(nspAPITarget *nspAPI.Target) error {
 	return nil
 }
 
-func (tl *targetList) Remove(nspAPITarget *nspAPI.Target) error {
+func (tl *targetList) Remove(nspAPITarget *nspAPI.Target) (*nspAPI.Target, error) {
 	tl.mu.Lock()
 	defer tl.mu.Unlock()
 	nt := &target{
@@ -87,10 +87,11 @@ func (tl *targetList) Remove(nspAPITarget *nspAPI.Target) error {
 	}
 	index := tl.getIndex(nt)
 	if index < 0 {
-		return errors.New("target is not existing")
+		return nil, errors.New("target is not existing")
 	}
+	target := tl.targets[index]
 	tl.removeIndex(index)
-	return nil
+	return target.Target, nil
 }
 
 func (tl *targetList) Get() []*nspAPI.Target {

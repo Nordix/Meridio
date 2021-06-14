@@ -34,13 +34,13 @@ func (nsps *NetworkServicePlateformService) addTarget(target *nspAPI.Target) err
 }
 
 func (nsps *NetworkServicePlateformService) removeTarget(target *nspAPI.Target) error {
-	err := nsps.targets.Remove(target)
+	t, err := nsps.targets.Remove(target)
 	if err != nil {
 		return err
 	}
 	logrus.Infof("Remove Target: %v", target)
-	target.Status = nspAPI.Status_Unregister
-	nsps.notifyMonitorStreams(target)
+	t.Status = nspAPI.Status_Unregister
+	nsps.notifyMonitorStreams(t)
 	return nil
 }
 

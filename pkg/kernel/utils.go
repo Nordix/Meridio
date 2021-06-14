@@ -44,6 +44,10 @@ func (ku *KernelUtils) AddVIP(vip string) error {
 	return AddVIP(vip)
 }
 
+func (ku *KernelUtils) DeleteVIP(vip string) error {
+	return DeleteVIP(vip)
+}
+
 func getLink(intf networking.Iface) (netlink.Link, error) {
 	return netlink.LinkByIndex(intf.GetIndex())
 }

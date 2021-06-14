@@ -9,5 +9,5 @@ spec:
   type: ClusterIP
   ports:
     - protocol: TCP
-      port: {{ .Values.ipamPort }}
-      targetPort: {{ .Values.ipamTargetPort }}
+      port: {{ .Values.ipam.port }}
+      targetPort: {{ .Values.ipam.targetPort }}

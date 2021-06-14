@@ -14,15 +14,14 @@ import (
 type LoadBalancer struct {
 	m        int
 	n        int
-	nfQueues []networking.NFQueue
-	vips     []string
+	vips     []*virtualIP
 	targets  map[int]*Target // key: Identifier
 	netUtils networking.Utils
 }
 
 // Start -
 func (lb *LoadBalancer) Start() error {
-	return exec.Command("lb", "run", "-p").Start()
+	return exec.Command("nfqlb", "lb", "--qlength=1024").Start()
 }
 
 // AddTarget -
@@ -57,7 +56,7 @@ func (lb *LoadBalancer) RemoveTarget(target *Target) error {
 	if err != nil {
 		return err
 	}
-	err = lb.desactivateIdentifier(target.identifier)
+	err = lb.deactivateIdentifier(target.identifier)
 	if err != nil {
 		return err
 	}
@@ -81,20 +80,21 @@ func (lb *LoadBalancer) GetTargets() []*Target {
 }
 
 func (lb *LoadBalancer) activateIdentifier(identifier int) error {
-	_, err := exec.Command("lb", "activate", strconv.Itoa(identifier)).Output()
+	_, err := exec.Command("nfqlb", "activate", fmt.Sprintf("--lookup=%s", strconv.Itoa(identifier)), strconv.Itoa(identifier)).Output()
 	return err
 }
 
-func (lb *LoadBalancer) desactivateIdentifier(identifier int) error {
-	_, err := exec.Command("lb", "deactivate", strconv.Itoa(identifier)).Output()
+func (lb *LoadBalancer) deactivateIdentifier(identifier int) error {
+	_, err := exec.Command("nfqlb", "deactivate", fmt.Sprintf("--lookup=%s", strconv.Itoa(identifier))).Output()
 	return err
 }
 
 func (lb *LoadBalancer) configure() error {
-	_, err := exec.Command("lb",
-		"create",
-		strconv.Itoa(lb.m),
-		strconv.Itoa(lb.n)).Output()
+	_, err := exec.Command("nfqlb",
+		"init",
+		"--ownfw=0",
+		fmt.Sprintf("--M=%s", strconv.Itoa(lb.m)),
+		fmt.Sprintf("--N=%s", strconv.Itoa(lb.n))).Output()
 	if err != nil {
 		return err
 	}
@@ -102,36 +102,58 @@ func (lb *LoadBalancer) configure() error {
 	if err != nil {
 		return err
 	}
-	for _, vip := range lb.vips {
-		nfqueue, err := lb.netUtils.NewNFQueue(vip, 2)
-		if err != nil {
-			logrus.Errorf("Load Balancer: error configuring nfqueue (iptables): %v", err)
-			return err
-		}
-		lb.nfQueues = append(lb.nfQueues, nfqueue)
-	}
 	return nil
 }
 
 func (lb *LoadBalancer) desactivateAll() error {
-	for i := 1; i <= lb.n; i++ {
-		err := lb.desactivateIdentifier(i)
+	for i := 0; i < lb.n; i++ {
+		err := lb.deactivateIdentifier(i)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (lb *LoadBalancer) SetVIPs(vips []string) {
+	currentVIPs := make(map[string]*virtualIP)
+	for _, vip := range lb.vips {
+		currentVIPs[vip.prefix] = vip
+	}
+	for _, vip := range vips {
+		if _, ok := currentVIPs[vip]; !ok {
+			newVIP, err := newVirtualIP(vip, lb.netUtils)
+			if err != nil {
+				logrus.Errorf("Load Balancer: Error adding SourceBaseRoute: %v", err)
+				continue
+			}
+			lb.vips = append(lb.vips, newVIP)
+		}
+		delete(currentVIPs, vip)
+	}
+	// delete remaining vips
+	for index := 0; index < len(lb.vips); index++ {
+		vip := lb.vips[index]
+		if _, ok := currentVIPs[vip.prefix]; ok {
+			lb.vips = append(lb.vips[:index], lb.vips[index+1:]...)
+			index--
+			err := vip.Delete()
+			if err != nil {
+				logrus.Errorf("Load Balancer: Error deleting vip: %v", err)
+			}
+		}
+	}
 }
 
 func NewLoadBalancer(vips []string, m int, n int, netUtils networking.Utils) (*LoadBalancer, error) {
 	loadBalancer := &LoadBalancer{
 		m:        m,
 		n:        n,
-		vips:     vips,
+		vips:     []*virtualIP{},
 		targets:  make(map[int]*Target),
-		nfQueues: []networking.NFQueue{},
 		netUtils: netUtils,
 	}
+	loadBalancer.SetVIPs(vips)
 	err := loadBalancer.configure()
 	if err != nil {
 		return nil, err

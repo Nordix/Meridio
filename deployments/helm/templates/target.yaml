@@ -15,14 +15,15 @@ spec:
       labels:
         app: target
     spec:
+      serviceAccountName: meridio
       containers:
         - name: ctraffic
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ctrafficImage }}:{{ .Values.ctrafficVersion }}
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ctraffic.image }}:{{ .Values.ctraffic.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           securityContext:
             privileged: true
         - name: target
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.targetImage }}:{{ .Values.targetVersion }}
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.target.image }}:{{ .Values.target.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
@@ -35,10 +36,16 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: NSM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NSM_CONFIG_MAP_NAME
+              value: meridio-configuration
             - name: NSM_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_PROXY_NETWORK_SERVICE_NAME
-              value: {{ template "meridio.proxyNetworkServiceName" . }}
+              value: {{ template "meridio.proxy.networkServiceName" . }}
             - name: NSM_VIPS
               value: {{ template "meridio.vips" . }}
           volumeMounts:
