@@ -36,7 +36,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: NSM_NAMESPACE
+            - name: NSM_TRENCH
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
