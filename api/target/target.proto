@@ -7,9 +7,14 @@ import "google/protobuf/empty.proto";
 service Ambassador {
     rpc Request(Connection) returns (google.protobuf.Empty) {}
     rpc Close(Connection) returns (google.protobuf.Empty) {}
+    rpc List(google.protobuf.Empty) returns (ListResponse) {}
+}
+
+message ListResponse {
+    repeated Connection connections = 1;
 }
 
 message Connection {
     string networkServiceName = 1;
+    repeated string vips = 2;
 }
-

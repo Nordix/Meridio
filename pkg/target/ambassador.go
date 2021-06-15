@@ -39,6 +39,20 @@ func (a *Ambassador) Close(ctx context.Context, connection *targetAPI.Connection
 	return &empty.Empty{}, nil
 }
 
+func (a *Ambassador) List(ctx context.Context, empty *empty.Empty) (*targetAPI.ListResponse, error) {
+	connections := []*targetAPI.Connection{}
+	for _, connection := range a.connections {
+		connections = append(connections, &targetAPI.Connection{
+			NetworkServiceName: connection.networkServiceName,
+			Vips:               connection.GetVIPs(),
+		})
+	}
+	listResponse := &targetAPI.ListResponse{
+		Connections: connections,
+	}
+	return listResponse, nil
+}
+
 func (a *Ambassador) addConnection(networkServiceName string) {
 	connection := NewConnection(networkServiceName, a.trench, a.netUtils)
 	connection.SetVIPs(a.vips)

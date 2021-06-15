@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/golang/protobuf/ptypes/empty"
 	targetAPI "github.com/nordix/meridio/api/target"
 	"google.golang.org/grpc"
 )
@@ -102,6 +103,17 @@ func close(networkService string) error {
 }
 
 func show() error {
+	client, err := getClient()
+	if err != nil {
+		return err
+	}
+	listResponse, err := client.List(context.Background(), &empty.Empty{})
+	if err != nil {
+		return err
+	}
+	for _, connection := range listResponse.Connections {
+		fmt.Printf("%s\t%v\n", connection.NetworkServiceName, connection.Vips)
+	}
 	return nil
 }
 

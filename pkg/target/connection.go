@@ -161,6 +161,14 @@ func (c *Connection) InterfaceDeleted(intf networking.Iface) {
 	}
 }
 
+func (c *Connection) GetVIPs() []string {
+	vips := []string{}
+	for _, vip := range c.vips {
+		vips = append(vips, vip.prefix)
+	}
+	return vips
+}
+
 func (c *Connection) SetVIPs(vips []string) {
 	currentVIPs := make(map[string]*virtualIP)
 	for _, vip := range c.vips {
