@@ -54,13 +54,11 @@ Since the proxy receives the target identifiers and IPs included in requests and
 
 ### Target
 
-The target is a simple NSC requesting a connection to the proxy network service.
+The target contains an ambassador container where the application can request, close or show connections via a local API ([target.proto](https://github.com/Nordix/Meridio/tree/master/api/target/target.proto)). On a Request call, the ambassador will request the connection to the proxy network service via the NSM API. In the extra-context of this connection request, A generated identifier is included.
 
-On Start, the target adds the VIP to the loopback interface to handle the traffic and generate its identifier which will be included in the extra-context of the connection request to the proxy network service.
+Once the connection is established, a source based route is added to ensure traffic with the VIP as source IP is always going back through the proxy, and the VIP addresses are added to the loopback interface to handle the traffic.
 
-Once the connection is established, a source based route is added to ensure traffic with the VIP as source IP is always going back through the proxy.
-
-One of the containers in the target pod is ctraffic. ctraffic is a testing application offering a TCP server listening on port 5000. This testing application can be also used as TCP client from the external host to generate traffic in the system and create a traffic report.
+The other container in the target pod is ctraffic which contains the ctraffic program and a simple ambassador API client application. The simple ambassador API client application will request the connection when the pod starts. ctraffic is a testing application offering a TCP server listening on port 5000. This testing application can be also used as a TCP client from the external host to generate traffic in the system and create a traffic report.
 
 ### Services
 
