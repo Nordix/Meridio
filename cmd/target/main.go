@@ -8,6 +8,7 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/nordix/meridio/pkg/configuration"
+	"github.com/nordix/meridio/pkg/health"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/target"
@@ -34,6 +35,12 @@ func main() {
 	}
 
 	netUtils := &linuxKernel.KernelUtils{}
+
+	healthChecker, err := health.NewChecker(8000)
+	if err != nil {
+		logrus.Fatalf("Unable create Health checker: %v", err)
+	}
+	go healthChecker.Start()
 
 	apiClientConfig := &nsm.Config{
 		Name:             config.Name,

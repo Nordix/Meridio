@@ -19,6 +19,10 @@ spec:
         - name: nsp
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.nsp.image }}:{{ .Values.nsp.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
+          readinessProbe:
+{{ toYaml .Values.readinessProbe | indent 12 }}
+          livenessProbe:
+{{ toYaml .Values.livenessProbe | indent 12 }}
           env:
             - name: NSP_PORT
               value: "{{ .Values.nsp.targetPort }}"

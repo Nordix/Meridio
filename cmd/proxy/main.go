@@ -24,6 +24,7 @@ import (
 	"github.com/nordix/meridio/pkg/client"
 	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/nordix/meridio/pkg/endpoint"
+	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/ipam"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/nsm"
@@ -55,6 +56,12 @@ func main() {
 	if err != nil {
 		logrus.Fatalf("%v", err)
 	}
+
+	healthChecker, err := health.NewChecker(8000)
+	if err != nil {
+		logrus.Fatalf("Unable create Health checker: %v", err)
+	}
+	go healthChecker.Start()
 
 	proxySubnets, err := getProxySubnets(config)
 	if err != nil {

@@ -28,6 +28,10 @@ spec:
         - name: proxy
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.proxy.image }}:{{ .Values.proxy.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
+          readinessProbe:
+{{ toYaml .Values.readinessProbe | indent 12 }}
+          livenessProbe:
+{{ toYaml .Values.livenessProbe | indent 12 }}
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock

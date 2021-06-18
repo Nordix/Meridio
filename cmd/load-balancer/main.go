@@ -22,6 +22,7 @@ import (
 	nspAPI "github.com/nordix/meridio/api/nsp"
 	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/nordix/meridio/pkg/endpoint"
+	"github.com/nordix/meridio/pkg/health"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/loadbalancer"
 	"github.com/nordix/meridio/pkg/networking"
@@ -53,6 +54,12 @@ func main() {
 	}
 
 	netUtils := &linuxKernel.KernelUtils{}
+
+	healthChecker, err := health.NewChecker(8000)
+	if err != nil {
+		logrus.Fatalf("Unable create Health checker: %v", err)
+	}
+	go healthChecker.Start()
 
 	nspClient, err := nsp.NewNetworkServicePlateformClient(config.NSPService)
 	if err != nil {
