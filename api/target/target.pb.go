@@ -25,16 +25,17 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type ListResponse struct {
+type Conduit struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Connections []*Connection `protobuf:"bytes,1,rep,name=connections,proto3" json:"connections,omitempty"`
+	NetworkServiceName string `protobuf:"bytes,1,opt,name=networkServiceName,proto3" json:"networkServiceName,omitempty"`
+	Trench             string `protobuf:"bytes,2,opt,name=trench,proto3" json:"trench,omitempty"`
 }
 
-func (x *ListResponse) Reset() {
-	*x = ListResponse{}
+func (x *Conduit) Reset() {
+	*x = Conduit{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_api_target_target_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -42,13 +43,13 @@ func (x *ListResponse) Reset() {
 	}
 }
 
-func (x *ListResponse) String() string {
+func (x *Conduit) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ListResponse) ProtoMessage() {}
+func (*Conduit) ProtoMessage() {}
 
-func (x *ListResponse) ProtoReflect() protoreflect.Message {
+func (x *Conduit) ProtoReflect() protoreflect.Message {
 	mi := &file_api_target_target_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -60,29 +61,35 @@ func (x *ListResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ListResponse.ProtoReflect.Descriptor instead.
-func (*ListResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use Conduit.ProtoReflect.Descriptor instead.
+func (*Conduit) Descriptor() ([]byte, []int) {
 	return file_api_target_target_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *ListResponse) GetConnections() []*Connection {
+func (x *Conduit) GetNetworkServiceName() string {
 	if x != nil {
-		return x.Connections
+		return x.NetworkServiceName
 	}
-	return nil
+	return ""
 }
 
-type Connection struct {
+func (x *Conduit) GetTrench() string {
+	if x != nil {
+		return x.Trench
+	}
+	return ""
+}
+
+type Stream struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	NetworkServiceName string   `protobuf:"bytes,1,opt,name=networkServiceName,proto3" json:"networkServiceName,omitempty"`
-	Vips               []string `protobuf:"bytes,2,rep,name=vips,proto3" json:"vips,omitempty"`
+	Conduit *Conduit `protobuf:"bytes,1,opt,name=conduit,proto3" json:"conduit,omitempty"`
 }
 
-func (x *Connection) Reset() {
-	*x = Connection{}
+func (x *Stream) Reset() {
+	*x = Stream{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_api_target_target_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -90,13 +97,13 @@ func (x *Connection) Reset() {
 	}
 }
 
-func (x *Connection) String() string {
+func (x *Stream) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Connection) ProtoMessage() {}
+func (*Stream) ProtoMessage() {}
 
-func (x *Connection) ProtoReflect() protoreflect.Message {
+func (x *Stream) ProtoReflect() protoreflect.Message {
 	mi := &file_api_target_target_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -108,21 +115,14 @@ func (x *Connection) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Connection.ProtoReflect.Descriptor instead.
-func (*Connection) Descriptor() ([]byte, []int) {
+// Deprecated: Use Stream.ProtoReflect.Descriptor instead.
+func (*Stream) Descriptor() ([]byte, []int) {
 	return file_api_target_target_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *Connection) GetNetworkServiceName() string {
+func (x *Stream) GetConduit() *Conduit {
 	if x != nil {
-		return x.NetworkServiceName
-	}
-	return ""
-}
-
-func (x *Connection) GetVips() []string {
-	if x != nil {
-		return x.Vips
+		return x.Conduit
 	}
 	return nil
 }
@@ -133,31 +133,33 @@ var file_api_target_target_proto_rawDesc = []byte{
 	0x0a, 0x17, 0x61, 0x70, 0x69, 0x2f, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x2f, 0x74, 0x61, 0x72,
 	0x67, 0x65, 0x74, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x06, 0x74, 0x61, 0x72, 0x67, 0x65,
 	0x74, 0x1a, 0x1b, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62,
-	0x75, 0x66, 0x2f, 0x65, 0x6d, 0x70, 0x74, 0x79, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x44,
-	0x0a, 0x0c, 0x4c, 0x69, 0x73, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x34,
-	0x0a, 0x0b, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x18, 0x01, 0x20,
-	0x03, 0x28, 0x0b, 0x32, 0x12, 0x2e, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x2e, 0x43, 0x6f, 0x6e,
-	0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x0b, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74,
-	0x69, 0x6f, 0x6e, 0x73, 0x22, 0x50, 0x0a, 0x0a, 0x43, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69,
-	0x6f, 0x6e, 0x12, 0x2e, 0x0a, 0x12, 0x6e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x53, 0x65, 0x72,
-	0x76, 0x69, 0x63, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x12,
-	0x6e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x4e, 0x61,
-	0x6d, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x76, 0x69, 0x70, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x09,
-	0x52, 0x04, 0x76, 0x69, 0x70, 0x73, 0x32, 0xb4, 0x01, 0x0a, 0x0a, 0x41, 0x6d, 0x62, 0x61, 0x73,
-	0x73, 0x61, 0x64, 0x6f, 0x72, 0x12, 0x37, 0x0a, 0x07, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x12, 0x12, 0x2e, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x2e, 0x43, 0x6f, 0x6e, 0x6e, 0x65, 0x63,
-	0x74, 0x69, 0x6f, 0x6e, 0x1a, 0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x22, 0x00, 0x12, 0x35,
-	0x0a, 0x05, 0x43, 0x6c, 0x6f, 0x73, 0x65, 0x12, 0x12, 0x2e, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74,
-	0x2e, 0x43, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x1a, 0x16, 0x2e, 0x67, 0x6f,
-	0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d,
-	0x70, 0x74, 0x79, 0x22, 0x00, 0x12, 0x36, 0x0a, 0x04, 0x4c, 0x69, 0x73, 0x74, 0x12, 0x16, 0x2e,
-	0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e,
-	0x45, 0x6d, 0x70, 0x74, 0x79, 0x1a, 0x14, 0x2e, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x2e, 0x4c,
-	0x69, 0x73, 0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x42, 0x26, 0x5a,
-	0x24, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6e, 0x6f, 0x72, 0x64,
-	0x69, 0x78, 0x2f, 0x6d, 0x65, 0x72, 0x69, 0x64, 0x69, 0x6f, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x74,
-	0x61, 0x72, 0x67, 0x65, 0x74, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x75, 0x66, 0x2f, 0x65, 0x6d, 0x70, 0x74, 0x79, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x51,
+	0x0a, 0x07, 0x43, 0x6f, 0x6e, 0x64, 0x75, 0x69, 0x74, 0x12, 0x2e, 0x0a, 0x12, 0x6e, 0x65, 0x74,
+	0x77, 0x6f, 0x72, 0x6b, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x12, 0x6e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x53, 0x65,
+	0x72, 0x76, 0x69, 0x63, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x12, 0x16, 0x0a, 0x06, 0x74, 0x72, 0x65,
+	0x6e, 0x63, 0x68, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x74, 0x72, 0x65, 0x6e, 0x63,
+	0x68, 0x22, 0x33, 0x0a, 0x06, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x12, 0x29, 0x0a, 0x07, 0x63,
+	0x6f, 0x6e, 0x64, 0x75, 0x69, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x0f, 0x2e, 0x74,
+	0x61, 0x72, 0x67, 0x65, 0x74, 0x2e, 0x43, 0x6f, 0x6e, 0x64, 0x75, 0x69, 0x74, 0x52, 0x07, 0x63,
+	0x6f, 0x6e, 0x64, 0x75, 0x69, 0x74, 0x32, 0xe3, 0x01, 0x0a, 0x0a, 0x41, 0x6d, 0x62, 0x61, 0x73,
+	0x73, 0x61, 0x64, 0x6f, 0x72, 0x12, 0x34, 0x0a, 0x07, 0x43, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74,
+	0x12, 0x0f, 0x2e, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x2e, 0x43, 0x6f, 0x6e, 0x64, 0x75, 0x69,
+	0x74, 0x1a, 0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x22, 0x00, 0x12, 0x37, 0x0a, 0x0a, 0x44,
+	0x69, 0x73, 0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x12, 0x0f, 0x2e, 0x74, 0x61, 0x72, 0x67,
+	0x65, 0x74, 0x2e, 0x43, 0x6f, 0x6e, 0x64, 0x75, 0x69, 0x74, 0x1a, 0x16, 0x2e, 0x67, 0x6f, 0x6f,
+	0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70,
+	0x74, 0x79, 0x22, 0x00, 0x12, 0x33, 0x0a, 0x07, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12,
+	0x0e, 0x2e, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x1a,
+	0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75,
+	0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x22, 0x00, 0x12, 0x31, 0x0a, 0x05, 0x43, 0x6c, 0x6f,
+	0x73, 0x65, 0x12, 0x0e, 0x2e, 0x74, 0x61, 0x72, 0x67, 0x65, 0x74, 0x2e, 0x53, 0x74, 0x72, 0x65,
+	0x61, 0x6d, 0x1a, 0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x22, 0x00, 0x42, 0x26, 0x5a, 0x24,
+	0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6e, 0x6f, 0x72, 0x64, 0x69,
+	0x78, 0x2f, 0x6d, 0x65, 0x72, 0x69, 0x64, 0x69, 0x6f, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x74, 0x61,
+	0x72, 0x67, 0x65, 0x74, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -174,20 +176,22 @@ func file_api_target_target_proto_rawDescGZIP() []byte {
 
 var file_api_target_target_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_api_target_target_proto_goTypes = []interface{}{
-	(*ListResponse)(nil), // 0: target.ListResponse
-	(*Connection)(nil),   // 1: target.Connection
-	(*empty.Empty)(nil),  // 2: google.protobuf.Empty
+	(*Conduit)(nil),     // 0: target.Conduit
+	(*Stream)(nil),      // 1: target.Stream
+	(*empty.Empty)(nil), // 2: google.protobuf.Empty
 }
 var file_api_target_target_proto_depIdxs = []int32{
-	1, // 0: target.ListResponse.connections:type_name -> target.Connection
-	1, // 1: target.Ambassador.Request:input_type -> target.Connection
-	1, // 2: target.Ambassador.Close:input_type -> target.Connection
-	2, // 3: target.Ambassador.List:input_type -> google.protobuf.Empty
-	2, // 4: target.Ambassador.Request:output_type -> google.protobuf.Empty
-	2, // 5: target.Ambassador.Close:output_type -> google.protobuf.Empty
-	0, // 6: target.Ambassador.List:output_type -> target.ListResponse
-	4, // [4:7] is the sub-list for method output_type
-	1, // [1:4] is the sub-list for method input_type
+	0, // 0: target.Stream.conduit:type_name -> target.Conduit
+	0, // 1: target.Ambassador.Connect:input_type -> target.Conduit
+	0, // 2: target.Ambassador.Disconnect:input_type -> target.Conduit
+	1, // 3: target.Ambassador.Request:input_type -> target.Stream
+	1, // 4: target.Ambassador.Close:input_type -> target.Stream
+	2, // 5: target.Ambassador.Connect:output_type -> google.protobuf.Empty
+	2, // 6: target.Ambassador.Disconnect:output_type -> google.protobuf.Empty
+	2, // 7: target.Ambassador.Request:output_type -> google.protobuf.Empty
+	2, // 8: target.Ambassador.Close:output_type -> google.protobuf.Empty
+	5, // [5:9] is the sub-list for method output_type
+	1, // [1:5] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -200,7 +204,7 @@ func file_api_target_target_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_api_target_target_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ListResponse); i {
+			switch v := v.(*Conduit); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -212,7 +216,7 @@ func file_api_target_target_proto_init() {
 			}
 		}
 		file_api_target_target_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Connection); i {
+			switch v := v.(*Stream); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -256,9 +260,10 @@ const _ = grpc.SupportPackageIsVersion6
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type AmbassadorClient interface {
-	Request(ctx context.Context, in *Connection, opts ...grpc.CallOption) (*empty.Empty, error)
-	Close(ctx context.Context, in *Connection, opts ...grpc.CallOption) (*empty.Empty, error)
-	List(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*ListResponse, error)
+	Connect(ctx context.Context, in *Conduit, opts ...grpc.CallOption) (*empty.Empty, error)
+	Disconnect(ctx context.Context, in *Conduit, opts ...grpc.CallOption) (*empty.Empty, error)
+	Request(ctx context.Context, in *Stream, opts ...grpc.CallOption) (*empty.Empty, error)
+	Close(ctx context.Context, in *Stream, opts ...grpc.CallOption) (*empty.Empty, error)
 }
 
 type ambassadorClient struct {
@@ -269,7 +274,25 @@ func NewAmbassadorClient(cc grpc.ClientConnInterface) AmbassadorClient {
 	return &ambassadorClient{cc}
 }
 
-func (c *ambassadorClient) Request(ctx context.Context, in *Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (c *ambassadorClient) Connect(ctx context.Context, in *Conduit, opts ...grpc.CallOption) (*empty.Empty, error) {
+	out := new(empty.Empty)
+	err := c.cc.Invoke(ctx, "/target.Ambassador/Connect", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ambassadorClient) Disconnect(ctx context.Context, in *Conduit, opts ...grpc.CallOption) (*empty.Empty, error) {
+	out := new(empty.Empty)
+	err := c.cc.Invoke(ctx, "/target.Ambassador/Disconnect", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *ambassadorClient) Request(ctx context.Context, in *Stream, opts ...grpc.CallOption) (*empty.Empty, error) {
 	out := new(empty.Empty)
 	err := c.cc.Invoke(ctx, "/target.Ambassador/Request", in, out, opts...)
 	if err != nil {
@@ -278,7 +301,7 @@ func (c *ambassadorClient) Request(ctx context.Context, in *Connection, opts ...
 	return out, nil
 }
 
-func (c *ambassadorClient) Close(ctx context.Context, in *Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (c *ambassadorClient) Close(ctx context.Context, in *Stream, opts ...grpc.CallOption) (*empty.Empty, error) {
 	out := new(empty.Empty)
 	err := c.cc.Invoke(ctx, "/target.Ambassador/Close", in, out, opts...)
 	if err != nil {
@@ -287,42 +310,73 @@ func (c *ambassadorClient) Close(ctx context.Context, in *Connection, opts ...gr
 	return out, nil
 }
 
-func (c *ambassadorClient) List(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*ListResponse, error) {
-	out := new(ListResponse)
-	err := c.cc.Invoke(ctx, "/target.Ambassador/List", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // AmbassadorServer is the server API for Ambassador service.
 type AmbassadorServer interface {
-	Request(context.Context, *Connection) (*empty.Empty, error)
-	Close(context.Context, *Connection) (*empty.Empty, error)
-	List(context.Context, *empty.Empty) (*ListResponse, error)
+	Connect(context.Context, *Conduit) (*empty.Empty, error)
+	Disconnect(context.Context, *Conduit) (*empty.Empty, error)
+	Request(context.Context, *Stream) (*empty.Empty, error)
+	Close(context.Context, *Stream) (*empty.Empty, error)
 }
 
 // UnimplementedAmbassadorServer can be embedded to have forward compatible implementations.
 type UnimplementedAmbassadorServer struct {
 }
 
-func (*UnimplementedAmbassadorServer) Request(context.Context, *Connection) (*empty.Empty, error) {
+func (*UnimplementedAmbassadorServer) Connect(context.Context, *Conduit) (*empty.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Connect not implemented")
+}
+func (*UnimplementedAmbassadorServer) Disconnect(context.Context, *Conduit) (*empty.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Disconnect not implemented")
+}
+func (*UnimplementedAmbassadorServer) Request(context.Context, *Stream) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Request not implemented")
 }
-func (*UnimplementedAmbassadorServer) Close(context.Context, *Connection) (*empty.Empty, error) {
+func (*UnimplementedAmbassadorServer) Close(context.Context, *Stream) (*empty.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Close not implemented")
-}
-func (*UnimplementedAmbassadorServer) List(context.Context, *empty.Empty) (*ListResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method List not implemented")
 }
 
 func RegisterAmbassadorServer(s *grpc.Server, srv AmbassadorServer) {
 	s.RegisterService(&_Ambassador_serviceDesc, srv)
 }
 
+func _Ambassador_Connect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Conduit)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AmbassadorServer).Connect(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/target.Ambassador/Connect",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AmbassadorServer).Connect(ctx, req.(*Conduit))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Ambassador_Disconnect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Conduit)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AmbassadorServer).Disconnect(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/target.Ambassador/Disconnect",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AmbassadorServer).Disconnect(ctx, req.(*Conduit))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Ambassador_Request_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Connection)
+	in := new(Stream)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -334,13 +388,13 @@ func _Ambassador_Request_Handler(srv interface{}, ctx context.Context, dec func(
 		FullMethod: "/target.Ambassador/Request",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AmbassadorServer).Request(ctx, req.(*Connection))
+		return srv.(AmbassadorServer).Request(ctx, req.(*Stream))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Ambassador_Close_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Connection)
+	in := new(Stream)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -352,25 +406,7 @@ func _Ambassador_Close_Handler(srv interface{}, ctx context.Context, dec func(in
 		FullMethod: "/target.Ambassador/Close",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AmbassadorServer).Close(ctx, req.(*Connection))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Ambassador_List_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(empty.Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AmbassadorServer).List(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/target.Ambassador/List",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AmbassadorServer).List(ctx, req.(*empty.Empty))
+		return srv.(AmbassadorServer).Close(ctx, req.(*Stream))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -380,16 +416,20 @@ var _Ambassador_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*AmbassadorServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "Connect",
+			Handler:    _Ambassador_Connect_Handler,
+		},
+		{
+			MethodName: "Disconnect",
+			Handler:    _Ambassador_Disconnect_Handler,
+		},
+		{
 			MethodName: "Request",
 			Handler:    _Ambassador_Request_Handler,
 		},
 		{
 			MethodName: "Close",
 			Handler:    _Ambassador_Close_Handler,
-		},
-		{
-			MethodName: "List",
-			Handler:    _Ambassador_List_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

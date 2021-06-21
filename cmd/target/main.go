@@ -54,7 +54,8 @@ func main() {
 	configurationWatcher := configuration.NewWatcher(config.ConfigMapName, config.Trench, configWatcher)
 	go configurationWatcher.Start()
 
-	ambassador, err := target.NewAmbassador(7779, config.Trench, apiClientConfig, configWatcher, netUtils)
+	targetConfig := target.NewConfig(config.NSPServiceName, config.NSPServicePort, netUtils, apiClientConfig)
+	ambassador, err := target.NewAmbassador(7779, config.Trench, configWatcher, targetConfig)
 	if err != nil {
 		logrus.Fatalf("Error creating new ambassador: %v", err)
 	}

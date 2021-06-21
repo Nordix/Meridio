@@ -10,7 +10,6 @@ import (
 	targetAPI "github.com/nordix/meridio/api/target"
 	"github.com/nordix/meridio/pkg/client"
 	"github.com/nordix/meridio/pkg/configuration"
-	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -23,52 +22,84 @@ type Ambassador struct {
 	trench        string
 	vips          []string
 	apiClient     *nsm.APIClient
-	nsmConfig     *nsm.Config
-	connections   []*Connection
+	conduits      []*Conduit
 	configWatcher <-chan *configuration.Config
-	netUtils      networking.Utils
+	config        *Config
 }
 
-func (a *Ambassador) Request(ctx context.Context, connection *targetAPI.Connection) (*empty.Empty, error) {
-	a.addConnection(connection.NetworkServiceName)
+func (a *Ambassador) Connect(ctx context.Context, conduit *targetAPI.Conduit) (*empty.Empty, error) {
+	trench := conduit.Trench
+	if trench == "" {
+		trench = a.trench
+	}
+	logrus.Infof("Connect to conduit: %v trench %v", conduit.NetworkServiceName, trench)
+	a.addConduit(conduit.NetworkServiceName, trench)
 	return &empty.Empty{}, nil
 }
 
-func (a *Ambassador) Close(ctx context.Context, connection *targetAPI.Connection) (*empty.Empty, error) {
-	a.deleteConnection(connection.NetworkServiceName)
+func (a *Ambassador) Disconnect(ctx context.Context, conduit *targetAPI.Conduit) (*empty.Empty, error) {
+	trench := conduit.Trench
+	if trench == "" {
+		trench = a.trench
+	}
+	logrus.Infof("Disconnect from conduit: %v trench %v", conduit.NetworkServiceName, trench)
+	a.deleteConduit(conduit.NetworkServiceName, trench)
 	return &empty.Empty{}, nil
 }
 
-func (a *Ambassador) List(ctx context.Context, empty *empty.Empty) (*targetAPI.ListResponse, error) {
-	connections := []*targetAPI.Connection{}
-	for _, connection := range a.connections {
-		connections = append(connections, &targetAPI.Connection{
-			NetworkServiceName: connection.networkServiceName,
-			Vips:               connection.GetVIPs(),
-		})
+func (a *Ambassador) Request(ctx context.Context, stream *targetAPI.Stream) (*empty.Empty, error) {
+	trench := stream.Conduit.Trench
+	if trench == "" {
+		trench = a.trench
 	}
-	listResponse := &targetAPI.ListResponse{
-		Connections: connections,
+	logrus.Infof("Request stream: %v trench %v", stream.Conduit.NetworkServiceName, trench)
+	conduit := a.getConduit(stream.Conduit.NetworkServiceName, trench)
+	if conduit == nil {
+		return &empty.Empty{}, nil
 	}
-	return listResponse, nil
+	err := conduit.RequestStream()
+	return &empty.Empty{}, err
 }
 
-func (a *Ambassador) addConnection(networkServiceName string) {
-	connection := NewConnection(networkServiceName, a.trench, a.netUtils)
-	connection.SetVIPs(a.vips)
-	a.connections = append(a.connections, connection)
+func (a *Ambassador) Close(ctx context.Context, stream *targetAPI.Stream) (*empty.Empty, error) {
+	trench := stream.Conduit.Trench
+	if trench == "" {
+		trench = a.trench
+	}
+	logrus.Infof("Close stream: %v trench %v", stream.Conduit.NetworkServiceName, trench)
+	conduit := a.getConduit(stream.Conduit.NetworkServiceName, trench)
+	if conduit == nil {
+		return &empty.Empty{}, nil
+	}
+	err := conduit.CloseStream()
+	return &empty.Empty{}, err
+}
+
+func (a *Ambassador) getConduit(networkServiceName string, trench string) *Conduit {
+	for _, conduit := range a.conduits {
+		if conduit.networkServiceName == networkServiceName && conduit.trench == trench {
+			return conduit
+		}
+	}
+	return nil
+}
+
+func (a *Ambassador) addConduit(networkServiceName string, trench string) {
+	conduit := NewConduit(networkServiceName, trench, a.config)
+	conduit.SetVIPs(a.vips)
+	a.conduits = append(a.conduits, conduit)
 	clientConfig := &client.Config{
-		Name:           a.nsmConfig.Name,
-		RequestTimeout: a.nsmConfig.RequestTimeout,
+		Name:           a.config.nsmConfig.Name,
+		RequestTimeout: a.config.nsmConfig.RequestTimeout,
 	}
-	connection.Request(a.apiClient.GRPCClient, clientConfig)
+	conduit.Request(a.apiClient.GRPCClient, clientConfig)
 }
 
-func (a *Ambassador) deleteConnection(networkServiceName string) {
-	for index, connection := range a.connections {
-		if connection.networkServiceName == networkServiceName {
-			a.connections = append(a.connections[:index], a.connections[index+1:]...)
-			connection.Close()
+func (a *Ambassador) deleteConduit(networkServiceName string, trench string) {
+	for index, conduit := range a.conduits {
+		if conduit.networkServiceName == networkServiceName && conduit.trench == trench {
+			a.conduits = append(a.conduits[:index], a.conduits[index+1:]...)
+			conduit.Close()
 			break
 		}
 	}
@@ -82,15 +113,15 @@ func (a *Ambassador) serve() {
 }
 
 func (a *Ambassador) Start(ctx context.Context) error {
-	a.apiClient = nsm.NewAPIClient(ctx, a.nsmConfig)
+	a.apiClient = nsm.NewAPIClient(ctx, a.config.nsmConfig)
 	go a.serve()
 
 	for {
 		select {
 		case config := <-a.configWatcher:
 			a.vips = config.VIPs
-			for _, connection := range a.connections {
-				connection.SetVIPs(config.VIPs)
+			for _, conduit := range a.conduits {
+				conduit.SetVIPs(config.VIPs)
 			}
 		case <-ctx.Done():
 			return nil
@@ -100,12 +131,12 @@ func (a *Ambassador) Start(ctx context.Context) error {
 
 func (a *Ambassador) Delete() {
 	a.server.Stop()
-	for _, connection := range a.connections {
-		a.deleteConnection(connection.networkServiceName)
+	for _, conduit := range a.conduits {
+		a.deleteConduit(conduit.networkServiceName, conduit.trench)
 	}
 }
 
-func NewAmbassador(port int, trench string, nsmConfig *nsm.Config, configWatcher <-chan *configuration.Config, netUtils networking.Utils) (*Ambassador, error) {
+func NewAmbassador(port int, trench string, configWatcher <-chan *configuration.Config, config *Config) (*Ambassador, error) {
 	lis, err := net.Listen("tcp", fmt.Sprintf("[::]:%s", strconv.Itoa(port)))
 	if err != nil {
 		return nil, err
@@ -118,10 +149,9 @@ func NewAmbassador(port int, trench string, nsmConfig *nsm.Config, configWatcher
 		port:          port,
 		trench:        trench,
 		vips:          []string{},
-		connections:   []*Connection{},
-		nsmConfig:     nsmConfig,
+		conduits:      []*Conduit{},
+		config:        config,
 		configWatcher: configWatcher,
-		netUtils:      netUtils,
 	}
 
 	targetAPI.RegisterAmbassadorServer(s, ambassador)

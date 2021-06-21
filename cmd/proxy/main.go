@@ -31,7 +31,6 @@ import (
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
 	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/nordix/meridio/pkg/nsm/ipcontext"
-	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/nordix/meridio/pkg/proxy"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -198,7 +197,6 @@ func startNSE(ctx context.Context,
 		interfacename.NewServer("nse", &interfacename.RandomGenerator{}),
 		ipcontext.NewServer(p),
 		interfaceMonitorServer,
-		nsp.NewNSPEndpoint(nspService),
 		sendfd.NewServer(),
 	}
 

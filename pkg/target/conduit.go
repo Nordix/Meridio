@@ -2,8 +2,6 @@ package target
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -24,30 +22,52 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Connection -
-type Connection struct {
-	identifier           int
+// Conduit -
+type Conduit struct {
 	networkServiceName   string
 	trench               string
 	networkServiceClient client.NetworkServiceClient
 	vips                 []*virtualIP
-	netUtils             networking.Utils
 	nexthops             []string
+	ips                  []string
 	tableID              int
+	stream               *Stream
+	config               *Config
 }
 
-func (c *Connection) Delete() {
+func (c *Conduit) Delete() {
 	c.deleteVIPs(c.vips)
 	c.nexthops = []string{}
 	c.tableID = 1
+	err := c.CloseStream()
+	if err != nil {
+		logrus.Fatalf("Error closing stream: %+v", err)
+	}
 }
 
-func (c *Connection) getAdditionalFunctionalities() networkservice.NetworkServiceClient {
-	interfaceMonitor, err := c.netUtils.NewInterfaceMonitor()
+func (c *Conduit) RequestStream() error {
+	c.stream = NewStream(c.networkServiceName, c.trench, c.ips, c.config)
+	return c.stream.Request()
+}
+
+func (c *Conduit) CloseStream() error {
+	if c.stream == nil {
+		return nil
+	}
+	err := c.stream.Close()
+	if err != nil {
+		return err
+	}
+	c.stream = nil
+	return nil
+}
+
+func (c *Conduit) getAdditionalFunctionalities() networkservice.NetworkServiceClient {
+	interfaceMonitor, err := c.config.netUtils.NewInterfaceMonitor()
 	if err != nil {
 		logrus.Fatalf("Error creating link monitor: %+v", err)
 	}
-	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, c, c.netUtils)
+	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, c, c.config.netUtils)
 	additionalFunctionalities := chain.NewNetworkServiceClient(
 		sriovtoken.NewClient(),
 		mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
@@ -61,7 +81,7 @@ func (c *Connection) getAdditionalFunctionalities() networkservice.NetworkServic
 	return additionalFunctionalities
 }
 
-func (c *Connection) Request(cc grpc.ClientConnInterface, config *client.Config) {
+func (c *Conduit) Request(cc grpc.ClientConnInterface, config *client.Config) {
 	proxyNetworkServiceName := fmt.Sprintf("proxy.%s", c.networkServiceName)
 	if c.trench != "" {
 		proxyNetworkServiceName = fmt.Sprintf("%s.%s", proxyNetworkServiceName, c.trench)
@@ -77,11 +97,6 @@ func (c *Connection) Request(cc grpc.ClientConnInterface, config *client.Config)
 			NetworkService: proxyNetworkServiceName,
 			Labels:         make(map[string]string),
 			Payload:        payload.Ethernet,
-			Context: &networkservice.ConnectionContext{
-				ExtraContext: map[string]string{
-					"identifier": strconv.Itoa(c.identifier),
-				},
-			},
 		},
 		MechanismPreferences: []*networkservice.Mechanism{
 			{
@@ -95,7 +110,7 @@ func (c *Connection) Request(cc grpc.ClientConnInterface, config *client.Config)
 	}
 }
 
-func (c *Connection) Close() {
+func (c *Conduit) Close() {
 	c.Delete()
 	err := c.networkServiceClient.Close()
 	if err != nil {
@@ -103,7 +118,7 @@ func (c *Connection) Close() {
 	}
 }
 
-func (c *Connection) deleteVIPs(vips []*virtualIP) {
+func (c *Conduit) deleteVIPs(vips []*virtualIP) {
 	vipsMap := make(map[string]*virtualIP)
 	for _, vip := range vips {
 		vipsMap[vip.prefix] = vip
@@ -122,8 +137,9 @@ func (c *Connection) deleteVIPs(vips []*virtualIP) {
 }
 
 // InterfaceCreated -
-func (c *Connection) InterfaceCreated(intf networking.Iface) {
+func (c *Conduit) InterfaceCreated(intf networking.Iface) {
 	logrus.Infof("Client: InterfaceCreated: %v", intf)
+	c.ips = intf.GetLocalPrefixes()
 	if len(intf.GetGatewayPrefixes()) <= 0 {
 		logrus.Errorf("Client: Adding nexthop: no gateway: %v", intf)
 		return
@@ -140,12 +156,12 @@ func (c *Connection) InterfaceCreated(intf networking.Iface) {
 }
 
 // InterfaceDeleted -
-func (c *Connection) InterfaceDeleted(intf networking.Iface) {
+func (c *Conduit) InterfaceDeleted(intf networking.Iface) {
+	c.ips = []string{}
 	if len(intf.GetGatewayPrefixes()) <= 0 {
 		logrus.Errorf("Client: Removing nexthop: no gateway: %v", intf)
 		return
 	}
-
 	for _, gateway := range intf.GetGatewayPrefixes() {
 		for _, vip := range c.vips {
 			err := vip.RemoveNexthop(gateway)
@@ -161,7 +177,7 @@ func (c *Connection) InterfaceDeleted(intf networking.Iface) {
 	}
 }
 
-func (c *Connection) GetVIPs() []string {
+func (c *Conduit) GetVIPs() []string {
 	vips := []string{}
 	for _, vip := range c.vips {
 		vips = append(vips, vip.prefix)
@@ -169,14 +185,14 @@ func (c *Connection) GetVIPs() []string {
 	return vips
 }
 
-func (c *Connection) SetVIPs(vips []string) {
+func (c *Conduit) SetVIPs(vips []string) {
 	currentVIPs := make(map[string]*virtualIP)
 	for _, vip := range c.vips {
 		currentVIPs[vip.prefix] = vip
 	}
 	for _, vip := range vips {
 		if _, ok := currentVIPs[vip]; !ok {
-			newVIP, err := newVirtualIP(vip, c.tableID, c.netUtils)
+			newVIP, err := newVirtualIP(vip, c.tableID, c.config.netUtils)
 			if err != nil {
 				logrus.Errorf("SimpleTarget: Error adding SourceBaseRoute: %v", err)
 				continue
@@ -200,17 +216,15 @@ func (c *Connection) SetVIPs(vips []string) {
 	c.deleteVIPs(vipsSlice)
 }
 
-func NewConnection(networkServiceName string, trench string, netUtils networking.Utils) *Connection {
-	hostname, _ := os.Hostname()
-	identifier := Hash(hostname, 100)
-	connection := &Connection{
-		identifier:         identifier,
+func NewConduit(networkServiceName string, trench string, config *Config) *Conduit {
+	conduit := &Conduit{
 		networkServiceName: networkServiceName,
 		trench:             trench,
 		vips:               []*virtualIP{},
-		netUtils:           netUtils,
 		nexthops:           []string{},
+		ips:                []string{},
 		tableID:            1,
+		config:             config,
 	}
-	return connection
+	return conduit
 }

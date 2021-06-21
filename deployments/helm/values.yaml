@@ -28,12 +28,14 @@ ipam:
   version: latest
   port: 7777
   targetPort: 7777
+  serviceName: ipam-service
 
 nsp:
   image: nsp
   version: latest
   port: 7778
   targetPort: 7778
+  serviceName: nsp-service
 
 ipFamily: ipv4 # ipv4 / ipv6 / dualstack
 

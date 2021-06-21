@@ -5,16 +5,17 @@ option go_package = "github.com/nordix/meridio/api/target";
 import "google/protobuf/empty.proto";
 
 service Ambassador {
-    rpc Request(Connection) returns (google.protobuf.Empty) {}
-    rpc Close(Connection) returns (google.protobuf.Empty) {}
-    rpc List(google.protobuf.Empty) returns (ListResponse) {}
+    rpc Connect(Conduit) returns (google.protobuf.Empty) {}
+    rpc Disconnect(Conduit) returns (google.protobuf.Empty) {}
+    rpc Request(Stream) returns (google.protobuf.Empty) {}
+    rpc Close(Stream) returns (google.protobuf.Empty) {}
 }
 
-message ListResponse {
-    repeated Connection connections = 1;
-}
-
-message Connection {
+message Conduit {
     string networkServiceName = 1;
-    repeated string vips = 2;
+    string trench = 2;
+}
+
+message Stream {
+    Conduit conduit = 1;
 }
