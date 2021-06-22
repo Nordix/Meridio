@@ -60,8 +60,6 @@ spec:
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
               value: {{ template "meridio.loadBalancer.networkServiceName" . }}
-            - name: NSM_VIPS
-              value: {{ template "meridio.vips" . }}
             - name: NSM_NSP_SERVICE
               value: nsp-service:{{ .Values.nsp.targetPort }}
           volumeMounts:

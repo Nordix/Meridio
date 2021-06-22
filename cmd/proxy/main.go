@@ -73,7 +73,7 @@ func main() {
 		logrus.Fatalf("Error creating link monitor: %+v", err)
 	}
 
-	p := proxy.NewProxy(config.VIPs, proxySubnets, netUtils)
+	p := proxy.NewProxy(proxySubnets, netUtils)
 
 	apiClientConfig := &nsm.Config{
 		Name:             config.Name,
@@ -104,7 +104,7 @@ func main() {
 		Labels:           labels,
 	}
 	interfaceMonitorServer := interfacemonitor.NewServer(interfaceMonitor, p, netUtils)
-	ep := startNSE(ctx, endpointConfig, nsmAPIClient, p, interfaceMonitorServer, config.NSPService)
+	ep := startNSE(ctx, endpointConfig, nsmAPIClient, p, interfaceMonitorServer)
 	defer ep.Delete()
 
 	configWatcher := make(chan *configuration.Config, 10)
@@ -185,8 +185,7 @@ func startNSE(ctx context.Context,
 	config *endpoint.Config,
 	nsmAPIClient *nsm.APIClient,
 	p *proxy.Proxy,
-	interfaceMonitorServer networkservice.NetworkServiceServer,
-	nspService string) *endpoint.Endpoint {
+	interfaceMonitorServer networkservice.NetworkServiceServer) *endpoint.Endpoint {
 
 	responderEndpoint := []networkservice.NetworkServiceServer{
 		recvfd.NewServer(),

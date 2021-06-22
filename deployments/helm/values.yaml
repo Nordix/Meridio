@@ -15,10 +15,6 @@ proxy:
   version: latest
   networkServiceName: proxy.load-balancer
 
-target:
-  image: target
-  version: latest
-
 ctraffic:
   image: ctraffic
   version: latest

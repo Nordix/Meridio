@@ -65,7 +65,7 @@ func main() {
 	if err != nil {
 		logrus.Errorf("NewNetworkServicePlateformClient: %v", err)
 	}
-	sns := NewSimpleNetworkService(config.VIPs, nspClient, netUtils)
+	sns := NewSimpleNetworkService(nspClient, netUtils)
 
 	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
 	if err != nil {
@@ -132,7 +132,6 @@ func main() {
 type SimpleNetworkService struct {
 	loadbalancer                         *loadbalancer.LoadBalancer
 	networkServicePlateformClient        *nsp.NetworkServicePlateformClient
-	vips                                 []string
 	networkServicePlateformServiceStream nspAPI.NetworkServicePlateformService_MonitorClient
 }
 
@@ -279,8 +278,8 @@ func (sns *SimpleNetworkService) SetVIPs(vips []string) {
 }
 
 // NewSimpleNetworkService -
-func NewSimpleNetworkService(vips []string, networkServicePlateformClient *nsp.NetworkServicePlateformClient, netUtils networking.Utils) *SimpleNetworkService {
-	loadbalancer, err := loadbalancer.NewLoadBalancer(vips, 9973, 100, netUtils)
+func NewSimpleNetworkService(networkServicePlateformClient *nsp.NetworkServicePlateformClient, netUtils networking.Utils) *SimpleNetworkService {
+	loadbalancer, err := loadbalancer.NewLoadBalancer([]string{}, 9973, 100, netUtils)
 	if err != nil {
 		logrus.Errorf("SimpleNetworkService: NewLoadBalancer err: %v", err)
 	}
@@ -290,7 +289,6 @@ func NewSimpleNetworkService(vips []string, networkServicePlateformClient *nsp.N
 	}
 	simpleNetworkService := &SimpleNetworkService{
 		loadbalancer:                  loadbalancer,
-		vips:                          vips,
 		networkServicePlateformClient: networkServicePlateformClient,
 	}
 	return simpleNetworkService
