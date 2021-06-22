@@ -6,7 +6,6 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
@@ -18,14 +17,12 @@ type Checker struct {
 }
 
 func (c *Checker) Check(ctx context.Context, req *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {
-	logrus.Info("Serving the Check request for health check")
 	return &grpc_health_v1.HealthCheckResponse{
 		Status: c.getStatus(),
 	}, nil
 }
 
 func (c *Checker) Watch(req *grpc_health_v1.HealthCheckRequest, server grpc_health_v1.Health_WatchServer) error {
-	logrus.Info("Serving the Watch request for health check")
 	return server.Send(&grpc_health_v1.HealthCheckResponse{
 		Status: c.getStatus(),
 	})
