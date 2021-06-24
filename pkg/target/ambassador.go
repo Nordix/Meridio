@@ -8,8 +8,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	targetAPI "github.com/nordix/meridio/api/target"
-	"github.com/nordix/meridio/pkg/client"
-	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -19,41 +17,55 @@ type Ambassador struct {
 	listener      net.Listener
 	server        *grpc.Server
 	port          int
-	trench        string
+	defaultTrench string
 	vips          []string
-	apiClient     *nsm.APIClient
-	conduits      []*Conduit
-	configWatcher <-chan *configuration.Config
+	trenches      []*Trench
 	config        *Config
 }
 
 func (a *Ambassador) Connect(ctx context.Context, conduit *targetAPI.Conduit) (*empty.Empty, error) {
-	trench := conduit.Trench
-	if trench == "" {
-		trench = a.trench
+	trenchName := conduit.Trench
+	if trenchName == "" {
+		trenchName = a.defaultTrench
 	}
-	logrus.Infof("Connect to conduit: %v trench %v", conduit.NetworkServiceName, trench)
-	a.addConduit(conduit.NetworkServiceName, trench)
-	return &empty.Empty{}, nil
+	logrus.Infof("Connect to conduit: %v trench %v", conduit.NetworkServiceName, trenchName)
+	trench := a.getTrench(trenchName)
+	if trench == nil {
+		trench = a.addTrench(trenchName)
+	}
+	_, err := trench.AddConduit(conduit.NetworkServiceName)
+	return &empty.Empty{}, err
 }
 
 func (a *Ambassador) Disconnect(ctx context.Context, conduit *targetAPI.Conduit) (*empty.Empty, error) {
-	trench := conduit.Trench
-	if trench == "" {
-		trench = a.trench
+	trenchName := conduit.Trench
+	if trenchName == "" {
+		trenchName = a.defaultTrench
 	}
-	logrus.Infof("Disconnect from conduit: %v trench %v", conduit.NetworkServiceName, trench)
-	a.deleteConduit(conduit.NetworkServiceName, trench)
-	return &empty.Empty{}, nil
+	logrus.Infof("Disconnect from conduit: %v trench %v", conduit.NetworkServiceName, trenchName)
+	trench := a.getTrench(trenchName)
+	if trench == nil {
+		return &empty.Empty{}, nil
+	}
+	err := trench.DeleteConduit(conduit.NetworkServiceName)
+	if err != nil {
+		return &empty.Empty{}, err
+	}
+	err = a.deleteTrench(trenchName) // TODO
+	return &empty.Empty{}, err
 }
 
 func (a *Ambassador) Request(ctx context.Context, stream *targetAPI.Stream) (*empty.Empty, error) {
-	trench := stream.Conduit.Trench
-	if trench == "" {
-		trench = a.trench
+	trenchName := stream.Conduit.Trench
+	if trenchName == "" {
+		trenchName = a.defaultTrench
 	}
-	logrus.Infof("Request stream: %v trench %v", stream.Conduit.NetworkServiceName, trench)
-	conduit := a.getConduit(stream.Conduit.NetworkServiceName, trench)
+	logrus.Infof("Request stream: %v trench %v", stream.Conduit.NetworkServiceName, trenchName)
+	trench := a.getTrench(trenchName)
+	if trench == nil {
+		return &empty.Empty{}, nil
+	}
+	conduit := trench.GetConduit(stream.Conduit.NetworkServiceName)
 	if conduit == nil {
 		return &empty.Empty{}, nil
 	}
@@ -62,81 +74,72 @@ func (a *Ambassador) Request(ctx context.Context, stream *targetAPI.Stream) (*em
 }
 
 func (a *Ambassador) Close(ctx context.Context, stream *targetAPI.Stream) (*empty.Empty, error) {
-	trench := stream.Conduit.Trench
-	if trench == "" {
-		trench = a.trench
+	trenchName := stream.Conduit.Trench
+	if trenchName == "" {
+		trenchName = a.defaultTrench
 	}
-	logrus.Infof("Close stream: %v trench %v", stream.Conduit.NetworkServiceName, trench)
-	conduit := a.getConduit(stream.Conduit.NetworkServiceName, trench)
+	logrus.Infof("Close stream: %v trench %v", stream.Conduit.NetworkServiceName, trenchName)
+	trench := a.getTrench(trenchName)
+	if trench == nil {
+		return &empty.Empty{}, nil
+	}
+	conduit := trench.GetConduit(stream.Conduit.NetworkServiceName)
 	if conduit == nil {
 		return &empty.Empty{}, nil
 	}
-	err := conduit.CloseStream()
+	err := conduit.DeleteStream()
 	return &empty.Empty{}, err
 }
 
-func (a *Ambassador) getConduit(networkServiceName string, trench string) *Conduit {
-	for _, conduit := range a.conduits {
-		if conduit.networkServiceName == networkServiceName && conduit.trench == trench {
-			return conduit
+func (a *Ambassador) addTrench(name string) *Trench {
+	if len(a.trenches) >= 1 { // TODO
+		return a.trenches[0]
+	}
+	trench := a.getTrench(name)
+	if trench != nil {
+		return trench
+	}
+	trench = NewTrench(name, a.config)
+	a.trenches = append(a.trenches, trench)
+	return trench
+}
+
+func (a *Ambassador) deleteTrench(name string) error {
+	for index, trench := range a.trenches {
+		if trench.name == name {
+			a.trenches = append(a.trenches[:index], a.trenches[index+1:]...)
+			return trench.Delete()
 		}
 	}
 	return nil
 }
 
-func (a *Ambassador) addConduit(networkServiceName string, trench string) {
-	conduit := NewConduit(networkServiceName, trench, a.config)
-	conduit.SetVIPs(a.vips)
-	a.conduits = append(a.conduits, conduit)
-	clientConfig := &client.Config{
-		Name:           a.config.nsmConfig.Name,
-		RequestTimeout: a.config.nsmConfig.RequestTimeout,
-	}
-	conduit.Request(a.apiClient.GRPCClient, clientConfig)
-}
-
-func (a *Ambassador) deleteConduit(networkServiceName string, trench string) {
-	for index, conduit := range a.conduits {
-		if conduit.networkServiceName == networkServiceName && conduit.trench == trench {
-			a.conduits = append(a.conduits[:index], a.conduits[index+1:]...)
-			conduit.Close()
-			break
+func (a *Ambassador) getTrench(name string) *Trench {
+	for _, trench := range a.trenches {
+		if trench.name == name {
+			return trench
 		}
 	}
-}
-
-func (a *Ambassador) serve() {
-	err := a.server.Serve(a.listener)
-	if err != nil {
-		logrus.Errorf("Err serve: %v", err)
-	}
+	return nil
 }
 
 func (a *Ambassador) Start(ctx context.Context) error {
-	a.apiClient = nsm.NewAPIClient(ctx, a.config.nsmConfig)
-	go a.serve()
+	a.config.apiClient = nsm.NewAPIClient(ctx, a.config.nsmConfig)
+	return a.server.Serve(a.listener)
+}
 
-	for {
-		select {
-		case config := <-a.configWatcher:
-			a.vips = config.VIPs
-			for _, conduit := range a.conduits {
-				conduit.SetVIPs(config.VIPs)
-			}
-		case <-ctx.Done():
-			return nil
+func (a *Ambassador) Delete() error {
+	a.server.Stop()
+	for _, trench := range a.trenches {
+		err := trench.Delete()
+		if err != nil {
+			logrus.Errorf("Error deleting a trench: %v", err)
 		}
 	}
+	return nil
 }
 
-func (a *Ambassador) Delete() {
-	a.server.Stop()
-	for _, conduit := range a.conduits {
-		a.deleteConduit(conduit.networkServiceName, conduit.trench)
-	}
-}
-
-func NewAmbassador(port int, trench string, configWatcher <-chan *configuration.Config, config *Config) (*Ambassador, error) {
+func NewAmbassador(port int, trench string, config *Config) (*Ambassador, error) {
 	lis, err := net.Listen("tcp", fmt.Sprintf("[::]:%s", strconv.Itoa(port)))
 	if err != nil {
 		return nil, err
@@ -147,11 +150,10 @@ func NewAmbassador(port int, trench string, configWatcher <-chan *configuration.
 		listener:      lis,
 		server:        s,
 		port:          port,
-		trench:        trench,
+		defaultTrench: trench,
 		vips:          []string{},
-		conduits:      []*Conduit{},
+		trenches:      []*Trench{},
 		config:        config,
-		configWatcher: configWatcher,
 	}
 
 	targetAPI.RegisterAmbassadorServer(s, ambassador)

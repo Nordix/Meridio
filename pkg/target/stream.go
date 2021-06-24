@@ -9,11 +9,9 @@ import (
 )
 
 type Stream struct {
-	identifier         int
-	networkServiceName string
-	trench             string
-	ips                []string
-	config             *Config
+	name       string
+	identifier int
+	conduit    *Conduit
 }
 
 func (s *Stream) Request() error {
@@ -24,19 +22,19 @@ func (s *Stream) Request() error {
 	targetContext := map[string]string{
 		"identifier": strconv.Itoa(s.identifier),
 	}
-	err = nspClient.Register(s.ips, targetContext)
+	err = nspClient.Register(s.conduit.ips, targetContext)
 	if err != nil {
 		return err
 	}
 	return nspClient.Delete()
 }
 
-func (s *Stream) Close() error {
+func (s *Stream) Delete() error {
 	nspClient, err := nsp.NewNetworkServicePlateformClient(s.getNSPService())
 	if err != nil {
 		return err
 	}
-	err = nspClient.Unregister(s.ips)
+	err = nspClient.Unregister(s.conduit.ips)
 	if err != nil {
 		return err
 	}
@@ -44,18 +42,36 @@ func (s *Stream) Close() error {
 }
 
 func (s *Stream) getNSPService() string {
-	return fmt.Sprintf("%s.%s:%d", s.config.nspServiceName, s.trench, s.config.nspServicePort)
+	return fmt.Sprintf("%s.%s:%d", s.GetConfig().nspServiceName, s.GetTrenchName(), s.GetConfig().nspServicePort)
 }
 
-func NewStream(networkServiceName string, trench string, ips []string, config *Config) *Stream {
+func (s *Stream) GetName() string {
+	return s.name
+}
+
+func (s *Stream) GetTrenchName() string {
+	return s.conduit.GetTrenchName()
+}
+
+func (s *Stream) GetConduitName() string {
+	return s.conduit.GetName()
+}
+
+func (s *Stream) GetNamespace() string {
+	return s.conduit.GetNamespace()
+}
+
+func (s *Stream) GetConfig() *Config {
+	return s.conduit.GetConfig()
+}
+
+func NewStream(name string, conduit *Conduit) *Stream {
 	hostname, _ := os.Hostname()
 	identifier := Hash(hostname, 100)
 	stream := &Stream{
-		identifier:         identifier,
-		ips:                ips,
-		networkServiceName: networkServiceName,
-		trench:             trench,
-		config:             config,
+		name:       name,
+		identifier: identifier,
+		conduit:    conduit,
 	}
 	return stream
 }

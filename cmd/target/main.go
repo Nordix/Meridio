@@ -7,7 +7,6 @@ import (
 	"syscall"
 
 	"github.com/kelseyhightower/envconfig"
-	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/nordix/meridio/pkg/health"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/nsm"
@@ -50,19 +49,18 @@ func main() {
 		MaxTokenLifetime: config.MaxTokenLifetime,
 	}
 
-	configWatcher := make(chan *configuration.Config)
-	configurationWatcher := configuration.NewWatcher(config.ConfigMapName, config.Trench, configWatcher)
-	go configurationWatcher.Start()
-
-	targetConfig := target.NewConfig(config.NSPServiceName, config.NSPServicePort, netUtils, apiClientConfig)
-	ambassador, err := target.NewAmbassador(7779, config.Trench, configWatcher, targetConfig)
+	targetConfig := target.NewConfig(config.ConfigMapName, config.NSPServiceName, config.NSPServicePort, netUtils, apiClientConfig)
+	ambassador, err := target.NewAmbassador(7779, config.Trench, targetConfig)
 	if err != nil {
 		logrus.Fatalf("Error creating new ambassador: %v", err)
 	}
 	err = ambassador.Start(ctx)
-	defer ambassador.Delete()
 	if err != nil {
 		logrus.Fatalf("Error starting ambassador: %v", err)
+	}
+	err = ambassador.Delete()
+	if err != nil {
+		logrus.Fatalf("Error deleting ambassador: %v", err)
 	}
 
 	<-ctx.Done()

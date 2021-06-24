@@ -19,42 +19,45 @@ import (
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
 	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
 )
 
 // Conduit -
 type Conduit struct {
-	networkServiceName   string
-	trench               string
+	name                 string
+	trench               *Trench
 	networkServiceClient client.NetworkServiceClient
 	vips                 []*virtualIP
 	nexthops             []string
 	ips                  []string
 	tableID              int
 	stream               *Stream
-	config               *Config
 }
 
-func (c *Conduit) Delete() {
+func (c *Conduit) Delete() error {
+	err := c.DeleteStream()
+	if err != nil {
+		return err
+	}
+	err = c.networkServiceClient.Close()
+	if err != nil {
+		return err
+	}
 	c.deleteVIPs(c.vips)
 	c.nexthops = []string{}
 	c.tableID = 1
-	err := c.CloseStream()
-	if err != nil {
-		logrus.Fatalf("Error closing stream: %+v", err)
-	}
+	return nil
 }
 
 func (c *Conduit) RequestStream() error {
-	c.stream = NewStream(c.networkServiceName, c.trench, c.ips, c.config)
+	c.stream = NewStream(c.name, c)
 	return c.stream.Request()
 }
 
-func (c *Conduit) CloseStream() error {
+func (c *Conduit) DeleteStream() error {
 	if c.stream == nil {
 		return nil
 	}
-	err := c.stream.Close()
+	err := c.stream.Delete()
 	if err != nil {
 		return err
 	}
@@ -63,11 +66,11 @@ func (c *Conduit) CloseStream() error {
 }
 
 func (c *Conduit) getAdditionalFunctionalities() networkservice.NetworkServiceClient {
-	interfaceMonitor, err := c.config.netUtils.NewInterfaceMonitor()
+	interfaceMonitor, err := c.GetConfig().netUtils.NewInterfaceMonitor()
 	if err != nil {
 		logrus.Fatalf("Error creating link monitor: %+v", err)
 	}
-	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, c, c.config.netUtils)
+	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, c, c.GetConfig().netUtils)
 	additionalFunctionalities := chain.NewNetworkServiceClient(
 		sriovtoken.NewClient(),
 		mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
@@ -81,19 +84,16 @@ func (c *Conduit) getAdditionalFunctionalities() networkservice.NetworkServiceCl
 	return additionalFunctionalities
 }
 
-func (c *Conduit) Request(cc grpc.ClientConnInterface, config *client.Config) {
-	proxyNetworkServiceName := fmt.Sprintf("proxy.%s", c.networkServiceName)
-	if c.trench != "" {
-		proxyNetworkServiceName = fmt.Sprintf("%s.%s", proxyNetworkServiceName, c.trench)
-	}
+func (c *Conduit) request() error {
+	proxyNetworkServiceName := fmt.Sprintf("proxy.%s.%s", c.name, c.GetTrenchName())
 	clientConfig := &client.Config{
-		Name:           config.Name,
-		RequestTimeout: config.RequestTimeout,
+		Name:           c.GetConfig().nsmConfig.Name,
+		RequestTimeout: c.GetConfig().nsmConfig.RequestTimeout,
 	}
-	c.networkServiceClient = client.NewSimpleNetworkServiceClient(clientConfig, cc, c.getAdditionalFunctionalities())
+	c.networkServiceClient = client.NewSimpleNetworkServiceClient(clientConfig, c.GetConfig().apiClient.GRPCClient, c.getAdditionalFunctionalities())
 	err := c.networkServiceClient.Request(&networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
-			Id:             fmt.Sprintf("%s-%s-%d", config.Name, proxyNetworkServiceName, 0),
+			Id:             fmt.Sprintf("%s-%s-%d", c.GetConfig().nsmConfig.Name, proxyNetworkServiceName, 0),
 			NetworkService: proxyNetworkServiceName,
 			Labels:         make(map[string]string),
 			Payload:        payload.Ethernet,
@@ -105,17 +105,7 @@ func (c *Conduit) Request(cc grpc.ClientConnInterface, config *client.Config) {
 			},
 		},
 	})
-	if err != nil {
-		logrus.Fatalf("Request err: %+v", err)
-	}
-}
-
-func (c *Conduit) Close() {
-	c.Delete()
-	err := c.networkServiceClient.Close()
-	if err != nil {
-		logrus.Fatalf("Close err: %+v", err)
-	}
+	return err
 }
 
 func (c *Conduit) deleteVIPs(vips []*virtualIP) {
@@ -192,7 +182,7 @@ func (c *Conduit) SetVIPs(vips []string) {
 	}
 	for _, vip := range vips {
 		if _, ok := currentVIPs[vip]; !ok {
-			newVIP, err := newVirtualIP(vip, c.tableID, c.config.netUtils)
+			newVIP, err := newVirtualIP(vip, c.tableID, c.GetConfig().netUtils)
 			if err != nil {
 				logrus.Errorf("SimpleTarget: Error adding SourceBaseRoute: %v", err)
 				continue
@@ -216,15 +206,31 @@ func (c *Conduit) SetVIPs(vips []string) {
 	c.deleteVIPs(vipsSlice)
 }
 
-func NewConduit(networkServiceName string, trench string, config *Config) *Conduit {
+func (c *Conduit) GetName() string {
+	return c.name
+}
+
+func (c *Conduit) GetTrenchName() string {
+	return c.trench.GetName()
+}
+
+func (c *Conduit) GetNamespace() string {
+	return c.trench.GetNamespace()
+}
+
+func (c *Conduit) GetConfig() *Config {
+	return c.trench.GetConfig()
+}
+
+func NewConduit(name string, trench *Trench) (*Conduit, error) {
 	conduit := &Conduit{
-		networkServiceName: networkServiceName,
-		trench:             trench,
-		vips:               []*virtualIP{},
-		nexthops:           []string{},
-		ips:                []string{},
-		tableID:            1,
-		config:             config,
+		name:     name,
+		trench:   trench,
+		vips:     []*virtualIP{},
+		nexthops: []string{},
+		ips:      []string{},
+		tableID:  1,
 	}
-	return conduit
+	err := conduit.request()
+	return conduit, err
 }
