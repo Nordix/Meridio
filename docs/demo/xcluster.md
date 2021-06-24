@@ -10,9 +10,23 @@
 
 ### Kubernetes cluster
 
-Deploy a Kubernetes cluster with xcluster
+Deploy a Kubernetes cluster with xcluster while using meridio ovl
 ```
-xc mkcdrom; xc starts --nets_vm=0,1,2 --nvm=2
+unset __mem1
+export __mem201=1024
+export __mem202=1024
+xc mkcdrom meridio; xc starts --nets_vm=0,1,2 --nvm=2 --mem=4096 --smp=4
+```
+
+### External host / External connectivity
+
+Deploy external gateway and traffic generator  
+prerequisite; Multus is ready (deployed by meridio ovl)
+```
+# default interface setup
+helm install xcluster/ovl/meridio/helm/gateway --generate-name
+# eth1:meridio--gateways, eth2:gateways--tg
+helm install xcluster/ovl/meridio/helm/gateway --generate-name --set masterItf=eth1,tgMasterItf=eth2
 ```
 
 ### NSM
@@ -34,45 +48,48 @@ helm install docs/demo/deployments/nsm-vlan/ --generate-name
 
 ### Meridio
 
-Install Meridio
+Install Meridio  
+Note: the external interface must match the one used by external gateway PODs
 ```
 # ipv4
-helm install deployments/helm/ --generate-name --set vlanInterface=eth1
+helm install deployments/helm/ --generate-name --namespace default --set vlan.interface=eth1
 # ipv6
-helm install deployments/helm/ --generate-name --set ipFamily=ipv6 
+helm install deployments/helm/ --generate-name --namespace default --set ipFamily=ipv6 
 # dualstack
-helm install deployments/helm/ --generate-name --set ipFamily=dualstack 
+helm install deployments/helm/ --generate-name --namespace default --set ipFamily=dualstack 
 ```
 
-### External host / External connectivity
-
-Deploy a external host
+Install targets connected to the trench in default kubernetes namespace
 ```
-./docs/demo/scripts/xcluster/external-host.sh
+helm install examples/target/helm/ --generate-name --namespace default --set defaultTrench=default
 ```
 
 ## Traffic
 
-Connect to the external host
+Connect to the Traffic Generator POD
 ```
-ssh root@192.168.0.202
-# or
-vm 202
-# or
-ssh root@localhost -p 12502
+# exec into traffic generator POD
+kubectl exec -ti tg -- bash
+```
+
+Ping
+```
+ping 20.0.0.1 -c 3
+ping 2000::1 -c 3
+
 ```
 
 Generate traffic
 ```
 # ipv4
-ctraffic -address 20.0.0.1:5000 -nconn 400 -rate 100 -monitor -stats all > v4traffic.json
+./ctraffic -address 20.0.0.1:5000 -nconn 400 -rate 100 -monitor -stats all > v4traffic.json
 # ipv6
-ctraffic -address [2000::1]:5000 -nconn 400 -rate 100 -monitor -stats all > v4traffic.json
+./ctraffic -address [2000::1]:5000 -nconn 400 -rate 100 -monitor -stats all > v4traffic.json
 ```
 
 Verification
 ```
-ctraffic -analyze hosts -stat_file v4traffic.json
+./ctraffic -analyze hosts -stat_file v4traffic.json
 ```
 
 ## Scaling

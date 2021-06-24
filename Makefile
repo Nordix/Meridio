@@ -5,6 +5,7 @@ VERSION_TARGET ?= $(VERSION)
 VERSION_IPAM ?= $(VERSION)
 VERSION_NSP ?= $(VERSION)
 VERSION_CTRAFFIC ?= $(VERSION)
+VERSION_FRONTEND ?= $(VERSION)
 
 REGISTRY ?= localhost:5000/meridio
 
@@ -44,6 +45,10 @@ nsp:
 .PHONY: ctraffic
 ctraffic:
 	VERSION=$(VERSION_CTRAFFIC) IMAGE=ctraffic $(MAKE) build tag push
+
+.PHONY: frontend
+frontend:
+	VERSION=$(VERSION_FRONTEND) IMAGE=frontend $(MAKE) build tag push
 
 .PHONY: ipam-proto
 ipam-proto:
