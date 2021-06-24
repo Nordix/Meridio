@@ -3,6 +3,7 @@ module github.com/nordix/meridio
 go 1.16
 
 require (
+	github.com/antonfisher/nested-logrus-formatter v1.3.1 // indirect
 	github.com/bytecodealliance/wasmtime-go v0.26.1 // indirect
 	github.com/edwarnicke/grpcfd v0.0.0-20210219150442-10fb469a6976
 	github.com/golang/protobuf v1.5.2

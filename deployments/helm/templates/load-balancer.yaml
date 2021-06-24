@@ -92,6 +92,20 @@ spec:
             - name: nsm-socket
               mountPath: /var/lib/networkservicemesh
               readOnly: true
+        - name: fe
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.frontEnd.image }}:{{ .Values.frontEnd.version }}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: NFE_VIPS
+              value: {{ template "meridio.vips" . }}
+            - name: NFE_GATEWAYS
+              value: {{ template "meridio.gateways" . }}
+            - name: NFE_LOG_BIRD
+              value: "true"
+            - name: NFE_ECMP
+              value: "true"
+          securityContext:
+            privileged: true
       volumes:
         - name: spire-agent-socket
           hostPath:

@@ -58,3 +58,16 @@ vlan:
   interface: eth0
   ipv4Prefix: 169.254.100.0/24
   ipv6Prefix: 100:100::/64
+
+frontEnd:
+  image: frontend
+  version: latest
+  gateway:
+    - 169.254.100.254/24
+    - fe80::beef/64
+    - 169.254.100.253/24
+    - fe80::beee/64
+  vrrp:
+    - 169.254.100.252/24
+    - fe80::beed/64
+

@@ -44,3 +44,11 @@ Set IP Family
 {{- define "meridio.vlan.networkServiceName" -}}
 {{- printf "%s.%s" .Values.vlan.networkServiceName .Release.Namespace -}}
 {{- end -}}
+
+{{- define "meridio.gateways" -}}
+{{- join "," .Values.frontEnd.gateway }}
+{{- end -}}
+
+{{- define "meridio.vrrps" -}}
+{{- join "," .Values.frontEnd.vrrp }}
+{{- end -}}
