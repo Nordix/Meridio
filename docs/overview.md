@@ -9,6 +9,7 @@
 - [X] Load balancer Scalability
 - [X] Runtime configuration (Only VIP support for the moment)
 - [X] External connectivity (VLAN)
+- [X] Ambassador
 - [ ] Front-end / BGP Support
 - [ ] Operator
 
@@ -50,15 +51,13 @@ When started, the proxy requests a subnet from the IPAM Service, so each proxy i
 
 Used as a NSE for the target and NSC for the network services (load balancer), the proxy is utilizing a local IPAM to generate IPs in the associated subnet for all requests: incoming requests as NSE from targets and sent requests as NSC to connect to the network service instances and create a full mesh.
 
-Since the proxy receives the target identifiers and IPs included in requests and closes (not supported yet) calls from the targets, the proxy can register or unregister the targets at the NSP service.
-
 ### Target
 
-The target contains an ambassador container where the application can request, close or show connections via a local API ([target.proto](https://github.com/Nordix/Meridio/tree/master/api/target/target.proto)). On a Request call, the ambassador will request the connection to the proxy network service via the NSM API. In the extra-context of this connection request, A generated identifier is included.
+The target contains an ambassador container where the application can request or close streams and connect or disconnect conduits via a local API ([target.proto](https://github.com/Nordix/Meridio/tree/master/api/target/target.proto)). On a connect/disconnect call, the ambassador will request/close the connection to the proxy network service via the NSM API. In addition, the ambassador will also watch the configmap of the trench where the conduit is running. On a request/close call, the ambassador will use a locally generated identifier to register/unregister the target using the NSP API.
 
 Once the connection is established, a source based route is added to ensure traffic with the VIP as source IP is always going back through the proxy, and the VIP addresses are added to the loopback interface to handle the traffic.
 
-The other container in the target pod is ctraffic which contains the ctraffic program and a simple ambassador API client application. The simple ambassador API client application will request the connection when the pod starts. ctraffic is a testing application offering a TCP server listening on port 5000. This testing application can be also used as a TCP client from the external host to generate traffic in the system and create a traffic report.
+The other container in the target pod is ctraffic which contains the ctraffic program and a simple ambassador API client application. The simple ambassador API client application will connect to a conduit and request a stream when the pod starts. ctraffic is a testing application offering a TCP server listening on port 5000. This testing application can be also used as a TCP client from the external host to generate traffic in the system and create a traffic report.
 
 ### Services
 
