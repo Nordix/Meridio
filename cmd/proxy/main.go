@@ -24,13 +24,13 @@ import (
 	"github.com/nordix/meridio/pkg/client"
 	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/nordix/meridio/pkg/endpoint"
+	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/ipam"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
 	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/nordix/meridio/pkg/nsm/ipcontext"
-	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/nordix/meridio/pkg/proxy"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -56,6 +56,17 @@ func main() {
 		logrus.Fatalf("%v", err)
 	}
 
+	healthChecker, err := health.NewChecker(8000)
+	if err != nil {
+		logrus.Fatalf("Unable to create Health checker: %v", err)
+	}
+	go func() {
+		err := healthChecker.Start()
+		if err != nil {
+			logrus.Fatalf("Unable to start Health checker: %v", err)
+		}
+	}()
+
 	proxySubnets, err := getProxySubnets(config)
 	if err != nil {
 		logrus.Fatalf("%v", err)
@@ -67,7 +78,7 @@ func main() {
 		logrus.Fatalf("Error creating link monitor: %+v", err)
 	}
 
-	p := proxy.NewProxy(config.VIPs, proxySubnets, netUtils)
+	p := proxy.NewProxy(proxySubnets, netUtils)
 
 	apiClientConfig := &nsm.Config{
 		Name:             config.Name,
@@ -98,7 +109,7 @@ func main() {
 		Labels:           labels,
 	}
 	interfaceMonitorServer := interfacemonitor.NewServer(interfaceMonitor, p, netUtils)
-	ep := startNSE(ctx, endpointConfig, nsmAPIClient, p, interfaceMonitorServer, config.NSPService)
+	ep := startNSE(ctx, endpointConfig, nsmAPIClient, p, interfaceMonitorServer)
 	defer ep.Delete()
 
 	configWatcher := make(chan *configuration.Config, 10)
@@ -179,8 +190,7 @@ func startNSE(ctx context.Context,
 	config *endpoint.Config,
 	nsmAPIClient *nsm.APIClient,
 	p *proxy.Proxy,
-	interfaceMonitorServer networkservice.NetworkServiceServer,
-	nspService string) *endpoint.Endpoint {
+	interfaceMonitorServer networkservice.NetworkServiceServer) *endpoint.Endpoint {
 
 	responderEndpoint := []networkservice.NetworkServiceServer{
 		recvfd.NewServer(),
@@ -191,7 +201,6 @@ func startNSE(ctx context.Context,
 		interfacename.NewServer("nse", &interfacename.RandomGenerator{}),
 		ipcontext.NewServer(p),
 		interfaceMonitorServer,
-		nsp.NewNSPEndpoint(nspService),
 		sendfd.NewServer(),
 	}
 

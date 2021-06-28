@@ -22,6 +22,7 @@ import (
 	nspAPI "github.com/nordix/meridio/api/nsp"
 	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/nordix/meridio/pkg/endpoint"
+	"github.com/nordix/meridio/pkg/health"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/loadbalancer"
 	"github.com/nordix/meridio/pkg/networking"
@@ -54,11 +55,22 @@ func main() {
 
 	netUtils := &linuxKernel.KernelUtils{}
 
+	healthChecker, err := health.NewChecker(8000)
+	if err != nil {
+		logrus.Fatalf("Unable to create Health checker: %v", err)
+	}
+	go func() {
+		err := healthChecker.Start()
+		if err != nil {
+			logrus.Fatalf("Unable to start Health checker: %v", err)
+		}
+	}()
+
 	nspClient, err := nsp.NewNetworkServicePlateformClient(config.NSPService)
 	if err != nil {
 		logrus.Errorf("NewNetworkServicePlateformClient: %v", err)
 	}
-	sns := NewSimpleNetworkService(config.VIPs, nspClient, netUtils)
+	sns := NewSimpleNetworkService(nspClient, netUtils)
 
 	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
 	if err != nil {
@@ -125,7 +137,6 @@ func main() {
 type SimpleNetworkService struct {
 	loadbalancer                         *loadbalancer.LoadBalancer
 	networkServicePlateformClient        *nsp.NetworkServicePlateformClient
-	vips                                 []string
 	networkServicePlateformServiceStream nspAPI.NetworkServicePlateformService_MonitorClient
 }
 
@@ -272,8 +283,8 @@ func (sns *SimpleNetworkService) SetVIPs(vips []string) {
 }
 
 // NewSimpleNetworkService -
-func NewSimpleNetworkService(vips []string, networkServicePlateformClient *nsp.NetworkServicePlateformClient, netUtils networking.Utils) *SimpleNetworkService {
-	loadbalancer, err := loadbalancer.NewLoadBalancer(vips, 9973, 100, netUtils)
+func NewSimpleNetworkService(networkServicePlateformClient *nsp.NetworkServicePlateformClient, netUtils networking.Utils) *SimpleNetworkService {
+	loadbalancer, err := loadbalancer.NewLoadBalancer([]string{}, 9973, 100, netUtils)
 	if err != nil {
 		logrus.Errorf("SimpleNetworkService: NewLoadBalancer err: %v", err)
 	}
@@ -283,7 +294,6 @@ func NewSimpleNetworkService(vips []string, networkServicePlateformClient *nsp.N
 	}
 	simpleNetworkService := &SimpleNetworkService{
 		loadbalancer:                  loadbalancer,
-		vips:                          vips,
 		networkServicePlateformClient: networkServicePlateformClient,
 	}
 	return simpleNetworkService

@@ -39,6 +39,10 @@ spec:
         - name: load-balancer
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.loadBalancer.image }}:{{ .Values.loadBalancer.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
+          readinessProbe:
+{{ toYaml .Values.readinessProbe | indent 12 }}
+          livenessProbe:
+{{ toYaml .Values.livenessProbe | indent 12 }}
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
@@ -56,8 +60,6 @@ spec:
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
               value: {{ template "meridio.loadBalancer.networkServiceName" . }}
-            - name: NSM_VIPS
-              value: {{ template "meridio.vips" . }}
             - name: NSM_NSP_SERVICE
               value: nsp-service:{{ .Values.nsp.targetPort }}
           volumeMounts:

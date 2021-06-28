@@ -18,6 +18,9 @@ type Watcher struct {
 	clientset        *kubernetes.Clientset
 	configurationKey string
 	configEvent      chan<- *Config
+	watcher          watch.Interface
+	context          context.Context
+	cancel           context.CancelFunc
 }
 
 type Config struct {
@@ -25,15 +28,21 @@ type Config struct {
 }
 
 func (w *Watcher) Start() {
-	for {
-		watcher, err := w.clientset.CoreV1().ConfigMaps(w.namespace).Watch(context.TODO(),
+	for w.context.Err() == nil {
+		var err error
+		w.watcher, err = w.clientset.CoreV1().ConfigMaps(w.namespace).Watch(context.TODO(),
 			metav1.SingleObject(metav1.ObjectMeta{Name: w.configMap, Namespace: w.namespace}))
 		if err != nil {
 			logrus.Errorf("Unable to watch configmap: %v", err)
 			return
 		}
-		w.updateCurrentEndpoint(watcher.ResultChan())
+		w.updateCurrentEndpoint(w.watcher.ResultChan())
 	}
+}
+
+func (w *Watcher) Delete() {
+	w.cancel()
+	w.watcher.Stop()
 }
 
 func (w *Watcher) eventHandler(event *watch.Event) {
@@ -84,12 +93,16 @@ func NewWatcher(configMap string, namespace string, configEvent chan<- *Config) 
 		logrus.Errorf("Unable to create clientset: %v", err)
 	}
 
+	context, cancel := context.WithCancel(context.Background())
+
 	watcher := &Watcher{
 		configMap:        configMap,
 		namespace:        namespace,
 		clientset:        clientset,
 		configurationKey: "meridio.conf",
 		configEvent:      configEvent,
+		context:          context,
+		cancel:           cancel,
 	}
 	return watcher
 }

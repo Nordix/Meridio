@@ -31,3 +31,19 @@ kubectl -n spire exec spire-server-0 -- \
 -parentID spiffe://example.org/ns/spire/sa/spire-agent \
 -selector k8s:ns:trench-b \
 -selector k8s:sa:meridio
+
+kubectl -n spire exec spire-server-0 -- \
+/opt/spire/bin/spire-server entry create \
+-ttl 72000 \
+-spiffeID spiffe://example.org/ns/my-app/sa/default \
+-parentID spiffe://example.org/ns/spire/sa/spire-agent \
+-selector k8s:ns:my-app\
+-selector k8s:sa:default
+
+kubectl -n spire exec spire-server-0 -- \
+/opt/spire/bin/spire-server entry create \
+-ttl 72000 \
+-spiffeID spiffe://example.org/ns/my-app/sa/default \
+-parentID spiffe://example.org/ns/spire/sa/spire-agent \
+-selector k8s:ns:my-app \
+-selector k8s:sa:meridio

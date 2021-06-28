@@ -182,7 +182,7 @@ func (p *Proxy) SetVIPs(vips []string) {
 }
 
 // NewProxy -
-func NewProxy(vips []string, subnets []string, netUtils networking.Utils) *Proxy {
+func NewProxy(subnets []string, netUtils networking.Utils) *Proxy {
 	bridge, err := netUtils.NewBridge("bridge0")
 	if err != nil {
 		logrus.Errorf("Proxy: Error creating the bridge: %v", err)
@@ -201,6 +201,5 @@ func NewProxy(vips []string, subnets []string, netUtils networking.Utils) *Proxy
 	if err != nil {
 		logrus.Errorf("Proxy: Error setting the bridge IP: %v", err)
 	}
-	proxy.SetVIPs(vips)
 	return proxy
 }

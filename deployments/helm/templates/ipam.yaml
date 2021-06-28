@@ -19,6 +19,10 @@ spec:
         - name: ipam
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ipam.image }}:{{ .Values.ipam.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
+          readinessProbe:
+{{ toYaml .Values.readinessProbe | indent 12 }}
+          livenessProbe:
+{{ toYaml .Values.livenessProbe | indent 12 }}
           env:
             - name: IPAM_PORT
               value: "{{ .Values.ipam.targetPort }}"
