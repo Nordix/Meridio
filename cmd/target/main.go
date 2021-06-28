@@ -37,9 +37,14 @@ func main() {
 
 	healthChecker, err := health.NewChecker(8000)
 	if err != nil {
-		logrus.Fatalf("Unable create Health checker: %v", err)
+		logrus.Fatalf("Unable to create Health checker: %v", err)
 	}
-	go healthChecker.Start()
+	go func() {
+		err := healthChecker.Start()
+		if err != nil {
+			logrus.Fatalf("Unable to start Health checker: %v", err)
+		}
+	}()
 
 	apiClientConfig := &nsm.Config{
 		Name:             config.Name,
