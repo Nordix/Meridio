@@ -21,7 +21,7 @@ spec:
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ctraffic.image }}:{{ .Values.ctraffic.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           args:
-            - ./target-client connect -ns load-balancer -t {{ .Values.defaultTrench }} ; ./target-client request -ns load-balancer -t {{ .Values.defaultTrench }} ; ./ctraffic -server -address [::]:5000
+            - ./target-client connect -ns load-balancer -t {{ .Values.default.trench.name }} -tns {{ .Values.default.trench.namespace  }} ; ./target-client request -ns load-balancer -t {{ .Values.default.trench.name  }} -tns {{ .Values.default.trench.namespace  }} ; ./ctraffic -server -address [::]:5000
           command:
             - /bin/bash
             - -c
@@ -41,8 +41,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: NSM_TRENCH
-              value: {{ .Values.defaultTrench }}
             - name: NSM_CONFIG_MAP_NAME
               value: meridio-configuration
             - name: NSM_CONNECT_TO

@@ -55,7 +55,7 @@ func main() {
 	}
 
 	targetConfig := target.NewConfig(config.ConfigMapName, config.NSPServiceName, config.NSPServicePort, netUtils, apiClientConfig)
-	ambassador, err := target.NewAmbassador(7779, config.Trench, targetConfig)
+	ambassador, err := target.NewAmbassador(7779, targetConfig)
 	if err != nil {
 		logrus.Fatalf("Error creating new ambassador: %v", err)
 	}

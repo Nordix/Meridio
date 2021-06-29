@@ -2,18 +2,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nsp
+  name: nsp-{{ .Values.trench.name }}
   labels:
-    app: nsp
+    app: nsp-{{ .Values.trench.name }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: nsp
+      app: nsp-{{ .Values.trench.name }}
   template:
     metadata:
       labels:
-        app: nsp
+        app: nsp-{{ .Values.trench.name }}
     spec:
       containers:
         - name: nsp

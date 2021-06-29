@@ -2,6 +2,7 @@ package target
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/sirupsen/logrus"
@@ -11,6 +12,7 @@ type Trench struct {
 	context              context.Context
 	cancel               context.CancelFunc
 	name                 string
+	namespace            string
 	conduits             []*Conduit
 	vips                 []string
 	configurationWatcher *configuration.Watcher
@@ -82,16 +84,17 @@ func (t *Trench) GetName() string {
 }
 
 func (t *Trench) GetNamespace() string {
-	return t.name
+	return t.namespace
 }
 
 func (t *Trench) GetConfig() *Config {
 	return t.config
 }
 
-func NewTrench(name string, config *Config) *Trench {
+func NewTrench(name string, namespace string, config *Config) *Trench {
+	configMapName := fmt.Sprintf("%s-%s", config.configMapName, name)
 	configWatcher := make(chan *configuration.Config)
-	configurationWatcher := configuration.NewWatcher(config.configMapName, name, configWatcher)
+	configurationWatcher := configuration.NewWatcher(configMapName, namespace, configWatcher)
 	go configurationWatcher.Start()
 
 	context, cancel := context.WithCancel(context.Background())
@@ -100,6 +103,7 @@ func NewTrench(name string, config *Config) *Trench {
 		context:              context,
 		cancel:               cancel,
 		name:                 name,
+		namespace:            namespace,
 		conduits:             []*Conduit{},
 		vips:                 []string{},
 		configurationWatcher: configurationWatcher,

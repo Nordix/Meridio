@@ -2,17 +2,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: nse-vlan
+  name: nse-vlan-{{ .Values.trench.name }}
   labels:
-    app: nse-vlan
+    app: nse-vlan-{{ .Values.trench.name }}
 spec:
   selector:
     matchLabels:
-      app: nse-vlan
+      app: nse-vlan-{{ .Values.trench.name }}
   template:
     metadata:
       labels:
-        app: nse-vlan
+        app: nse-vlan-{{ .Values.trench.name }}
     spec:
       containers:
         - name: nse

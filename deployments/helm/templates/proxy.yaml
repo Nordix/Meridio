@@ -2,19 +2,19 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: proxy
+  name: proxy-{{ .Values.trench.name }}
   labels:
-    app: proxy
+    app: proxy-{{ .Values.trench.name }}
 spec:
   selector:
     matchLabels:
-      app: proxy
+      app: proxy-{{ .Values.trench.name }}
   template:
     metadata:
       labels:
-        app: proxy
+        app: proxy-{{ .Values.trench.name }}
     spec:
-      serviceAccountName: meridio
+      serviceAccountName: {{ template "meridio.serviceAccount" . }}
       initContainers:
         - name: sysctl-init
           image: {{ .Values.registry }}/{{ .Values.organization }}/busybox:1.29
@@ -48,7 +48,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: NSM_CONFIG_MAP_NAME
-              value: meridio-configuration
+              value: {{ template "meridio.configuration" . }}
             - name: NSM_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
@@ -60,11 +60,9 @@ spec:
             - name: NSM_SUBNET_PREFIX_LENGTHS
               value: {{ template "meridio.subnetPool.prefixLengths" . }}
             - name: NSM_IPAM_SERVICE
-              value: ipam-service:{{ .Values.ipam.targetPort }}
+              value: {{ template "meridio.ipam.serviceName" . }}:{{ .Values.ipam.targetPort }}
             - name: NSM_NETWORK_SERVICE_NAME
               value: {{ template "meridio.loadBalancer.networkServiceName" . }}
-            - name: NSM_NSP_SERVICE
-              value: nsp-service:{{ .Values.nsp.targetPort }}
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

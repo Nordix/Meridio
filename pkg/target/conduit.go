@@ -85,7 +85,7 @@ func (c *Conduit) getAdditionalFunctionalities() networkservice.NetworkServiceCl
 }
 
 func (c *Conduit) request() error {
-	proxyNetworkServiceName := fmt.Sprintf("proxy.%s.%s", c.name, c.GetTrenchName())
+	proxyNetworkServiceName := c.GetNetworkServiceName()
 	clientConfig := &client.Config{
 		Name:           c.GetConfig().nsmConfig.Name,
 		RequestTimeout: c.GetConfig().nsmConfig.RequestTimeout,
@@ -204,6 +204,10 @@ func (c *Conduit) SetVIPs(vips []string) {
 		vipsSlice = append(vipsSlice, vip)
 	}
 	c.deleteVIPs(vipsSlice)
+}
+
+func (c *Conduit) GetNetworkServiceName() string {
+	return fmt.Sprintf("proxy.%s.%s.%s", c.name, c.GetTrenchName(), c.GetNamespace())
 }
 
 func (c *Conduit) GetName() string {

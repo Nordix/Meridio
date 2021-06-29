@@ -33,12 +33,20 @@ Set IP Family
 {{- end -}}
 {{- end -}}
 
+{{- define "meridio.nsp.serviceName" -}}
+{{- printf "%s-%s" .Values.nsp.serviceName .Values.trench.name -}}
+{{- end -}}
+
+{{- define "meridio.ipam.serviceName" -}}
+{{- printf "%s-%s" .Values.ipam.serviceName .Values.trench.name -}}
+{{- end -}}
+
 {{- define "meridio.proxy.networkServiceName" -}}
-{{- printf "%s.%s" .Values.proxy.networkServiceName .Release.Namespace -}}
+{{- printf "%s.%s.%s" .Values.proxy.networkServiceName .Values.trench.name .Release.Namespace -}}
 {{- end -}}
 
 {{- define "meridio.loadBalancer.networkServiceName" -}}
-{{- printf "%s.%s" .Values.loadBalancer.networkServiceName .Release.Namespace -}}
+{{- printf "%s.%s.%s" .Values.loadBalancer.networkServiceName .Values.trench.name .Release.Namespace -}}
 {{- end -}}
 
 {{- define "meridio.vlan.networkServiceName" -}}
@@ -51,4 +59,12 @@ Set IP Family
 
 {{- define "meridio.vrrps" -}}
 {{- join "," .Values.vlan.fe.vrrp }}
+{{- end -}}
+
+{{- define "meridio.configuration" -}}
+{{- printf "%s-%s" .Values.configuration.configmap .Values.trench.name -}}
+{{- end -}}
+
+{{- define "meridio.serviceAccount" -}}
+{{- printf "meridio-%s" .Values.trench.name -}}
 {{- end -}}

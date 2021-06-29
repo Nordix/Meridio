@@ -2,10 +2,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: nsp-service
+  name: {{ template "meridio.nsp.serviceName" . }}
 spec:
   selector:
-    app: nsp
+    app: nsp-{{ .Values.trench.name }}
   type: ClusterIP
   ports:
     - protocol: TCP

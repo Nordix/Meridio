@@ -11,9 +11,14 @@ service Ambassador {
     rpc Close(Stream) returns (google.protobuf.Empty) {}
 }
 
+message Trench {
+    string name = 1;
+    string namespace = 2;
+}
+
 message Conduit {
     string networkServiceName = 1;
-    string trench = 2;
+    Trench trench = 2;
 }
 
 message Stream {

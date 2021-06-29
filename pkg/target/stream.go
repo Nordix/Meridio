@@ -42,7 +42,7 @@ func (s *Stream) Delete() error {
 }
 
 func (s *Stream) getNSPService() string {
-	return fmt.Sprintf("%s.%s:%d", s.GetConfig().nspServiceName, s.GetTrenchName(), s.GetConfig().nspServicePort)
+	return fmt.Sprintf("%s-%s.%s:%d", s.GetConfig().nspServiceName, s.GetTrenchName(), s.GetNamespace(), s.GetConfig().nspServicePort)
 }
 
 func (s *Stream) GetName() string {

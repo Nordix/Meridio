@@ -6,7 +6,11 @@ tag: latest
 pullPolicy: IfNotPresent
 
 applicationName: target-a
-defaultTrench: trench-a
+
+default:
+  trench: 
+    name: trench-a
+    namespace: trenches
 
 target:
   image: target

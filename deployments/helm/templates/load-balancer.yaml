@@ -2,20 +2,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: load-balancer
+  name: load-balancer-{{ .Values.trench.name }}
   labels:
-    app: load-balancer
+    app: load-balancer-{{ .Values.trench.name }}
 spec:
   selector:
     matchLabels:
-      app: load-balancer
+      app: load-balancer-{{ .Values.trench.name }}
   replicas: 2
   template:
     metadata:
       labels:
-        app: load-balancer
+        app: load-balancer-{{ .Values.trench.name }}
     spec:
-      serviceAccountName: meridio
+      serviceAccountName: {{ template "meridio.serviceAccount" . }}
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -24,13 +24,17 @@ spec:
               - key: app
                 operator: In
                 values:
-                - "load-balancer"
+                - "load-balancer-{{ .Values.trench.name }}"
             topologyKey: kubernetes.io/hostname
       initContainers:
         - name: sysctl-init
           image: {{ .Values.registry }}/{{ .Values.organization }}/busybox:1.29
           securityContext:
             privileged: true
+          volumeMounts:
+            - name: nsm-socket
+              mountPath: /var/lib/networkservicemesh
+              readOnly: false
           command: ["/bin/sh"]
           args:
             - -c
@@ -55,13 +59,13 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: NSM_CONFIG_MAP_NAME
-              value: meridio-configuration
+              value: {{ template "meridio.configuration" . }}
             - name: NSM_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
               value: {{ template "meridio.loadBalancer.networkServiceName" . }}
             - name: NSM_NSP_SERVICE
-              value: nsp-service:{{ .Values.nsp.targetPort }}
+              value: {{ template "meridio.nsp.serviceName" . }}:{{ .Values.nsp.targetPort }}
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
