@@ -8,13 +8,14 @@ import (
 
 	nested "github.com/antonfisher/nested-logrus-formatter"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/sirupsen/logrus"
 )
 
 type Config struct {
-	VIPs              []string `default:"20.0.0.1/32" desc:"Virtual IP address" envconfig:"VIPS"`
+	//VIPs              []string `default:"20.0.0.1/32" desc:"Virtual IP address" envconfig:"VIPS"`
 	Gateways          []string `default:"169.254.100.254,fe80::beef" desc:"Next-hop addresses of external gateways"`
-	VRRPs             []string `default:"" "desc:"VRRP IP addresses to be used as next-hops for static default routes" envconfig:"VRRPS"`
+	VRRPs             []string `default:"" desc:"VRRP IP addresses to be used as next-hops for static default routes" envconfig:"VRRPS"`
 	ExternalInterface string   `default:"ext-vlan" desc:"External interface to start BIRD on" split_words:"true"`
 	BirdConfigPath    string   `default:"/etc/bird" desc:"Path to place bird config files" split_words:"true"`
 	LocalAS           string   `default:"8103" desc:"Local BGP AS number" envconfig:"LOCAL_AS"`
@@ -27,6 +28,8 @@ type Config struct {
 	ECMP              bool     `default:"false" desc:"Enable ECMP towards next-hops of avaialble gateways" envconfig:"ECMP"`
 	DropIfNoPeer      bool     `default:"false" desc:"Install default blackhole route with high metric into routing table TableID" split_words:"true"`
 	LogBird           bool     `default:"false" desc:"Add important bird log snippets to our log" split_words:"true"`
+	Namespace         string   `default:"default" desc:"Namespace the pod is running on" split_words:"true"`
+	ConfigMapName     string   `default:"meridio-configuration" desc:"Name of the ConfigMap containing the configuration" split_words:"true"`
 }
 
 func main() {
@@ -53,11 +56,16 @@ func main() {
 	logrus.Infof("rootConf: %+v", config)
 
 	fe := NewFrontEndService(config)
-	defer fe.RemoveVipRules()
+	defer fe.CleanUp()
 
-	fe.WriteConfig(ctx, cancel)
-	if err := fe.AddVipRules(cancel); err != nil {
+	if err := fe.AddVIPRules(); err != nil {
+		cancel()
 		logrus.Fatalf("Failed to setup src routes for VIPs: %v", err)
+	}
+
+	if err := fe.WriteConfig(); err != nil {
+		cancel()
+		logrus.Fatalf("Failed to generate config: %v", err)
 	}
 
 	feErrCh := fe.Start(ctx)
@@ -68,11 +76,27 @@ func main() {
 		logrus.Errorf("Failed to verify config")
 	} */
 
+	// monitor BIRD routing sessions
 	fe.Monitor(ctx)
 
-	logrus.Infof("FE running")
-	<-ctx.Done()
-	logrus.Warnf("FE shutting down")
+	configWatcher := make(chan *configuration.Config)
+	configurationWatcher := configuration.NewWatcher(config.ConfigMapName, config.Namespace, configWatcher)
+	go configurationWatcher.Start()
+
+	for {
+		select {
+		case c, ok := <-configWatcher:
+			if ok {
+				logrus.Infof("FE config change event")
+				if err := fe.SetVIPs(c.VIPs); err != nil {
+					cancel()
+				}
+			}
+		case <-ctx.Done():
+			logrus.Warnf("FE shutting down")
+			return
+		}
+	}
 }
 
 func exitOnErrCh(ctx context.Context, cancel context.CancelFunc, errCh <-chan error) {
