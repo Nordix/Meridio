@@ -1,0 +1,3 @@
+[submodule "Meridio-Operator"]
+	path = Meridio-Operator
+	url = https://github.com/Nordix/Meridio-Operator.git
