@@ -13,7 +13,6 @@ service Ambassador {
 
 message Trench {
     string name = 1;
-    string namespace = 2;
 }
 
 message Conduit {

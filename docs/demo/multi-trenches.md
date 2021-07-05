@@ -33,44 +33,56 @@ helm install docs/demo/deployments/nsm-vlan/ --generate-name
 
 ### Meridio
 
-Configure Spire
+Configure Spire for trench-a
 ```
-./docs/demo/scripts/spire-config-trenches.sh
+./docs/demo/scripts/spire.sh meridio-trench-a red
 ```
 
 Install Meridio trench-a
 ```
 # ipv4
-helm install deployments/helm/ --generate-name --create-namespace --namespace trench-a --set vlan.id=100 --set vlan.ipv4Prefix=169.254.100.0/24
+helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-a --set vlan.id=100 --set vlan.ipv4Prefix=169.254.100.0/24
 # ipv6
-helm install deployments/helm/ --generate-name --create-namespace --namespace trench-a --set vlan.id=100 --set vlan.ipv6Prefix=100:100::/64 --set ipFamily=ipv6
+helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-a --set vlan.id=100 --set vlan.ipv6Prefix=100:100::/64 --set ipFamily=ipv6
 # dualstack
-helm install deployments/helm/ --generate-name --create-namespace --namespace trench-a --set vlan.id=100 --set vlan.ipv4Prefix=169.254.100.0/24 --set vlan.ipv6Prefix=100:100::/64 --set ipFamily=dualstack
+helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-a --set vlan.id=100 --set vlan.ipv4Prefix=169.254.100.0/24 --set vlan.ipv6Prefix=100:100::/64 --set ipFamily=dualstack
+```
+
+Configure Spire for trench-b
+```
+./docs/demo/scripts/spire.sh meridio-trench-b red
 ```
 
 Install Meridio trench-b
 ```
 # ipv4
-helm install deployments/helm/ --generate-name --create-namespace --namespace trench-b --set vlan.id=101 --set vlan.ipv4Prefix=169.254.101.0/24
+helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-b --set vlan.id=101 --set vlan.ipv4Prefix=169.254.101.0/24
 # ipv6
-helm install deployments/helm/ --generate-name --create-namespace --namespace trench-b --set vlan.id=101 --set vlan.ipv6Prefix=100:101::/64 --set ipFamily=ipv6
+helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-b --set vlan.id=101 --set vlan.ipv6Prefix=100:101::/64 --set ipFamily=ipv6
 # dualstack
-helm install deployments/helm/ --generate-name --create-namespace --namespace trench-b --set vlan.id=101 --set vlan.ipv4Prefix=169.254.101.0/24 --set vlan.ipv6Prefix=100:101::/64 --set ipFamily=dualstack
+helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-b --set vlan.id=101 --set vlan.ipv4Prefix=169.254.101.0/24 --set vlan.ipv6Prefix=100:101::/64 --set ipFamily=dualstack
+```
+
+### Targets
+
+Deploy common resources for the targets
+```
+helm install examples/target/common/ --generate-name --create-namespace --namespace red
+```
+
+Configure Spire for the targets
+```
+./docs/demo/scripts/spire.sh meridio red
 ```
 
 Install targets connected to trench-a
 ```
-helm install examples/target/common/ --generate-name --create-namespace --namespace my-app
-```
-
-Install targets connected to trench-a
-```
-helm install examples/target/helm/ --generate-name --create-namespace --namespace my-app --set applicationName=target-a --set defaultTrench=trench-a
+helm install examples/target/helm/ --generate-name --create-namespace --namespace red --set applicationName=target-a --set default.trench.name=trench-a
 ```
 
 Install targets connected to trench-b
 ```
-helm install examples/target/helm/ --generate-name --create-namespace --namespace my-app --set applicationName=target-b --set defaultTrench=trench-b
+helm install examples/target/helm/ --generate-name --create-namespace --namespace red --set applicationName=target-b --set default.trench.name=trench-b
 ```
 
 ### External host / External connectivity

@@ -10,7 +10,6 @@ applicationName: target-a
 default:
   trench: 
     name: trench-a
-    namespace: trenches
 
 target:
   image: target
