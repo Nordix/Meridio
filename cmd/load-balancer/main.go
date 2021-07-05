@@ -169,9 +169,9 @@ func (sns *SimpleNetworkService) recv() {
 
 		if target.Status == nspAPI.Status_Register {
 			err = sns.loadbalancer.AddTarget(lbTarget)
-			logrus.Infof("SimpleNetworkService: A Add Target: %v", target)
+			logrus.Infof("SimpleNetworkService: Add Target: %v", target)
 			if err != nil {
-				logrus.Errorf("SimpleNetworkService: err A AddTarget (%v): %v", target, err)
+				logrus.Errorf("SimpleNetworkService: err AddTarget (%v): %v", target, err)
 				continue
 			}
 		} else if target.Status == nspAPI.Status_Unregister {
