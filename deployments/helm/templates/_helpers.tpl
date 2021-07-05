@@ -33,6 +33,26 @@ Set IP Family
 {{- end -}}
 {{- end -}}
 
+{{- define "meridio.loadBalancer.sysctls" -}}
+{{- if eq .Values.ipFamily "dualstack" -}}
+{{- printf "sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1" -}}
+{{- else if eq .Values.ipFamily "ipv6" -}}
+{{- printf "sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1" -}}
+{{- else -}}
+{{- printf "sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1" -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "meridio.proxy.sysctls" -}}
+{{- if eq .Values.ipFamily "dualstack" -}}
+{{- printf "sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv6.conf.all.accept_dad=0 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1" -}}
+{{- else if eq .Values.ipFamily "ipv6" -}}
+{{- printf "sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv6.conf.all.accept_dad=0 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1" -}}
+{{- else -}}
+{{- printf "sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1" -}}
+{{- end -}}
+{{- end -}}
+
 {{- define "meridio.nsp.serviceName" -}}
 {{- printf "%s-%s" .Values.nsp.serviceName .Values.trench.name -}}
 {{- end -}}

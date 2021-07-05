@@ -23,15 +23,6 @@ nsp:
   targetPort: 7778
   serviceName: nsp-service
 
-proxy:
-  networkServiceName: proxy.load-balancer
-
-ipFamily: ipv4 # ipv4 / ipv6 / dualstack
-
-vip:
-  ipv4: 20.0.0.1/32
-  ipv6: 2000::1/128
-
 readinessProbe:
   exec:
     command: ["/bin/grpc_health_probe", "-addr=:8000", "-connect-timeout=100ms", "-rpc-timeout=150ms"]

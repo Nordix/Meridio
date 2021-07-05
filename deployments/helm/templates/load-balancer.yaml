@@ -38,7 +38,7 @@ spec:
           command: ["/bin/sh"]
           args:
             - -c
-            - sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1
+            - {{ template "meridio.loadBalancer.sysctls" . }}
       containers:
         - name: load-balancer
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.loadBalancer.image }}:{{ .Values.loadBalancer.version }}
@@ -76,7 +76,8 @@ spec:
           securityContext:
             privileged: true
         - name: nsc
-          image: registry.nordix.org/cloud-native/nsm/cmd-nsc:latest
+          # image: registry.nordix.org/cloud-native/nsm/cmd-nsc:latest
+          image: localhost:5000/meridio/cmd-nsc:latest-dns-fix
           imagePullPolicy: {{ .Values.pullPolicy }}
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
