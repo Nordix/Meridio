@@ -18,6 +18,10 @@ type Meridio struct {
 	ipamDeployment *IpamDeployment
 	ipamService    *IpamService
 	configmap      *ConfigMap
+	loadBalancer   *LoadBalancer
+	serviceAccount *ServiceAccount
+	role           *Role
+	roleBinding    *RoleBinding
 }
 
 func NewMeridio() *Meridio {
@@ -25,6 +29,10 @@ func NewMeridio() *Meridio {
 		ipamDeployment: &IpamDeployment{},
 		ipamService:    &IpamService{},
 		configmap:      &ConfigMap{},
+		loadBalancer:   &LoadBalancer{},
+		serviceAccount: &ServiceAccount{},
+		role:           &Role{},
+		roleBinding:    &RoleBinding{},
 	}
 }
 
@@ -34,6 +42,10 @@ func (m Meridio) ReconcileAll(e *Executor, cr *meridiov1alpha1.Trench) error {
 		m.ipamDeployment,
 		m.ipamService,
 		m.configmap,
+		m.serviceAccount,
+		m.role,
+		m.roleBinding,
+		m.loadBalancer,
 	}
 
 	for _, r := range resources {
