@@ -22,6 +22,8 @@ type Meridio struct {
 	serviceAccount *ServiceAccount
 	role           *Role
 	roleBinding    *RoleBinding
+	nspDeployment  *NspDeployment
+	nspService     *NspService
 }
 
 func NewMeridio() *Meridio {
@@ -33,6 +35,8 @@ func NewMeridio() *Meridio {
 		serviceAccount: &ServiceAccount{},
 		role:           &Role{},
 		roleBinding:    &RoleBinding{},
+		nspDeployment:  &NspDeployment{},
+		nspService:     &NspService{},
 	}
 }
 
@@ -46,6 +50,8 @@ func (m Meridio) ReconcileAll(e *Executor, cr *meridiov1alpha1.Trench) error {
 		m.role,
 		m.roleBinding,
 		m.loadBalancer,
+		m.nspDeployment,
+		m.nspService,
 	}
 
 	for _, r := range resources {

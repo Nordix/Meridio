@@ -1,0 +1,46 @@
+# Source: meridio/templates/nsp.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nsp
+  labels:
+    app: nsp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nsp
+  template:
+    metadata:
+      labels:
+        app: nsp
+    spec:
+      containers:
+        - name: nsp
+          image: registry.nordix.org/cloud-native/meridio/nsp:latest
+          imagePullPolicy: IfNotPresent
+          readinessProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -addr=:8000
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            failureThreshold: 5
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -addr=:8000
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            failureThreshold: 5
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+          env:
+            - name: NSP_PORT
+              value: "7778"
