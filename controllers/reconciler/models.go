@@ -17,7 +17,62 @@ const (
 	Organization = "cloud-native/meridio"
 	Tag          = "latest"
 	PullPolicy   = "IfNotPresent"
+	busyboxImage = "busybox"
+	busyboxTag   = "1.29"
+
+	IPv4      ipFamily = "ipv4"
+	IPv6      ipFamily = "ipv6"
+	Dualstack ipFamily = "dualstack"
+
+	vipIpv4          = "20.0.0.1/32"
+	vipIpv6          = "2000::1/128"
+	subnetPoolIpv4   = "172.16.0.0/16"
+	subnetPoolIpv6   = "fd00::/48"
+	prefixLengthIpv4 = "24"
+	prefixLengthIpv6 = "64"
+
+	proxyNetworkService = "proxy.load-balancer"
+	lbNetworkService    = "load-balancer"
+	vlanNetworkService  = "external-vlan"
 )
+
+type ipFamily string
+
+func getVips(cr *meridiov1alpha1.Trench) string {
+	ipFamily := IPv4
+	if ipFamily == IPv4 {
+		return vipIpv4
+	} else if ipFamily == IPv6 {
+		return vipIpv6
+	} else if ipFamily == Dualstack {
+		return fmt.Sprintf("%s,%s", vipIpv4, vipIpv6)
+	}
+	return ""
+}
+
+func getSubnetPool(cr *meridiov1alpha1.Trench) string {
+	ipFamily := IPv4
+	if ipFamily == IPv4 {
+		return subnetPoolIpv4
+	} else if ipFamily == IPv6 {
+		return subnetPoolIpv6
+	} else if ipFamily == Dualstack {
+		return fmt.Sprintf("%s,%s", subnetPoolIpv4, subnetPoolIpv6)
+	}
+	return ""
+}
+
+func getPrefixLength(cr *meridiov1alpha1.Trench) string {
+	ipFamily := IPv4
+	if ipFamily == IPv4 {
+		return prefixLengthIpv4
+	} else if ipFamily == IPv6 {
+		return prefixLengthIpv6
+	} else if ipFamily == Dualstack {
+		return fmt.Sprintf("%s,%s", prefixLengthIpv4, prefixLengthIpv4)
+	}
+	return ""
+}
 
 func GetReadinessProbe(cr *meridiov1alpha1.Trench) *corev1.Probe {
 	// if readiness probe is set in the cr do something
@@ -62,6 +117,19 @@ func getDeploymentModel(f string) (*appsv1.Deployment, error) {
 		return nil, fmt.Errorf("decode %s error: %s", f, err)
 	}
 	return deployment, nil
+}
+
+func getDaemonsetModel(f string) (*appsv1.DaemonSet, error) {
+	data, err := os.Open(f)
+	if err != nil {
+		return nil, fmt.Errorf("open %s error: %s", f, err)
+	}
+	ds := &appsv1.DaemonSet{}
+	err = yaml.NewYAMLOrJSONDecoder(data, 4096).Decode(ds)
+	if err != nil {
+		return nil, fmt.Errorf("decode %s error: %s", f, err)
+	}
+	return ds, nil
 }
 
 func getServiceModel(f string) (*corev1.Service, error) {

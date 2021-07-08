@@ -1,0 +1,103 @@
+# Source: meridio/templates/proxy.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: proxy
+  labels:
+    app: proxy
+spec:
+  selector:
+    matchLabels:
+      app: proxy
+  template:
+    metadata:
+      labels:
+        app: proxy
+    spec:
+      serviceAccountName: meridio
+      initContainers:
+        - name: sysctl-init
+          image: registry.nordix.org/cloud-native/meridio/busybox:1.29
+          securityContext:
+            privileged: true
+          command: ["/bin/sh"]
+          args:
+            - -c
+            - sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv6.conf.all.accept_dad=0 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1
+      containers:
+        - name: proxy
+          image: registry.nordix.org/cloud-native/meridio/proxy:latest
+          imagePullPolicy: IfNotPresent
+          readinessProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -addr=:8000
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            failureThreshold: 5
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -addr=:8000
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            failureThreshold: 5
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NSM_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NSM_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: NSM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NSM_CONFIG_MAP_NAME
+              value: meridio-configuration
+            - name: NSM_CONNECT_TO
+              value: unix:///var/lib/networkservicemesh/nsm.io.sock
+            - name: NSM_SERVICE_NAME
+              value: proxy.load-balancer.default
+            - name: NSM_VIPS
+              value: 20.0.0.1/32
+            - name: NSM_SUBNET_POOLS
+              value: 172.16.0.0/16
+            - name: NSM_SUBNET_PREFIX_LENGTHS
+              value: "24"
+            - name: NSM_IPAM_SERVICE
+              value: ipam-service:7777
+            - name: NSM_NETWORK_SERVICE_NAME
+              value: load-balancer.default
+            - name: NSM_NSP_SERVICE
+              value: nsp-service:7778
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: nsm-socket
+              mountPath: /var/lib/networkservicemesh
+              readOnly: true
+          securityContext:
+            privileged: true
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory
+        - name: nsm-socket
+          hostPath:
+            path: /var/lib/networkservicemesh
+            type: DirectoryOrCreate
