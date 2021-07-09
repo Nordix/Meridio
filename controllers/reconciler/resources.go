@@ -25,6 +25,7 @@ type Meridio struct {
 	nspDeployment  *NspDeployment
 	nspService     *NspService
 	proxy          *Proxy
+	nseDeployment  *NseDeployment
 }
 
 func NewMeridio() *Meridio {
@@ -39,6 +40,7 @@ func NewMeridio() *Meridio {
 		nspDeployment:  &NspDeployment{},
 		nspService:     &NspService{},
 		proxy:          &Proxy{},
+		nseDeployment:  &NseDeployment{},
 	}
 }
 
@@ -55,6 +57,7 @@ func (m Meridio) ReconcileAll(e *Executor, cr *meridiov1alpha1.Trench) error {
 		m.nspDeployment,
 		m.nspService,
 		m.proxy,
+		m.nseDeployment,
 	}
 
 	for _, r := range resources {

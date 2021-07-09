@@ -13,12 +13,13 @@ import (
 )
 
 const (
-	Registry     = "registry.nordix.org"
-	Organization = "cloud-native/meridio"
-	Tag          = "latest"
-	PullPolicy   = "IfNotPresent"
-	busyboxImage = "busybox"
-	busyboxTag   = "1.29"
+	Registry        = "registry.nordix.org"
+	Organization    = "cloud-native/meridio"
+	OrganizationNsm = "cloud-native/nsm"
+	Tag             = "latest"
+	PullPolicy      = "IfNotPresent"
+	busyboxImage    = "busybox"
+	busyboxTag      = "1.29"
 
 	IPv4      ipFamily = "ipv4"
 	IPv6      ipFamily = "ipv6"
@@ -34,6 +35,10 @@ const (
 	proxyNetworkService = "proxy.load-balancer"
 	lbNetworkService    = "load-balancer"
 	vlanNetworkService  = "external-vlan"
+	vlanItf             = "eth0"
+	vlanID              = "100"
+	vlanPrefixV4        = "169.254.100.0/24"
+	vlanPrefixV6        = "100:100::/64"
 )
 
 type ipFamily string
@@ -72,6 +77,10 @@ func getPrefixLength(cr *meridiov1alpha1.Trench) string {
 		return fmt.Sprintf("%s,%s", prefixLengthIpv4, prefixLengthIpv4)
 	}
 	return ""
+}
+
+func getVlanNsName(cr *meridiov1alpha1.Trench) string {
+	return fmt.Sprintf("%s.%s", vlanNetworkService, cr.ObjectMeta.Namespace)
 }
 
 func GetReadinessProbe(cr *meridiov1alpha1.Trench) *corev1.Probe {
