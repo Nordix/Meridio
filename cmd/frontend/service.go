@@ -77,7 +77,7 @@ func (fes *FrontEndService) CleanUp() {
 	logrus.Infof("FrontEndService: CleanUp")
 
 	close(fes.reconfCh)
-	fes.RemoveVIPRules()
+	_ = fes.RemoveVIPRules()
 }
 
 // Start -
@@ -104,6 +104,8 @@ func (fes *FrontEndService) RemoveVIPRules() error {
 	return fes.setVIPRules([]string{}, fes.vips)
 }
 
+// SetVIPs -
+// Align config to changes affecting VIP addresses
 func (fes *FrontEndService) SetVIPs(vips []string) error {
 	added, removed := difference(fes.vips, vips)
 	logrus.Infof("SetVIPs: vips: %v, (added: %v, removed: %v)", vips, added, removed)
@@ -169,16 +171,17 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 				scanner := bufio.NewScanner(strings.NewReader(stringOut))
 				scanOK := true
 				scanDetails := ""
+				reBGP := regexp.MustCompile(`bgp[0-9]+`)
+				reBIRD := regexp.MustCompile(`BIRD|Name\s+Proto`)
 				for scanner.Scan() {
-					if ok, _ := regexp.MatchString(`bgp[0-9]+`, scanner.Text()); ok {
+					if ok := reBGP.MatchString(scanner.Text()); ok {
 						scanDetails += scanner.Text()
 						if !strings.Contains(scanner.Text(), "Established") {
-							//logrus.Debugf("Monitor: (scanOK->false) %v", scanner.Text())
 							scanOK = false
 						}
 					} else if strings.Contains(scanner.Text(), `Neighbor address`) {
 						scanDetails += scanner.Text() + "\n"
-					} else if ok, _ := regexp.MatchString(`BIRD|Name\s+Proto`, scanner.Text()); ok {
+					} else if ok := reBIRD.MatchString(scanner.Text()); ok {
 						scanDetails += scanner.Text() + "\n"
 					}
 				}
@@ -537,7 +540,6 @@ func (fes *FrontEndService) WriteConfigDropIfNoPeer(conf *string, hasVIP4 bool, 
 		*conf += "}\n"
 		*conf += "\n"
 	}
-	return
 }
 
 // WriteConfigVRRPs -
@@ -599,10 +601,8 @@ func (fes *FrontEndService) start(ctx context.Context, errCh chan<- error) {
 			}
 			// when context is done, close File thus signalling EOF to bufio Scan()
 			defer w.Close()
-			select {
-			case <-ctx.Done():
-				logrus.Infof("FrontEndService: context closed, terminate log monitoring...")
-			}
+			<-ctx.Done()
+			logrus.Infof("FrontEndService: context closed, terminate log monitoring...")
 		}()
 
 		// start the process (BIRD)
@@ -615,13 +615,13 @@ func (fes *FrontEndService) start(ctx context.Context, errCh chan<- error) {
 		// scan stderr of previously started process
 		// Note: there could be other log-worthy printouts...
 		scanner := bufio.NewScanner(pipe)
+		reW := regexp.MustCompile(`Error|<ERROR>|<BUG>|<FATAL>|<WARNING>`)
+		reI := regexp.MustCompile(`<INFO>|BGP session|Connected|Received:|Started|Neighbor|Startup delayed`)
 		for scanner.Scan() {
-			if ok, _ := regexp.MatchString(`Error|<ERROR>|<BUG>|<FATAL>|<WARNING>`, scanner.Text()); ok {
+			if ok := reW.MatchString(scanner.Text()); ok {
 				logrus.Warnf("[bird] %v", scanner.Text())
-			} else if ok, _ := regexp.MatchString(`<INFO>|BGP session|Connected|Received:|Started|Neighbor|Startup delayed`, scanner.Text()); ok {
+			} else if ok := reI.MatchString(scanner.Text()); ok {
 				logrus.Infof("[bird] %v", scanner.Text())
-			} else {
-				//logrus.Debugf("[bird] %v", scanner.Text())
 			}
 		}
 		if err := scanner.Err(); err != nil {
@@ -683,10 +683,9 @@ func (fes *FrontEndService) reconfigurationAgent(ctx context.Context, reconfCh <
 						logrus.Errorf("reconfigurationAgent: Failed to reconfigure BIRD (err: \"%v\")", err)
 						errCh <- err
 					}
-				} else {
-					// clean-up was called closing reconfCh
-					// if so, ctx.Done() should kick in as well...
 				}
+				// if not ok; clean-up was called closing reconfCh
+				// if so, ctx.Done() should kick in as well...
 			}
 		}
 	}
@@ -744,8 +743,10 @@ func (fes *FrontEndService) setVIPRules(vipsAdded, vipsRemoved []string) error {
 
 			logrus.Infof("setVIPRules: [add]: %v", rule)
 			if err := handler.RuleAdd(rule); err != nil {
-				logrus.Errorf("setVIPRules: Failed to add rule: %v", err)
-				return err
+				if errors.Is(err, os.ErrNotExist) {
+					logrus.Errorf("setVIPRules: Failed to add rule: %v", err)
+					return err
+				}
 			}
 		}
 	}

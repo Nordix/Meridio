@@ -77,7 +77,10 @@ func main() {
 	} */
 
 	// monitor BIRD routing sessions
-	fe.Monitor(ctx)
+	if err := fe.Monitor(ctx); err != nil {
+		cancel()
+		logrus.Fatalf("Failed to start monitor: %v", err)
+	}
 
 	configWatcher := make(chan *configuration.Config)
 	configurationWatcher := configuration.NewWatcher(config.ConfigMapName, config.Namespace, configWatcher)
