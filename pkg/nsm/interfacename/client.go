@@ -51,5 +51,6 @@ func (inc *interfaceNameClient) Request(ctx context.Context, request *networkser
 // A non-nil error if a next element in the chain returns a non-nil error
 // It implements NetworkServiceClient for the interfacename package
 func (inc *interfaceNameClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	// TODO: release interfacename
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }

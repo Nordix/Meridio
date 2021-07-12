@@ -31,7 +31,7 @@ func (p *Proxy) InterfaceCreated(intf networking.Iface) {
 	if !p.isNSMInterface(intf) {
 		return
 	}
-	logrus.Infof("Proxy: interface created: %v", intf)
+	logrus.Infof("Proxy: interface created: %v (nexthops: %v)", intf, p.nexthops)
 	// Link the interface to the bridge
 	err := p.bridge.LinkInterface(intf)
 	if err != nil {
@@ -46,7 +46,17 @@ func (p *Proxy) InterfaceCreated(intf networking.Iface) {
 					logrus.Errorf("Proxy: Error adding nexthop: %v", err)
 				}
 			}
-			p.nexthops = append(p.nexthops, ip)
+			// append nexthop if not known
+			add := true
+			for _, nexthop := range p.nexthops {
+				if nexthop == ip {
+					add = false
+					break
+				}
+			}
+			if add {
+				p.nexthops = append(p.nexthops, ip)
+			}
 		}
 	}
 }
@@ -56,7 +66,7 @@ func (p *Proxy) InterfaceDeleted(intf networking.Iface) {
 	if !p.isNSMInterface(intf) {
 		return
 	}
-	logrus.Infof("Proxy: interface removed: %v", intf)
+	logrus.Infof("Proxy: interface removed: %v (nexthops: %v)", intf, p.nexthops)
 	// Unlink the interface from the bridge
 	err := p.bridge.UnLinkInterface(intf)
 	if err != nil {
@@ -71,11 +81,14 @@ func (p *Proxy) InterfaceDeleted(intf networking.Iface) {
 					logrus.Errorf("Proxy: Error removing nexthop: %v", err)
 				}
 			}
-			for index, nexthop := range p.nexthops {
-				if nexthop == ip {
-					p.nexthops = append(p.nexthops[:index], p.nexthops[index+1:]...)
+
+			nexthops := p.nexthops[:0]
+			for _, nexthop := range p.nexthops {
+				if nexthop != ip {
+					nexthops = append(nexthops, nexthop)
 				}
 			}
+			p.nexthops = nexthops
 		}
 	}
 }
@@ -91,6 +104,15 @@ func (p *Proxy) SetIPContext(conn *networkservice.Connection, interfaceType netw
 
 	if conn.GetContext() == nil {
 		conn.Context = &networkservice.ConnectionContext{}
+	}
+
+	// No need to allocate new IPs in case refresh chain component resends Request
+	// belonging to an established connection.
+	// (It is also assumed, that proxy subnets can not change...)
+	if conn.GetContext().GetIpContext() != nil &&
+		conn.GetContext().GetIpContext().GetSrcIpAddrs() != nil &&
+		conn.GetContext().GetIpContext().GetDstIpAddrs() != nil {
+		return nil
 	}
 
 	srcIPAddrs := []string{}

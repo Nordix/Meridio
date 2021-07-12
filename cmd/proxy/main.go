@@ -55,6 +55,7 @@ func main() {
 	if err != nil {
 		logrus.Fatalf("%v", err)
 	}
+	logrus.Infof("rootConf: %+v", config)
 
 	healthChecker, err := health.NewChecker(8000)
 	if err != nil {
