@@ -24,12 +24,29 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+      volumes:
+      - name: templates-volume
+        emptyDir:
+          medium: Memory
+      initContainers:
+      - name: copy
+        image: controller:latest
+        imagePullPolicy: IfNotPresent
+        command:
+        - cp
+        - -r
+        - ./deployment/.
+        - ./templates-tmp
+        volumeMounts:
+        - name: templates-volume
+          mountPath: /templates-tmp
       containers:
       - command:
         - /manager
         args:
         - --leader-elect
         image: controller:latest
+        imagePullPolicy: IfNotPresent
         name: manager
         securityContext:
           allowPrivilegeEscalation: false
@@ -52,5 +69,8 @@ spec:
           requests:
             cpu: 100m
             memory: 20Mi
+        volumeMounts:
+        - mountPath: /deployment
+          name: templates-volume
       serviceAccountName: controller-manager
       terminationGracePeriodSeconds: 10

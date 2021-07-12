@@ -1,0 +1,57 @@
+# Source: meridio/templates/nse-vlan.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nse-vlan
+  labels:
+    app: nse-vlan
+spec:
+  selector:
+    matchLabels:
+      app: nse-vlan
+  template:
+    metadata:
+      labels:
+        app: nse-vlan
+    spec:
+      containers:
+        - name: nse
+          image: registry.nordix.org/cloud-native/nsm/nse-vlan:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NSE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NSE_CONNECT_TO
+              value: unix:///var/lib/networkservicemesh/nsm.io.sock
+            - name: NSE_VLAN_BASE_IFNAME
+              value: eth0
+            - name: NSE_VLAN_ID
+              value: "100"
+            - name: NSE_SERVICE_NAME
+              value: external-vlan.default
+            - name: NSE_CIDR_PREFIX
+              value: "169.254.100.0/24"
+            - name: NSE_IPV6_PREFIX
+              value: "100:100::/64"
+            - name: NSE_POINT2POINT
+              value: "False"
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: nsm-socket
+              mountPath: /var/lib/networkservicemesh
+              readOnly: false
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory
+        - name: nsm-socket
+          hostPath:
+            path: /var/lib/networkservicemesh
+            type: DirectoryOrCreate
