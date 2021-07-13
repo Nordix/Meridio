@@ -62,6 +62,14 @@ func (sbr *SourceBasedRoute) AddNexthop(nexthop string) error {
 	if err != nil {
 		return err
 	}
+
+	// don't append if already exists
+	for _, nh := range sbr.nexthops {
+		if netlinkAddr.Equal(*nh) {
+			return nil
+		}
+	}
+
 	sbr.nexthops = append(sbr.nexthops, netlinkAddr)
 	err = sbr.updateRoute()
 	if err != nil {

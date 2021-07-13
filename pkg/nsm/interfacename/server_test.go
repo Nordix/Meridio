@@ -102,7 +102,7 @@ func Test_Server_Request_Overwrite(t *testing.T) {
 	assert.NotNil(t, conn.GetMechanism())
 	assert.NotNil(t, conn.GetMechanism().GetParameters())
 	assert.Contains(t, conn.GetMechanism().GetParameters(), common.InterfaceNameKey)
-	assert.Equal(t, conn.GetMechanism().GetParameters()[common.InterfaceNameKey], "NewInterfaceName")
-	assert.Equal(t, request.GetMechanismPreferences()[0].GetParameters()[common.InterfaceNameKey], "NewInterfaceName")
-	assert.Equal(t, request.GetMechanismPreferences()[1].GetParameters()[common.InterfaceNameKey], "NewInterfaceName")
+	assert.Equal(t, conn.GetMechanism().GetParameters()[common.InterfaceNameKey], "default")
+	assert.Equal(t, request.GetMechanismPreferences()[0].GetParameters()[common.InterfaceNameKey], "default-A")
+	assert.Equal(t, request.GetMechanismPreferences()[1].GetParameters()[common.InterfaceNameKey], "default-B")
 }

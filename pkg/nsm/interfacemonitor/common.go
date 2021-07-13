@@ -6,6 +6,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 	"github.com/nordix/meridio/pkg/networking"
+	"github.com/sirupsen/logrus"
 )
 
 type ipList []string
@@ -62,7 +63,19 @@ func (im *interfaceMonitor) ConnectionClosed(conn *connection, interfaceType net
 	if err != nil {
 		return
 	}
-	im.advertiseInterfaceDeletion(index, interfaceType)
+
+	newInterface := im.netUtils.NewInterface(index)
+	newInterface.SetInterfaceType(interfaceType)
+	newInterface.SetGatewayPrefixes(conn.getGatewayIPs())
+	if interfaceType == networking.NSC {
+		newInterface.SetLocalPrefixes(conn.getSrcIPs())
+		newInterface.SetNeighborPrefixes(conn.getDstIPs())
+	} else if interfaceType == networking.NSE {
+		newInterface.SetLocalPrefixes(conn.getDstIPs())
+		newInterface.SetNeighborPrefixes(conn.getSrcIPs())
+	}
+
+	im.advertiseInterfaceDeletion(newInterface)
 }
 
 // InterfaceCreated -
@@ -83,13 +96,13 @@ func (im *interfaceMonitor) advertiseInterfaceCreation(index int, pendingInterfa
 	newInterface.SetNeighborPrefixes(pendingInterface.neighborIPs)
 	newInterface.SetGatewayPrefixes(pendingInterface.gateways)
 	newInterface.SetInterfaceType(pendingInterface.InterfaceType)
+	logrus.Debugf("interfaceMonitor: advertise created intf %v", newInterface)
 	im.interfaceMonitorSubscriber.InterfaceCreated(newInterface)
 }
 
-func (im *interfaceMonitor) advertiseInterfaceDeletion(index int, interfaceType networking.InterfaceType) {
-	newInterface := im.netUtils.NewInterface(index)
-	newInterface.SetInterfaceType(interfaceType)
-	im.interfaceMonitorSubscriber.InterfaceDeleted(newInterface)
+func (im *interfaceMonitor) advertiseInterfaceDeletion(intf networking.Iface) {
+	logrus.Debugf("interfaceMonitor: advertise deleted intf %v", intf)
+	im.interfaceMonitorSubscriber.InterfaceDeleted(intf)
 }
 
 func newInterfaceMonitor(networkInterfaceMonitor networking.InterfaceMonitor, interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber, netUtils networkingUtils) *interfaceMonitor {

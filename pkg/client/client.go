@@ -27,22 +27,44 @@ func (snsc *SimpleNetworkServiceClient) Request(request *networkservice.NetworkS
 			logrus.Errorf("Network Service Client: Request err: %v", err)
 			continue
 		}
+		logrus.Debugf("Network Service Client: Got connection: %v", connection)
 		snsc.Connection = connection
+
+		// expiration time based on NSM updatepath (connection will be refreshed by NSM after this)
+		ts := connection.GetCurrentPathSegment().GetExpires()
+		if err := ts.CheckValid(); err == nil {
+			expireTime := ts.AsTime()
+			scale := 1. / 3.
+			path := connection.GetPath()
+			if len(path.PathSegments) > 1 {
+				scale = 0.2 + 0.2*float64(path.Index)/float64(len(path.PathSegments))
+			}
+			duration := time.Duration(float64(time.Until(expireTime)) * scale)
+			logrus.Debugf("Network Service Client: connection duration: %v", duration)
+		}
 		break
 	}
 	return nil
 }
 
 func (snsc *SimpleNetworkServiceClient) Close() error {
-	for {
-		_, err := snsc.networkServiceClient.Close(context.Background(), snsc.Connection)
-		if err != nil {
-			time.Sleep(15 * time.Second)
-			logrus.Errorf("Network Service Client: Request err: %v", err)
-			continue
+	closeCtx, cancelClose := context.WithTimeout(context.Background(), snsc.config.RequestTimeout)
+	details := ""
+	if snsc.Connection != nil {
+		details += "id: " + snsc.Connection.GetId() + ", endpoint: " + snsc.Connection.GetNetworkServiceEndpointName()
+		if snsc.Connection.GetContext() != nil && snsc.Connection.GetContext().GetIpContext() != nil {
+			details += ", ips: " + snsc.Connection.GetContext().GetIpContext().String()
 		}
-		break
 	}
+
+	defer func() {
+		cancelClose()
+		logrus.Debugf("Network Service Client: Close concluded (%v)", details)
+	}()
+
+	logrus.Debugf("Network Service Client: Close connection (%v)", details)
+	_, _ = snsc.networkServiceClient.Close(closeCtx, snsc.Connection)
+
 	return nil
 }
 

@@ -42,7 +42,11 @@ func (ins *interfaceNameSetter) setInterfaceNameMechanism(request *networkservic
 	if mechanism.GetParameters() == nil {
 		mechanism.Parameters = make(map[string]string)
 	}
-	mechanism.GetParameters()[common.InterfaceNameKey] = ins.nameGenerator.Generate(ins.prefix, ins.maxLength)
+	// Do not generate new local interface name when Request for an established connection
+	// is resent by the refresh chain component.
+	if val, ok := mechanism.GetParameters()[common.InterfaceNameKey]; !ok || val == "" {
+		mechanism.GetParameters()[common.InterfaceNameKey] = ins.nameGenerator.Generate(ins.prefix, ins.maxLength)
+	}
 }
 
 func (ins *interfaceNameSetter) setInterfaceNameMechanismPreferences(request *networkservice.NetworkServiceRequest) {
@@ -53,7 +57,13 @@ func (ins *interfaceNameSetter) setInterfaceNameMechanismPreferences(request *ne
 		if mechanism.Parameters == nil {
 			mechanism.Parameters = map[string]string{}
 		}
-		mechanism.Parameters[common.InterfaceNameKey] = ins.nameGenerator.Generate(ins.prefix, ins.maxLength)
+		// Do not generate new local interface name when Request for an established connection
+		// is resent by the refresh chain component. (Does it even make sense to generate a new
+		// interfae name for MechanismPreferences during connection refresh? (Interface in use is
+		// present in Mechanism.))
+		if val, ok := mechanism.Parameters[common.InterfaceNameKey]; !ok || val == "" {
+			mechanism.Parameters[common.InterfaceNameKey] = ins.nameGenerator.Generate(ins.prefix, ins.maxLength)
+		}
 	}
 }
 
