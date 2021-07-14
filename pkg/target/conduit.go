@@ -10,9 +10,12 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/mechanisms/vfio"
 	sriovtoken "github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/token"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/nordix/meridio/pkg/client"
 	"github.com/nordix/meridio/pkg/networking"
@@ -72,6 +75,8 @@ func (c *Conduit) getAdditionalFunctionalities() networkservice.NetworkServiceCl
 	}
 	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, c, c.GetConfig().netUtils)
 	additionalFunctionalities := chain.NewNetworkServiceClient(
+		updatepath.NewClient(c.GetConfig().apiClient.Config.Name),
+		serialize.NewClient(),
 		sriovtoken.NewClient(),
 		mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
 			vfiomech.MECHANISM:   chain.NewNetworkServiceClient(vfio.NewClient()),
@@ -79,6 +84,7 @@ func (c *Conduit) getAdditionalFunctionalities() networkservice.NetworkServiceCl
 		}),
 		interfacename.NewClient("nsc", &interfacename.RandomGenerator{}),
 		interfaceMonitorClient,
+		authorize.NewClient(),
 		sendfd.NewClient(),
 	)
 	return additionalFunctionalities
@@ -89,8 +95,9 @@ func (c *Conduit) request() error {
 	clientConfig := &client.Config{
 		Name:           c.GetConfig().nsmConfig.Name,
 		RequestTimeout: c.GetConfig().nsmConfig.RequestTimeout,
+		ConnectTo:      c.GetConfig().nsmConfig.ConnectTo,
 	}
-	c.networkServiceClient = client.NewSimpleNetworkServiceClient(clientConfig, c.GetConfig().apiClient.GRPCClient, c.getAdditionalFunctionalities())
+	c.networkServiceClient = client.NewSimpleNetworkServiceClient(clientConfig, c.GetConfig().apiClient, c.getAdditionalFunctionalities())
 	err := c.networkServiceClient.Request(&networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id:             fmt.Sprintf("%s-%s-%d", c.GetConfig().nsmConfig.Name, proxyNetworkServiceName, 0),

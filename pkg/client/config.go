@@ -2,13 +2,16 @@ package client
 
 import (
 	"errors"
+	"net/url"
 	"time"
 )
 
 // Config - configuration for network service client
 type Config struct {
-	Name           string        `default:"nsc" desc:"Name of Network Service Client"`
-	RequestTimeout time.Duration `default:"15s" desc:"timeout to request NSE" split_words:"true"`
+	Name             string
+	RequestTimeout   time.Duration
+	ConnectTo        url.URL
+	MaxTokenLifetime time.Duration
 }
 
 // IsValid - check if configuration is valid
