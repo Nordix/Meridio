@@ -15,11 +15,14 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/mechanisms/vfio"
 	sriovtoken "github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/token"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/nordix/meridio/pkg/client"
 	"github.com/nordix/meridio/pkg/configuration"
@@ -93,6 +96,7 @@ func main() {
 	clientConfig := &client.Config{
 		Name:           config.Name,
 		RequestTimeout: config.RequestTimeout,
+		ConnectTo:      config.ConnectTo,
 	}
 	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, p, netUtils)
 	client := getNSC(ctx, clientConfig, nsmAPIClient, p, interfaceMonitorClient)
@@ -154,6 +158,8 @@ func getNSC(ctx context.Context,
 	interfaceMonitorClient networkservice.NetworkServiceClient) client.NetworkServiceClient {
 
 	networkServiceClient := chain.NewNetworkServiceClient(
+		updatepath.NewClient(config.Name),
+		serialize.NewClient(),
 		sriovtoken.NewClient(),
 		mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
 			vfiomech.MECHANISM:   chain.NewNetworkServiceClient(vfio.NewClient()),
@@ -162,9 +168,10 @@ func getNSC(ctx context.Context,
 		interfacename.NewClient("nsc", &interfacename.RandomGenerator{}),
 		ipcontext.NewClient(p),
 		interfaceMonitorClient,
+		authorize.NewClient(),
 		sendfd.NewClient(),
 	)
-	fullMeshClient := client.NewFullMeshNetworkServiceClient(config, nsmAPIClient.GRPCClient, networkServiceClient)
+	fullMeshClient := client.NewFullMeshNetworkServiceClient(config, nsmAPIClient, networkServiceClient)
 	return fullMeshClient
 }
 

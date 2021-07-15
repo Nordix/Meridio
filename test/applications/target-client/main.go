@@ -31,11 +31,13 @@ func main() {
 
 	networkServiceConnect := connectCommand.String("ns", "load-balancer", "Network Service to connect conduit")
 	trenchConnect := connectCommand.String("t", "", "Trench of the network Service to connect conduit")
+
 	networkServiceDisconnect := disconnectCommand.String("ns", "load-balancer", "Network Service to disconnect conduit")
 	trenchDisconnect := disconnectCommand.String("t", "", "Trench of the network Service to disconnect conduit")
 
 	networkServiceRequest := requestCommand.String("ns", "", "Network Service of the stream to request")
 	trenchRequest := requestCommand.String("t", "", "Trench of the network Service of the stream to request")
+
 	networkServiceClose := closeCommand.String("ns", "load-balancer", "Network Service of the stream to close")
 	trenchClose := closeCommand.String("t", "", "Trench of the network Service of the stream to close")
 
@@ -106,7 +108,9 @@ func connect(networkService string, trench string) error {
 	}
 	_, err = client.Connect(context.Background(), &targetAPI.Conduit{
 		NetworkServiceName: networkService,
-		Trench:             trench,
+		Trench: &targetAPI.Trench{
+			Name: trench,
+		},
 	})
 	return err
 }
@@ -118,7 +122,9 @@ func disconnect(networkService string, trench string) error {
 	}
 	_, err = client.Disconnect(context.Background(), &targetAPI.Conduit{
 		NetworkServiceName: networkService,
-		Trench:             trench,
+		Trench: &targetAPI.Trench{
+			Name: trench,
+		},
 	})
 	return err
 }
@@ -131,7 +137,9 @@ func request(networkService string, trench string) error {
 	_, err = client.Request(context.Background(), &targetAPI.Stream{
 		Conduit: &targetAPI.Conduit{
 			NetworkServiceName: networkService,
-			Trench:             trench,
+			Trench: &targetAPI.Trench{
+				Name: trench,
+			},
 		},
 	})
 	return err
@@ -145,7 +153,9 @@ func close(networkService string, trench string) error {
 	_, err = client.Close(context.Background(), &targetAPI.Stream{
 		Conduit: &targetAPI.Conduit{
 			NetworkServiceName: networkService,
-			Trench:             trench,
+			Trench: &targetAPI.Trench{
+				Name: trench,
+			},
 		},
 	})
 	return err

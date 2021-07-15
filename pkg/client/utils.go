@@ -5,9 +5,8 @@ import (
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
-	"google.golang.org/grpc"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/nordix/meridio/pkg/nsm"
 )
 
 func expirationTimeIsNull(expirationTime *timestamp.Timestamp) bool {
@@ -17,12 +16,13 @@ func expirationTimeIsNull(expirationTime *timestamp.Timestamp) bool {
 	return expirationTime == nil || expirationTime.AsTime().Equal(nullTImeStamp.AsTime())
 }
 
-func newClient(ctx context.Context, name string, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	return client.NewClient(context.Background(),
-		cc,
-		client.WithName(name),
-		client.WithAuthorizeClient(authorize.NewClient()),
-		client.WithAdditionalFunctionality(additionalFunctionality...))
+func newClient(ctx context.Context, name string, nsmAPIClient *nsm.APIClient, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+	return chain.NewNetworkServiceClient(
+		append(
+			additionalFunctionality,
+			networkservice.NewNetworkServiceClient(nsmAPIClient.GRPCClient),
+		)...,
+	)
 }
 
 func copyRequest(request *networkservice.NetworkServiceRequest) *networkservice.NetworkServiceRequest {

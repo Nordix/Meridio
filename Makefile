@@ -69,7 +69,7 @@ proto: ipam-proto nsp-proto target-proto
 clear:
 
 .PHONY: default
-default: load-balancer proxy target ipam nsp ctraffic
+default: load-balancer proxy target ipam nsp ctraffic frontend
 
 .PHONY: lint
 lint: 

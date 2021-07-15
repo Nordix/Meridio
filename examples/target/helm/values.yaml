@@ -6,7 +6,10 @@ tag: latest
 pullPolicy: IfNotPresent
 
 applicationName: target-a
-defaultTrench: trench-a
+
+default:
+  trench: 
+    name: trench-a
 
 target:
   image: target
@@ -19,15 +22,6 @@ ctraffic:
 nsp:
   targetPort: 7778
   serviceName: nsp-service
-
-proxy:
-  networkServiceName: proxy.load-balancer
-
-ipFamily: ipv4 # ipv4 / ipv6 / dualstack
-
-vip:
-  ipv4: 20.0.0.1/32
-  ipv6: 2000::1/128
 
 readinessProbe:
   exec:

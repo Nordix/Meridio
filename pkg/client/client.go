@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
 )
 
 type SimpleNetworkServiceClient struct {
@@ -82,10 +82,10 @@ func (snsc *SimpleNetworkServiceClient) requestIsValid(request *networkservice.N
 }
 
 // NewnetworkServiceClient
-func NewSimpleNetworkServiceClient(config *Config, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) NetworkServiceClient {
+func NewSimpleNetworkServiceClient(config *Config, nsmAPIClient *nsm.APIClient, additionalFunctionality ...networkservice.NetworkServiceClient) NetworkServiceClient {
 	simpleNetworkServiceClient := &SimpleNetworkServiceClient{
 		config:               config,
-		networkServiceClient: newClient(context.Background(), config.Name, cc, additionalFunctionality...),
+		networkServiceClient: newClient(context.Background(), config.Name, nsmAPIClient, additionalFunctionality...),
 	}
 
 	return simpleNetworkServiceClient

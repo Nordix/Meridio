@@ -5,6 +5,12 @@ organization: cloud-native/meridio
 tag: latest
 pullPolicy: IfNotPresent
 
+trench:
+  name: trench-a
+
+configuration:
+  configmap: meridio-configuration
+
 loadBalancer:
   image: load-balancer
   version: latest

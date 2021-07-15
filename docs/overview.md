@@ -2,8 +2,6 @@
 
 ## features
 
-- [X] IPv4
-- [X] IPv6
 - [X] Dual-Stack
 - [X] Target Scalability
 - [X] Load balancer Scalability

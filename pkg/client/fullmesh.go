@@ -12,8 +12,8 @@ import (
 	registryrefresh "github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
 )
 
 type FullMeshNetworkServiceClient struct {
@@ -137,18 +137,18 @@ func (fmnsc *FullMeshNetworkServiceClient) prepareQuery() *registry.NetworkServi
 }
 
 // NewFullMeshNetworkServiceClient -
-func NewFullMeshNetworkServiceClient(config *Config, cc grpc.ClientConnInterface, additionalFunctionality ...networkservice.NetworkServiceClient) NetworkServiceClient {
+func NewFullMeshNetworkServiceClient(config *Config, nsmAPIClient *nsm.APIClient, additionalFunctionality ...networkservice.NetworkServiceClient) NetworkServiceClient {
 	fullMeshNetworkServiceClient := &FullMeshNetworkServiceClient{
 		config:                config,
-		networkServiceClient:  newClient(context.Background(), config.Name, cc, additionalFunctionality...),
+		networkServiceClient:  newClient(context.Background(), config.Name, nsmAPIClient, additionalFunctionality...),
 		networkServiceClients: make(map[string]*SimpleNetworkServiceClient),
 		nscIndex:              0,
 	}
 
 	fullMeshNetworkServiceClient.networkServiceEndpointRegistryClient = registrychain.NewNetworkServiceEndpointRegistryClient(
-		registryrefresh.NewNetworkServiceEndpointRegistryClient(),
+		registryrefresh.NewNetworkServiceEndpointRegistryClient(context.Background()),
 		registrysendfd.NewNetworkServiceEndpointRegistryClient(),
-		registry.NewNetworkServiceEndpointRegistryClient(cc),
+		registry.NewNetworkServiceEndpointRegistryClient(nsmAPIClient.GRPCClient),
 	)
 
 	return fullMeshNetworkServiceClient
