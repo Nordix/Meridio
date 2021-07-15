@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controllers
+package trench
 
 import (
 	"context"
@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
-	"github.com/nordix/meridio-operator/controllers/reconciler"
 )
 
 // TrenchReconciler reconciles a Trench object
@@ -73,8 +72,8 @@ func (r *TrenchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	executor := reconciler.NewExecutor(r.Scheme, r.Client, ctx, trench)
-	meridio := reconciler.NewMeridio()
+	executor := NewExecutor(r.Scheme, r.Client, ctx, trench)
+	meridio := NewMeridio()
 	err = meridio.ReconcileAll(executor, trench)
 	if err != nil {
 		return ctrl.Result{}, err

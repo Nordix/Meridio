@@ -1,4 +1,4 @@
-package reconciler
+package trench
 
 import (
 	"fmt"
@@ -35,7 +35,6 @@ const (
 	prefixLengthIpv6 = "64"
 
 	proxyNetworkService = "proxy.load-balancer"
-	lbNetworkService    = "load-balancer"
 	vlanNetworkService  = "external-vlan"
 	vlanItf             = "eth0"
 	vlanID              = "100"
@@ -94,7 +93,7 @@ func getVlanNsName(cr *meridiov1alpha1.Trench) string {
 }
 
 func getLoadBalancerNsName(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s.%s.%s", lbNetworkService, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace)
+	return fmt.Sprintf("%s.%s.%s", lbName, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace)
 }
 
 func getProxyNsName(cr *meridiov1alpha1.Trench) string {

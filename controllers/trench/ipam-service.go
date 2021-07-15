@@ -1,4 +1,4 @@
-package reconciler
+package trench
 
 import (
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"

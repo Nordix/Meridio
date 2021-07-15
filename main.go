@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
-	"github.com/nordix/meridio-operator/controllers"
+	"github.com/nordix/meridio-operator/controllers/trench"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -78,7 +78,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.TrenchReconciler{
+	if err = (&trench.TrenchReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Trench"),
 		Scheme: mgr.GetScheme(),

@@ -1,4 +1,4 @@
-package reconciler
+package trench
 
 import (
 	"fmt"
@@ -13,13 +13,13 @@ import (
 )
 
 const (
-	lbName                  = "load-balancer"
-	lbImage                 = "load-balancer"
-	lbEnvConfig             = "NSM_CONFIG_MAP_NAME"
-	lbEnvServiceName        = "NSM_SERVICE_NAME"
-	lbEnvNsp                = "NSM_NSP_SERVICE"
-	lbnscEnvNetworkServices = "NSM_NETWORK_SERVICES"
-	lbfeEnvConfig           = "NFE_CONFIG_MAP_NAME"
+	lbImage      = "load-balancer"
+	lbName       = "load-balancer"
+	lbEnvConfig  = "NSM_CONFIG_MAP_NAME"
+	lbEnvService = "NSM_SERVICE_NAME"
+	lbEnvNsp     = "NSM_NSP_SERVICE"
+	nscEnvNwSvc  = "NSM_NETWORK_SERVICES"
+	feEnvConfig  = "NFE_CONFIG_MAP_NAME"
 )
 
 func getLoadBalancerDeploymentName(cr *meridiov1alpha1.Trench) string {
@@ -31,15 +31,19 @@ type LoadBalancer struct {
 	desiredStatus *appsv1.Deployment
 }
 
-func (l *LoadBalancer) setEnvVars(dep *appsv1.Deployment, cr *meridiov1alpha1.Trench) {
-	// load-balancer container
+func (l *LoadBalancer) getModel() (*appsv1.Deployment, error) {
+	return getDeploymentModel("deployment/load-balancer.yaml")
+}
+
+func (l *LoadBalancer) getLbEnvVars(con *corev1.Container, cr *meridiov1alpha1.Trench) []corev1.EnvVar {
+	allEnv := con.Env
 	env := []corev1.EnvVar{
 		{
 			Name:  lbEnvConfig,
 			Value: getConfigMapName(cr),
 		},
 		{
-			Name:  lbEnvServiceName,
+			Name:  lbEnvService,
 			Value: getLoadBalancerNsName(cr),
 		},
 		{
@@ -47,7 +51,8 @@ func (l *LoadBalancer) setEnvVars(dep *appsv1.Deployment, cr *meridiov1alpha1.Tr
 			Value: getNSPService(cr),
 		},
 	}
-	for _, e := range dep.Spec.Template.Spec.Containers[0].Env {
+
+	for _, e := range allEnv {
 		// append all hard coded envVars
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
 			e.Name == "NSM_NAME" ||
@@ -56,15 +61,19 @@ func (l *LoadBalancer) setEnvVars(dep *appsv1.Deployment, cr *meridiov1alpha1.Tr
 			env = append(env, e)
 		}
 	}
-	dep.Spec.Template.Spec.Containers[0].Env = env
-	// nsc container
-	env = []corev1.EnvVar{
+	return env
+}
+
+func (l *LoadBalancer) getNscEnvVars(con *corev1.Container, cr *meridiov1alpha1.Trench) []corev1.EnvVar {
+	allEnv := con.Env
+	env := []corev1.EnvVar{
 		{
-			Name:  lbnscEnvNetworkServices,
-			Value: fmt.Sprintf("vlan://%s.%s.%s/ext-vlan?forwarder=forwarder-vlan", vlanNetworkService, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace),
+			Name:  nscEnvNwSvc,
+			Value: fmt.Sprintf("vlan://%s/ext-vlan?forwarder=forwarder-vlan", getVlanNsName(cr)),
 		},
 	}
-	for _, e := range dep.Spec.Template.Spec.Containers[1].Env {
+
+	for _, e := range allEnv {
 		// append all hard coded envVars
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
 			e.Name == "NSM_NAME" ||
@@ -73,15 +82,19 @@ func (l *LoadBalancer) setEnvVars(dep *appsv1.Deployment, cr *meridiov1alpha1.Tr
 			env = append(env, e)
 		}
 	}
-	dep.Spec.Template.Spec.Containers[1].Env = env
-	// fe container
-	env = []corev1.EnvVar{
+	return env
+}
+
+func (l *LoadBalancer) getFeEnvVars(con *corev1.Container, cr *meridiov1alpha1.Trench) []corev1.EnvVar {
+	allEnv := con.Env
+	env := []corev1.EnvVar{
 		{
-			Name:  lbfeEnvConfig,
+			Name:  feEnvConfig,
 			Value: getConfigMapName(cr),
 		},
 	}
-	for _, e := range dep.Spec.Template.Spec.Containers[2].Env {
+
+	for _, e := range allEnv {
 		// append all hard coded envVars
 		if e.Name == "NFE_NAMESPACE" ||
 			e.Name == "NFE_GATEWAYS" ||
@@ -90,11 +103,7 @@ func (l *LoadBalancer) setEnvVars(dep *appsv1.Deployment, cr *meridiov1alpha1.Tr
 			env = append(env, e)
 		}
 	}
-	dep.Spec.Template.Spec.Containers[2].Env = env
-}
-
-func (l *LoadBalancer) getModel() (*appsv1.Deployment, error) {
-	return getDeploymentModel("deployment/load-balancer.yaml")
+	return env
 }
 
 func (l *LoadBalancer) insertParamters(dep *appsv1.Deployment, cr *meridiov1alpha1.Trench) *appsv1.Deployment {
@@ -111,7 +120,10 @@ func (l *LoadBalancer) insertParamters(dep *appsv1.Deployment, cr *meridiov1alph
 	dep.Spec.Template.Spec.Containers[0].ImagePullPolicy = PullPolicy
 	dep.Spec.Template.Spec.Containers[0].LivenessProbe = GetLivenessProbe(cr)
 	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = GetReadinessProbe(cr)
-	l.setEnvVars(dep, cr)
+	dep.Spec.Template.Spec.Containers[0].Env = l.getLbEnvVars(&dep.Spec.Template.Spec.Containers[0], cr)
+	dep.Spec.Template.Spec.Containers[1].Env = l.getNscEnvVars(&dep.Spec.Template.Spec.Containers[1], cr)
+	dep.Spec.Template.Spec.Containers[2].Env = l.getFeEnvVars(&dep.Spec.Template.Spec.Containers[2], cr)
+
 	return dep
 }
 
