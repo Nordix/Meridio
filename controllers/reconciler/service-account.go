@@ -1,6 +1,8 @@
 package reconciler
 
 import (
+	"fmt"
+
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
@@ -12,6 +14,10 @@ import (
 
 const serviceAccountName = "meridio"
 
+func getServiceAccountName(cr *meridiov1alpha1.Trench) string {
+	return fmt.Sprintf("%s-%s", serviceAccountName, cr.ObjectMeta.Name)
+}
+
 type ServiceAccount struct {
 	currentStatus *corev1.ServiceAccount
 	desiredStatus *corev1.ServiceAccount
@@ -20,11 +26,12 @@ type ServiceAccount struct {
 func (sa *ServiceAccount) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: cr.ObjectMeta.Namespace,
-		Name:      serviceAccountName,
+		Name:      getServiceAccountName(cr),
 	}
 }
 
 func (sa *ServiceAccount) insertParamters(role *corev1.ServiceAccount, cr *meridiov1alpha1.Trench) *corev1.ServiceAccount {
+	role.ObjectMeta.Name = getServiceAccountName(cr)
 	role.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
 	return role
 }
@@ -45,7 +52,7 @@ func (sa *ServiceAccount) getCurrentStatus(ctx context.Context, cr *meridiov1alp
 func (sa *ServiceAccount) getDesiredStatus(cr *meridiov1alpha1.Trench) error {
 	sa.desiredStatus = &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceAccountName,
+			Name:      getServiceAccountName(cr),
 			Namespace: cr.ObjectMeta.Namespace,
 		},
 	}

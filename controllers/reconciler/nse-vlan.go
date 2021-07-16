@@ -13,6 +13,7 @@ import (
 )
 
 const (
+	nseName        = "nse-vlan"
 	nseImage       = "nse-vlan"
 	nseEnvItf      = "NSE_VLAN_BASE_IFNAME"
 	nseEnvID       = "NSE_VLAN_ID"
@@ -20,6 +21,10 @@ const (
 	nseEnvPrefixV4 = "NSE_CIDR_PREFIX"
 	nseEnvPrefixV6 = "NSE_IPV6_PREFIX"
 )
+
+func getNSEVLANDeploymentName(cr *meridiov1alpha1.Trench) string {
+	return fmt.Sprintf("%s-%s", nseName, cr.ObjectMeta.Name)
+}
 
 type NseDeployment struct {
 	currentStatus *appsv1.Deployment
@@ -68,7 +73,12 @@ func (i *NseDeployment) getEnvVars(dp *appsv1.Deployment, cr *meridiov1alpha1.Tr
 func (i *NseDeployment) insertParamters(dep *appsv1.Deployment, cr *meridiov1alpha1.Trench) *appsv1.Deployment {
 	// if status nse deployment parameters are specified in the cr, use those
 	// else use the default parameters
+	nseVLANDeploymentName := getNSEVLANDeploymentName(cr)
+	dep.ObjectMeta.Name = nseVLANDeploymentName
 	dep.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
+	dep.ObjectMeta.Labels["app"] = nseVLANDeploymentName
+	dep.Spec.Selector.MatchLabels["app"] = nseVLANDeploymentName
+	dep.Spec.Template.ObjectMeta.Labels["app"] = nseVLANDeploymentName
 	dep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", Registry, OrganizationNsm, nseImage, Tag)
 	dep.Spec.Template.Spec.Containers[0].ImagePullPolicy = PullPolicy
 	dep.Spec.Template.Spec.Containers[0].Env = i.getEnvVars(dep, cr)
@@ -82,7 +92,7 @@ func (i *NseDeployment) getModel() (*appsv1.Deployment, error) {
 func (i *NseDeployment) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: cr.ObjectMeta.Namespace,
-		Name:      "nse-vlan",
+		Name:      getNSEVLANDeploymentName(cr),
 	}
 }
 

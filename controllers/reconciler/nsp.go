@@ -18,6 +18,10 @@ const (
 	imageNsp   = "nsp"
 )
 
+func getNSPDeploymentName(cr *meridiov1alpha1.Trench) string {
+	return fmt.Sprintf("%s-%s", nspName, cr.ObjectMeta.Name)
+}
+
 type NspDeployment struct {
 	currentStatus *appsv1.Deployment
 	desiredStatus *appsv1.Deployment
@@ -37,7 +41,12 @@ func (i *NspDeployment) getEnvVars(cr *meridiov1alpha1.Trench) []corev1.EnvVar {
 func (i *NspDeployment) insertParamters(dep *appsv1.Deployment, cr *meridiov1alpha1.Trench) *appsv1.Deployment {
 	// if status nsp deployment parameters are specified in the cr, use those
 	// else use the default parameters
+	nspDeploymentName := getNSPDeploymentName(cr)
+	dep.ObjectMeta.Name = nspDeploymentName
 	dep.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
+	dep.ObjectMeta.Labels["app"] = nspDeploymentName
+	dep.Spec.Selector.MatchLabels["app"] = nspDeploymentName
+	dep.Spec.Template.ObjectMeta.Labels["app"] = nspDeploymentName
 	dep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", Registry, Organization, imageNsp, Tag)
 	dep.Spec.Template.Spec.Containers[0].ImagePullPolicy = PullPolicy
 	dep.Spec.Template.Spec.Containers[0].LivenessProbe = GetLivenessProbe(cr)
@@ -53,7 +62,7 @@ func (i *NspDeployment) getModel() (*appsv1.Deployment, error) {
 func (i *NspDeployment) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: cr.ObjectMeta.Namespace,
-		Name:      nspName,
+		Name:      getNSPDeploymentName(cr),
 	}
 }
 

@@ -16,6 +16,10 @@ const (
 	MeridioConfigKey = "meridio.conf"
 )
 
+func getConfigMapName(cr *meridiov1alpha1.Trench) string {
+	return fmt.Sprintf("%s-%s", cr.Spec.ConfigMapName, cr.ObjectMeta.Name)
+}
+
 type Config struct {
 	VIPs []string `yaml:"vips"`
 }
@@ -77,7 +81,7 @@ func (c *ConfigMap) getData(trench *meridiov1alpha1.Trench) (string, error) {
 func (c *ConfigMap) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: cr.ObjectMeta.Namespace,
-		Name:      cr.Spec.ConfigMapName,
+		Name:      getConfigMapName(cr),
 	}
 }
 
@@ -95,7 +99,7 @@ func (c *ConfigMap) getCurrentStatus(ctx context.Context, cr *meridiov1alpha1.Tr
 }
 
 func (c *ConfigMap) insertParamters(cc *corev1.ConfigMap, cr *meridiov1alpha1.Trench) (*corev1.ConfigMap, error) {
-	cc.ObjectMeta.Name = cr.Spec.ConfigMapName
+	cc.ObjectMeta.Name = getConfigMapName(cr)
 	cc.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
 	data, err := c.getData(cr)
 	if err != nil {

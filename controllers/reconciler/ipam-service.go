@@ -1,6 +1,8 @@
 package reconciler
 
 import (
+	"fmt"
+
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
@@ -15,6 +17,10 @@ const (
 	ipamTargetPort = 7777
 	ipamSvcName    = "ipam-service"
 )
+
+func getIPAMServiceName(cr *meridiov1alpha1.Trench) string {
+	return fmt.Sprintf("%s-%s", ipamSvcName, cr.ObjectMeta.Name)
+}
 
 type IpamService struct {
 	currentStatus *corev1.Service
@@ -32,16 +38,19 @@ func (i *IpamService) getPorts(cr *meridiov1alpha1.Trench) []corev1.ServicePort 
 		},
 	}
 }
+
 func (i *IpamService) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: cr.ObjectMeta.Namespace,
-		Name:      ipamSvcName,
+		Name:      getIPAMServiceName(cr),
 	}
 }
 
 func (i *IpamService) insertParamters(svc *corev1.Service, cr *meridiov1alpha1.Trench) *corev1.Service {
 	// if status ipam service parameters are specified in the cr, use those
 	// else use the default parameters
+	svc.ObjectMeta.Name = getIPAMServiceName(cr)
+	svc.Spec.Selector["app"] = getIPAMDeploymentName(cr)
 	svc.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
 	svc.Spec.Ports = i.getPorts(cr)
 	return svc

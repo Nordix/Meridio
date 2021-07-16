@@ -80,7 +80,23 @@ func getPrefixLength(cr *meridiov1alpha1.Trench) string {
 }
 
 func getVlanNsName(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s.%s", vlanNetworkService, cr.ObjectMeta.Namespace)
+	return fmt.Sprintf("%s.%s.%s", vlanNetworkService, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace)
+}
+
+func getLoadBalancerNsName(cr *meridiov1alpha1.Trench) string {
+	return fmt.Sprintf("%s.%s.%s", lbNetworkService, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace)
+}
+
+func getProxyNsName(cr *meridiov1alpha1.Trench) string {
+	return fmt.Sprintf("%s.%s.%s", proxyNetworkService, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace)
+}
+
+func getNSPService(cr *meridiov1alpha1.Trench) string {
+	return fmt.Sprintf("%s:%d", getNSPServiceName(cr), nspTargetPort)
+}
+
+func getIPAMService(cr *meridiov1alpha1.Trench) string {
+	return fmt.Sprintf("%s:%d", getIPAMServiceName(cr), ipamTargetPort)
 }
 
 func GetReadinessProbe(cr *meridiov1alpha1.Trench) *corev1.Probe {

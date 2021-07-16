@@ -13,16 +13,19 @@ import (
 )
 
 const (
+	nameProxy             = "proxy"
 	imageProxy            = "proxy"
 	proxyEnvConfig        = "NSM_CONFIG_MAP_NAME"
 	proxyEnvService       = "NSM_SERVICE_NAME"
-	proxyEnvVip           = "NSM_VIPS"
 	proxyEnvSubnetPools   = "NSM_SUBNET_POOLS"
 	proxyEnvSubnetLengths = "NSM_SUBNET_PREFIX_LENGTHS"
 	proxyEnvIpam          = "NSM_IPAM_SERVICE"
 	proxyEnvLb            = "NSM_NETWORK_SERVICE_NAME"
-	proxyEnvNsp           = "NSM_NSP_SERVICE"
 )
+
+func getProxyDeploymentName(cr *meridiov1alpha1.Trench) string {
+	return fmt.Sprintf("%s-%s", nameProxy, cr.ObjectMeta.Name)
+}
 
 type Proxy struct {
 	currentStatus *appsv1.DaemonSet
@@ -36,11 +39,7 @@ func (i *Proxy) getEnvVars(ds *appsv1.DaemonSet, cr *meridiov1alpha1.Trench) []c
 	env := []corev1.EnvVar{
 		{
 			Name:  proxyEnvConfig,
-			Value: cr.Spec.ConfigMapName,
-		},
-		{
-			Name:  proxyEnvVip,
-			Value: getVips(cr),
+			Value: getConfigMapName(cr),
 		},
 		{
 			Name:  proxyEnvSubnetPools,
@@ -52,19 +51,15 @@ func (i *Proxy) getEnvVars(ds *appsv1.DaemonSet, cr *meridiov1alpha1.Trench) []c
 		},
 		{
 			Name:  proxyEnvService,
-			Value: fmt.Sprintf("%s.%s", proxyNetworkService, cr.ObjectMeta.Namespace),
+			Value: getProxyNsName(cr),
 		},
 		{
 			Name:  proxyEnvIpam,
-			Value: fmt.Sprintf("ipam-service:%d", ipamTargetPort),
-		},
-		{
-			Name:  proxyEnvNsp,
-			Value: fmt.Sprintf("nsp-service:%d", nspTargetPort),
+			Value: getIPAMService(cr),
 		},
 		{
 			Name:  proxyEnvLb,
-			Value: fmt.Sprintf("%s.%s", lbNetworkService, cr.ObjectMeta.Namespace),
+			Value: getLoadBalancerNsName(cr),
 		},
 	}
 
@@ -85,7 +80,13 @@ func (i *Proxy) getEnvVars(ds *appsv1.DaemonSet, cr *meridiov1alpha1.Trench) []c
 func (i *Proxy) insertParamters(ds *appsv1.DaemonSet, cr *meridiov1alpha1.Trench) *appsv1.DaemonSet {
 	// if status proxy daemonset parameters are specified in the cr, use those
 	// else use the default parameters
+	proxyDeploymentName := getProxyDeploymentName(cr)
+	ds.ObjectMeta.Name = proxyDeploymentName
 	ds.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
+	ds.ObjectMeta.Labels["app"] = proxyDeploymentName
+	ds.Spec.Selector.MatchLabels["app"] = proxyDeploymentName
+	ds.Spec.Template.ObjectMeta.Labels["app"] = proxyDeploymentName
+	ds.Spec.Template.Spec.ServiceAccountName = getServiceAccountName(cr)
 	// init container
 	ds.Spec.Template.Spec.InitContainers[0].Image = fmt.Sprintf("%s/%s/%s:%s", Registry, Organization, busyboxImage, busyboxTag)
 	// proxy container
@@ -104,7 +105,7 @@ func (i *Proxy) getModel() (*appsv1.DaemonSet, error) {
 func (i *Proxy) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: cr.ObjectMeta.Namespace,
-		Name:      "proxy",
+		Name:      getProxyDeploymentName(cr),
 	}
 }
 

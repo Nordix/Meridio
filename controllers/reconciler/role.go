@@ -1,6 +1,8 @@
 package reconciler
 
 import (
+	"fmt"
+
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"golang.org/x/net/context"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -13,6 +15,10 @@ const (
 	roleName = "meridio-configuration-role"
 )
 
+func getRoleName(cr *meridiov1alpha1.Trench) string {
+	return fmt.Sprintf("%s-%s", roleName, cr.ObjectMeta.Name)
+}
+
 type Role struct {
 	currentStatus *rbacv1.Role
 	desiredStatus *rbacv1.Role
@@ -21,7 +27,7 @@ type Role struct {
 func (r *Role) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: cr.ObjectMeta.Namespace,
-		Name:      roleName,
+		Name:      getRoleName(cr),
 	}
 }
 
@@ -30,6 +36,7 @@ func (r *Role) getModel() (*rbacv1.Role, error) {
 }
 
 func (r *Role) insertParamters(role *rbacv1.Role, cr *meridiov1alpha1.Trench) *rbacv1.Role {
+	role.ObjectMeta.Name = getRoleName(cr)
 	role.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
 	return role
 }
