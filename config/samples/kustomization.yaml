@@ -1,4 +1,5 @@
 ## Append samples you want in your CSV to this file as resources ##
 resources:
 - meridio_v1alpha1_trench.yaml
+- meridio_v1alpha1_vip.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

@@ -1,7 +1,10 @@
 package trench
 
 import (
+	"fmt"
+
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	common "github.com/nordix/meridio-operator/controllers/common"
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -17,7 +20,11 @@ const (
 )
 
 func getIPAMServiceName(cr *meridiov1alpha1.Trench) string {
-	return getFullName(cr, ipamSvcName)
+	return common.GetFullName(cr, ipamSvcName)
+}
+
+func getIPAMServiceWithPort(cr *meridiov1alpha1.Trench) string {
+	return fmt.Sprintf("%s:%d", getIPAMServiceName(cr), ipamTargetPort)
 }
 
 type IpamService struct {
@@ -84,12 +91,12 @@ func (i *IpamService) getReconciledDesiredStatus(ipams *corev1.Service, cr *meri
 }
 
 func (i *IpamService) getModel() (*corev1.Service, error) {
-	return getServiceModel("deployment/ipam-service.yaml")
+	return common.GetServiceModel("deployment/ipam-service.yaml")
 }
 
-func (i *IpamService) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Action, error) {
-	var action Action
-	err := i.getCurrentStatus(e.ctx, cr, e.client)
+func (i *IpamService) getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error) {
+	var action common.Action
+	err := i.getCurrentStatus(e.Ctx, cr, e.Client)
 	if err != nil {
 		return nil, err
 	}
@@ -98,13 +105,13 @@ func (i *IpamService) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Action
 		if err != nil {
 			return nil, err
 		}
-		e.log.Info("ipam service", "add action", "create")
-		action = newCreateAction(i.desiredStatus, "create ipam service")
+		e.Log.Info("ipam service", "add action", "create")
+		action = common.NewCreateAction(i.desiredStatus, "create ipam service")
 	} else {
 		i.getReconciledDesiredStatus(i.currentStatus, cr)
 		if !equality.Semantic.DeepEqual(i.desiredStatus, i.currentStatus) {
-			e.log.Info("ipam service", "add action", "update")
-			action = newUpdateAction(i.desiredStatus, "update ipam service")
+			e.Log.Info("ipam service", "add action", "update")
+			action = common.NewUpdateAction(i.desiredStatus, "update ipam service")
 		}
 	}
 	return action, nil

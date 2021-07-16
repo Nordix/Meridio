@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	common "github.com/nordix/meridio-operator/controllers/common"
 	"golang.org/x/net/context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -19,7 +20,7 @@ const (
 )
 
 func getIPAMDeploymentName(cr *meridiov1alpha1.Trench) string {
-	return getFullName(cr, nameIpam)
+	return common.GetFullName(cr, nameIpam)
 }
 
 type IpamDeployment struct {
@@ -47,16 +48,16 @@ func (i *IpamDeployment) insertParamters(dep *appsv1.Deployment, cr *meridiov1al
 	dep.ObjectMeta.Labels["app"] = ipamDeploymentName
 	dep.Spec.Selector.MatchLabels["app"] = ipamDeploymentName
 	dep.Spec.Template.ObjectMeta.Labels["app"] = ipamDeploymentName
-	dep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", Registry, Organization, imageIpam, Tag)
-	dep.Spec.Template.Spec.Containers[0].ImagePullPolicy = PullPolicy
-	dep.Spec.Template.Spec.Containers[0].LivenessProbe = GetLivenessProbe(cr)
-	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = GetReadinessProbe(cr)
+	dep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, imageIpam, common.Tag)
+	dep.Spec.Template.Spec.Containers[0].ImagePullPolicy = common.PullPolicy
+	dep.Spec.Template.Spec.Containers[0].LivenessProbe = common.GetLivenessProbe(cr)
+	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = common.GetReadinessProbe(cr)
 	dep.Spec.Template.Spec.Containers[0].Env = i.getEnvVars(cr)
 	return dep
 }
 
 func (i *IpamDeployment) getModel() (*appsv1.Deployment, error) {
-	return getDeploymentModel("deployment/ipam.yaml")
+	return common.GetDeploymentModel("deployment/ipam.yaml")
 }
 
 func (i *IpamDeployment) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
@@ -95,9 +96,9 @@ func (i *IpamDeployment) getCurrentStatus(ctx context.Context, cr *meridiov1alph
 	return nil
 }
 
-func (i *IpamDeployment) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Action, error) {
-	var action Action
-	err := i.getCurrentStatus(e.ctx, cr, e.client)
+func (i *IpamDeployment) getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error) {
+	var action common.Action
+	err := i.getCurrentStatus(e.Ctx, cr, e.Client)
 	if err != nil {
 		return nil, err
 	}
@@ -106,14 +107,14 @@ func (i *IpamDeployment) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Act
 		if err != nil {
 			return nil, err
 		}
-		e.log.Info("ipam deployment", "add action", "create")
-		action = newCreateAction(i.desiredStatus, "create ipam deployment")
+		e.Log.Info("ipam deployment", "add action", "create")
+		action = common.NewCreateAction(i.desiredStatus, "create ipam deployment")
 	} else {
 		i.getReconciledDesiredStatus(i.currentStatus, cr)
 		if !equality.Semantic.DeepEqual(i.desiredStatus, i.currentStatus) {
 
-			e.log.Info("ipam deployment", "add action", "update")
-			action = newUpdateAction(i.desiredStatus, "update ipam deployment")
+			e.Log.Info("ipam deployment", "add action", "update")
+			action = common.NewUpdateAction(i.desiredStatus, "update ipam deployment")
 		}
 	}
 	return action, nil

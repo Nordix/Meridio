@@ -4,7 +4,11 @@ metadata:
   name: trench-a
 spec:
   configMapName: "meridio-configuration"
-  vips: 
-    - "20.0.0.1/32"
-    - "2000::1/128"
-    - "172.10.1.1/32"
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Trench
+metadata:
+  name: trench-b
+spec:
+  configMapName: "meridio-configuration"
+---

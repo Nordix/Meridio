@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	common "github.com/nordix/meridio-operator/controllers/common"
 	"golang.org/x/net/context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -23,7 +24,7 @@ const (
 )
 
 func getLoadBalancerDeploymentName(cr *meridiov1alpha1.Trench) string {
-	return getFullName(cr, lbName)
+	return common.GetFullName(cr, lbName)
 }
 
 type LoadBalancer struct {
@@ -32,7 +33,7 @@ type LoadBalancer struct {
 }
 
 func (l *LoadBalancer) getModel() (*appsv1.Deployment, error) {
-	return getDeploymentModel("deployment/load-balancer.yaml")
+	return common.GetDeploymentModel("deployment/load-balancer.yaml")
 }
 
 func (l *LoadBalancer) getLbEnvVars(con *corev1.Container, cr *meridiov1alpha1.Trench) []corev1.EnvVar {
@@ -40,15 +41,15 @@ func (l *LoadBalancer) getLbEnvVars(con *corev1.Container, cr *meridiov1alpha1.T
 	env := []corev1.EnvVar{
 		{
 			Name:  lbEnvConfig,
-			Value: getConfigMapName(cr),
+			Value: common.GetConfigMapName(cr),
 		},
 		{
 			Name:  lbEnvService,
-			Value: getLoadBalancerNsName(cr),
+			Value: common.GetAppNsName(lbName, cr),
 		},
 		{
 			Name:  lbEnvNsp,
-			Value: getNSPService(cr),
+			Value: getNSPServiceWithPort(cr),
 		},
 	}
 
@@ -69,7 +70,7 @@ func (l *LoadBalancer) getNscEnvVars(con *corev1.Container, cr *meridiov1alpha1.
 	env := []corev1.EnvVar{
 		{
 			Name:  nscEnvNwSvc,
-			Value: fmt.Sprintf("vlan://%s/ext-vlan?forwarder=forwarder-vlan", getVlanNsName(cr)),
+			Value: fmt.Sprintf("vlan://%s/ext-vlan?forwarder=forwarder-vlan", common.GetAppNsName(nseName, cr)),
 		},
 	}
 
@@ -90,7 +91,7 @@ func (l *LoadBalancer) getFeEnvVars(con *corev1.Container, cr *meridiov1alpha1.T
 	env := []corev1.EnvVar{
 		{
 			Name:  feEnvConfig,
-			Value: getConfigMapName(cr),
+			Value: common.GetConfigMapName(cr),
 		},
 	}
 
@@ -115,11 +116,12 @@ func (l *LoadBalancer) insertParamters(dep *appsv1.Deployment, cr *meridiov1alph
 	dep.ObjectMeta.Labels["app"] = loadBalancerDeploymentName
 	dep.Spec.Selector.MatchLabels["app"] = loadBalancerDeploymentName
 	dep.Spec.Template.ObjectMeta.Labels["app"] = loadBalancerDeploymentName
+	dep.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchExpressions[0].Values[0] = loadBalancerDeploymentName
 	dep.Spec.Template.Spec.ServiceAccountName = getServiceAccountName(cr)
-	dep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", Registry, Organization, lbImage, Tag)
-	dep.Spec.Template.Spec.Containers[0].ImagePullPolicy = PullPolicy
-	dep.Spec.Template.Spec.Containers[0].LivenessProbe = GetLivenessProbe(cr)
-	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = GetReadinessProbe(cr)
+	dep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, lbImage, common.Tag)
+	dep.Spec.Template.Spec.Containers[0].ImagePullPolicy = common.PullPolicy
+	dep.Spec.Template.Spec.Containers[0].LivenessProbe = common.GetLivenessProbe(cr)
+	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = common.GetReadinessProbe(cr)
 	dep.Spec.Template.Spec.Containers[0].Env = l.getLbEnvVars(&dep.Spec.Template.Spec.Containers[0], cr)
 	dep.Spec.Template.Spec.Containers[1].Env = l.getNscEnvVars(&dep.Spec.Template.Spec.Containers[1], cr)
 	dep.Spec.Template.Spec.Containers[2].Env = l.getFeEnvVars(&dep.Spec.Template.Spec.Containers[2], cr)
@@ -163,9 +165,9 @@ func (i *LoadBalancer) getReconciledDesiredStatus(lb *appsv1.Deployment, cr *mer
 	i.desiredStatus = lb
 }
 
-func (l *LoadBalancer) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Action, error) {
-	var action Action
-	err := l.getCurrentStatus(e.ctx, cr, e.client)
+func (l *LoadBalancer) getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error) {
+	var action common.Action
+	err := l.getCurrentStatus(e.Ctx, cr, e.Client)
 	if err != nil {
 		return nil, err
 	}
@@ -174,13 +176,13 @@ func (l *LoadBalancer) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Actio
 		if err != nil {
 			return nil, err
 		}
-		e.log.Info("load-balancer", "add action", "create")
-		action = newCreateAction(l.desiredStatus, "create load-balncer deployment")
+		e.Log.Info("load-balancer", "add action", "create")
+		action = common.NewCreateAction(l.desiredStatus, "create load-balncer deployment")
 	} else {
 		l.getReconciledDesiredStatus(l.currentStatus, cr)
 		if !equality.Semantic.DeepEqual(l.desiredStatus, l.currentStatus) {
-			e.log.Info("load-balancer", "add action", "update")
-			action = newUpdateAction(l.desiredStatus, "update load-balncer deployment")
+			e.Log.Info("load-balancer", "add action", "update")
+			action = common.NewUpdateAction(l.desiredStatus, "update load-balncer deployment")
 		}
 	}
 	return action, nil

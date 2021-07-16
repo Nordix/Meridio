@@ -24,43 +24,39 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// TrenchSpec defines the desired state of Trench
-type TrenchSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// ConfigMapName
-	ConfigMapName string `json:"configMapName,omitempty"`
+// VipSpec defines the desired state of Vip
+type VipSpec struct {
+	Address string `json:"address,omitempty"`
 }
 
-// TrenchStatus defines the observed state of Trench
-type TrenchStatus struct {
+// VipStatus defines the observed state of Vip
+type VipStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-
-// Trench is the Schema for the trenches API
-type Trench struct {
+//+kubebuilder:printcolumn:name="Address",type=string,JSONPath=`.spec.address`
+// Vip is the Schema for the vips API
+type Vip struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   TrenchSpec   `json:"spec,omitempty"`
-	Status TrenchStatus `json:"status,omitempty"`
+	Spec   VipSpec   `json:"spec,omitempty"`
+	Status VipStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// TrenchList contains a list of Trench
-type TrenchList struct {
+// VipList contains a list of Vip
+type VipList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Trench `json:"items"`
+	Items           []Vip `json:"items"`
 }
 
-func (r *Trench) GroupResource() schema.GroupResource {
+func (r *Vip) GroupResource() schema.GroupResource {
 	return schema.GroupResource{
 		Group:    r.GroupVersionKind().Group,
 		Resource: r.GroupVersionKind().Kind,
@@ -68,5 +64,5 @@ func (r *Trench) GroupResource() schema.GroupResource {
 }
 
 func init() {
-	SchemeBuilder.Register(&Trench{}, &TrenchList{})
+	SchemeBuilder.Register(&Vip{}, &VipList{})
 }

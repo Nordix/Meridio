@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	"github.com/nordix/meridio-operator/controllers/common"
 )
 
 // TrenchReconciler reconciles a Trench object
@@ -43,7 +44,6 @@ type TrenchReconciler struct {
 //+kubebuilder:rbac:groups=meridio.nordix.org,resources=trenches,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=meridio.nordix.org,resources=trenches/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=meridio.nordix.org,resources=trenches/finalizers,verbs=update
-//+kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
@@ -72,7 +72,7 @@ func (r *TrenchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	executor := NewExecutor(r.Scheme, r.Client, ctx, trench)
+	executor := common.NewExecutor(r.Scheme, r.Client, ctx, trench, r.Log)
 	meridio := NewMeridio()
 	err = meridio.ReconcileAll(executor, trench)
 	if err != nil {
@@ -86,7 +86,6 @@ func (r *TrenchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 func (r *TrenchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&meridiov1alpha1.Trench{}).
-		Owns(&corev1.ConfigMap{}).
 		Owns(&corev1.Service{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.ServiceAccount{}).
