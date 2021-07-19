@@ -80,12 +80,12 @@ func (lb *LoadBalancer) GetTargets() []*Target {
 }
 
 func (lb *LoadBalancer) activateIdentifier(identifier int) error {
-	_, err := exec.Command("nfqlb", "activate", fmt.Sprintf("--lookup=%s", strconv.Itoa(identifier)), strconv.Itoa(identifier)).Output()
+	_, err := exec.Command("nfqlb", "activate", fmt.Sprintf("--index=%s", strconv.Itoa(identifier)), strconv.Itoa(identifier)).Output()
 	return err
 }
 
 func (lb *LoadBalancer) deactivateIdentifier(identifier int) error {
-	_, err := exec.Command("nfqlb", "deactivate", fmt.Sprintf("--lookup=%s", strconv.Itoa(identifier))).Output()
+	_, err := exec.Command("nfqlb", "deactivate", fmt.Sprintf("--index=%s", strconv.Itoa(identifier))).Output()
 	return err
 }
 
