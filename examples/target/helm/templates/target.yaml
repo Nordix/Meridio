@@ -46,7 +46,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: NSM_CONFIG_MAP_NAME
-              value: meridio-configuration
+              value: {{ .Values.configMapName }}
             - name: NSM_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_NSP_SERVICE_NAME
