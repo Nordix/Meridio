@@ -24,7 +24,7 @@ const (
 )
 
 func getProxyDeploymentName(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s-%s", nameProxy, cr.ObjectMeta.Name)
+	return getFullName(cr, nameProxy)
 }
 
 type Proxy struct {

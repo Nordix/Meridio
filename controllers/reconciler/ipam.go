@@ -19,7 +19,7 @@ const (
 )
 
 func getIPAMDeploymentName(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s-%s", nameIpam, cr.ObjectMeta.Name)
+	return getFullName(cr, nameIpam)
 }
 
 type IpamDeployment struct {

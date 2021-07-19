@@ -23,7 +23,7 @@ const (
 )
 
 func getLoadBalancerDeploymentName(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s-%s", lbName, cr.ObjectMeta.Name)
+	return getFullName(cr, lbName)
 }
 
 type LoadBalancer struct {

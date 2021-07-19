@@ -23,7 +23,7 @@ const (
 )
 
 func getNSEVLANDeploymentName(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s-%s", nseName, cr.ObjectMeta.Name)
+	return getFullName(cr, nseName)
 }
 
 type NseDeployment struct {

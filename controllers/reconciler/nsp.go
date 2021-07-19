@@ -19,7 +19,7 @@ const (
 )
 
 func getNSPDeploymentName(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s-%s", nspName, cr.ObjectMeta.Name)
+	return getFullName(cr, nspName)
 }
 
 type NspDeployment struct {

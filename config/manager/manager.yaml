@@ -48,6 +48,9 @@ spec:
         image: controller:latest
         imagePullPolicy: IfNotPresent
         name: manager
+        env:
+          - name: RESOURCE_NAME_PREFIX
+            value: ""
         securityContext:
           allowPrivilegeEscalation: false
         livenessProbe:

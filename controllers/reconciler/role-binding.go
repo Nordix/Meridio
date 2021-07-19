@@ -1,8 +1,6 @@
 package reconciler
 
 import (
-	"fmt"
-
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"golang.org/x/net/context"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -16,7 +14,7 @@ const (
 )
 
 func getRoleBindingName(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s-%s", roleBindingName, cr.ObjectMeta.Name)
+	return getFullName(cr, roleBindingName)
 }
 
 type RoleBinding struct {

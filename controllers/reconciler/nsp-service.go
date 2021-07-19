@@ -1,8 +1,6 @@
 package reconciler
 
 import (
-	"fmt"
-
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
@@ -19,7 +17,7 @@ const (
 )
 
 func getNSPServiceName(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s-%s", nspSvcName, cr.ObjectMeta.Name)
+	return getFullName(cr, nspSvcName)
 }
 
 type NspService struct {

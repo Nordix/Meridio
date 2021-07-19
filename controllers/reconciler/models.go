@@ -13,6 +13,8 @@ import (
 )
 
 const (
+	ResourceNamePrefixEnv = "RESOURCE_NAME_PREFIX"
+
 	Registry        = "registry.nordix.org"
 	Organization    = "cloud-native/meridio"
 	OrganizationNsm = "cloud-native/nsm"
@@ -42,6 +44,14 @@ const (
 )
 
 type ipFamily string
+
+func getResourceNamePrefix(cr *meridiov1alpha1.Trench) string {
+	return os.Getenv(ResourceNamePrefixEnv)
+}
+
+func getFullName(cr *meridiov1alpha1.Trench, resourceName string) string {
+	return fmt.Sprintf("%s%s-%s", getResourceNamePrefix(cr), resourceName, cr.ObjectMeta.Name)
+}
 
 func getVips(cr *meridiov1alpha1.Trench) string {
 	ipFamily := IPv4

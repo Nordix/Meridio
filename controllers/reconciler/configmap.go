@@ -17,7 +17,7 @@ const (
 )
 
 func getConfigMapName(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s-%s", cr.Spec.ConfigMapName, cr.ObjectMeta.Name)
+	return getFullName(cr, cr.Spec.ConfigMapName)
 }
 
 type Config struct {

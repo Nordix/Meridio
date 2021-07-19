@@ -71,8 +71,6 @@ spec:
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
               value: proxy.load-balancer.default
-            - name: NSM_VIPS
-              value: 20.0.0.1/32
             - name: NSM_SUBNET_POOLS
               value: 172.16.0.0/16
             - name: NSM_SUBNET_PREFIX_LENGTHS
@@ -81,8 +79,6 @@ spec:
               value: ipam-service:7777
             - name: NSM_NETWORK_SERVICE_NAME
               value: load-balancer.default
-            - name: NSM_NSP_SERVICE
-              value: nsp-service:7778
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
