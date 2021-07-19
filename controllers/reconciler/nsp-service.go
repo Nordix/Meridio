@@ -16,6 +16,10 @@ const (
 	nspSvcName    = "nsp-service"
 )
 
+func getNSPServiceName(cr *meridiov1alpha1.Trench) string {
+	return getFullName(cr, nspSvcName)
+}
+
 type NspService struct {
 	currentStatus *corev1.Service
 	desiredStatus *corev1.Service
@@ -32,16 +36,19 @@ func (i *NspService) getPorts(cr *meridiov1alpha1.Trench) []corev1.ServicePort {
 		},
 	}
 }
+
 func (i *NspService) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: cr.ObjectMeta.Namespace,
-		Name:      nspSvcName,
+		Name:      getNSPServiceName(cr),
 	}
 }
 
 func (i *NspService) insertParamters(svc *corev1.Service, cr *meridiov1alpha1.Trench) *corev1.Service {
 	// if status nsp service parameters are specified in the cr, use those
 	// else use the default parameters
+	svc.ObjectMeta.Name = getNSPServiceName(cr)
+	svc.Spec.Selector["app"] = getNSPDeploymentName(cr)
 	svc.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
 	svc.Spec.Ports = i.getPorts(cr)
 	return svc

@@ -16,6 +16,10 @@ const (
 	ipamSvcName    = "ipam-service"
 )
 
+func getIPAMServiceName(cr *meridiov1alpha1.Trench) string {
+	return getFullName(cr, ipamSvcName)
+}
+
 type IpamService struct {
 	currentStatus *corev1.Service
 	desiredStatus *corev1.Service
@@ -32,16 +36,19 @@ func (i *IpamService) getPorts(cr *meridiov1alpha1.Trench) []corev1.ServicePort 
 		},
 	}
 }
+
 func (i *IpamService) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: cr.ObjectMeta.Namespace,
-		Name:      ipamSvcName,
+		Name:      getIPAMServiceName(cr),
 	}
 }
 
 func (i *IpamService) insertParamters(svc *corev1.Service, cr *meridiov1alpha1.Trench) *corev1.Service {
 	// if status ipam service parameters are specified in the cr, use those
 	// else use the default parameters
+	svc.ObjectMeta.Name = getIPAMServiceName(cr)
+	svc.Spec.Selector["app"] = getIPAMDeploymentName(cr)
 	svc.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
 	svc.Spec.Ports = i.getPorts(cr)
 	return svc

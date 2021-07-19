@@ -13,9 +13,14 @@ import (
 )
 
 const (
+	nameIpam    = "ipam"
 	imageIpam   = "ipam"
 	ipamEnvName = "IPAM_PORT"
 )
+
+func getIPAMDeploymentName(cr *meridiov1alpha1.Trench) string {
+	return getFullName(cr, nameIpam)
+}
 
 type IpamDeployment struct {
 	currentStatus *appsv1.Deployment
@@ -36,7 +41,12 @@ func (i *IpamDeployment) getEnvVars(cr *meridiov1alpha1.Trench) []corev1.EnvVar 
 func (i *IpamDeployment) insertParamters(dep *appsv1.Deployment, cr *meridiov1alpha1.Trench) *appsv1.Deployment {
 	// if status ipam deployment parameters are specified in the cr, use those
 	// else use the default parameters
+	ipamDeploymentName := getIPAMDeploymentName(cr)
+	dep.ObjectMeta.Name = ipamDeploymentName
 	dep.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
+	dep.ObjectMeta.Labels["app"] = ipamDeploymentName
+	dep.Spec.Selector.MatchLabels["app"] = ipamDeploymentName
+	dep.Spec.Template.ObjectMeta.Labels["app"] = ipamDeploymentName
 	dep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", Registry, Organization, imageIpam, Tag)
 	dep.Spec.Template.Spec.Containers[0].ImagePullPolicy = PullPolicy
 	dep.Spec.Template.Spec.Containers[0].LivenessProbe = GetLivenessProbe(cr)
@@ -52,7 +62,7 @@ func (i *IpamDeployment) getModel() (*appsv1.Deployment, error) {
 func (i *IpamDeployment) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: cr.ObjectMeta.Namespace,
-		Name:      "ipam",
+		Name:      getIPAMDeploymentName(cr),
 	}
 }
 
