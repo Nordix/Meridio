@@ -6,6 +6,7 @@ metadata:
 data:
   meridio.conf: |
     vips: [{{ template "meridio.vips" . }}]
+    gateways: [{{ template "meridio.gateways" . }}]
 ---
 apiVersion: v1
 kind: ServiceAccount
