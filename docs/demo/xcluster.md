@@ -22,8 +22,8 @@ prerequisite; Multus is ready (deployed by meridio ovl)
 ```
 # default interface setup
 helm install xcluster/ovl/meridio/helm/gateway --generate-name
-# eth1:meridio--gateways, eth2:gateways--tg
-helm install xcluster/ovl/meridio/helm/gateway --generate-name --set masterItf=eth1,tgMasterItf=eth2
+# eth1:meridio--gateways, eth2:gateways--tg, k8s namespace: red
+helm install xcluster/ovl/meridio/helm/gateway --create-namespace --namespace red --generate-name --set masterItf=eth1,tgMasterItf=eth2
 ```
 
 ### NSM
@@ -35,7 +35,7 @@ helm install docs/demo/deployments/spire/ --generate-name
 
 Configure Spire
 ```
-./docs/demo/scripts/spire-config.sh
+docs/demo/scripts/spire-config.sh
 ```
 
 Deploy NSM
@@ -45,20 +45,37 @@ helm install docs/demo/deployments/nsm-vlan/ --generate-name
 
 ### Meridio
 
-Install Meridio  
+Configure Spire for trench-a
+```
+docs/demo/scripts/spire.sh meridio-trench-a red
+```
+
+Install Meridio for trench-a  
 Note: the external interface must match the one used by external gateway PODs
 ```
 # ipv4
-helm install deployments/helm/ --generate-name --namespace default --set vlan.interface=eth1
+helm install deployments/helm/ --generate-name --namespace red --set trench.name=trench-a --set vlan.interface=eth1
 # ipv6
-helm install deployments/helm/ --generate-name --namespace default --set ipFamily=ipv6 
+helm install deployments/helm/ --generate-name --namespace red --set trench.name=trench-a --set ipFamily=ipv6 
 # dualstack
-helm install deployments/helm/ --generate-name --namespace default --set ipFamily=dualstack 
+helm install deployments/helm/ --generate-name --namespace red --set trench.name=trench-a --set vlan.interface=eth1,ipFamily=dualstack 
 ```
 
-Install targets connected to the trench in default kubernetes namespace
+## Target
+
+Configure Spire for the targets
 ```
-helm install examples/target/helm/ --generate-name --namespace default --set defaultTrench=default
+./docs/demo/scripts/spire.sh meridio red
+```
+
+Deploy common resources for the targets
+```
+helm install examples/target/common/ --generate-name --namespace=red
+```
+
+Install targets connected to trench-a
+```
+helm install examples/target/helm/ --generate-name --namespace=red --set applicationName=target-a --set default.trench.name=trench-a
 ```
 
 ## Traffic
@@ -66,7 +83,7 @@ helm install examples/target/helm/ --generate-name --namespace default --set def
 Connect to the Traffic Generator POD
 ```
 # exec into traffic generator POD
-kubectl exec -ti tg -- bash
+kubectl -n=red exec -ti tg -- bash
 ```
 
 Ping
@@ -93,10 +110,10 @@ Verification
 
 Scale-In/Scale-Out target
 ```
-kubectl scale deployment target --replicas=5
+kubectl -n=red scale deployment target --replicas=5
 ```
 
 Scale-In/Scale-Out load-balancer
 ```
-kubectl scale deployment load-balancer --replicas=1
+kubectl -n=red scale deployment load-balancer --replicas=1
 ```
