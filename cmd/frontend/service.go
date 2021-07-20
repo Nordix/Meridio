@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
@@ -22,9 +23,8 @@ func NewFrontEndService(config *Config) *FrontEndService {
 	logrus.Infof("NewFrontEndService")
 
 	frontEndService := &FrontEndService{
-		//vips: config.VIPs,
 		vips:          []string{},
-		gateways:      config.Gateways,
+		gateways:      []string{},
 		vrrps:         config.VRRPs,
 		birdConfPath:  config.BirdConfigPath,
 		birdConfFile:  config.BirdConfigPath + "/bird-fe-meridio.conf",
@@ -105,26 +105,27 @@ func (fes *FrontEndService) RemoveVIPRules() error {
 }
 
 // SetVIPs -
-// Align config to changes affecting VIP addresses
-func (fes *FrontEndService) SetVIPs(vips []string) error {
-	added, removed := difference(fes.vips, vips)
-	logrus.Infof("SetVIPs: vips: %v, (added: %v, removed: %v)", vips, added, removed)
-	fes.vips = vips
+// Adjust BIRD config on the fly
+func (fes *FrontEndService) SetNewConfig(c *configuration.Config) error {
+	configChange := false
+	logrus.Infof("SetNewConfig")
 
-	if len(added) > 0 || len(removed) > 0 {
-		if err := fes.setVIPRules(added, removed); err != nil {
-			logrus.Fatalf("SetVIPs: Failed to adjust VIP src routes: %v", err)
-			return err
-		}
+	if err := fes.setVIPs(c.VIPs, &configChange); err != nil {
+		return err
+	}
+
+	if err := fes.setGateways(c.GWs, &configChange); err != nil {
+		return err
+	}
+
+	if configChange {
 		if err := fes.WriteConfig(); err != nil {
-			logrus.Fatalf("SetVIPs: Failed to generate config: %v", err)
+			logrus.Fatalf("SetNewConfig: Failed to generate config: %v", err)
 			return err
 		}
-
 		// send signal to reconfiguration agent to apply the new config
 		fes.reconfCh <- struct{}{}
 	}
-
 	return nil
 }
 
@@ -151,7 +152,7 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 			case <-time.After(5 * time.Second): //timeout
 			}
 
-			arg := `"bgp*"`
+			arg := `"NBR-*"`
 			cmd := exec.CommandContext(ctx, lp, "show", "protocols", "all", arg)
 			//cmd := exec.CommandContext(ctx, lp, "show", "protocols", arg)
 			stdoutStderr, err := cmd.CombinedOutput()
@@ -167,11 +168,19 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 					//linkCh <- "No protocols match"
 				}
 			} else {
-				// Note: It is assumed, that the set of gateways can not change on the fly
+				// TODO: In case the list of gateways changes on the fly, it would be
+				// beneficial to only consider the state of BIRD proto sessions belonging
+				// to valid gayeways.
+				// I think removed protos not yet shutdown can still appear in the printout.
+				// So either it check the names against the current set of gateways (might
+				// require some locking), or see if BIRD unambigously can indicate that a
+				// proto instance was ordered for removal (maybe through State or Info).
+				// For now, I just assume that protocol shutdown finishes before the next
+				// monitor check...
 				scanner := bufio.NewScanner(strings.NewReader(stringOut))
 				scanOK := true
 				scanDetails := ""
-				reBGP := regexp.MustCompile(`bgp[0-9]+`)
+				reBGP := regexp.MustCompile(`NBR-`)
 				reBIRD := regexp.MustCompile(`BIRD|Name\s+Proto`)
 				for scanner.Scan() {
 					if ok := reBGP.MatchString(scanner.Text()); ok {
@@ -390,10 +399,11 @@ func (fes *FrontEndService) WriteConfigBGP(conf *string) {
 				ipv += "\t\texport filter cluster_e_static;\n"
 				ipv += "\t};\n"
 			}
-			*conf += "protocol bgp from LINK {\n"
+			nbr := strings.Split(gw, "/")[0]
+			*conf += "protocol bgp 'NBR-" + nbr + "' from LINK {\n"
 			*conf += "\tinterface \"" + fes.extInterface + "\";\n"
 			*conf += "\tlocal port " + fes.localPortBGP + " as " + fes.localAS + ";\n"
-			*conf += "\tneighbor " + strings.Split(gw, "/")[0] + " port " + fes.remotePortBGP + " as " + fes.remoteAS + ";\n"
+			*conf += "\tneighbor " + nbr + " port " + fes.remotePortBGP + " as " + fes.remoteAS + ";\n"
 			*conf += ipv
 			*conf += "}\n"
 			*conf += "\n"
@@ -709,6 +719,38 @@ func (fes *FrontEndService) reconfigure(ctx context.Context, path string) error 
 		logrus.Infof("reconfigure: BIRD config applied")
 		return nil
 	}
+}
+
+// setVIPs -
+// Adjust config to changes affecting VIP addresses
+func (fes *FrontEndService) setVIPs(vips []string, change *bool) error {
+	added, removed := difference(fes.vips, vips)
+	logrus.Debugf("SetVIPs: vips: %v, (added: %v, removed: %v)", vips, added, removed)
+	fes.vips = vips
+
+	if len(added) > 0 || len(removed) > 0 {
+		*change = true
+		if err := fes.setVIPRules(added, removed); err != nil {
+			logrus.Fatalf("SetVIPs: Failed to adjust VIP src routes: %v", err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// setGateways -
+// Adjust config to changes affecting external gateway addresses
+func (fes *FrontEndService) setGateways(gateways []string, change *bool) error {
+	added, removed := difference(fes.gateways, gateways)
+	logrus.Debugf("SetGateways: gws: %v, (added: %v, removed: %v)", gateways, added, removed)
+	fes.gateways = gateways
+
+	if len(added) > 0 || len(removed) > 0 {
+		*change = true
+	}
+
+	return nil
 }
 
 // setVIPRules -

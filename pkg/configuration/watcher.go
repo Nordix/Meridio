@@ -25,6 +25,7 @@ type Watcher struct {
 
 type Config struct {
 	VIPs []string `yaml:"vips"`
+	GWs  []string `yaml:"gateways"`
 }
 
 func (w *Watcher) Start() {

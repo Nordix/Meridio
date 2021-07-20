@@ -76,8 +76,7 @@ spec:
           securityContext:
             privileged: true
         - name: nsc
-          # image: registry.nordix.org/cloud-native/nsm/cmd-nsc:latest
-          image: localhost:5000/meridio/cmd-nsc:latest-dns-fix
+          image: registry.nordix.org/cloud-native/nsm/cmd-nsc:latest-dns-fix
           imagePullPolicy: {{ .Values.pullPolicy }}
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
@@ -107,8 +106,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: NFE_GATEWAYS
-              value: {{ template "meridio.gateways" . }}
             - name: NFE_LOG_BIRD
               value: "true"
             - name: NFE_ECMP
