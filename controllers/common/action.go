@@ -63,12 +63,21 @@ type updateAction struct {
 	msg string
 }
 
+type updateStatusAction struct {
+	obj client.Object
+	msg string
+}
+
 func (a createAction) Run(e *Executor) (string, error) {
 	return a.msg, e.create(a.obj)
 }
 
 func (a updateAction) Run(e *Executor) (string, error) {
 	return a.msg, e.update(a.obj)
+}
+
+func (a updateStatusAction) Run(e *Executor) (string, error) {
+	return a.msg, e.updateStatus(a.obj)
 }
 
 func (e *Executor) create(obj client.Object) error {
@@ -97,6 +106,18 @@ func (e *Executor) update(obj client.Object) error {
 	return nil
 }
 
+func (e *Executor) updateStatus(obj client.Object) error {
+	err := e.Client.Status().Update(e.Ctx, obj)
+	if err != nil {
+		// conflicts will happen when there are frequent actions
+		if errors.IsConflict(err) {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
 func (e *Executor) delete(obj client.Object) error {
 	return e.Client.Delete(e.Ctx, obj)
 }
@@ -107,4 +128,8 @@ func NewCreateAction(obj client.Object, msg string) Action {
 
 func NewUpdateAction(obj client.Object, msg string) Action {
 	return updateAction{obj: obj, msg: msg}
+}
+
+func NewUpdateStatusAction(obj client.Object, msg string) Action {
+	return updateStatusAction{obj: obj, msg: msg}
 }

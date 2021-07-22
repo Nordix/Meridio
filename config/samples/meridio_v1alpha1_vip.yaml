@@ -12,8 +12,18 @@ apiVersion: meridio.nordix.org/v1alpha1
 kind: Vip
 metadata:
   labels:
+    trench: trench-a
+  name: meridio.conf3
+spec:
+  # Add fields here
+  address: "20.0.0.1/32"
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Vip
+metadata:
+  labels:
     trench: trench-b
   name: meridio.conf2
 spec:
   # Add fields here
-  address: "20.0.0.1/32"
+  address: "2000::1/128"

@@ -8,7 +8,7 @@ import (
 	"github.com/nordix/meridio-operator/controllers/common"
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"gopkg.in/yaml.v2"
@@ -116,7 +116,7 @@ func (c *ConfigMap) getCurrentStatus(ctx context.Context, cr *meridiov1alpha1.Tr
 	currentState := &corev1.ConfigMap{}
 	err := client.Get(ctx, c.getSelector(cr), currentState)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil
 		}
 		return err
@@ -192,6 +192,11 @@ func (c *ConfigMap) deleteKey(e *common.Executor, ns, vipName string, tv map[str
 	}
 	trench, err := getTrenchbySelector(e, selector)
 	if err != nil {
+		// if trench is not found
+		if apierrors.IsNotFound(err) {
+			delete(tv[ns], trenchName)
+			return tv, nil
+		}
 		return tv, err
 	}
 	// get configmap
@@ -214,8 +219,18 @@ func (c *ConfigMap) deleteKey(e *common.Executor, ns, vipName string, tv map[str
 
 func (c *ConfigMap) getAction(e *common.Executor, tv map[string]*net.IPNet, vip *meridiov1alpha1.Vip) ([]common.Action, error) {
 	var actions []common.Action
-	// set the ownerReference for the vip
-	actions = append(actions, common.NewUpdateAction(vip, fmt.Sprintf("update vip %s/%s ownerReference", vip.GetNamespace(), vip.GetName())))
+	// set the status for the vip
+	vipnsname := fmt.Sprintf("%s/%s", vip.GetNamespace(), vip.GetName())
+	// if vip is rejected due to trench not founc, update the status only
+	actions = append(actions, common.NewUpdateStatusAction(vip, fmt.Sprintf("update vip %s status: %v", vipnsname, vip.Status.Status)))
+	if e.Cr == nil {
+		return actions, nil
+	}
+	// if vip is rejected due to overlapping address, also
+	actions = append(actions, common.NewUpdateAction(vip, fmt.Sprintf("update vip %s ownerReference", vipnsname)))
+	if vip.Status.Status == meridiov1alpha1.PhaseRejected {
+		return actions, nil
+	}
 	// get action to update/create the configmap
 	err := c.getCurrentStatus(e.Ctx, e.Cr, e.Client)
 	if err != nil {
@@ -226,16 +241,18 @@ func (c *ConfigMap) getAction(e *common.Executor, tv map[string]*net.IPNet, vip 
 		if err != nil {
 			return actions, err
 		}
-		e.Log.Info("configmap", "add action", fmt.Sprintf("create %s/%s", c.desiredStatus.GetNamespace(), c.desiredStatus.GetName()))
-		actions = append(actions, common.NewCreateAction(c.desiredStatus, "create configmap"))
+		msg := fmt.Sprintf("create configmap %s/%s", c.desiredStatus.GetNamespace(), c.desiredStatus.GetName())
+		e.Log.Info("configmap", "add action", msg)
+		actions = append(actions, common.NewCreateAction(c.desiredStatus, msg))
 	} else {
 		err = c.getReconciledDesiredStatus(c.currentStatus, tv)
 		if err != nil {
 			return actions, err
 		}
-		if diff, msg := diffVips(c.currentStatus.Data[vipKey], c.desiredStatus.Data[vipKey]); diff {
-			e.Log.Info("configmap", "add action", fmt.Sprintf("update %s/%s", c.desiredStatus.GetNamespace(), c.desiredStatus.GetName()))
-			actions = append(actions, common.NewUpdateAction(c.desiredStatus, fmt.Sprintf("update configmap, %s", msg)))
+		if diff, diffmsg := diffVips(c.currentStatus.Data[vipKey], c.desiredStatus.Data[vipKey]); diff {
+			msg := fmt.Sprintf("update configmap %s/%s", c.desiredStatus.GetNamespace(), c.desiredStatus.GetName())
+			e.Log.Info("configmap", "add action", msg)
+			actions = append(actions, common.NewUpdateAction(c.desiredStatus, fmt.Sprintf("%s, %s", msg, diffmsg)))
 		}
 	}
 	return actions, nil
