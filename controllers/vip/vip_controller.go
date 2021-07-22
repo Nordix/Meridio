@@ -96,6 +96,7 @@ func (r *VipReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if vip.Status.Status != meridiov1alpha1.PhaseRejected {
 		// record trench and ns in a map
 		r.addNsTrenchToMap(trench)
+		executor.Cr = trench
 		// validate overlapping, set vip status to rejected if there is overlapping
 		_, vIPNets, _ := net.ParseCIDR(vip.Spec.Address)
 		if err := vipsOverlap(r.TrenchVip[trench.ObjectMeta.Namespace][trench.ObjectMeta.Name], vIPNets, vip.ObjectMeta.Name); err != nil {
@@ -106,7 +107,6 @@ func (r *VipReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			// only add vip which is not rejected to the map
 			r.TrenchVip[vip.ObjectMeta.Namespace][trench.ObjectMeta.Name][vip.ObjectMeta.Name] = vIPNets
 		}
-		executor.Cr = trench
 	}
 
 	if vip.Status.Status != meridiov1alpha1.PhaseRejected {

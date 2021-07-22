@@ -89,10 +89,21 @@ func (r *Vip) validateVip() error {
 }
 
 func (r *Vip) validateAddresses() error {
-	// todo: alpha supports one address only
 	_, _, err := net.ParseCIDR(r.Spec.Address)
 	if err != nil {
 		return err
+	}
+	ip, ipnet, err := net.ParseCIDR(r.Spec.Address)
+	if err != nil {
+		return err
+	}
+	// ipv4 cidr validation for alpha
+	if ip.To4() != nil && ipnet.Mask.String() != net.CIDRMask(32, 32).String() {
+		return fmt.Errorf("only /32 address is supported for ipv4 vips")
+	}
+	// ipv6 cidr validation for alpha
+	if ip.To4() == nil && ipnet.Mask.String() != net.CIDRMask(128, 128).String() {
+		return fmt.Errorf("only /128 address is supported for ipv6 vips")
 	}
 	return nil
 }
