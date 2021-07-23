@@ -69,6 +69,32 @@ rules:
 - apiGroups:
   - meridio.nordix.org
   resources:
+  - attractors
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - attractors/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - attractors/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - meridio.nordix.org
+  resources:
   - trenches
   verbs:
   - create

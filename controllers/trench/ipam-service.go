@@ -1,63 +1,33 @@
 package trench
 
 import (
-	"fmt"
-
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	common "github.com/nordix/meridio-operator/controllers/common"
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-const (
-	ipamPort       = 7777
-	ipamTargetPort = 7777
-	ipamSvcName    = "ipam-service"
-)
-
-func getIPAMServiceName(cr *meridiov1alpha1.Trench) string {
-	return common.GetFullName(cr, ipamSvcName)
-}
-
-func getIPAMServiceWithPort(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s:%d", getIPAMServiceName(cr), ipamTargetPort)
-}
 
 type IpamService struct {
 	currentStatus *corev1.Service
 	desiredStatus *corev1.Service
 }
 
-func (i *IpamService) getPorts(cr *meridiov1alpha1.Trench) []corev1.ServicePort {
-	// if ipam service ports are set in the cr, use the values
-	// else return default service ports
-	return []corev1.ServicePort{
-		{
-			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromInt(ipamTargetPort),
-			Port:       ipamPort,
-		},
-	}
-}
-
 func (i *IpamService) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: cr.ObjectMeta.Namespace,
-		Name:      getIPAMServiceName(cr),
+		Name:      common.IPAMServiceName(cr),
 	}
 }
 
 func (i *IpamService) insertParamters(svc *corev1.Service, cr *meridiov1alpha1.Trench) *corev1.Service {
 	// if status ipam service parameters are specified in the cr, use those
 	// else use the default parameters
-	svc.ObjectMeta.Name = getIPAMServiceName(cr)
-	svc.Spec.Selector["app"] = getIPAMDeploymentName(cr)
+	svc.ObjectMeta.Name = common.IPAMServiceName(cr)
+	svc.Spec.Selector["app"] = common.IPAMDeploymentName(cr)
 	svc.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
-	svc.Spec.Ports = i.getPorts(cr)
 	return svc
 }
 

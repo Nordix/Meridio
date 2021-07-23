@@ -18,28 +18,24 @@ type Resources interface {
 type Meridio struct {
 	ipamDeployment *IpamDeployment
 	ipamService    *IpamService
-	loadBalancer   *LoadBalancer
 	serviceAccount *ServiceAccount
 	role           *Role
 	roleBinding    *RoleBinding
 	nspDeployment  *NspDeployment
 	nspService     *NspService
 	proxy          *Proxy
-	nseDeployment  *NseDeployment
 }
 
 func NewMeridio() *Meridio {
 	return &Meridio{
 		ipamDeployment: &IpamDeployment{},
 		ipamService:    &IpamService{},
-		loadBalancer:   &LoadBalancer{},
 		serviceAccount: &ServiceAccount{},
 		role:           &Role{},
 		roleBinding:    &RoleBinding{},
 		nspDeployment:  &NspDeployment{},
 		nspService:     &NspService{},
 		proxy:          &Proxy{},
-		nseDeployment:  &NseDeployment{},
 	}
 }
 
@@ -51,11 +47,9 @@ func (m Meridio) ReconcileAll(e *common.Executor, cr *meridiov1alpha1.Trench) er
 		m.serviceAccount,
 		m.role,
 		m.roleBinding,
-		m.loadBalancer,
 		m.nspDeployment,
 		m.nspService,
 		m.proxy,
-		m.nseDeployment,
 	}
 
 	for _, r := range resources {

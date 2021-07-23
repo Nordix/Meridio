@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"golang.org/x/net/context"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,11 +26,11 @@ type Executor struct {
 	scheme *runtime.Scheme
 	Client client.Client
 	Ctx    context.Context
-	Cr     *meridiov1alpha1.Trench
+	Cr     client.Object
 	Log    logr.Logger
 }
 
-func NewExecutor(s *runtime.Scheme, c client.Client, ct context.Context, cr *meridiov1alpha1.Trench, l logr.Logger) *Executor {
+func NewExecutor(s *runtime.Scheme, c client.Client, ct context.Context, cr client.Object, l logr.Logger) *Executor {
 	return &Executor{
 		scheme: s,
 		Client: c,

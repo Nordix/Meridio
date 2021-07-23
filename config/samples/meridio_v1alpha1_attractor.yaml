@@ -1,0 +1,21 @@
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Attractor
+metadata:
+  name: attr1
+  labels:
+    trench: trench-a
+spec:
+  lb-replicas: 1
+  nse-replicas: 1
+  vlan-id: 100
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Attractor
+metadata:
+  name: attr2
+  labels:
+    trench: trench-b
+spec:
+  lb-replicas: 1
+  nse-replicas: 1
+  vlan-id: 101

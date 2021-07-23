@@ -7,42 +7,25 @@ import (
 	common "github.com/nordix/meridio-operator/controllers/common"
 	"golang.org/x/net/context"
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
-	nameIpam    = "ipam"
 	imageIpam   = "ipam"
 	ipamEnvName = "IPAM_PORT"
 )
-
-func getIPAMDeploymentName(cr *meridiov1alpha1.Trench) string {
-	return common.GetFullName(cr, nameIpam)
-}
 
 type IpamDeployment struct {
 	currentStatus *appsv1.Deployment
 	desiredStatus *appsv1.Deployment
 }
 
-func (i *IpamDeployment) getEnvVars(cr *meridiov1alpha1.Trench) []corev1.EnvVar {
-	// if envVars are set in the cr, use the values
-	// else return default envVars
-	return []corev1.EnvVar{
-		{
-			Name:  ipamEnvName,
-			Value: fmt.Sprint(ipamTargetPort),
-		},
-	}
-}
-
 func (i *IpamDeployment) insertParamters(dep *appsv1.Deployment, cr *meridiov1alpha1.Trench) *appsv1.Deployment {
 	// if status ipam deployment parameters are specified in the cr, use those
 	// else use the default parameters
-	ipamDeploymentName := getIPAMDeploymentName(cr)
+	ipamDeploymentName := common.IPAMDeploymentName(cr)
 	dep.ObjectMeta.Name = ipamDeploymentName
 	dep.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
 	dep.ObjectMeta.Labels["app"] = ipamDeploymentName
@@ -52,7 +35,6 @@ func (i *IpamDeployment) insertParamters(dep *appsv1.Deployment, cr *meridiov1al
 	dep.Spec.Template.Spec.Containers[0].ImagePullPolicy = common.PullPolicy
 	dep.Spec.Template.Spec.Containers[0].LivenessProbe = common.GetLivenessProbe(cr)
 	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = common.GetReadinessProbe(cr)
-	dep.Spec.Template.Spec.Containers[0].Env = i.getEnvVars(cr)
 	return dep
 }
 
@@ -63,7 +45,7 @@ func (i *IpamDeployment) getModel() (*appsv1.Deployment, error) {
 func (i *IpamDeployment) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: cr.ObjectMeta.Namespace,
-		Name:      getIPAMDeploymentName(cr),
+		Name:      common.IPAMDeploymentName(cr),
 	}
 }
 

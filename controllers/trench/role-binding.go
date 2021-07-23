@@ -10,14 +10,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	roleBindingName = "meridio-configuration-role-binding"
-)
-
-func getRoleBindingName(cr *meridiov1alpha1.Trench) string {
-	return common.GetFullName(cr, roleBindingName)
-}
-
 type RoleBinding struct {
 	currentStatus *rbacv1.RoleBinding
 	desiredStatus *rbacv1.RoleBinding
@@ -28,17 +20,17 @@ func (r *RoleBinding) getModel() (*rbacv1.RoleBinding, error) {
 }
 
 func (r *RoleBinding) insertParamters(role *rbacv1.RoleBinding, cr *meridiov1alpha1.Trench) *rbacv1.RoleBinding {
-	role.ObjectMeta.Name = getRoleBindingName(cr)
+	role.ObjectMeta.Name = common.RoleBindingName(cr)
 	role.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
-	role.Subjects[0].Name = getServiceAccountName(cr)
-	role.RoleRef.Name = getRoleName(cr)
+	role.Subjects[0].Name = common.ServiceAccountName(cr)
+	role.RoleRef.Name = common.RoleName(cr)
 	return role
 }
 
 func (r *RoleBinding) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: cr.ObjectMeta.Namespace,
-		Name:      getRoleBindingName(cr),
+		Name:      common.RoleBindingName(cr),
 	}
 }
 

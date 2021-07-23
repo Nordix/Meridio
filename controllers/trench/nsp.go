@@ -14,14 +14,9 @@ import (
 )
 
 const (
-	nspName    = "nsp"
 	nspEnvName = "NSP_PORT"
 	imageNsp   = "nsp"
 )
-
-func getNSPDeploymentName(cr *meridiov1alpha1.Trench) string {
-	return common.GetFullName(cr, nspName)
-}
 
 type NspDeployment struct {
 	currentStatus *appsv1.Deployment
@@ -34,7 +29,7 @@ func (i *NspDeployment) getEnvVars(cr *meridiov1alpha1.Trench) []corev1.EnvVar {
 	return []corev1.EnvVar{
 		{
 			Name:  nspEnvName,
-			Value: fmt.Sprint(nspTargetPort),
+			Value: fmt.Sprint(common.NspTargetPort),
 		},
 	}
 }
@@ -42,7 +37,7 @@ func (i *NspDeployment) getEnvVars(cr *meridiov1alpha1.Trench) []corev1.EnvVar {
 func (i *NspDeployment) insertParamters(dep *appsv1.Deployment, cr *meridiov1alpha1.Trench) *appsv1.Deployment {
 	// if status nsp deployment parameters are specified in the cr, use those
 	// else use the default parameters
-	nspDeploymentName := getNSPDeploymentName(cr)
+	nspDeploymentName := common.NSPDeploymentName(cr)
 	dep.ObjectMeta.Name = nspDeploymentName
 	dep.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
 	dep.ObjectMeta.Labels["app"] = nspDeploymentName
@@ -63,7 +58,7 @@ func (i *NspDeployment) getModel() (*appsv1.Deployment, error) {
 func (i *NspDeployment) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: cr.ObjectMeta.Namespace,
-		Name:      getNSPDeploymentName(cr),
+		Name:      common.NSPDeploymentName(cr),
 	}
 }
 

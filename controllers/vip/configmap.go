@@ -73,42 +73,10 @@ func vipItemsDifferent(vipListA, vipListB []Vip) (bool, string) {
 	return false, ""
 }
 
-// func vipItemAddrsEqual(addrListA, addrListB []string) bool {
-// 	addrA := make(map[string]struct{})
-// 	addrB := make(map[string]struct{})
-// 	for _, a := range addrListA {
-// 		addrA[a] = struct{}{}
-// 	}
-// 	for _, a := range addrListB {
-// 		addrB[a] = struct{}{}
-// 	}
-// 	for addr := range addrA {
-// 		if _, ok := addrB[addr]; !ok {
-// 			return false
-// 		}
-// 	}
-// 	for addr := range addrB {
-// 		if _, ok := addrA[addr]; !ok {
-// 			return false
-// 		}
-// 	}
-// 	return false
-// }
-
-func getTrenchbySelector(e *common.Executor, selector client.ObjectKey) (*meridiov1alpha1.Trench, error) {
-	trench := &meridiov1alpha1.Trench{}
-	err := e.Client.Get(e.Ctx, selector, trench)
-	return trench, err
-}
-
-func getConfigMapName(cr *meridiov1alpha1.Trench) string {
-	return common.GetFullName(cr, cr.Spec.ConfigMapName)
-}
-
 func (c *ConfigMap) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: cr.ObjectMeta.Namespace,
-		Name:      getConfigMapName(cr),
+		Name:      common.ConfigMapName(cr),
 	}
 }
 
@@ -128,7 +96,7 @@ func (c *ConfigMap) getCurrentStatus(ctx context.Context, cr *meridiov1alpha1.Tr
 func (c *ConfigMap) getDesiredStatus(tv map[string]*net.IPNet, trench *meridiov1alpha1.Trench) error {
 	configmap := &corev1.ConfigMap{}
 	var err error
-	configmap.ObjectMeta.Name = getConfigMapName(trench)
+	configmap.ObjectMeta.Name = common.ConfigMapName(trench)
 	configmap.ObjectMeta.Namespace = trench.ObjectMeta.Namespace
 	data, err := getData(tv)
 	if err != nil {
@@ -190,7 +158,7 @@ func (c *ConfigMap) deleteKey(e *common.Executor, ns, vipName string, tv map[str
 		Namespace: ns,
 		Name:      trenchName,
 	}
-	trench, err := getTrenchbySelector(e, selector)
+	trench, err := common.GetTrenchbySelector(e, selector)
 	if err != nil {
 		// if trench is not found
 		if apierrors.IsNotFound(err) {
@@ -217,43 +185,32 @@ func (c *ConfigMap) deleteKey(e *common.Executor, ns, vipName string, tv map[str
 	return tv, e.RunAll([]common.Action{action})
 }
 
-func (c *ConfigMap) getAction(e *common.Executor, tv map[string]*net.IPNet, vip *meridiov1alpha1.Vip) ([]common.Action, error) {
-	var actions []common.Action
-	// set the status for the vip
-	vipnsname := fmt.Sprintf("%s/%s", vip.GetNamespace(), vip.GetName())
-	// if vip is rejected due to trench not founc, update the status only
-	actions = append(actions, common.NewUpdateStatusAction(vip, fmt.Sprintf("update vip %s status: %v", vipnsname, vip.Status.Status)))
-	if e.Cr == nil {
-		return actions, nil
-	}
-	// if vip is rejected due to overlapping address, also
-	actions = append(actions, common.NewUpdateAction(vip, fmt.Sprintf("update vip %s ownerReference", vipnsname)))
-	if vip.Status.Status == meridiov1alpha1.PhaseRejected {
-		return actions, nil
-	}
+func (c *ConfigMap) getAction(e *common.Executor, tv map[string]*net.IPNet, vip *meridiov1alpha1.Vip) (common.Action, error) {
+	var action common.Action
 	// get action to update/create the configmap
-	err := c.getCurrentStatus(e.Ctx, e.Cr, e.Client)
+	trench := e.Cr.(*meridiov1alpha1.Trench)
+	err := c.getCurrentStatus(e.Ctx, trench, e.Client)
 	if err != nil {
-		return actions, err
+		return nil, err
 	}
 	if c.currentStatus == nil {
-		err = c.getDesiredStatus(tv, e.Cr)
+		err = c.getDesiredStatus(tv, trench)
 		if err != nil {
-			return actions, err
+			return nil, err
 		}
 		msg := fmt.Sprintf("create configmap %s/%s", c.desiredStatus.GetNamespace(), c.desiredStatus.GetName())
 		e.Log.Info("configmap", "add action", msg)
-		actions = append(actions, common.NewCreateAction(c.desiredStatus, msg))
+		action = common.NewCreateAction(c.desiredStatus, msg)
 	} else {
 		err = c.getReconciledDesiredStatus(c.currentStatus, tv)
 		if err != nil {
-			return actions, err
+			return nil, err
 		}
 		if diff, diffmsg := diffVips(c.currentStatus.Data[vipKey], c.desiredStatus.Data[vipKey]); diff {
 			msg := fmt.Sprintf("update configmap %s/%s", c.desiredStatus.GetNamespace(), c.desiredStatus.GetName())
 			e.Log.Info("configmap", "add action", msg)
-			actions = append(actions, common.NewUpdateAction(c.desiredStatus, fmt.Sprintf("%s, %s", msg, diffmsg)))
+			action = common.NewUpdateAction(c.desiredStatus, fmt.Sprintf("%s, %s", msg, diffmsg))
 		}
 	}
-	return actions, nil
+	return action, nil
 }

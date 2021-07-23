@@ -1,8 +1,6 @@
 package trench
 
 import (
-	"fmt"
-
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	common "github.com/nordix/meridio-operator/controllers/common"
 	"golang.org/x/net/context"
@@ -12,20 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-const (
-	nspPort       = 7778
-	nspTargetPort = 7778
-	nspSvcName    = "nsp-service"
-)
-
-func getNSPServiceName(cr *meridiov1alpha1.Trench) string {
-	return common.GetFullName(cr, nspSvcName)
-}
-
-func getNSPServiceWithPort(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s:%d", getNSPServiceName(cr), nspTargetPort)
-}
 
 type NspService struct {
 	currentStatus *corev1.Service
@@ -38,8 +22,8 @@ func (i *NspService) getPorts(cr *meridiov1alpha1.Trench) []corev1.ServicePort {
 	return []corev1.ServicePort{
 		{
 			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromInt(nspTargetPort),
-			Port:       nspPort,
+			TargetPort: intstr.FromInt(common.NspTargetPort),
+			Port:       common.NspPort,
 		},
 	}
 }
@@ -47,15 +31,16 @@ func (i *NspService) getPorts(cr *meridiov1alpha1.Trench) []corev1.ServicePort {
 func (i *NspService) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: cr.ObjectMeta.Namespace,
-		Name:      getNSPServiceName(cr),
+		Name:      common.NSPServiceName(cr),
 	}
 }
 
 func (i *NspService) insertParamters(svc *corev1.Service, cr *meridiov1alpha1.Trench) *corev1.Service {
 	// if status nsp service parameters are specified in the cr, use those
 	// else use the default parameters
-	svc.ObjectMeta.Name = getNSPServiceName(cr)
-	svc.Spec.Selector["app"] = getNSPDeploymentName(cr)
+	svc.ObjectMeta.Name = common.NSPServiceName(cr)
+	svc.Spec.Ports = i.getPorts(cr)
+	svc.Spec.Selector["app"] = common.NSPDeploymentName(cr)
 	svc.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
 	svc.Spec.Ports = i.getPorts(cr)
 	return svc

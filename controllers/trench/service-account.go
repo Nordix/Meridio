@@ -11,26 +11,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const serviceAccountName = "meridio"
-
 type ServiceAccount struct {
 	currentStatus *corev1.ServiceAccount
 	desiredStatus *corev1.ServiceAccount
 }
 
-func getServiceAccountName(cr *meridiov1alpha1.Trench) string {
-	return common.GetFullName(cr, serviceAccountName)
-}
-
 func (sa *ServiceAccount) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: cr.ObjectMeta.Namespace,
-		Name:      getServiceAccountName(cr),
+		Name:      common.ServiceAccountName(cr),
 	}
 }
 
 func (sa *ServiceAccount) insertParamters(role *corev1.ServiceAccount, cr *meridiov1alpha1.Trench) *corev1.ServiceAccount {
-	role.ObjectMeta.Name = getServiceAccountName(cr)
+	role.ObjectMeta.Name = common.ServiceAccountName(cr)
 	role.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
 	return role
 }
@@ -51,7 +45,7 @@ func (sa *ServiceAccount) getCurrentStatus(ctx context.Context, cr *meridiov1alp
 func (sa *ServiceAccount) getDesiredStatus(cr *meridiov1alpha1.Trench) error {
 	sa.desiredStatus = &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      getServiceAccountName(cr),
+			Name:      common.ServiceAccountName(cr),
 			Namespace: cr.ObjectMeta.Namespace,
 		},
 	}
