@@ -1,9 +1,10 @@
-package reconciler
+package trench
 
 import (
 	"fmt"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	common "github.com/nordix/meridio-operator/controllers/common"
 	"golang.org/x/net/context"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -11,13 +12,12 @@ import (
 type Resources interface {
 	getCurrentStatus(ctx context.Context, cr *meridiov1alpha1.Trench, client client.Client) error
 	getDesiredStatus(cr *meridiov1alpha1.Trench) error
-	getAction(e *Executor, cr *meridiov1alpha1.Trench) (Action, error)
+	getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error)
 }
 
 type Meridio struct {
 	ipamDeployment *IpamDeployment
 	ipamService    *IpamService
-	configmap      *ConfigMap
 	loadBalancer   *LoadBalancer
 	serviceAccount *ServiceAccount
 	role           *Role
@@ -32,7 +32,6 @@ func NewMeridio() *Meridio {
 	return &Meridio{
 		ipamDeployment: &IpamDeployment{},
 		ipamService:    &IpamService{},
-		configmap:      &ConfigMap{},
 		loadBalancer:   &LoadBalancer{},
 		serviceAccount: &ServiceAccount{},
 		role:           &Role{},
@@ -44,12 +43,11 @@ func NewMeridio() *Meridio {
 	}
 }
 
-func (m Meridio) ReconcileAll(e *Executor, cr *meridiov1alpha1.Trench) error {
-	var actions []Action
+func (m Meridio) ReconcileAll(e *common.Executor, cr *meridiov1alpha1.Trench) error {
+	var actions []common.Action
 	resources := []Resources{
 		m.ipamDeployment,
 		m.ipamService,
-		m.configmap,
 		m.serviceAccount,
 		m.role,
 		m.roleBinding,
@@ -70,7 +68,7 @@ func (m Meridio) ReconcileAll(e *Executor, cr *meridiov1alpha1.Trench) error {
 		}
 	}
 
-	err := e.runAll(actions)
+	err := e.RunAll(actions)
 	if err != nil {
 		return fmt.Errorf("running actions error: %s", err)
 	}

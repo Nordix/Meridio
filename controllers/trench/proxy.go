@@ -1,9 +1,10 @@
-package reconciler
+package trench
 
 import (
 	"fmt"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	common "github.com/nordix/meridio-operator/controllers/common"
 	"golang.org/x/net/context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -13,8 +14,12 @@ import (
 )
 
 const (
-	nameProxy             = "proxy"
-	imageProxy            = "proxy"
+	nameProxy  = "proxy"
+	imageProxy = "proxy"
+
+	busyboxImage = "busybox"
+	busyboxTag   = "1.29"
+
 	proxyEnvConfig        = "NSM_CONFIG_MAP_NAME"
 	proxyEnvService       = "NSM_SERVICE_NAME"
 	proxyEnvSubnetPools   = "NSM_SUBNET_POOLS"
@@ -24,7 +29,7 @@ const (
 )
 
 func getProxyDeploymentName(cr *meridiov1alpha1.Trench) string {
-	return getFullName(cr, nameProxy)
+	return common.GetFullName(cr, nameProxy)
 }
 
 type Proxy struct {
@@ -39,27 +44,27 @@ func (i *Proxy) getEnvVars(ds *appsv1.DaemonSet, cr *meridiov1alpha1.Trench) []c
 	env := []corev1.EnvVar{
 		{
 			Name:  proxyEnvConfig,
-			Value: getConfigMapName(cr),
+			Value: common.GetConfigMapName(cr),
 		},
 		{
 			Name:  proxyEnvSubnetPools,
-			Value: getSubnetPool(cr),
+			Value: common.GetSubnetPool(cr),
 		},
 		{
 			Name:  proxyEnvSubnetLengths,
-			Value: getPrefixLength(cr),
+			Value: common.GetPrefixLength(cr),
 		},
 		{
 			Name:  proxyEnvService,
-			Value: getProxyNsName(cr),
+			Value: common.GetAppNsName(nameProxy, cr),
 		},
 		{
 			Name:  proxyEnvIpam,
-			Value: getIPAMService(cr),
+			Value: getIPAMServiceWithPort(cr),
 		},
 		{
 			Name:  proxyEnvLb,
-			Value: getLoadBalancerNsName(cr),
+			Value: common.GetAppNsName(lbName, cr),
 		},
 	}
 
@@ -88,18 +93,18 @@ func (i *Proxy) insertParamters(ds *appsv1.DaemonSet, cr *meridiov1alpha1.Trench
 	ds.Spec.Template.ObjectMeta.Labels["app"] = proxyDeploymentName
 	ds.Spec.Template.Spec.ServiceAccountName = getServiceAccountName(cr)
 	// init container
-	ds.Spec.Template.Spec.InitContainers[0].Image = fmt.Sprintf("%s/%s/%s:%s", Registry, Organization, busyboxImage, busyboxTag)
+	ds.Spec.Template.Spec.InitContainers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, busyboxImage, busyboxTag)
 	// proxy container
-	ds.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", Registry, Organization, imageProxy, Tag)
-	ds.Spec.Template.Spec.Containers[0].ImagePullPolicy = PullPolicy
-	ds.Spec.Template.Spec.Containers[0].LivenessProbe = GetLivenessProbe(cr)
-	ds.Spec.Template.Spec.Containers[0].ReadinessProbe = GetReadinessProbe(cr)
+	ds.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, imageProxy, common.Tag)
+	ds.Spec.Template.Spec.Containers[0].ImagePullPolicy = common.PullPolicy
+	ds.Spec.Template.Spec.Containers[0].LivenessProbe = common.GetLivenessProbe(cr)
+	ds.Spec.Template.Spec.Containers[0].ReadinessProbe = common.GetLivenessProbe(cr)
 	ds.Spec.Template.Spec.Containers[0].Env = i.getEnvVars(ds, cr)
 	return ds
 }
 
 func (i *Proxy) getModel() (*appsv1.DaemonSet, error) {
-	return getDaemonsetModel("deployment/proxy.yaml")
+	return common.GetDaemonsetModel("deployment/proxy.yaml")
 }
 
 func (i *Proxy) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
@@ -138,9 +143,9 @@ func (i *Proxy) getCurrentStatus(ctx context.Context, cr *meridiov1alpha1.Trench
 	return nil
 }
 
-func (i *Proxy) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Action, error) {
-	var action Action
-	err := i.getCurrentStatus(e.ctx, cr, e.client)
+func (i *Proxy) getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error) {
+	var action common.Action
+	err := i.getCurrentStatus(e.Ctx, cr, e.Client)
 	if err != nil {
 		return action, err
 	}
@@ -149,13 +154,13 @@ func (i *Proxy) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Action, erro
 		if err != nil {
 			return action, err
 		}
-		e.log.Info("proxy daemonset", "add action", "create")
-		action = newCreateAction(i.desiredStatus, "create proxy daemonset")
+		e.Log.Info("proxy daemonset", "add action", "create")
+		action = common.NewCreateAction(i.desiredStatus, "create proxy daemonset")
 	} else {
 		i.getReconciledDesiredStatus(i.currentStatus, cr)
 		if !equality.Semantic.DeepEqual(i.desiredStatus, i.currentStatus) {
-			e.log.Info("proxy daemonset", "add action", "update")
-			action = newUpdateAction(i.desiredStatus, "update proxy daemonset")
+			e.Log.Info("proxy daemonset", "add action", "update")
+			action = common.NewUpdateAction(i.desiredStatus, "update proxy daemonset")
 		}
 	}
 	return action, nil

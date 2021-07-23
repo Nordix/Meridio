@@ -93,6 +93,31 @@ rules:
   - patch
   - update
 - apiGroups:
+  - meridio.nordix.org
+  resources:
+  - vips
+  verbs:
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - vips/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - vips/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - rolebindings

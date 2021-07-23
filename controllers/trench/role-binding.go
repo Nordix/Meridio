@@ -1,7 +1,8 @@
-package reconciler
+package trench
 
 import (
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	common "github.com/nordix/meridio-operator/controllers/common"
 	"golang.org/x/net/context"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -14,7 +15,7 @@ const (
 )
 
 func getRoleBindingName(cr *meridiov1alpha1.Trench) string {
-	return getFullName(cr, roleBindingName)
+	return common.GetFullName(cr, roleBindingName)
 }
 
 type RoleBinding struct {
@@ -23,7 +24,7 @@ type RoleBinding struct {
 }
 
 func (r *RoleBinding) getModel() (*rbacv1.RoleBinding, error) {
-	return getRoleBindingModel("deployment/role-binding.yaml")
+	return common.GetRoleBindingModel("deployment/role-binding.yaml")
 }
 
 func (r *RoleBinding) insertParamters(role *rbacv1.RoleBinding, cr *meridiov1alpha1.Trench) *rbacv1.RoleBinding {
@@ -67,9 +68,9 @@ func (r *RoleBinding) getReconciledDesiredStatus(current *rbacv1.RoleBinding, cr
 	r.desiredStatus = r.insertParamters(current, cr).DeepCopy()
 }
 
-func (r *RoleBinding) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Action, error) {
-	var action Action
-	err := r.getCurrentStatus(e.ctx, cr, e.client)
+func (r *RoleBinding) getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error) {
+	var action common.Action
+	err := r.getCurrentStatus(e.Ctx, cr, e.Client)
 	if err != nil {
 		return action, err
 	}
@@ -78,13 +79,13 @@ func (r *RoleBinding) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Action
 		if err != nil {
 			return action, err
 		}
-		e.log.Info("role binding", "add action", "create")
-		action = newCreateAction(r.desiredStatus, "create role binding")
+		e.Log.Info("role binding", "add action", "create")
+		action = common.NewCreateAction(r.desiredStatus, "create role binding")
 	} else {
 		r.getReconciledDesiredStatus(r.currentStatus, cr)
 		if !equality.Semantic.DeepEqual(r.desiredStatus, r.currentStatus) {
-			e.log.Info("role binding", "add action", "update")
-			action = newUpdateAction(r.desiredStatus, "update role binding")
+			e.Log.Info("role binding", "add action", "update")
+			action = common.NewUpdateAction(r.desiredStatus, "update role binding")
 		}
 	}
 	return action, nil

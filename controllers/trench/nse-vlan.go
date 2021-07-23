@@ -1,9 +1,10 @@
-package reconciler
+package trench
 
 import (
 	"fmt"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	common "github.com/nordix/meridio-operator/controllers/common"
 	"golang.org/x/net/context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -20,10 +21,15 @@ const (
 	nseEnvSerive   = "NSE_SERVICE_NAME"
 	nseEnvPrefixV4 = "NSE_CIDR_PREFIX"
 	nseEnvPrefixV6 = "NSE_IPV6_PREFIX"
+	vlanItf        = "eth0"
+	vlanID         = "100"
+
+	vlanPrefixV4 = "169.254.100.0/24"
+	vlanPrefixV6 = "100:100::/64"
 )
 
 func getNSEVLANDeploymentName(cr *meridiov1alpha1.Trench) string {
-	return getFullName(cr, nseName)
+	return common.GetFullName(cr, nseName)
 }
 
 type NseDeployment struct {
@@ -46,7 +52,7 @@ func (i *NseDeployment) getEnvVars(dp *appsv1.Deployment, cr *meridiov1alpha1.Tr
 		},
 		{
 			Name:  nseEnvSerive,
-			Value: getVlanNsName(cr),
+			Value: common.GetAppNsName(nseName, cr),
 		},
 		{
 			Name:  nseEnvPrefixV4,
@@ -79,14 +85,14 @@ func (i *NseDeployment) insertParamters(dep *appsv1.Deployment, cr *meridiov1alp
 	dep.ObjectMeta.Labels["app"] = nseVLANDeploymentName
 	dep.Spec.Selector.MatchLabels["app"] = nseVLANDeploymentName
 	dep.Spec.Template.ObjectMeta.Labels["app"] = nseVLANDeploymentName
-	dep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", Registry, OrganizationNsm, nseImage, Tag)
-	dep.Spec.Template.Spec.Containers[0].ImagePullPolicy = PullPolicy
+	dep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.OrganizationNsm, nseImage, common.Tag)
+	dep.Spec.Template.Spec.Containers[0].ImagePullPolicy = common.PullPolicy
 	dep.Spec.Template.Spec.Containers[0].Env = i.getEnvVars(dep, cr)
 	return dep
 }
 
 func (i *NseDeployment) getModel() (*appsv1.Deployment, error) {
-	return getDeploymentModel("deployment/nse-vlan.yaml")
+	return common.GetDeploymentModel("deployment/nse-vlan.yaml")
 }
 
 func (i *NseDeployment) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
@@ -125,9 +131,9 @@ func (i *NseDeployment) getCurrentStatus(ctx context.Context, cr *meridiov1alpha
 	return nil
 }
 
-func (i *NseDeployment) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Action, error) {
-	var action Action
-	err := i.getCurrentStatus(e.ctx, cr, e.client)
+func (i *NseDeployment) getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error) {
+	var action common.Action
+	err := i.getCurrentStatus(e.Ctx, cr, e.Client)
 	if err != nil {
 		return action, err
 	}
@@ -136,13 +142,13 @@ func (i *NseDeployment) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Acti
 		if err != nil {
 			return action, err
 		}
-		e.log.Info("nse deployment", "add action", "create")
-		action = newCreateAction(i.desiredStatus, "create nse deployment")
+		e.Log.Info("nse deployment", "add action", "create")
+		action = common.NewCreateAction(i.desiredStatus, "create nse deployment")
 	} else {
 		i.getReconciledDesiredStatus(i.currentStatus, cr)
 		if !equality.Semantic.DeepEqual(i.desiredStatus, i.currentStatus) {
-			e.log.Info("nse deployment", "add action", "update")
-			action = newUpdateAction(i.desiredStatus, "update nse deployment")
+			e.Log.Info("nse deployment", "add action", "update")
+			action = common.NewUpdateAction(i.desiredStatus, "update nse deployment")
 		}
 	}
 	return action, nil

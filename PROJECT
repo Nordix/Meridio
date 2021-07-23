@@ -20,4 +20,16 @@ resources:
     defaulting: true
     validation: true
     webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: nordix.org
+  group: meridio
+  kind: Vip
+  path: github.com/nordix/meridio-operator/api/v1alpha1
+  version: v1alpha1
+  webhooks:
+    validation: true
+    webhookVersion: v1
 version: "3"

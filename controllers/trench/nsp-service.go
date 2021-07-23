@@ -1,7 +1,10 @@
-package reconciler
+package trench
 
 import (
+	"fmt"
+
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	common "github.com/nordix/meridio-operator/controllers/common"
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -17,7 +20,11 @@ const (
 )
 
 func getNSPServiceName(cr *meridiov1alpha1.Trench) string {
-	return getFullName(cr, nspSvcName)
+	return common.GetFullName(cr, nspSvcName)
+}
+
+func getNSPServiceWithPort(cr *meridiov1alpha1.Trench) string {
+	return fmt.Sprintf("%s:%d", getNSPServiceName(cr), nspTargetPort)
 }
 
 type NspService struct {
@@ -85,12 +92,12 @@ func (i *NspService) getReconciledDesiredStatus(svc *corev1.Service, cr *meridio
 }
 
 func (i *NspService) getModel() (*corev1.Service, error) {
-	return getServiceModel("deployment/nsp-service.yaml")
+	return common.GetServiceModel("deployment/nsp-service.yaml")
 }
 
-func (i *NspService) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Action, error) {
-	var action Action
-	err := i.getCurrentStatus(e.ctx, cr, e.client)
+func (i *NspService) getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error) {
+	var action common.Action
+	err := i.getCurrentStatus(e.Ctx, cr, e.Client)
 	if err != nil {
 		return action, err
 	}
@@ -99,13 +106,13 @@ func (i *NspService) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Action,
 		if err != nil {
 			return action, err
 		}
-		e.log.Info("nsp service", "add action", "create")
-		action = newCreateAction(i.desiredStatus, "create nsp service")
+		e.Log.Info("nsp service", "add action", "create")
+		action = common.NewCreateAction(i.desiredStatus, "create nsp service")
 	} else {
 		i.getReconciledDesiredStatus(i.currentStatus, cr)
 		if !equality.Semantic.DeepEqual(i.desiredStatus, i.currentStatus) {
-			e.log.Info("nsp service", "add action", "update")
-			action = newUpdateAction(i.desiredStatus, "update nsp service")
+			e.Log.Info("nsp service", "add action", "update")
+			action = common.NewUpdateAction(i.desiredStatus, "update nsp service")
 		}
 	}
 	return action, nil

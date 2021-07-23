@@ -56,3 +56,24 @@ webhooks:
     resources:
     - trenches
   sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-meridio-nordix-org-v1alpha1-vip
+  failurePolicy: Fail
+  name: vvip.kb.io
+  rules:
+  - apiGroups:
+    - meridio.nordix.org
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - vips
+  sideEffects: None

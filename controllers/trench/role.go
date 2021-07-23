@@ -1,7 +1,8 @@
-package reconciler
+package trench
 
 import (
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	common "github.com/nordix/meridio-operator/controllers/common"
 	"golang.org/x/net/context"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -14,7 +15,7 @@ const (
 )
 
 func getRoleName(cr *meridiov1alpha1.Trench) string {
-	return getFullName(cr, roleName)
+	return common.GetFullName(cr, roleName)
 }
 
 type Role struct {
@@ -30,7 +31,7 @@ func (r *Role) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 }
 
 func (r *Role) getModel() (*rbacv1.Role, error) {
-	return getRoleModel("deployment/role.yaml")
+	return common.GetRoleModel("deployment/role.yaml")
 }
 
 func (r *Role) insertParamters(role *rbacv1.Role, cr *meridiov1alpha1.Trench) *rbacv1.Role {
@@ -65,9 +66,9 @@ func (r *Role) getReconciledDesiredStatus(current *rbacv1.Role, cr *meridiov1alp
 	r.desiredStatus = r.insertParamters(current, cr).DeepCopy()
 }
 
-func (r *Role) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Action, error) {
-	var action Action
-	err := r.getCurrentStatus(e.ctx, cr, e.client)
+func (r *Role) getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error) {
+	var action common.Action
+	err := r.getCurrentStatus(e.Ctx, cr, e.Client)
 	if err != nil {
 		return action, err
 	}
@@ -76,13 +77,13 @@ func (r *Role) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Action, error
 		if err != nil {
 			return action, err
 		}
-		e.log.Info("role", "add action", "create")
-		action = newCreateAction(r.desiredStatus, "create role")
+		e.Log.Info("role", "add action", "create")
+		action = common.NewCreateAction(r.desiredStatus, "create role")
 	} else {
 		r.getReconciledDesiredStatus(r.currentStatus, cr)
 		if !equality.Semantic.DeepEqual(r.desiredStatus, r.currentStatus) {
-			e.log.Info("role", "add action", "update")
-			action = newUpdateAction(r.desiredStatus, "update role")
+			e.Log.Info("role", "add action", "update")
+			action = common.NewUpdateAction(r.desiredStatus, "update role")
 		}
 	}
 	return action, nil

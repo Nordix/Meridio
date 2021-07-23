@@ -1,9 +1,10 @@
-package reconciler
+package trench
 
 import (
 	"fmt"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	common "github.com/nordix/meridio-operator/controllers/common"
 	"golang.org/x/net/context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -19,7 +20,7 @@ const (
 )
 
 func getNSPDeploymentName(cr *meridiov1alpha1.Trench) string {
-	return getFullName(cr, nspName)
+	return common.GetFullName(cr, nspName)
 }
 
 type NspDeployment struct {
@@ -47,16 +48,16 @@ func (i *NspDeployment) insertParamters(dep *appsv1.Deployment, cr *meridiov1alp
 	dep.ObjectMeta.Labels["app"] = nspDeploymentName
 	dep.Spec.Selector.MatchLabels["app"] = nspDeploymentName
 	dep.Spec.Template.ObjectMeta.Labels["app"] = nspDeploymentName
-	dep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", Registry, Organization, imageNsp, Tag)
-	dep.Spec.Template.Spec.Containers[0].ImagePullPolicy = PullPolicy
-	dep.Spec.Template.Spec.Containers[0].LivenessProbe = GetLivenessProbe(cr)
-	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = GetReadinessProbe(cr)
+	dep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, imageNsp, common.Tag)
+	dep.Spec.Template.Spec.Containers[0].ImagePullPolicy = common.PullPolicy
+	dep.Spec.Template.Spec.Containers[0].LivenessProbe = common.GetLivenessProbe(cr)
+	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = common.GetReadinessProbe(cr)
 	dep.Spec.Template.Spec.Containers[0].Env = i.getEnvVars(cr)
 	return dep
 }
 
 func (i *NspDeployment) getModel() (*appsv1.Deployment, error) {
-	return getDeploymentModel("deployment/nsp.yaml")
+	return common.GetDeploymentModel("deployment/nsp.yaml")
 }
 
 func (i *NspDeployment) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
@@ -95,9 +96,9 @@ func (i *NspDeployment) getCurrentStatus(ctx context.Context, cr *meridiov1alpha
 	return nil
 }
 
-func (i *NspDeployment) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Action, error) {
-	var action Action
-	err := i.getCurrentStatus(e.ctx, cr, e.client)
+func (i *NspDeployment) getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error) {
+	var action common.Action
+	err := i.getCurrentStatus(e.Ctx, cr, e.Client)
 	if err != nil {
 		return action, err
 	}
@@ -106,13 +107,13 @@ func (i *NspDeployment) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Acti
 		if err != nil {
 			return action, err
 		}
-		e.log.Info("nsp deployment", "add action", "create")
-		action = newCreateAction(i.desiredStatus, "create nsp deployment")
+		e.Log.Info("nsp deployment", "add action", "create")
+		action = common.NewCreateAction(i.desiredStatus, "create nsp deployment")
 	} else {
 		i.getReconciledDesiredStatus(i.currentStatus, cr)
 		if !equality.Semantic.DeepEqual(i.desiredStatus, i.currentStatus) {
-			e.log.Info("nsp deployment", "add action", "update")
-			action = newUpdateAction(i.desiredStatus, "update nsp deployment")
+			e.Log.Info("nsp deployment", "add action", "update")
+			action = common.NewUpdateAction(i.desiredStatus, "update nsp deployment")
 		}
 	}
 	return action, nil

@@ -6,20 +6,27 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: trenches.meridio.nordix.org
+  name: vips.meridio.nordix.org
 spec:
   group: meridio.nordix.org
   names:
-    kind: Trench
-    listKind: TrenchList
-    plural: trenches
-    singular: trench
+    kind: Vip
+    listKind: VipList
+    plural: vips
+    singular: vip
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.address
+      name: Address
+      type: string
+    - jsonPath: .status.status
+      name: Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Trench is the Schema for the trenches API
+        description: Vip is the Schema for the vips API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -34,14 +41,20 @@ spec:
           metadata:
             type: object
           spec:
-            description: TrenchSpec defines the desired state of Trench
+            description: VipSpec defines the desired state of Vip
             properties:
-              configMapName:
-                description: ConfigMapName
+              address:
                 type: string
             type: object
           status:
-            description: TrenchStatus defines the observed state of Trench
+            description: VipStatus defines the observed state of Vip
+            properties:
+              message:
+                description: the reason why vip is rejected
+                type: string
+              status:
+                description: if the vip is accepted or rejected by controller
+                type: string
             type: object
         type: object
     served: true

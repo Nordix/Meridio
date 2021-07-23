@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"github.com/vishvananda/netlink"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -74,9 +73,7 @@ func (r *Trench) ValidateDelete() error {
 
 func (r *Trench) validateTrench() error {
 	var allErrs field.ErrorList
-	if err := r.validateVIPs(); err != nil {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.VIPs, err.Error()))
-	}
+
 	if len(allErrs) == 0 {
 		return nil
 	}
@@ -84,14 +81,4 @@ func (r *Trench) validateTrench() error {
 	return apierrors.NewInvalid(
 		schema.GroupKind{Group: "meridio.nordix.org", Kind: "Trench"},
 		r.Name, allErrs)
-}
-
-func (r *Trench) validateVIPs() error {
-	for _, vip := range r.Spec.VIPs {
-		_, err := netlink.ParseIPNet(vip)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }

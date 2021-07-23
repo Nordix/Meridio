@@ -23,44 +23,50 @@ import (
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+type StatusPhase string
 
-// TrenchSpec defines the desired state of Trench
-type TrenchSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+var (
+	NoPhase       StatusPhase
+	PhaseAccepted StatusPhase = "accepted"
+	PhaseRejected StatusPhase = "rejected"
+)
 
-	// ConfigMapName
-	ConfigMapName string `json:"configMapName,omitempty"`
+// VipSpec defines the desired state of Vip
+type VipSpec struct {
+	Address string `json:"address,omitempty"`
 }
 
-// TrenchStatus defines the observed state of Trench
-type TrenchStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+// VipStatus defines the observed state of Vip
+type VipStatus struct {
+	// if the vip is accepted or rejected by controller
+	Status StatusPhase `json:"status,omitempty"`
+	// the reason why vip is rejected
+	Message string `json:"message,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-
-// Trench is the Schema for the trenches API
-type Trench struct {
+//+kubebuilder:printcolumn:name="Address",type=string,JSONPath=`.spec.address`
+//+kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.status`
+// Vip is the Schema for the vips API
+type Vip struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   TrenchSpec   `json:"spec,omitempty"`
-	Status TrenchStatus `json:"status,omitempty"`
+	Spec   VipSpec   `json:"spec,omitempty"`
+	Status VipStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
-// TrenchList contains a list of Trench
-type TrenchList struct {
+// VipList contains a list of Vip
+type VipList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Trench `json:"items"`
+	Items           []Vip `json:"items"`
 }
 
-func (r *Trench) GroupResource() schema.GroupResource {
+func (r *Vip) GroupResource() schema.GroupResource {
 	return schema.GroupResource{
 		Group:    r.GroupVersionKind().Group,
 		Resource: r.GroupVersionKind().Kind,
@@ -68,5 +74,5 @@ func (r *Trench) GroupResource() schema.GroupResource {
 }
 
 func init() {
-	SchemeBuilder.Register(&Trench{}, &TrenchList{})
+	SchemeBuilder.Register(&Vip{}, &VipList{})
 }

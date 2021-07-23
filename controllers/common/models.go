@@ -1,4 +1,4 @@
-package reconciler
+package common
 
 import (
 	"fmt"
@@ -20,52 +20,28 @@ const (
 	OrganizationNsm = "cloud-native/nsm"
 	Tag             = "latest"
 	PullPolicy      = "IfNotPresent"
-	busyboxImage    = "busybox"
-	busyboxTag      = "1.29"
 
 	IPv4      ipFamily = "ipv4"
 	IPv6      ipFamily = "ipv6"
 	Dualstack ipFamily = "dualstack"
 
-	vipIpv4          = "20.0.0.1/32"
-	vipIpv6          = "2000::1/128"
 	subnetPoolIpv4   = "172.16.0.0/16"
 	subnetPoolIpv6   = "fd00::/48"
 	prefixLengthIpv4 = "24"
 	prefixLengthIpv6 = "64"
-
-	proxyNetworkService = "proxy.load-balancer"
-	lbNetworkService    = "load-balancer"
-	vlanNetworkService  = "external-vlan"
-	vlanItf             = "eth0"
-	vlanID              = "100"
-	vlanPrefixV4        = "169.254.100.0/24"
-	vlanPrefixV6        = "100:100::/64"
 )
 
 type ipFamily string
 
-func getResourceNamePrefix(cr *meridiov1alpha1.Trench) string {
+func GetResourceNamePrefix(cr *meridiov1alpha1.Trench) string {
 	return os.Getenv(ResourceNamePrefixEnv)
 }
 
-func getFullName(cr *meridiov1alpha1.Trench, resourceName string) string {
-	return fmt.Sprintf("%s%s-%s", getResourceNamePrefix(cr), resourceName, cr.ObjectMeta.Name)
+func GetFullName(cr *meridiov1alpha1.Trench, resourceName string) string {
+	return fmt.Sprintf("%s%s-%s", GetResourceNamePrefix(cr), resourceName, cr.ObjectMeta.Name)
 }
 
-func getVips(cr *meridiov1alpha1.Trench) string {
-	ipFamily := IPv4
-	if ipFamily == IPv4 {
-		return vipIpv4
-	} else if ipFamily == IPv6 {
-		return vipIpv6
-	} else if ipFamily == Dualstack {
-		return fmt.Sprintf("%s,%s", vipIpv4, vipIpv6)
-	}
-	return ""
-}
-
-func getSubnetPool(cr *meridiov1alpha1.Trench) string {
+func GetSubnetPool(cr *meridiov1alpha1.Trench) string {
 	ipFamily := IPv4
 	if ipFamily == IPv4 {
 		return subnetPoolIpv4
@@ -77,36 +53,24 @@ func getSubnetPool(cr *meridiov1alpha1.Trench) string {
 	return ""
 }
 
-func getPrefixLength(cr *meridiov1alpha1.Trench) string {
+func GetPrefixLength(cr *meridiov1alpha1.Trench) string {
 	ipFamily := IPv4
 	if ipFamily == IPv4 {
 		return prefixLengthIpv4
 	} else if ipFamily == IPv6 {
 		return prefixLengthIpv6
 	} else if ipFamily == Dualstack {
-		return fmt.Sprintf("%s,%s", prefixLengthIpv4, prefixLengthIpv4)
+		return fmt.Sprintf("%s,%s", prefixLengthIpv4, prefixLengthIpv6)
 	}
 	return ""
 }
 
-func getVlanNsName(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s.%s.%s", vlanNetworkService, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace)
+func GetAppNsName(app string, cr *meridiov1alpha1.Trench) string {
+	return fmt.Sprintf("%s.%s.%s", app, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace)
 }
 
-func getLoadBalancerNsName(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s.%s.%s", lbNetworkService, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace)
-}
-
-func getProxyNsName(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s.%s.%s", proxyNetworkService, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace)
-}
-
-func getNSPService(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s:%d", getNSPServiceName(cr), nspTargetPort)
-}
-
-func getIPAMService(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s:%d", getIPAMServiceName(cr), ipamTargetPort)
+func GetConfigMapName(cr *meridiov1alpha1.Trench) string {
+	return GetFullName(cr, cr.Spec.ConfigMapName)
 }
 
 func GetReadinessProbe(cr *meridiov1alpha1.Trench) *corev1.Probe {
@@ -141,7 +105,7 @@ func GetLivenessProbe(cr *meridiov1alpha1.Trench) *corev1.Probe {
 	}
 }
 
-func getDeploymentModel(f string) (*appsv1.Deployment, error) {
+func GetDeploymentModel(f string) (*appsv1.Deployment, error) {
 	data, err := os.Open(f)
 	if err != nil {
 		return nil, fmt.Errorf("open %s error: %s", f, err)
@@ -154,7 +118,7 @@ func getDeploymentModel(f string) (*appsv1.Deployment, error) {
 	return deployment, nil
 }
 
-func getDaemonsetModel(f string) (*appsv1.DaemonSet, error) {
+func GetDaemonsetModel(f string) (*appsv1.DaemonSet, error) {
 	data, err := os.Open(f)
 	if err != nil {
 		return nil, fmt.Errorf("open %s error: %s", f, err)
@@ -167,7 +131,7 @@ func getDaemonsetModel(f string) (*appsv1.DaemonSet, error) {
 	return ds, nil
 }
 
-func getServiceModel(f string) (*corev1.Service, error) {
+func GetServiceModel(f string) (*corev1.Service, error) {
 	data, err := os.Open(f)
 	if err != nil {
 		return nil, fmt.Errorf("open %s error: %s", f, err)
@@ -180,7 +144,7 @@ func getServiceModel(f string) (*corev1.Service, error) {
 	return service, nil
 }
 
-func getRoleModel(f string) (*rbacv1.Role, error) {
+func GetRoleModel(f string) (*rbacv1.Role, error) {
 	data, err := os.Open(f)
 	if err != nil {
 		return nil, fmt.Errorf("open %s error: %s", f, err)
@@ -193,7 +157,7 @@ func getRoleModel(f string) (*rbacv1.Role, error) {
 	return role, nil
 }
 
-func getRoleBindingModel(f string) (*rbacv1.RoleBinding, error) {
+func GetRoleBindingModel(f string) (*rbacv1.RoleBinding, error) {
 	data, err := os.Open(f)
 	if err != nil {
 		return nil, fmt.Errorf("open %s error: %s", f, err)

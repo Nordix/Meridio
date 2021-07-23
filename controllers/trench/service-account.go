@@ -1,7 +1,8 @@
-package reconciler
+package trench
 
 import (
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	common "github.com/nordix/meridio-operator/controllers/common"
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -12,13 +13,13 @@ import (
 
 const serviceAccountName = "meridio"
 
-func getServiceAccountName(cr *meridiov1alpha1.Trench) string {
-	return getFullName(cr, serviceAccountName)
-}
-
 type ServiceAccount struct {
 	currentStatus *corev1.ServiceAccount
 	desiredStatus *corev1.ServiceAccount
+}
+
+func getServiceAccountName(cr *meridiov1alpha1.Trench) string {
+	return common.GetFullName(cr, serviceAccountName)
 }
 
 func (sa *ServiceAccount) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
@@ -61,9 +62,9 @@ func (sa *ServiceAccount) getReconciledDesiredStatus(current *corev1.ServiceAcco
 	sa.desiredStatus = sa.insertParamters(current, cr).DeepCopy()
 }
 
-func (sa *ServiceAccount) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Action, error) {
-	var action Action
-	err := sa.getCurrentStatus(e.ctx, cr, e.client)
+func (sa *ServiceAccount) getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error) {
+	var action common.Action
+	err := sa.getCurrentStatus(e.Ctx, cr, e.Client)
 	if err != nil {
 		return action, err
 	}
@@ -72,13 +73,13 @@ func (sa *ServiceAccount) getAction(e *Executor, cr *meridiov1alpha1.Trench) (Ac
 		if err != nil {
 			return action, err
 		}
-		e.log.Info("service account", "add action", "create")
-		action = newCreateAction(sa.desiredStatus, "create service account")
+		e.Log.Info("service account", "add action", "create")
+		action = common.NewCreateAction(sa.desiredStatus, "create service account")
 	} else {
 		sa.getReconciledDesiredStatus(sa.currentStatus, cr)
 		if !equality.Semantic.DeepEqual(sa.desiredStatus, sa.currentStatus) {
-			e.log.Info("service account", "add action", "update")
-			action = newUpdateAction(sa.desiredStatus, "update service account")
+			e.Log.Info("service account", "add action", "update")
+			action = common.NewUpdateAction(sa.desiredStatus, "update service account")
 		}
 	}
 	return action, nil
