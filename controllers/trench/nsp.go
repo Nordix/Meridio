@@ -18,11 +18,23 @@ const (
 )
 
 type NspDeployment struct {
-	currentStatus *appsv1.Deployment
-	desiredStatus *appsv1.Deployment
+	trench *meridiov1alpha1.Trench
+	model  *appsv1.Deployment
 }
 
-func (i *NspDeployment) getEnvVars(cr *meridiov1alpha1.Trench) []corev1.EnvVar {
+func NewNspDeployment(t *meridiov1alpha1.Trench) (*NspDeployment, error) {
+	l := &NspDeployment{
+		trench: t.DeepCopy(),
+	}
+
+	// get model
+	if err := l.getModel(); err != nil {
+		return nil, err
+	}
+	return l, nil
+}
+
+func (i *NspDeployment) getEnvVars() []corev1.EnvVar {
 	// if envVars are set in the cr, use the values
 	// else return default envVars
 	return []corev1.EnvVar{
@@ -33,81 +45,82 @@ func (i *NspDeployment) getEnvVars(cr *meridiov1alpha1.Trench) []corev1.EnvVar {
 	}
 }
 
-func (i *NspDeployment) insertParamters(dep *appsv1.Deployment, cr *meridiov1alpha1.Trench) *appsv1.Deployment {
+func (i *NspDeployment) insertParamters(init *appsv1.Deployment) *appsv1.Deployment {
 	// if status nsp deployment parameters are specified in the cr, use those
 	// else use the default parameters
-	nspDeploymentName := common.NSPDeploymentName(cr)
+	nspDeploymentName := common.NSPDeploymentName(i.trench)
+	dep := init.DeepCopy()
 	dep.ObjectMeta.Name = nspDeploymentName
-	dep.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
+	dep.ObjectMeta.Namespace = i.trench.ObjectMeta.Namespace
 	dep.ObjectMeta.Labels["app"] = nspDeploymentName
 	dep.Spec.Selector.MatchLabels["app"] = nspDeploymentName
 	dep.Spec.Template.ObjectMeta.Labels["app"] = nspDeploymentName
 	dep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, imageNsp, common.Tag)
 	dep.Spec.Template.Spec.Containers[0].ImagePullPolicy = common.PullPolicy
-	dep.Spec.Template.Spec.Containers[0].LivenessProbe = common.GetLivenessProbe(cr)
-	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = common.GetReadinessProbe(cr)
-	dep.Spec.Template.Spec.Containers[0].Env = i.getEnvVars(cr)
+	dep.Spec.Template.Spec.Containers[0].LivenessProbe = common.GetLivenessProbe(i.trench)
+	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = common.GetReadinessProbe(i.trench)
+	dep.Spec.Template.Spec.Containers[0].Env = i.getEnvVars()
 	return dep
 }
 
-func (i *NspDeployment) getModel() (*appsv1.Deployment, error) {
-	return common.GetDeploymentModel("deployment/nsp.yaml")
-}
-
-func (i *NspDeployment) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
-	return client.ObjectKey{
-		Namespace: cr.ObjectMeta.Namespace,
-		Name:      common.NSPDeploymentName(cr),
-	}
-}
-
-func (i *NspDeployment) getDesiredStatus(cr *meridiov1alpha1.Trench) error {
-	NspDeployment, err := i.getModel()
+func (i *NspDeployment) getModel() error {
+	model, err := common.GetDeploymentModel("deployment/nsp.yaml")
 	if err != nil {
 		return err
 	}
-	i.desiredStatus = i.insertParamters(NspDeployment, cr)
+	i.model = model
 	return nil
+}
+
+func (i *NspDeployment) getSelector() client.ObjectKey {
+	return client.ObjectKey{
+		Namespace: i.trench.ObjectMeta.Namespace,
+		Name:      common.NSPDeploymentName(i.trench),
+	}
+}
+
+func (i *NspDeployment) getDesiredStatus() *appsv1.Deployment {
+	return i.insertParamters(i.model)
 }
 
 // getNspDeploymentReconciledDesiredStatus gets the desired status of nsp deployment after it's created
 // more paramters than what are defined in the model could be added by K8S
-func (i *NspDeployment) getReconciledDesiredStatus(cd *appsv1.Deployment, cr *meridiov1alpha1.Trench) {
-	i.desiredStatus = i.insertParamters(cd, cr)
+func (i *NspDeployment) getReconciledDesiredStatus(cd *appsv1.Deployment) *appsv1.Deployment {
+	return i.insertParamters(cd)
 }
 
-func (i *NspDeployment) getCurrentStatus(e *common.Executor, cr *meridiov1alpha1.Trench) error {
+func (i *NspDeployment) getCurrentStatus(e *common.Executor) (*appsv1.Deployment, error) {
 	currentStatus := &appsv1.Deployment{}
-	selector := i.getSelector(cr)
+	selector := i.getSelector()
 	err := e.GetObject(selector, currentStatus)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return nil
+			return nil, nil
 		}
-		return err
+		return nil, err
 	}
-	i.currentStatus = currentStatus.DeepCopy()
-	return nil
+	return currentStatus, nil
 }
 
-func (i *NspDeployment) getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error) {
+func (i *NspDeployment) getAction(e *common.Executor) (common.Action, error) {
+	elem := common.NSPDeploymentName(i.trench)
 	var action common.Action
-	err := i.getCurrentStatus(e, cr)
+	cs, err := i.getCurrentStatus(e)
 	if err != nil {
-		return action, err
+		return nil, err
 	}
-	if i.currentStatus == nil {
-		err := i.getDesiredStatus(cr)
+	if cs == nil {
+		ds := i.getDesiredStatus()
 		if err != nil {
-			return action, err
+			return nil, err
 		}
-		e.LogInfo("add action: create nsp deployment")
-		action = common.NewCreateAction(i.desiredStatus, "create nsp deployment")
+		e.LogInfo(fmt.Sprintf("add action: create %s", elem))
+		action = common.NewCreateAction(ds, fmt.Sprintf("create %s", elem))
 	} else {
-		i.getReconciledDesiredStatus(i.currentStatus, cr)
-		if !equality.Semantic.DeepEqual(i.desiredStatus, i.currentStatus) {
-			e.LogInfo("add action update: nsp deployment")
-			action = common.NewUpdateAction(i.desiredStatus, "update nsp deployment")
+		ds := i.getReconciledDesiredStatus(cs)
+		if !equality.Semantic.DeepEqual(ds, cs) {
+			e.LogInfo(fmt.Sprintf("add action: update %s", elem))
+			action = common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem))
 		}
 	}
 	return action, nil

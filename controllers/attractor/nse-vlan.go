@@ -134,24 +134,26 @@ func (i *NseDeployment) getCurrentStatus(e *common.Executor) (*appsv1.Deployment
 	return currentStatus, nil
 }
 
-func (i *NseDeployment) getAction(e *common.Executor) ([]common.Action, error) {
-	var actions []common.Action
-	// update attractor status
+func (i *NseDeployment) getAction(e *common.Executor) (common.Action, error) {
+	elem := common.NSEDeploymentName(i.attractor)
+	var action common.Action
 	cs, err := i.getCurrentStatus(e)
 	if err != nil {
-		return actions, err
+		return nil, err
 	}
 	if cs == nil {
 		ds := i.getDesiredStatus()
-		e.LogInfo("add action: create nse deployment")
-		actions = append(actions, common.NewCreateAction(ds, "create nse deployment"))
+		if err != nil {
+			return nil, err
+		}
+		e.LogInfo(fmt.Sprintf("add action: create %s", elem))
+		action = common.NewCreateAction(ds, fmt.Sprintf("create %s", elem))
 	} else {
 		ds := i.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			e.LogInfo("add action: update nse deployment")
-			actions = append(actions, common.NewUpdateAction(ds, "update nse deployment"))
+			e.LogInfo(fmt.Sprintf("add action: update %s", elem))
+			action = common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem))
 		}
 	}
-	i.attractor.Status.Vlan = meridiov1alpha1.DeploymentStatus.Deployed
-	return actions, nil
+	return action, nil
 }

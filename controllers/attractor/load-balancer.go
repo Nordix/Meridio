@@ -174,27 +174,26 @@ func (i *LoadBalancer) getReconciledDesiredStatus(lb *appsv1.Deployment) *appsv1
 	return i.insertParamters(lb)
 }
 
-func (l *LoadBalancer) getAction(e *common.Executor) ([]common.Action, error) {
-	var actions []common.Action
-	// if labeled trench is not found update attractor status to "disengaged"
-	if l.attractor.Status.Status != meridiov1alpha1.ConfigStatus.Accepted {
-		return actions, nil
-	}
-	// if trench is found, create/update load-balancer deployment
+func (l *LoadBalancer) getAction(e *common.Executor) (common.Action, error) {
+	elem := common.LoadBalancerDeploymentName(l.trench)
+	var action common.Action
 	cs, err := l.getCurrentStatus(e)
 	if err != nil {
 		return nil, err
 	}
 	if cs == nil {
 		ds := l.getDesiredStatus()
-		e.LogInfo("add action: create load-balancer")
-		actions = append(actions, common.NewCreateAction(ds, "create load-balncer deployment"))
+		if err != nil {
+			return nil, err
+		}
+		e.LogInfo(fmt.Sprintf("add action: create %s", elem))
+		action = common.NewCreateAction(ds, fmt.Sprintf("create %s", elem))
 	} else {
 		ds := l.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			e.LogInfo("add action: update load-balancer")
-			actions = append(actions, common.NewUpdateAction(ds, "update load-balncer deployment"))
+			e.LogInfo(fmt.Sprintf("add action: update %s", elem))
+			action = common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem))
 		}
 	}
-	return actions, nil
+	return action, nil
 }

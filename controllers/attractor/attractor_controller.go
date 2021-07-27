@@ -90,7 +90,7 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	err = executor.RunAll(append(alb, anse...))
+	err = executor.RunAll([]common.Action{alb, anse})
 	if err != nil {
 		return ctrl.Result{}, err
 	}

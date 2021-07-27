@@ -52,6 +52,7 @@ func GetReadinessProbe(cr *meridiov1alpha1.Trench) *corev1.Probe {
 		PeriodSeconds:       10,
 		TimeoutSeconds:      3,
 		FailureThreshold:    5,
+		SuccessThreshold:    1,
 	}
 }
 
@@ -68,6 +69,7 @@ func GetLivenessProbe(cr *meridiov1alpha1.Trench) *corev1.Probe {
 		PeriodSeconds:       10,
 		TimeoutSeconds:      3,
 		FailureThreshold:    5,
+		SuccessThreshold:    1,
 	}
 }
 
@@ -129,6 +131,19 @@ func GetRoleBindingModel(f string) (*rbacv1.RoleBinding, error) {
 		return nil, fmt.Errorf("open %s error: %s", f, err)
 	}
 	rb := &rbacv1.RoleBinding{}
+	err = yaml.NewYAMLOrJSONDecoder(data, 4096).Decode(rb)
+	if err != nil {
+		return nil, fmt.Errorf("decode %s error: %s", f, err)
+	}
+	return rb, nil
+}
+
+func GetServiceAccountModel(f string) (*corev1.ServiceAccount, error) {
+	data, err := os.Open(f)
+	if err != nil {
+		return nil, fmt.Errorf("open %s error: %s", f, err)
+	}
+	rb := &corev1.ServiceAccount{}
 	err = yaml.NewYAMLOrJSONDecoder(data, 4096).Decode(rb)
 	if err != nil {
 		return nil, fmt.Errorf("decode %s error: %s", f, err)
