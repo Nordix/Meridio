@@ -138,6 +138,6 @@ func GetRoleBindingModel(f string) (*rbacv1.RoleBinding, error) {
 
 func GetTrenchbySelector(e *Executor, selector client.ObjectKey) (*meridiov1alpha1.Trench, error) {
 	trench := &meridiov1alpha1.Trench{}
-	err := e.Client.Get(e.Ctx, selector, trench)
+	err := e.GetObject(selector, trench)
 	return trench, err
 }

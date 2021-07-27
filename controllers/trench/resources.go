@@ -5,12 +5,10 @@ import (
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	common "github.com/nordix/meridio-operator/controllers/common"
-	"golang.org/x/net/context"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Resources interface {
-	getCurrentStatus(ctx context.Context, cr *meridiov1alpha1.Trench, client client.Client) error
+	getCurrentStatus(e *common.Executor, cr *meridiov1alpha1.Trench) error
 	getDesiredStatus(cr *meridiov1alpha1.Trench) error
 	getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error)
 }

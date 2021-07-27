@@ -6,7 +6,6 @@ import (
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"github.com/nordix/meridio-operator/controllers/common"
-	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -80,9 +79,9 @@ func (c *ConfigMap) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	}
 }
 
-func (c *ConfigMap) getCurrentStatus(ctx context.Context, cr *meridiov1alpha1.Trench, client client.Client) error {
+func (c *ConfigMap) getCurrentStatus(e *common.Executor, cr *meridiov1alpha1.Trench) error {
 	currentState := &corev1.ConfigMap{}
-	err := client.Get(ctx, c.getSelector(cr), currentState)
+	err := e.GetObject(c.getSelector(cr), currentState)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
@@ -137,7 +136,7 @@ func getData(tv map[string]*net.IPNet) (string, error) {
 func (c *ConfigMap) deleteKey(e *common.Executor, ns, vipName string, tv map[string]map[string]map[string]*net.IPNet) (map[string]map[string]map[string]*net.IPNet, error) {
 	// if namespace entry is not found, do nothing
 	if _, ok := tv[ns]; !ok {
-		e.Log.Info("deleted vip does not have a trench, do nothing")
+		e.LogInfo("deleted vip does not have a trench, do nothing")
 		return tv, nil
 	}
 	// find the trench that vip belongs
@@ -150,7 +149,7 @@ func (c *ConfigMap) deleteKey(e *common.Executor, ns, vipName string, tv map[str
 	}
 	// if trench is not found, do nothing
 	if trenchName == "" {
-		e.Log.Info("deleted vip does not have a trench, do nothing")
+		e.LogInfo("deleted vip does not have a trench, do nothing")
 		return tv, nil
 	}
 	// get trench
@@ -168,7 +167,7 @@ func (c *ConfigMap) deleteKey(e *common.Executor, ns, vipName string, tv map[str
 		return tv, err
 	}
 	// get configmap
-	err = c.getCurrentStatus(e.Ctx, trench, e.Client)
+	err = c.getCurrentStatus(e, trench)
 	if err != nil {
 		return tv, err
 	}
@@ -180,7 +179,7 @@ func (c *ConfigMap) deleteKey(e *common.Executor, ns, vipName string, tv map[str
 		return tv, err
 	}
 	c.desiredStatus.Data[vipKey] = data
-	e.Cr = trench
+	e.SetOwner(trench)
 	action := common.NewUpdateAction(c.desiredStatus, fmt.Sprintf("update configmap, deleting vip %s from %s", vipName, trenchName))
 	return tv, e.RunAll([]common.Action{action})
 }
@@ -188,8 +187,8 @@ func (c *ConfigMap) deleteKey(e *common.Executor, ns, vipName string, tv map[str
 func (c *ConfigMap) getAction(e *common.Executor, tv map[string]*net.IPNet, vip *meridiov1alpha1.Vip) (common.Action, error) {
 	var action common.Action
 	// get action to update/create the configmap
-	trench := e.Cr.(*meridiov1alpha1.Trench)
-	err := c.getCurrentStatus(e.Ctx, trench, e.Client)
+	trench := e.GetOwner().(*meridiov1alpha1.Trench)
+	err := c.getCurrentStatus(e, trench)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +198,7 @@ func (c *ConfigMap) getAction(e *common.Executor, tv map[string]*net.IPNet, vip 
 			return nil, err
 		}
 		msg := fmt.Sprintf("create configmap %s/%s", c.desiredStatus.GetNamespace(), c.desiredStatus.GetName())
-		e.Log.Info("configmap", "add action", msg)
+		e.LogInfo(fmt.Sprintf("add action: %s", msg))
 		action = common.NewCreateAction(c.desiredStatus, msg)
 	} else {
 		err = c.getReconciledDesiredStatus(c.currentStatus, tv)
@@ -208,7 +207,7 @@ func (c *ConfigMap) getAction(e *common.Executor, tv map[string]*net.IPNet, vip 
 		}
 		if diff, diffmsg := diffVips(c.currentStatus.Data[vipKey], c.desiredStatus.Data[vipKey]); diff {
 			msg := fmt.Sprintf("update configmap %s/%s", c.desiredStatus.GetNamespace(), c.desiredStatus.GetName())
-			e.Log.Info("configmap", "add action", msg)
+			e.LogInfo(fmt.Sprintf("add action: %s", msg))
 			action = common.NewUpdateAction(c.desiredStatus, fmt.Sprintf("%s, %s", msg, diffmsg))
 		}
 	}

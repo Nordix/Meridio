@@ -3,7 +3,6 @@ package trench
 import (
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	common "github.com/nordix/meridio-operator/controllers/common"
-	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -29,9 +28,10 @@ func (sa *ServiceAccount) insertParamters(role *corev1.ServiceAccount, cr *merid
 	return role
 }
 
-func (sa *ServiceAccount) getCurrentStatus(ctx context.Context, cr *meridiov1alpha1.Trench, client client.Client) error {
+func (sa *ServiceAccount) getCurrentStatus(e *common.Executor, cr *meridiov1alpha1.Trench) error {
 	currentState := &corev1.ServiceAccount{}
-	err := client.Get(ctx, sa.getSelector(cr), currentState)
+	selector := sa.getSelector(cr)
+	err := e.GetObject(selector, currentState)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
@@ -58,7 +58,7 @@ func (sa *ServiceAccount) getReconciledDesiredStatus(current *corev1.ServiceAcco
 
 func (sa *ServiceAccount) getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error) {
 	var action common.Action
-	err := sa.getCurrentStatus(e.Ctx, cr, e.Client)
+	err := sa.getCurrentStatus(e, cr)
 	if err != nil {
 		return action, err
 	}
@@ -67,12 +67,12 @@ func (sa *ServiceAccount) getAction(e *common.Executor, cr *meridiov1alpha1.Tren
 		if err != nil {
 			return action, err
 		}
-		e.Log.Info("service account", "add action", "create")
+		e.LogInfo("add action: create service account")
 		action = common.NewCreateAction(sa.desiredStatus, "create service account")
 	} else {
 		sa.getReconciledDesiredStatus(sa.currentStatus, cr)
 		if !equality.Semantic.DeepEqual(sa.desiredStatus, sa.currentStatus) {
-			e.Log.Info("service account", "add action", "update")
+			e.LogInfo("")
 			action = common.NewUpdateAction(sa.desiredStatus, "update service account")
 		}
 	}

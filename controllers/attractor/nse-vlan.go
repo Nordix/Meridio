@@ -5,7 +5,6 @@ import (
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	common "github.com/nordix/meridio-operator/controllers/common"
-	"golang.org/x/net/context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -82,9 +81,6 @@ func (i *NseDeployment) getEnvVars(con corev1.Container) []corev1.EnvVar {
 
 func (i *NseDeployment) insertParamters(dep *appsv1.Deployment) *appsv1.Deployment {
 	ret := dep.DeepCopy()
-	if dep == nil {
-		ret = i.model.DeepCopy()
-	}
 	nseVLANDeploymentName := common.NSEDeploymentName(i.attractor)
 	ret.ObjectMeta.Name = nseVLANDeploymentName
 	ret.ObjectMeta.Namespace = i.attractor.ObjectMeta.Namespace
@@ -115,7 +111,7 @@ func (i *NseDeployment) getSelector() client.ObjectKey {
 }
 
 func (i *NseDeployment) getDesiredStatus() *appsv1.Deployment {
-	return i.insertParamters(nil)
+	return i.insertParamters(i.model)
 
 }
 
@@ -125,10 +121,10 @@ func (i *NseDeployment) getReconciledDesiredStatus(cd *appsv1.Deployment) *appsv
 	return i.insertParamters(cd)
 }
 
-func (i *NseDeployment) getCurrentStatus(ctx context.Context, client client.Client) (*appsv1.Deployment, error) {
+func (i *NseDeployment) getCurrentStatus(e *common.Executor) (*appsv1.Deployment, error) {
 	currentStatus := &appsv1.Deployment{}
 	selector := i.getSelector()
-	err := client.Get(ctx, selector, currentStatus)
+	err := e.GetObject(selector, currentStatus)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -141,18 +137,18 @@ func (i *NseDeployment) getCurrentStatus(ctx context.Context, client client.Clie
 func (i *NseDeployment) getAction(e *common.Executor) ([]common.Action, error) {
 	var actions []common.Action
 	// update attractor status
-	cs, err := i.getCurrentStatus(e.Ctx, e.Client)
+	cs, err := i.getCurrentStatus(e)
 	if err != nil {
 		return actions, err
 	}
 	if cs == nil {
 		ds := i.getDesiredStatus()
-		e.Log.Info("nse deployment", "add action", "create")
+		e.LogInfo("add action: create nse deployment")
 		actions = append(actions, common.NewCreateAction(ds, "create nse deployment"))
 	} else {
 		ds := i.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			e.Log.Info("nse deployment", "add action", "update")
+			e.LogInfo("add action: update nse deployment")
 			actions = append(actions, common.NewUpdateAction(ds, "update nse deployment"))
 		}
 	}

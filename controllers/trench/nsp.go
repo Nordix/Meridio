@@ -5,7 +5,6 @@ import (
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	common "github.com/nordix/meridio-operator/controllers/common"
-	"golang.org/x/net/context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -77,10 +76,10 @@ func (i *NspDeployment) getReconciledDesiredStatus(cd *appsv1.Deployment, cr *me
 	i.desiredStatus = i.insertParamters(cd, cr)
 }
 
-func (i *NspDeployment) getCurrentStatus(ctx context.Context, cr *meridiov1alpha1.Trench, client client.Client) error {
+func (i *NspDeployment) getCurrentStatus(e *common.Executor, cr *meridiov1alpha1.Trench) error {
 	currentStatus := &appsv1.Deployment{}
 	selector := i.getSelector(cr)
-	err := client.Get(ctx, selector, currentStatus)
+	err := e.GetObject(selector, currentStatus)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
@@ -93,7 +92,7 @@ func (i *NspDeployment) getCurrentStatus(ctx context.Context, cr *meridiov1alpha
 
 func (i *NspDeployment) getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error) {
 	var action common.Action
-	err := i.getCurrentStatus(e.Ctx, cr, e.Client)
+	err := i.getCurrentStatus(e, cr)
 	if err != nil {
 		return action, err
 	}
@@ -102,12 +101,12 @@ func (i *NspDeployment) getAction(e *common.Executor, cr *meridiov1alpha1.Trench
 		if err != nil {
 			return action, err
 		}
-		e.Log.Info("nsp deployment", "add action", "create")
+		e.LogInfo("add action: create nsp deployment")
 		action = common.NewCreateAction(i.desiredStatus, "create nsp deployment")
 	} else {
 		i.getReconciledDesiredStatus(i.currentStatus, cr)
 		if !equality.Semantic.DeepEqual(i.desiredStatus, i.currentStatus) {
-			e.Log.Info("nsp deployment", "add action", "update")
+			e.LogInfo("add action update: nsp deployment")
 			action = common.NewUpdateAction(i.desiredStatus, "update nsp deployment")
 		}
 	}

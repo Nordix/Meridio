@@ -3,7 +3,6 @@ package trench
 import (
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	common "github.com/nordix/meridio-operator/controllers/common"
-	"golang.org/x/net/context"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -34,16 +33,17 @@ func (r *RoleBinding) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
 	}
 }
 
-func (r *RoleBinding) getCurrentStatus(ctx context.Context, cr *meridiov1alpha1.Trench, client client.Client) error {
-	currentState := &rbacv1.RoleBinding{}
-	err := client.Get(ctx, r.getSelector(cr), currentState)
+func (r *RoleBinding) getCurrentStatus(e *common.Executor, cr *meridiov1alpha1.Trench) error {
+	currentStatus := &rbacv1.RoleBinding{}
+	selector := r.getSelector(cr)
+	err := e.GetObject(selector, currentStatus)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
 		}
 		return err
 	}
-	r.currentStatus = currentState.DeepCopy()
+	r.currentStatus = currentStatus.DeepCopy()
 	return nil
 }
 
@@ -62,7 +62,7 @@ func (r *RoleBinding) getReconciledDesiredStatus(current *rbacv1.RoleBinding, cr
 
 func (r *RoleBinding) getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error) {
 	var action common.Action
-	err := r.getCurrentStatus(e.Ctx, cr, e.Client)
+	err := r.getCurrentStatus(e, cr)
 	if err != nil {
 		return action, err
 	}
@@ -71,12 +71,12 @@ func (r *RoleBinding) getAction(e *common.Executor, cr *meridiov1alpha1.Trench) 
 		if err != nil {
 			return action, err
 		}
-		e.Log.Info("role binding", "add action", "create")
+		e.LogInfo("add action: create role binding")
 		action = common.NewCreateAction(r.desiredStatus, "create role binding")
 	} else {
 		r.getReconciledDesiredStatus(r.currentStatus, cr)
 		if !equality.Semantic.DeepEqual(r.desiredStatus, r.currentStatus) {
-			e.Log.Info("role binding", "add action", "update")
+			e.LogInfo("add action : update role binding")
 			action = common.NewUpdateAction(r.desiredStatus, "update role binding")
 		}
 	}

@@ -73,7 +73,7 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 	// create/update load-balancer & nse-vlan deployment
-	executor.Cr = attr
+	executor.SetOwner(attr)
 	lb, err := NewLoadBalancer(executor, attr, trench)
 	if err != nil {
 		return ctrl.Result{}, err
@@ -95,7 +95,7 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 	// update attractor
-	executor.Cr = trench
+	executor.SetOwner(trench)
 	actions := getAttractorActions(executor, attr)
 	err = executor.RunAll(actions)
 	if err != nil {
@@ -124,7 +124,7 @@ func validateAttractor(e *common.Executor, attr *meridiov1alpha1.Attractor) (*me
 	// validation: get the all attractors with same trench, verdict the number should not be greater than 1
 	al := &meridiov1alpha1.AttractorList{}
 	sel := labels.Set{"trench": trench.ObjectMeta.Name}
-	err = e.Client.List(e.Ctx, al, &client.ListOptions{
+	err = e.ListObject(al, &client.ListOptions{
 		LabelSelector: sel.AsSelector(),
 		Namespace:     attr.ObjectMeta.Namespace,
 	})
@@ -153,11 +153,11 @@ func getAttractorActions(e *common.Executor, attr *meridiov1alpha1.Attractor) []
 	attrnsname := fmt.Sprintf("%s/%s", attr.GetNamespace(), attr.GetName())
 	actions = append(actions, common.NewUpdateStatusAction(attr, fmt.Sprintf("update %s status: %v", attrnsname, attr.Status.Status)))
 	// if attr doesn't have an existing trench, update the status only
-	if e.Cr.(*meridiov1alpha1.Trench) == nil {
+	if e.GetOwner().(*meridiov1alpha1.Trench) == nil {
 		return actions
 	}
 	// if labeled trench exsits, update the ownerReference
-	actions = append(actions, common.NewUpdateAction(attr, fmt.Sprintf("update %s ownerReference: %s", attrnsname, e.Cr.GetName())))
+	actions = append(actions, common.NewUpdateAction(attr, fmt.Sprintf("update %s ownerReference: %s", attrnsname, e.GetOwner().GetName())))
 	return actions
 }
 

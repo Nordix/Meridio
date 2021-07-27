@@ -5,7 +5,6 @@ import (
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	common "github.com/nordix/meridio-operator/controllers/common"
-	"golang.org/x/net/context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -127,9 +126,6 @@ func (l *LoadBalancer) insertParamters(dep *appsv1.Deployment) *appsv1.Deploymen
 	// else use the default parameters
 	loadBalancerDeploymentName := common.LoadBalancerDeploymentName(l.trench)
 	ret := dep.DeepCopy()
-	if dep == nil {
-		ret = l.model.DeepCopy()
-	}
 	ret.ObjectMeta.Name = loadBalancerDeploymentName
 	ret.ObjectMeta.Namespace = l.trench.ObjectMeta.Namespace
 	ret.ObjectMeta.Labels["app"] = loadBalancerDeploymentName
@@ -156,9 +152,9 @@ func (l *LoadBalancer) getSelector() client.ObjectKey {
 	}
 }
 
-func (l *LoadBalancer) getCurrentStatus(ctx context.Context, client client.Client) (*appsv1.Deployment, error) {
+func (l *LoadBalancer) getCurrentStatus(e *common.Executor) (*appsv1.Deployment, error) {
 	currentState := &appsv1.Deployment{}
-	err := client.Get(ctx, l.getSelector(), currentState)
+	err := e.GetObject(l.getSelector(), currentState)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
@@ -169,7 +165,7 @@ func (l *LoadBalancer) getCurrentStatus(ctx context.Context, client client.Clien
 }
 
 func (l *LoadBalancer) getDesiredStatus() *appsv1.Deployment {
-	return l.insertParamters(nil)
+	return l.insertParamters(l.model)
 }
 
 // getReconciledDesiredStatus gets the desired status of load-balancer deployment after it's created
@@ -185,18 +181,18 @@ func (l *LoadBalancer) getAction(e *common.Executor) ([]common.Action, error) {
 		return actions, nil
 	}
 	// if trench is found, create/update load-balancer deployment
-	cs, err := l.getCurrentStatus(e.Ctx, e.Client)
+	cs, err := l.getCurrentStatus(e)
 	if err != nil {
 		return nil, err
 	}
 	if cs == nil {
 		ds := l.getDesiredStatus()
-		e.Log.Info("load-balancer", "add action", "create")
+		e.LogInfo("add action: create load-balancer")
 		actions = append(actions, common.NewCreateAction(ds, "create load-balncer deployment"))
 	} else {
 		ds := l.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			e.Log.Info("load-balancer", "add action", "update")
+			e.LogInfo("add action: update load-balancer")
 			actions = append(actions, common.NewUpdateAction(ds, "update load-balncer deployment"))
 		}
 	}

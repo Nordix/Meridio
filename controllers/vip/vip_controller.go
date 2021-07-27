@@ -96,7 +96,7 @@ func (r *VipReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if vip.Status.Status != meridiov1alpha1.ConfigStatus.Rejected {
 		// record trench and ns in a map
 		r.addNsTrenchToMap(trench)
-		executor.Cr = trench
+		executor.SetOwner(trench)
 		// validate overlapping, set vip status to rejected if there is overlapping
 		_, vIPNets, _ := net.ParseCIDR(vip.Spec.Address)
 		if err := vipsOverlap(r.TrenchVip[trench.ObjectMeta.Namespace][trench.ObjectMeta.Name], vIPNets, vip.ObjectMeta.Name); err != nil {
@@ -181,7 +181,7 @@ func getVipActions(e *common.Executor, vip *meridiov1alpha1.Vip) []common.Action
 	vipnsname := fmt.Sprintf("%s/%s", vip.GetNamespace(), vip.GetName())
 	// if vip is rejected due to trench not found, update the status only
 	actions = append(actions, common.NewUpdateStatusAction(vip, fmt.Sprintf("update vip %s status: %v", vipnsname, vip.Status.Status)))
-	if e.Cr.(*meridiov1alpha1.Trench) == nil {
+	if e.GetOwner().(*meridiov1alpha1.Trench) == nil {
 		return actions
 	}
 	// if vip is rejected due to overlapping address, also
