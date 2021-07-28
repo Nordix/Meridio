@@ -28,9 +28,6 @@ import (
 type TrenchSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-
-	// ConfigMapName
-	ConfigMapName string `json:"configMapName,omitempty"`
 }
 
 // TrenchStatus defines the observed state of Trench
