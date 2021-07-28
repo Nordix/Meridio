@@ -1,19 +1,19 @@
-# Source: meridio/templates/load-balancer.yaml
+# Source: meridio/templates/lb-fe.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: load-balancer
+  name: lb-fe
   labels:
-    app: load-balancer
+    app: lb-fe
 spec:
   selector:
     matchLabels:
-      app: load-balancer
+      app: lb-fe
   replicas: 2
   template:
     metadata:
       labels:
-        app: load-balancer
+        app: lb-fe
     spec:
       serviceAccountName: meridio
       affinity:
@@ -24,7 +24,7 @@ spec:
               - key: app
                 operator: In
                 values:
-                - "load-balancer"
+                - "lb-fe"
             topologyKey: kubernetes.io/hostname
       initContainers:
         - name: sysctl-init
@@ -36,7 +36,7 @@ spec:
             - -c
             - sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1
       containers:
-        - name: load-balancer
+        - name: lb-fe
           image: registry.nordix.org/cloud-native/meridio/load-balancer:latest
           imagePullPolicy: IfNotPresent
           readinessProbe:
@@ -77,7 +77,7 @@ spec:
             - name: NSM_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
-              value: load-balancer.default
+              value: lb-fe.default
             - name: NSM_NSP_SERVICE
               value: nsp-service:7778
           volumeMounts:

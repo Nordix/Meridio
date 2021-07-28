@@ -34,7 +34,7 @@ const (
 
 	ipamSvcName = "ipam-service"
 	nspSvcName  = "nsp-service"
-	lbName      = "load-balancer"
+	lbName      = "lb-fe"
 	proxyName   = "proxy"
 	ipamName    = "ipam"
 	nseName     = "nse-vlan"
@@ -43,7 +43,7 @@ const (
 	rbName      = "meridio-configuration-role-binding"
 	cmName      = "meridio-configuration"
 
-	proxyNetworkService = "proxy.load-balancer"
+	proxyNetworkService = "proxy.lb-fe"
 )
 
 func ServiceAccountName(cr *meridiov1alpha1.Trench) string {
@@ -102,7 +102,7 @@ func ProxyNtwkSvcNsName(cr *meridiov1alpha1.Trench) string {
 	return getAppNsName(proxyNetworkService, cr.ObjectMeta)
 }
 
-// alpha release: load-balancer instance is affiliated to a trench
+// alpha release: lb-fe instance is affiliated to a trench
 func LoadBalancerNsName(cr *meridiov1alpha1.Trench) string {
 	return getAppNsName(LoadBalancerDeploymentName(cr), cr.ObjectMeta)
 }

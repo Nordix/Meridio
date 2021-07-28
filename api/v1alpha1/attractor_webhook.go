@@ -47,16 +47,9 @@ var _ webhook.Defaulter = &Attractor{}
 func (r *Attractor) Default() {
 	attractorlog.Info("default", "name", r.Name)
 
-	if r.Spec.LBReplicas == nil {
-		r.Spec.LBReplicas = new(int32)
-		*r.Spec.LBReplicas = 1
-	}
-	if r.Spec.NSEReplicas == nil {
-		r.Spec.NSEReplicas = new(int32)
-		*r.Spec.NSEReplicas = 1
-	}
-	if r.Spec.VlanInterface == "" {
-		r.Spec.VlanInterface = "eth0"
+	if r.Spec.Replicas == nil {
+		r.Spec.Replicas = new(int32)
+		*r.Spec.Replicas = 1
 	}
 }
 

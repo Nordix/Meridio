@@ -85,7 +85,6 @@ func (i *NseDeployment) insertParamters(dep *appsv1.Deployment) *appsv1.Deployme
 	ret.ObjectMeta.Name = nseVLANDeploymentName
 	ret.ObjectMeta.Namespace = i.attractor.ObjectMeta.Namespace
 	ret.ObjectMeta.Labels["app"] = nseVLANDeploymentName
-	ret.Spec.Replicas = i.attractor.Spec.NSEReplicas
 	ret.Spec.Selector.MatchLabels["app"] = nseVLANDeploymentName
 	ret.Spec.Template.ObjectMeta.Labels["app"] = nseVLANDeploymentName
 	ret.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.OrganizationNsm, nseImage, common.Tag)

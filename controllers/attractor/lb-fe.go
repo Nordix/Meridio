@@ -19,7 +19,6 @@ const (
 	lbEnvNsp     = "NSM_NSP_SERVICE"
 	nscEnvNwSvc  = "NSM_NETWORK_SERVICES"
 	feEnvConfig  = "NFE_CONFIG_MAP_NAME"
-	modelFile    = "deployment/load-balancer.yaml"
 )
 
 type LoadBalancer struct {
@@ -29,7 +28,7 @@ type LoadBalancer struct {
 }
 
 func (l *LoadBalancer) getModel() error {
-	model, err := common.GetDeploymentModel(modelFile)
+	model, err := common.GetDeploymentModel("deployment/lb-fe.yaml")
 	if err != nil {
 		return err
 	}
@@ -122,7 +121,7 @@ func (l *LoadBalancer) getFeEnvVars(con corev1.Container) []corev1.EnvVar {
 }
 
 func (l *LoadBalancer) insertParamters(dep *appsv1.Deployment) *appsv1.Deployment {
-	// if status load-balancer deployment parameters are specified in the cr, use those
+	// if status lb-fe deployment parameters are specified in the cr, use those
 	// else use the default parameters
 	loadBalancerDeploymentName := common.LoadBalancerDeploymentName(l.trench)
 	ret := dep.DeepCopy()
@@ -131,7 +130,7 @@ func (l *LoadBalancer) insertParamters(dep *appsv1.Deployment) *appsv1.Deploymen
 	ret.ObjectMeta.Labels["app"] = loadBalancerDeploymentName
 	ret.Spec.Selector.MatchLabels["app"] = loadBalancerDeploymentName
 	ret.Spec.Template.ObjectMeta.Labels["app"] = loadBalancerDeploymentName
-	ret.Spec.Replicas = l.attractor.Spec.LBReplicas
+	ret.Spec.Replicas = l.attractor.Spec.Replicas
 	ret.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchExpressions[0].Values[0] = loadBalancerDeploymentName
 	ret.Spec.Template.Spec.ServiceAccountName = common.ServiceAccountName(l.trench)
 	ret.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, lbImage, common.Tag)
@@ -168,7 +167,7 @@ func (l *LoadBalancer) getDesiredStatus() *appsv1.Deployment {
 	return l.insertParamters(l.model)
 }
 
-// getReconciledDesiredStatus gets the desired status of load-balancer deployment after it's created
+// getReconciledDesiredStatus gets the desired status of lb-fe deployment after it's created
 // more paramters than what are defined in the model could be added by K8S
 func (i *LoadBalancer) getReconciledDesiredStatus(lb *appsv1.Deployment) *appsv1.Deployment {
 	return i.insertParamters(lb)

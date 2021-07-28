@@ -17,11 +17,8 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.lb-replicas
-      name: LB-Replicas
-      type: integer
-    - jsonPath: .spec.nse-replicas
-      name: NSE-Replicas
+    - jsonPath: .spec.replicas
+      name: Replicas
       type: integer
     - jsonPath: .spec.vlan-id
       name: VlanID
@@ -29,14 +26,8 @@ spec:
     - jsonPath: .spec.vlan-interface
       name: VlanITF
       type: string
-    - jsonPath: .status.status
-      name: Status
-      type: string
-    - jsonPath: .status.load-balancer
-      name: LB
-      type: string
-    - jsonPath: .status.vlan
-      name: VLAN
+    - jsonPath: .status.lb-fe
+      name: LB-FE
       type: string
     name: v1alpha1
     schema:
@@ -58,11 +49,8 @@ spec:
           spec:
             description: AttractorSpec defines the desired state of Attractor
             properties:
-              lb-replicas:
+              replicas:
                 description: replicas of attractor deployment
-                format: int32
-                type: integer
-              nse-replicas:
                 format: int32
                 type: integer
               vlan-id:
@@ -73,17 +61,14 @@ spec:
                 type: string
             required:
             - vlan-id
+            - vlan-interface
             type: object
           status:
             description: AttractorStatus defines the observed state of Attractor
             properties:
-              load-balancer:
+              lb-fe:
                 type: string
               message:
-                type: string
-              status:
-                type: string
-              vlan:
                 type: string
             type: object
         type: object

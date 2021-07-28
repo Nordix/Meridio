@@ -72,6 +72,16 @@ func (e *Executor) RunAll(actions []Action) error {
 	return nil
 }
 
+func AppendActions(actions ...Action) []Action {
+	var ret []Action
+	for _, action := range actions {
+		if action != nil {
+			ret = append(ret, action)
+		}
+	}
+	return ret
+}
+
 type createAction struct {
 	obj client.Object
 	msg string

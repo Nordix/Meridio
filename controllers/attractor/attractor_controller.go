@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -65,14 +66,26 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 		return ctrl.Result{}, err
 	}
-
+	currentAttr := attr.DeepCopy()
 	attr.Status = meridiov1alpha1.AttractorStatus{}
 
 	trench, err := validateAttractor(executor, attr)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	// create/update load-balancer & nse-vlan deployment
+	// update attractor
+	executor.SetOwner(trench)
+	actions := getAttractorActions(executor, attr, currentAttr)
+	err = executor.RunAll(actions)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	// if attractor is not engaged, do nothing to lb-fe & nse-vlan deployment
+	if attr.Status.LbFe != meridiov1alpha1.ConfigStatus.Engaged {
+		return ctrl.Result{}, nil
+	}
+
+	// create/update lb-fe & nse-vlan deployment
 	executor.SetOwner(attr)
 	lb, err := NewLoadBalancer(executor, attr, trench)
 	if err != nil {
@@ -90,14 +103,8 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	err = executor.RunAll([]common.Action{alb, anse})
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	// update attractor
-	executor.SetOwner(trench)
-	actions := getAttractorActions(executor, attr)
-	err = executor.RunAll(actions)
+	allAc := common.AppendActions(alb, anse)
+	err = executor.RunAll(allAc)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -114,7 +121,7 @@ func validateAttractor(e *common.Executor, attr *meridiov1alpha1.Attractor) (*me
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			msg := "labeled trench not found"
-			attr.Status.LB = meridiov1alpha1.LBStatus.Disengaged
+			attr.Status.LbFe = meridiov1alpha1.ConfigStatus.Disengaged
 			attr.Status.Message = msg
 			return nil, nil
 		} else {
@@ -130,34 +137,37 @@ func validateAttractor(e *common.Executor, attr *meridiov1alpha1.Attractor) (*me
 	})
 	if err != nil {
 		msg := "at least one attractor should be found"
-		attr.Status.Status = meridiov1alpha1.BaseStatus.Error
+		attr.Status.LbFe = meridiov1alpha1.BaseStatus.Error
 		attr.Status.Message = msg
+		return trench, nil
 	}
 	if len(al.Items) > 1 {
 		msg := "only one attractor is supported per trench"
-		attr.Status.Status = meridiov1alpha1.ConfigStatus.Rejected
+		attr.Status.LbFe = meridiov1alpha1.ConfigStatus.Rejected
 		attr.Status.Message = msg
+		return trench, nil
 	}
-	if attr.Status.Status == meridiov1alpha1.BaseStatus.NoPhase {
-		attr.Status.Status = meridiov1alpha1.ConfigStatus.Accepted
-		if attr.Status.LB == meridiov1alpha1.BaseStatus.NoPhase {
-			attr.Status.LB = meridiov1alpha1.LBStatus.Engaged
-		}
+	if attr.Status.LbFe == meridiov1alpha1.BaseStatus.NoPhase {
+		attr.Status.LbFe = meridiov1alpha1.ConfigStatus.Engaged
 	}
 	return trench, nil
 }
 
-func getAttractorActions(e *common.Executor, attr *meridiov1alpha1.Attractor) []common.Action {
+func getAttractorActions(e *common.Executor, attrnew, attrOld *meridiov1alpha1.Attractor) []common.Action {
 	var actions []common.Action
 	// set the status for the vip
-	attrnsname := fmt.Sprintf("%s/%s", attr.GetNamespace(), attr.GetName())
-	actions = append(actions, common.NewUpdateStatusAction(attr, fmt.Sprintf("update %s status: %v", attrnsname, attr.Status.Status)))
+	attrnsname := fmt.Sprintf("%s/%s", attrnew.GetNamespace(), attrnew.GetName())
+	if !equality.Semantic.DeepEqual(attrnew.Status, attrOld.Status) {
+		actions = append(actions, common.NewUpdateStatusAction(attrnew, fmt.Sprintf("update %s status: %v", attrnsname, attrnew.Status.LbFe)))
+	}
 	// if attr doesn't have an existing trench, update the status only
 	if e.GetOwner().(*meridiov1alpha1.Trench) == nil {
 		return actions
 	}
 	// if labeled trench exsits, update the ownerReference
-	actions = append(actions, common.NewUpdateAction(attr, fmt.Sprintf("update %s ownerReference: %s", attrnsname, e.GetOwner().GetName())))
+	if !equality.Semantic.DeepEqual(attrnew, attrOld) {
+		actions = append(actions, common.NewUpdateAction(attrnew, fmt.Sprintf("update %s ownerReference: %s", attrnsname, e.GetOwner().GetName())))
+	}
 	return actions
 }
 

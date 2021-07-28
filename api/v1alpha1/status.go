@@ -11,21 +11,15 @@ var BaseStatus = Status{
 }
 
 type ConfigStatusType struct {
-	Rejected string
-	Accepted string
-}
-
-var ConfigStatus = ConfigStatusType{
-	Rejected: "rejected",
-	Accepted: "accepted",
-}
-
-type LBStatusType struct {
+	Rejected   string
+	Accepted   string
 	Disengaged string
 	Engaged    string
 }
 
-var LBStatus = LBStatusType{
+var ConfigStatus = ConfigStatusType{
+	Rejected:   "rejected",
+	Accepted:   "accepted",
 	Disengaged: "disengaged",
 	Engaged:    "engaged",
 }

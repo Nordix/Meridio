@@ -24,10 +24,9 @@ import (
 // AttractorSpec defines the desired state of Attractor
 type AttractorSpec struct {
 	// replicas of attractor deployment
-	LBReplicas  *int32 `json:"lb-replicas,omitempty"`
-	NSEReplicas *int32 `json:"nse-replicas,omitempty"`
+	Replicas *int32 `json:"replicas,omitempty"`
 	// vlan interface, cannot be updated
-	VlanInterface string `json:"vlan-interface,omitempty"`
+	VlanInterface string `json:"vlan-interface"`
 	// vlan ID, cannot be updated
 	VlanID int `json:"vlan-id"`
 }
@@ -35,20 +34,15 @@ type AttractorSpec struct {
 // AttractorStatus defines the observed state of Attractor
 type AttractorStatus struct {
 	Message string `json:"message,omitempty"`
-	Vlan    string `json:"vlan,omitempty"`
-	LB      string `json:"load-balancer,omitempty"`
-	Status  string `json:"status,omitempty"`
+	LbFe    string `json:"lb-fe,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name="LB-Replicas",type=integer,JSONPath=`.spec.lb-replicas`
-//+kubebuilder:printcolumn:name="NSE-Replicas",type=integer,JSONPath=`.spec.nse-replicas`
+//+kubebuilder:printcolumn:name="Replicas",type=integer,JSONPath=`.spec.replicas`
 //+kubebuilder:printcolumn:name="VlanID",type=integer,JSONPath=`.spec.vlan-id`
 //+kubebuilder:printcolumn:name="VlanITF",type=string,JSONPath=`.spec.vlan-interface`
-//+kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.status`
-//+kubebuilder:printcolumn:name="LB",type=string,JSONPath=`.status.load-balancer`
-//+kubebuilder:printcolumn:name="VLAN",type=string,JSONPath=`.status.vlan`
+//+kubebuilder:printcolumn:name="LB-FE",type=string,JSONPath=`.status.lb-fe`
 // Attractor is the Schema for the attractors API
 type Attractor struct {
 	metav1.TypeMeta   `json:",inline"`
