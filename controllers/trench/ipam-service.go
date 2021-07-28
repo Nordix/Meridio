@@ -5,113 +5,94 @@ import (
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	common "github.com/nordix/meridio-operator/controllers/common"
-	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	ipamPort       = 7777
-	ipamTargetPort = 7777
-	ipamSvcName    = "ipam-service"
-)
-
-func getIPAMServiceName(cr *meridiov1alpha1.Trench) string {
-	return common.GetFullName(cr, ipamSvcName)
-}
-
-func getIPAMServiceWithPort(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s:%d", getIPAMServiceName(cr), ipamTargetPort)
-}
-
 type IpamService struct {
-	currentStatus *corev1.Service
-	desiredStatus *corev1.Service
+	trench *meridiov1alpha1.Trench
+	model  *corev1.Service
 }
 
-func (i *IpamService) getPorts(cr *meridiov1alpha1.Trench) []corev1.ServicePort {
-	// if ipam service ports are set in the cr, use the values
-	// else return default service ports
-	return []corev1.ServicePort{
-		{
-			Protocol:   corev1.ProtocolTCP,
-			TargetPort: intstr.FromInt(ipamTargetPort),
-			Port:       ipamPort,
-		},
+func NewIPAMSvc(t *meridiov1alpha1.Trench) (*IpamService, error) {
+	l := &IpamService{
+		trench: t.DeepCopy(),
 	}
+
+	// get model
+	if err := l.getModel(); err != nil {
+		return nil, err
+	}
+	return l, nil
 }
 
-func (i *IpamService) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
+func (i *IpamService) getSelector() client.ObjectKey {
 	return client.ObjectKey{
-		Namespace: cr.ObjectMeta.Namespace,
-		Name:      getIPAMServiceName(cr),
+		Namespace: i.trench.ObjectMeta.Namespace,
+		Name:      common.IPAMServiceName(i.trench),
 	}
 }
 
-func (i *IpamService) insertParamters(svc *corev1.Service, cr *meridiov1alpha1.Trench) *corev1.Service {
+func (i *IpamService) insertParamters(svc *corev1.Service) *corev1.Service {
 	// if status ipam service parameters are specified in the cr, use those
 	// else use the default parameters
-	svc.ObjectMeta.Name = getIPAMServiceName(cr)
-	svc.Spec.Selector["app"] = getIPAMDeploymentName(cr)
-	svc.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
-	svc.Spec.Ports = i.getPorts(cr)
-	return svc
+	ret := svc.DeepCopy()
+	ret.ObjectMeta.Name = common.IPAMServiceName(i.trench)
+	ret.Spec.Selector["app"] = common.IPAMDeploymentName(i.trench)
+	ret.ObjectMeta.Namespace = i.trench.ObjectMeta.Namespace
+	return ret
 }
 
-func (i *IpamService) getCurrentStatus(ctx context.Context, cr *meridiov1alpha1.Trench, client client.Client) error {
+func (i *IpamService) getCurrentStatus(e *common.Executor) (*corev1.Service, error) {
 	currentStatus := &corev1.Service{}
-	selector := i.getSelector(cr)
-	err := client.Get(ctx, selector, currentStatus)
+	selector := i.getSelector()
+	err := e.GetObject(selector, currentStatus)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return nil
+			return nil, nil
 		}
-		return err
+		return nil, err
 	}
-	i.currentStatus = currentStatus.DeepCopy()
-	return nil
+	return currentStatus, nil
 }
 
-func (i *IpamService) getDesiredStatus(cr *meridiov1alpha1.Trench) error {
-	ipams, err := i.getModel()
-	if err != nil {
-		return err
-	}
-	i.desiredStatus = i.insertParamters(ipams, cr)
-	return nil
+func (i *IpamService) getDesiredStatus() *corev1.Service {
+	return i.insertParamters(i.model)
 }
 
 // getReconciledDesiredStatus gets the desired status of ipam service after it's created
 // more paramters than what are defined in the model could be added by K8S
-func (i *IpamService) getReconciledDesiredStatus(ipams *corev1.Service, cr *meridiov1alpha1.Trench) {
-	i.desiredStatus = i.insertParamters(ipams, cr)
+func (i *IpamService) getReconciledDesiredStatus(svc *corev1.Service) *corev1.Service {
+	return i.insertParamters(svc)
 }
 
-func (i *IpamService) getModel() (*corev1.Service, error) {
-	return common.GetServiceModel("deployment/ipam-service.yaml")
+func (i *IpamService) getModel() error {
+	model, err := common.GetServiceModel("deployment/ipam-service.yaml")
+	if err != nil {
+		return err
+	}
+	i.model = model
+	return nil
 }
 
-func (i *IpamService) getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error) {
+func (i *IpamService) getAction(e *common.Executor) (common.Action, error) {
+	elem := common.IPAMServiceName(i.trench)
 	var action common.Action
-	err := i.getCurrentStatus(e.Ctx, cr, e.Client)
+	cs, err := i.getCurrentStatus(e)
 	if err != nil {
 		return nil, err
 	}
-	if i.currentStatus == nil {
-		err = i.getDesiredStatus(cr)
-		if err != nil {
-			return nil, err
-		}
-		e.Log.Info("ipam service", "add action", "create")
-		action = common.NewCreateAction(i.desiredStatus, "create ipam service")
+	if cs == nil {
+		ds := i.getDesiredStatus()
+		e.LogInfo(fmt.Sprintf("add action: create %s", elem))
+		action = common.NewCreateAction(ds, fmt.Sprintf("create %s", elem))
 	} else {
-		i.getReconciledDesiredStatus(i.currentStatus, cr)
-		if !equality.Semantic.DeepEqual(i.desiredStatus, i.currentStatus) {
-			e.Log.Info("ipam service", "add action", "update")
-			action = common.NewUpdateAction(i.desiredStatus, "update ipam service")
+		ds := i.getReconciledDesiredStatus(cs)
+		if !equality.Semantic.DeepEqual(ds, cs) {
+			e.LogInfo(fmt.Sprintf("add action: update %s", elem))
+			action = common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem))
 		}
 	}
 	return action, nil

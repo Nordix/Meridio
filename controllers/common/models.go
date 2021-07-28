@@ -8,38 +8,12 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
-const (
-	ResourceNamePrefixEnv = "RESOURCE_NAME_PREFIX"
-
-	Registry        = "registry.nordix.org"
-	Organization    = "cloud-native/meridio"
-	OrganizationNsm = "cloud-native/nsm"
-	Tag             = "latest"
-	PullPolicy      = "IfNotPresent"
-
-	IPv4      ipFamily = "ipv4"
-	IPv6      ipFamily = "ipv6"
-	Dualstack ipFamily = "dualstack"
-
-	subnetPoolIpv4   = "172.16.0.0/16"
-	subnetPoolIpv6   = "fd00::/48"
-	prefixLengthIpv4 = "24"
-	prefixLengthIpv6 = "64"
-)
-
 type ipFamily string
-
-func GetResourceNamePrefix(cr *meridiov1alpha1.Trench) string {
-	return os.Getenv(ResourceNamePrefixEnv)
-}
-
-func GetFullName(cr *meridiov1alpha1.Trench, resourceName string) string {
-	return fmt.Sprintf("%s%s-%s", GetResourceNamePrefix(cr), resourceName, cr.ObjectMeta.Name)
-}
 
 func GetSubnetPool(cr *meridiov1alpha1.Trench) string {
 	ipFamily := IPv4
@@ -65,14 +39,6 @@ func GetPrefixLength(cr *meridiov1alpha1.Trench) string {
 	return ""
 }
 
-func GetAppNsName(app string, cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s.%s.%s", app, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace)
-}
-
-func GetConfigMapName(cr *meridiov1alpha1.Trench) string {
-	return GetFullName(cr, cr.Spec.ConfigMapName)
-}
-
 func GetReadinessProbe(cr *meridiov1alpha1.Trench) *corev1.Probe {
 	// if readiness probe is set in the cr do something
 	// else use the default readiness probe
@@ -86,6 +52,7 @@ func GetReadinessProbe(cr *meridiov1alpha1.Trench) *corev1.Probe {
 		PeriodSeconds:       10,
 		TimeoutSeconds:      3,
 		FailureThreshold:    5,
+		SuccessThreshold:    1,
 	}
 }
 
@@ -102,6 +69,7 @@ func GetLivenessProbe(cr *meridiov1alpha1.Trench) *corev1.Probe {
 		PeriodSeconds:       10,
 		TimeoutSeconds:      3,
 		FailureThreshold:    5,
+		SuccessThreshold:    1,
 	}
 }
 
@@ -168,4 +136,23 @@ func GetRoleBindingModel(f string) (*rbacv1.RoleBinding, error) {
 		return nil, fmt.Errorf("decode %s error: %s", f, err)
 	}
 	return rb, nil
+}
+
+func GetServiceAccountModel(f string) (*corev1.ServiceAccount, error) {
+	data, err := os.Open(f)
+	if err != nil {
+		return nil, fmt.Errorf("open %s error: %s", f, err)
+	}
+	rb := &corev1.ServiceAccount{}
+	err = yaml.NewYAMLOrJSONDecoder(data, 4096).Decode(rb)
+	if err != nil {
+		return nil, fmt.Errorf("decode %s error: %s", f, err)
+	}
+	return rb, nil
+}
+
+func GetTrenchbySelector(e *Executor, selector client.ObjectKey) (*meridiov1alpha1.Trench, error) {
+	trench := &meridiov1alpha1.Trench{}
+	err := e.GetObject(selector, trench)
+	return trench, err
 }

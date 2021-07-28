@@ -73,7 +73,10 @@ func (r *TrenchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	executor := common.NewExecutor(r.Scheme, r.Client, ctx, trench, r.Log)
-	meridio := NewMeridio()
+	meridio, err := NewMeridio(trench)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 	err = meridio.ReconcileAll(executor, trench)
 	if err != nil {
 		return ctrl.Result{}, err

@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	attactorcontroller "github.com/nordix/meridio-operator/controllers/attractor"
 	trenchcontroller "github.com/nordix/meridio-operator/controllers/trench"
 	vipcontroller "github.com/nordix/meridio-operator/controllers/vip"
 	//+kubebuilder:scaffold:imports
@@ -105,6 +106,18 @@ func main() {
 	}
 	if err = (&meridiov1alpha1.Vip{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Vip")
+		os.Exit(1)
+	}
+	if err = (&attactorcontroller.AttractorReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Attractor"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Attractor")
+		os.Exit(1)
+	}
+	if err = (&meridiov1alpha1.Attractor{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Attractor")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

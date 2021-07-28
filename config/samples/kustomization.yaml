@@ -2,4 +2,5 @@
 resources:
 - meridio_v1alpha1_trench.yaml
 - meridio_v1alpha1_vip.yaml
+- meridio_v1alpha1_attractor.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

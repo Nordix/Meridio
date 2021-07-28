@@ -5,7 +5,6 @@ import (
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	common "github.com/nordix/meridio-operator/controllers/common"
-	"golang.org/x/net/context"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -14,7 +13,6 @@ import (
 )
 
 const (
-	nameProxy  = "proxy"
 	imageProxy = "proxy"
 
 	busyboxImage = "busybox"
@@ -28,43 +26,51 @@ const (
 	proxyEnvLb            = "NSM_NETWORK_SERVICE_NAME"
 )
 
-func getProxyDeploymentName(cr *meridiov1alpha1.Trench) string {
-	return common.GetFullName(cr, nameProxy)
-}
-
 type Proxy struct {
-	currentStatus *appsv1.DaemonSet
-	desiredStatus *appsv1.DaemonSet
+	trench *meridiov1alpha1.Trench
+	model  *appsv1.DaemonSet
 }
 
-func (i *Proxy) getEnvVars(ds *appsv1.DaemonSet, cr *meridiov1alpha1.Trench) []corev1.EnvVar {
+func NewProxy(t *meridiov1alpha1.Trench) (*Proxy, error) {
+	l := &Proxy{
+		trench: t.DeepCopy(),
+	}
+
+	// get model
+	if err := l.getModel(); err != nil {
+		return nil, err
+	}
+	return l, nil
+}
+
+func (i *Proxy) getEnvVars(ds *appsv1.DaemonSet) []corev1.EnvVar {
 	// if envVars are set in the cr, use the values
 	// else return default envVars
 	allEnv := ds.Spec.Template.Spec.Containers[0].Env
 	env := []corev1.EnvVar{
 		{
 			Name:  proxyEnvConfig,
-			Value: common.GetConfigMapName(cr),
+			Value: common.ConfigMapName(i.trench),
 		},
 		{
 			Name:  proxyEnvSubnetPools,
-			Value: common.GetSubnetPool(cr),
+			Value: common.GetSubnetPool(i.trench),
 		},
 		{
 			Name:  proxyEnvSubnetLengths,
-			Value: common.GetPrefixLength(cr),
+			Value: common.GetPrefixLength(i.trench),
 		},
 		{
 			Name:  proxyEnvService,
-			Value: common.GetAppNsName(nameProxy, cr),
+			Value: common.ProxyNtwkSvcNsName(i.trench),
 		},
 		{
 			Name:  proxyEnvIpam,
-			Value: getIPAMServiceWithPort(cr),
+			Value: common.IPAMServiceWithPort(i.trench),
 		},
 		{
 			Name:  proxyEnvLb,
-			Value: common.GetAppNsName(lbName, cr),
+			Value: common.LoadBalancerNsName(i.trench),
 		},
 	}
 
@@ -82,85 +88,83 @@ func (i *Proxy) getEnvVars(ds *appsv1.DaemonSet, cr *meridiov1alpha1.Trench) []c
 	return env
 }
 
-func (i *Proxy) insertParamters(ds *appsv1.DaemonSet, cr *meridiov1alpha1.Trench) *appsv1.DaemonSet {
+func (i *Proxy) insertParamters(init *appsv1.DaemonSet) *appsv1.DaemonSet {
 	// if status proxy daemonset parameters are specified in the cr, use those
 	// else use the default parameters
-	proxyDeploymentName := getProxyDeploymentName(cr)
+	proxyDeploymentName := common.ProxyDeploymentName(i.trench)
+	ds := init.DeepCopy()
 	ds.ObjectMeta.Name = proxyDeploymentName
-	ds.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
+	ds.ObjectMeta.Namespace = i.trench.ObjectMeta.Namespace
 	ds.ObjectMeta.Labels["app"] = proxyDeploymentName
 	ds.Spec.Selector.MatchLabels["app"] = proxyDeploymentName
 	ds.Spec.Template.ObjectMeta.Labels["app"] = proxyDeploymentName
-	ds.Spec.Template.Spec.ServiceAccountName = getServiceAccountName(cr)
+	ds.Spec.Template.Spec.ServiceAccountName = common.ServiceAccountName(i.trench)
 	// init container
 	ds.Spec.Template.Spec.InitContainers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, busyboxImage, busyboxTag)
 	// proxy container
 	ds.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, imageProxy, common.Tag)
 	ds.Spec.Template.Spec.Containers[0].ImagePullPolicy = common.PullPolicy
-	ds.Spec.Template.Spec.Containers[0].LivenessProbe = common.GetLivenessProbe(cr)
-	ds.Spec.Template.Spec.Containers[0].ReadinessProbe = common.GetLivenessProbe(cr)
-	ds.Spec.Template.Spec.Containers[0].Env = i.getEnvVars(ds, cr)
+	ds.Spec.Template.Spec.Containers[0].LivenessProbe = common.GetLivenessProbe(i.trench)
+	ds.Spec.Template.Spec.Containers[0].ReadinessProbe = common.GetLivenessProbe(i.trench)
+	ds.Spec.Template.Spec.Containers[0].Env = i.getEnvVars(ds)
 	return ds
 }
 
-func (i *Proxy) getModel() (*appsv1.DaemonSet, error) {
-	return common.GetDaemonsetModel("deployment/proxy.yaml")
-}
-
-func (i *Proxy) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
-	return client.ObjectKey{
-		Namespace: cr.ObjectMeta.Namespace,
-		Name:      getProxyDeploymentName(cr),
-	}
-}
-
-func (i *Proxy) getDesiredStatus(cr *meridiov1alpha1.Trench) error {
-	proxy, err := i.getModel()
+func (i *Proxy) getModel() error {
+	model, err := common.GetDaemonsetModel("deployment/proxy.yaml")
 	if err != nil {
 		return err
 	}
-	i.desiredStatus = i.insertParamters(proxy, cr)
+	i.model = model
 	return nil
+}
+
+func (i *Proxy) getSelector() client.ObjectKey {
+	return client.ObjectKey{
+		Namespace: i.trench.ObjectMeta.Namespace,
+		Name:      common.ProxyDeploymentName(i.trench),
+	}
+}
+
+func (i *Proxy) getDesiredStatus() *appsv1.DaemonSet {
+	return i.insertParamters(i.model)
 }
 
 // getReconciledDesiredStatus gets the desired status of proxy daemonset after it's created
 // more paramters than what are defined in the model could be added by K8S
-func (i *Proxy) getReconciledDesiredStatus(cd *appsv1.DaemonSet, cr *meridiov1alpha1.Trench) {
-	i.desiredStatus = i.insertParamters(cd, cr)
+func (i *Proxy) getReconciledDesiredStatus(cd *appsv1.DaemonSet) *appsv1.DaemonSet {
+	return i.insertParamters(cd)
 }
 
-func (i *Proxy) getCurrentStatus(ctx context.Context, cr *meridiov1alpha1.Trench, client client.Client) error {
+func (i *Proxy) getCurrentStatus(e *common.Executor) (*appsv1.DaemonSet, error) {
 	currentStatus := &appsv1.DaemonSet{}
-	selector := i.getSelector(cr)
-	err := client.Get(ctx, selector, currentStatus)
+	selector := i.getSelector()
+	err := e.GetObject(selector, currentStatus)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return nil
+			return nil, nil
 		}
-		return err
+		return nil, err
 	}
-	i.currentStatus = currentStatus.DeepCopy()
-	return nil
+	return currentStatus, nil
 }
 
-func (i *Proxy) getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error) {
+func (i *Proxy) getAction(e *common.Executor) (common.Action, error) {
+	elem := common.ProxyDeploymentName(i.trench)
 	var action common.Action
-	err := i.getCurrentStatus(e.Ctx, cr, e.Client)
+	cs, err := i.getCurrentStatus(e)
 	if err != nil {
 		return action, err
 	}
-	if i.currentStatus == nil {
-		err := i.getDesiredStatus(cr)
-		if err != nil {
-			return action, err
-		}
-		e.Log.Info("proxy daemonset", "add action", "create")
-		action = common.NewCreateAction(i.desiredStatus, "create proxy daemonset")
+	if cs == nil {
+		ds := i.getDesiredStatus()
+		e.LogInfo(fmt.Sprintf("add action: create %s", elem))
+		action = common.NewCreateAction(ds, fmt.Sprintf("create %s", elem))
 	} else {
-		i.getReconciledDesiredStatus(i.currentStatus, cr)
-		if !equality.Semantic.DeepEqual(i.desiredStatus, i.currentStatus) {
-			e.Log.Info("proxy daemonset", "add action", "update")
-			action = common.NewUpdateAction(i.desiredStatus, "update proxy daemonset")
+		ds := i.getReconciledDesiredStatus(cs)
+		if !equality.Semantic.DeepEqual(ds, cs) {
+			e.LogInfo(fmt.Sprintf("add action: update %s", elem))
+			action = common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem))
 		}
 	}
 	return action, nil

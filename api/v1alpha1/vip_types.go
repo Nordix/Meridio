@@ -23,13 +23,6 @@ import (
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-type StatusPhase string
-
-var (
-	NoPhase       StatusPhase
-	PhaseAccepted StatusPhase = "accepted"
-	PhaseRejected StatusPhase = "rejected"
-)
 
 // VipSpec defines the desired state of Vip
 type VipSpec struct {
@@ -39,7 +32,7 @@ type VipSpec struct {
 // VipStatus defines the observed state of Vip
 type VipStatus struct {
 	// if the vip is accepted or rejected by controller
-	Status StatusPhase `json:"status,omitempty"`
+	Status string `json:"status,omitempty"`
 	// the reason why vip is rejected
 	Message string `json:"message,omitempty"`
 }

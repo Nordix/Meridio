@@ -74,34 +74,34 @@ func (r *VipReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, err
 	}
 	// clear vip status
-	vip = setVipStatus(vip, meridiov1alpha1.NoPhase, "")
+	vip = setVipStatus(vip, meridiov1alpha1.BaseStatus.NoPhase, "")
 
 	// Get the trench by the label in vip
 	selector := client.ObjectKey{
 		Namespace: vip.ObjectMeta.Namespace,
 		Name:      vip.ObjectMeta.Labels["trench"],
 	}
-	trench, err := getTrenchbySelector(executor, selector)
+	trench, err := common.GetTrenchbySelector(executor, selector)
 	if err != nil {
 		// set vip status to rejected if trench is not found
 		if apierrors.IsNotFound(err) {
 			vip = setVipStatus(vip,
-				meridiov1alpha1.PhaseRejected,
+				meridiov1alpha1.ConfigStatus.Rejected,
 				fmt.Sprintf("trench %s must be created first", vip.ObjectMeta.Labels["trench"]))
 		} else {
 			return ctrl.Result{}, err
 		}
 	}
 
-	if vip.Status.Status != meridiov1alpha1.PhaseRejected {
+	if vip.Status.Status != meridiov1alpha1.ConfigStatus.Rejected {
 		// record trench and ns in a map
 		r.addNsTrenchToMap(trench)
-		executor.Cr = trench
+		executor.SetOwner(trench)
 		// validate overlapping, set vip status to rejected if there is overlapping
 		_, vIPNets, _ := net.ParseCIDR(vip.Spec.Address)
 		if err := vipsOverlap(r.TrenchVip[trench.ObjectMeta.Namespace][trench.ObjectMeta.Name], vIPNets, vip.ObjectMeta.Name); err != nil {
 			vip = setVipStatus(vip,
-				meridiov1alpha1.PhaseRejected,
+				meridiov1alpha1.ConfigStatus.Rejected,
 				fmt.Sprintf("validation error: %s", err))
 		} else {
 			// only add vip which is not rejected to the map
@@ -109,20 +109,31 @@ func (r *VipReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 	}
 
-	if vip.Status.Status != meridiov1alpha1.PhaseRejected {
-		vip = setVipStatus(vip, meridiov1alpha1.PhaseAccepted, "")
+	if vip.Status.Status != meridiov1alpha1.ConfigStatus.Rejected {
+		vip = setVipStatus(vip, meridiov1alpha1.ConfigStatus.Accepted, "")
 	}
-	// actions to update vip & update/create configmap
-	actions, err := configmap.getAction(executor, r.TrenchVip[vip.ObjectMeta.Namespace][trench.ObjectMeta.Name], vip)
+	// actions to update vip
+	actions := getVipActions(executor, vip)
+	err = executor.RunAll(actions)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	executor.RunAll(actions)
+	if vip.Status.Status == meridiov1alpha1.ConfigStatus.Rejected {
+		return ctrl.Result{}, nil
+	}
+	// action to update update/create configmap
+	action, err := configmap.getAction(executor, r.TrenchVip[vip.ObjectMeta.Namespace][trench.ObjectMeta.Name], vip)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	if action != nil {
+		executor.RunAll(append(actions, action))
+	}
 
 	return ctrl.Result{}, nil
 }
 
-func setVipStatus(vip *meridiov1alpha1.Vip, status meridiov1alpha1.StatusPhase, msg string) *meridiov1alpha1.Vip {
+func setVipStatus(vip *meridiov1alpha1.Vip, status string, msg string) *meridiov1alpha1.Vip {
 	vip.Status.Status = status
 	vip.Status.Message = msg
 	return vip
@@ -162,6 +173,20 @@ func (r *VipReconciler) addNsTrenchToMap(trench *meridiov1alpha1.Trench) {
 	if _, ok := r.TrenchVip[trench.ObjectMeta.Namespace][trench.ObjectMeta.Name]; !ok {
 		r.TrenchVip[trench.ObjectMeta.Namespace][trench.ObjectMeta.Name] = make(map[string]*net.IPNet)
 	}
+}
+
+func getVipActions(e *common.Executor, vip *meridiov1alpha1.Vip) []common.Action {
+	var actions []common.Action
+	// set the status for the vip
+	vipnsname := fmt.Sprintf("%s/%s", vip.GetNamespace(), vip.GetName())
+	// if vip is rejected due to trench not found, update the status only
+	actions = append(actions, common.NewUpdateStatusAction(vip, fmt.Sprintf("update vip %s status: %v", vipnsname, vip.Status.Status)))
+	if e.GetOwner().(*meridiov1alpha1.Trench) == nil {
+		return actions
+	}
+	// if vip is rejected due to overlapping address, also
+	actions = append(actions, common.NewUpdateAction(vip, fmt.Sprintf("update vip %s ownerReference", vipnsname)))
+	return actions
 }
 
 // SetupWithManager sets up the controller with the Manager.

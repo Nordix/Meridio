@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"golang.org/x/net/context"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,32 +24,62 @@ type Action interface {
 
 type Executor struct {
 	scheme *runtime.Scheme
-	Client client.Client
-	Ctx    context.Context
-	Cr     *meridiov1alpha1.Trench
-	Log    logr.Logger
+	client client.Client
+	ctx    context.Context
+	owner  client.Object
+	log    logr.Logger
 }
 
-func NewExecutor(s *runtime.Scheme, c client.Client, ct context.Context, cr *meridiov1alpha1.Trench, l logr.Logger) *Executor {
+func NewExecutor(s *runtime.Scheme, c client.Client, ct context.Context, cr client.Object, l logr.Logger) *Executor {
 	return &Executor{
 		scheme: s,
-		Client: c,
-		Ctx:    ct,
-		Cr:     cr,
-		Log:    l.WithName("executor"),
+		client: c,
+		ctx:    ct,
+		owner:  cr,
+		log:    l.WithName("executor"),
 	}
+}
+
+func (e *Executor) SetOwner(cr client.Object) {
+	e.owner = cr
+}
+
+func (e *Executor) GetOwner() client.Object {
+	return e.owner
+}
+
+func (e *Executor) LogInfo(msg string) {
+	e.log.Info(msg)
+}
+
+func (e *Executor) GetObject(selector client.ObjectKey, obj client.Object) error {
+	return e.client.Get(e.ctx, selector, obj)
+}
+
+func (e *Executor) ListObject(obj client.ObjectList, opts client.ListOption) error {
+	return e.client.List(e.ctx, obj, opts)
 }
 
 func (e *Executor) RunAll(actions []Action) error {
 	for _, action := range actions {
 		msg, err := action.Run(e)
 		if err != nil {
-			e.Log.Error(err, msg, "result", "failure")
+			e.log.Error(err, msg, "result", "failure")
 			return err
 		}
-		e.Log.Info(msg, "result", "succeess")
+		e.log.Info(msg, "result", "succeess")
 	}
 	return nil
+}
+
+func AppendActions(actions ...Action) []Action {
+	var ret []Action
+	for _, action := range actions {
+		if action != nil {
+			ret = append(ret, action)
+		}
+	}
+	return ret
 }
 
 type createAction struct {
@@ -81,21 +110,21 @@ func (a updateStatusAction) Run(e *Executor) (string, error) {
 }
 
 func (e *Executor) create(obj client.Object) error {
-	err := controllerutil.SetControllerReference(e.Cr, obj, e.scheme)
+	err := controllerutil.SetControllerReference(e.owner, obj, e.scheme)
 	if err != nil {
 		return fmt.Errorf("set reference error: %s", err)
 	}
 
-	return e.Client.Create(e.Ctx, obj)
+	return e.client.Create(e.ctx, obj)
 }
 
 func (e *Executor) update(obj client.Object) error {
-	err := controllerutil.SetControllerReference(e.Cr, obj, e.scheme)
+	err := controllerutil.SetControllerReference(e.owner, obj, e.scheme)
 	if err != nil {
 		return fmt.Errorf("set reference error: %s", err)
 	}
 
-	err = e.Client.Update(e.Ctx, obj)
+	err = e.client.Update(e.ctx, obj)
 	if err != nil {
 		// conflicts will happen when there are frequent actions
 		if errors.IsConflict(err) {
@@ -107,7 +136,7 @@ func (e *Executor) update(obj client.Object) error {
 }
 
 func (e *Executor) updateStatus(obj client.Object) error {
-	err := e.Client.Status().Update(e.Ctx, obj)
+	err := e.client.Status().Update(e.ctx, obj)
 	if err != nil {
 		// conflicts will happen when there are frequent actions
 		if errors.IsConflict(err) {
@@ -119,7 +148,7 @@ func (e *Executor) updateStatus(obj client.Object) error {
 }
 
 func (e *Executor) delete(obj client.Object) error {
-	return e.Client.Delete(e.Ctx, obj)
+	return e.client.Delete(e.ctx, obj)
 }
 
 func NewCreateAction(obj client.Object, msg string) Action {

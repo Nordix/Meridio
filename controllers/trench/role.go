@@ -1,89 +1,93 @@
 package trench
 
 import (
+	"fmt"
+
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	common "github.com/nordix/meridio-operator/controllers/common"
-	"golang.org/x/net/context"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	roleName = "meridio-configuration-role"
-)
-
-func getRoleName(cr *meridiov1alpha1.Trench) string {
-	return common.GetFullName(cr, roleName)
-}
-
 type Role struct {
-	currentStatus *rbacv1.Role
-	desiredStatus *rbacv1.Role
+	trench *meridiov1alpha1.Trench
+	model  *rbacv1.Role
 }
 
-func (r *Role) getSelector(cr *meridiov1alpha1.Trench) client.ObjectKey {
+func NewRole(t *meridiov1alpha1.Trench) (*Role, error) {
+	l := &Role{
+		trench: t.DeepCopy(),
+	}
+
+	// get model
+	if err := l.getModel(); err != nil {
+		return nil, err
+	}
+	return l, nil
+}
+
+func (r *Role) getSelector() client.ObjectKey {
 	return client.ObjectKey{
-		Namespace: cr.ObjectMeta.Namespace,
-		Name:      getRoleName(cr),
+		Namespace: r.trench.ObjectMeta.Namespace,
+		Name:      common.RoleName(r.trench),
 	}
 }
 
-func (r *Role) getModel() (*rbacv1.Role, error) {
-	return common.GetRoleModel("deployment/role.yaml")
+func (r *Role) getModel() error {
+	model, err := common.GetRoleModel("deployment/role.yaml")
+	if err != nil {
+		return err
+	}
+	r.model = model
+	return nil
 }
 
-func (r *Role) insertParamters(role *rbacv1.Role, cr *meridiov1alpha1.Trench) *rbacv1.Role {
-	role.ObjectMeta.Name = getRoleName(cr)
-	role.ObjectMeta.Namespace = cr.ObjectMeta.Namespace
-	return role
+func (r *Role) insertParamters(role *rbacv1.Role) *rbacv1.Role {
+	ret := role.DeepCopy()
+	ret.ObjectMeta.Name = common.RoleName(r.trench)
+	ret.ObjectMeta.Namespace = r.trench.ObjectMeta.Namespace
+	return ret
 }
 
-func (r *Role) getCurrentStatus(ctx context.Context, cr *meridiov1alpha1.Trench, client client.Client) error {
-	currentState := &rbacv1.Role{}
-	err := client.Get(ctx, r.getSelector(cr), currentState)
+func (r *Role) getCurrentStatus(e *common.Executor) (*rbacv1.Role, error) {
+	currentStatus := &rbacv1.Role{}
+	selector := r.getSelector()
+	err := e.GetObject(selector, currentStatus)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return nil
+			return nil, nil
 		}
-		return err
+		return nil, err
 	}
-	r.currentStatus = currentState.DeepCopy()
-	return nil
+	return currentStatus, nil
 }
 
-func (r *Role) getDesiredStatus(cr *meridiov1alpha1.Trench) error {
-	model, err := r.getModel()
-	if err != nil {
-		return err
-	}
-	r.desiredStatus = r.insertParamters(model, cr)
-	return nil
+func (r *Role) getDesiredStatus() *rbacv1.Role {
+	return r.insertParamters(r.model)
 }
 
-func (r *Role) getReconciledDesiredStatus(current *rbacv1.Role, cr *meridiov1alpha1.Trench) {
-	r.desiredStatus = r.insertParamters(current, cr).DeepCopy()
+func (r *Role) getReconciledDesiredStatus(current *rbacv1.Role) *rbacv1.Role {
+	return r.insertParamters(current)
 }
 
-func (r *Role) getAction(e *common.Executor, cr *meridiov1alpha1.Trench) (common.Action, error) {
+func (r *Role) getAction(e *common.Executor) (common.Action, error) {
+	elem := common.RoleName(r.trench)
 	var action common.Action
-	err := r.getCurrentStatus(e.Ctx, cr, e.Client)
+	cs, err := r.getCurrentStatus(e)
 	if err != nil {
 		return action, err
 	}
-	if r.currentStatus == nil {
-		err = r.getDesiredStatus(cr)
-		if err != nil {
-			return action, err
-		}
-		e.Log.Info("role", "add action", "create")
-		action = common.NewCreateAction(r.desiredStatus, "create role")
+	if cs == nil {
+		ds := r.getDesiredStatus()
+		e.LogInfo(fmt.Sprintf("add action: create %s", elem))
+		action = common.NewCreateAction(ds, fmt.Sprintf("create %s", elem))
 	} else {
-		r.getReconciledDesiredStatus(r.currentStatus, cr)
-		if !equality.Semantic.DeepEqual(r.desiredStatus, r.currentStatus) {
-			e.Log.Info("role", "add action", "update")
-			action = common.NewUpdateAction(r.desiredStatus, "update role")
+		ds := r.getReconciledDesiredStatus(cs)
+		if !equality.Semantic.DeepEqual(ds, cs) {
+			e.LogInfo(fmt.Sprintf("add action: update %s", elem))
+			action = common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem))
 		}
 	}
 	return action, nil
