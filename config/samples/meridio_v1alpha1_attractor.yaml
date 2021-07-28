@@ -5,6 +5,9 @@ metadata:
   labels:
     trench: trench-a
 spec:
+  gateways:
+  - gateway1
+  - gateway3
   replicas: 1
   vlan-id: 100
   vlan-interface: eth0
@@ -16,6 +19,8 @@ metadata:
   labels:
     trench: trench-b
 spec:
+  gateways:
+  - gateway2
   replicas: 1
   vlan-id: 101
   vlan-interface: eth0

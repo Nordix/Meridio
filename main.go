@@ -34,6 +34,7 @@ import (
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	attactorcontroller "github.com/nordix/meridio-operator/controllers/attractor"
+	gatewaycontroller "github.com/nordix/meridio-operator/controllers/gateway"
 	trenchcontroller "github.com/nordix/meridio-operator/controllers/trench"
 	vipcontroller "github.com/nordix/meridio-operator/controllers/vip"
 	//+kubebuilder:scaffold:imports
@@ -118,6 +119,19 @@ func main() {
 	}
 	if err = (&meridiov1alpha1.Attractor{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Attractor")
+		os.Exit(1)
+	}
+
+	if err = (&gatewaycontroller.GatewayReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Gateway"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Gateway")
+		os.Exit(1)
+	}
+	if err = (&meridiov1alpha1.Gateway{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Gateway")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

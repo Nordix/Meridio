@@ -25,6 +25,7 @@ type LoadBalancer struct {
 	model     *appsv1.Deployment
 	trench    *meridiov1alpha1.Trench
 	attractor *meridiov1alpha1.Attractor
+	exec      *common.Executor
 }
 
 func (l *LoadBalancer) getModel() error {
@@ -38,6 +39,7 @@ func (l *LoadBalancer) getModel() error {
 
 func NewLoadBalancer(e *common.Executor, attr *meridiov1alpha1.Attractor, t *meridiov1alpha1.Trench) (*LoadBalancer, error) {
 	l := &LoadBalancer{
+		exec:      e,
 		attractor: attr,
 		trench:    t.DeepCopy(),
 	}
@@ -151,9 +153,9 @@ func (l *LoadBalancer) getSelector() client.ObjectKey {
 	}
 }
 
-func (l *LoadBalancer) getCurrentStatus(e *common.Executor) (*appsv1.Deployment, error) {
+func (l *LoadBalancer) getCurrentStatus() (*appsv1.Deployment, error) {
 	currentState := &appsv1.Deployment{}
-	err := e.GetObject(l.getSelector(), currentState)
+	err := l.exec.GetObject(l.getSelector(), currentState)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
@@ -173,10 +175,10 @@ func (i *LoadBalancer) getReconciledDesiredStatus(lb *appsv1.Deployment) *appsv1
 	return i.insertParamters(lb)
 }
 
-func (l *LoadBalancer) getAction(e *common.Executor) (common.Action, error) {
+func (l *LoadBalancer) getAction() (common.Action, error) {
 	elem := common.LoadBalancerDeploymentName(l.trench)
 	var action common.Action
-	cs, err := l.getCurrentStatus(e)
+	cs, err := l.getCurrentStatus()
 	if err != nil {
 		return nil, err
 	}
@@ -185,12 +187,12 @@ func (l *LoadBalancer) getAction(e *common.Executor) (common.Action, error) {
 		if err != nil {
 			return nil, err
 		}
-		e.LogInfo(fmt.Sprintf("add action: create %s", elem))
+		l.exec.LogInfo(fmt.Sprintf("add action: create %s", elem))
 		action = common.NewCreateAction(ds, fmt.Sprintf("create %s", elem))
 	} else {
 		ds := l.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			e.LogInfo(fmt.Sprintf("add action: update %s", elem))
+			l.exec.LogInfo(fmt.Sprintf("add action: update %s", elem))
 			action = common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem))
 		}
 	}

@@ -31,3 +31,8 @@ type DeploymentStatusType struct {
 var DeploymentStatus = DeploymentStatusType{
 	Deployed: "deployed",
 }
+
+type Protocol string
+
+var BFD Protocol = "static"
+var BGP Protocol = "bgp"

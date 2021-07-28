@@ -52,6 +52,10 @@ func (e *Executor) LogInfo(msg string) {
 	e.log.Info(msg)
 }
 
+func (e *Executor) LogError(err error, msg string) {
+	e.log.Error(err, msg)
+}
+
 func (e *Executor) GetObject(selector client.ObjectKey, obj client.Object) error {
 	return e.client.Get(e.ctx, selector, obj)
 }
@@ -88,8 +92,9 @@ type createAction struct {
 }
 
 type updateAction struct {
-	obj client.Object
-	msg string
+	obj        client.Object
+	msg        string
+	controller bool
 }
 
 type updateStatusAction struct {
@@ -102,7 +107,7 @@ func (a createAction) Run(e *Executor) (string, error) {
 }
 
 func (a updateAction) Run(e *Executor) (string, error) {
-	return a.msg, e.update(a.obj)
+	return a.msg, e.update(a.obj, a.controller)
 }
 
 func (a updateStatusAction) Run(e *Executor) (string, error) {
@@ -110,18 +115,22 @@ func (a updateStatusAction) Run(e *Executor) (string, error) {
 }
 
 func (e *Executor) create(obj client.Object) error {
-	err := controllerutil.SetControllerReference(e.owner, obj, e.scheme)
+	err := e.setControllerReference(obj)
 	if err != nil {
-		return fmt.Errorf("set reference error: %s", err)
+		return err
 	}
-
 	return e.client.Create(e.ctx, obj)
 }
 
-func (e *Executor) update(obj client.Object) error {
-	err := controllerutil.SetControllerReference(e.owner, obj, e.scheme)
+func (e *Executor) update(obj client.Object, ctrl bool) error {
+	var err error
+	if ctrl {
+		err = e.setControllerReference(obj)
+	} else {
+		err = e.setOwnerReference(obj)
+	}
 	if err != nil {
-		return fmt.Errorf("set reference error: %s", err)
+		return err
 	}
 
 	err = e.client.Update(e.ctx, obj)
@@ -147,6 +156,22 @@ func (e *Executor) updateStatus(obj client.Object) error {
 	return nil
 }
 
+func (e *Executor) setControllerReference(obj client.Object) error {
+	err := controllerutil.SetControllerReference(e.owner, obj, e.scheme)
+	if err != nil {
+		return fmt.Errorf("set controller reference error: %s", err)
+	}
+	return nil
+}
+
+func (e *Executor) setOwnerReference(obj client.Object) error {
+	err := controllerutil.SetOwnerReference(e.owner, obj, e.scheme)
+	if err != nil {
+		return fmt.Errorf("set owner reference error: %s", err)
+	}
+	return nil
+}
+
 func (e *Executor) delete(obj client.Object) error {
 	return e.client.Delete(e.ctx, obj)
 }
@@ -156,7 +181,11 @@ func NewCreateAction(obj client.Object, msg string) Action {
 }
 
 func NewUpdateAction(obj client.Object, msg string) Action {
-	return updateAction{obj: obj, msg: msg}
+	return updateAction{obj: obj, msg: msg, controller: true}
+}
+
+func NewSetOwnerAction(obj client.Object, msg string) Action {
+	return updateAction{obj: obj, msg: msg, controller: false}
 }
 
 func NewUpdateStatusAction(obj client.Object, msg string) Action {

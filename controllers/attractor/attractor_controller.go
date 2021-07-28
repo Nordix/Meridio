@@ -21,14 +21,17 @@ import (
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
@@ -73,13 +76,7 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	// update attractor
-	executor.SetOwner(trench)
-	actions := getAttractorActions(executor, attr, currentAttr)
-	err = executor.RunAll(actions)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
+
 	// if attractor is not engaged, do nothing to lb-fe & nse-vlan deployment
 	if attr.Status.LbFe != meridiov1alpha1.ConfigStatus.Engaged {
 		return ctrl.Result{}, nil
@@ -95,16 +92,29 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	alb, err := lb.getAction(executor)
+	cm := NewConfigMap(executor, trench, attr)
+
+	alb, err := lb.getAction()
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	anse, err := nse.getAction(executor)
+	anse, err := nse.getAction()
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	allAc := common.AppendActions(alb, anse)
+	ac, err := cm.getAction()
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	allAc := common.AppendActions(alb, anse, ac)
 	err = executor.RunAll(allAc)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	// update attractor
+	executor.SetOwner(trench)
+	actions := getAttractorActions(executor, attr, currentAttr)
+	err = executor.RunAll(actions)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -156,7 +166,7 @@ func validateAttractor(e *common.Executor, attr *meridiov1alpha1.Attractor) (*me
 func getAttractorActions(e *common.Executor, attrnew, attrOld *meridiov1alpha1.Attractor) []common.Action {
 	var actions []common.Action
 	// set the status for the vip
-	attrnsname := fmt.Sprintf("%s/%s", attrnew.GetNamespace(), attrnew.GetName())
+	attrnsname := common.NsName(attrnew.ObjectMeta)
 	if !equality.Semantic.DeepEqual(attrnew.Status, attrOld.Status) {
 		actions = append(actions, common.NewUpdateStatusAction(attrnew, fmt.Sprintf("update %s status: %v", attrnsname, attrnew.Status.LbFe)))
 	}
@@ -165,9 +175,7 @@ func getAttractorActions(e *common.Executor, attrnew, attrOld *meridiov1alpha1.A
 		return actions
 	}
 	// if labeled trench exsits, update the ownerReference
-	if !equality.Semantic.DeepEqual(attrnew, attrOld) {
-		actions = append(actions, common.NewUpdateAction(attrnew, fmt.Sprintf("update %s ownerReference: %s", attrnsname, e.GetOwner().GetName())))
-	}
+	actions = append(actions, common.NewSetOwnerAction(attrnew, fmt.Sprintf("update %s ownerReference: %s", attrnsname, e.GetOwner().GetName())))
 	return actions
 }
 
@@ -176,5 +184,9 @@ func (r *AttractorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&meridiov1alpha1.Attractor{}).
 		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.ConfigMap{}).
+		Watches(&source.Kind{Type: &meridiov1alpha1.Gateway{}}, // Attractors are not the controllers of Gateways, so here uses Watches with IsController: false
+			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Attractor{}, IsController: false},
+		).
 		Complete(r)
 }

@@ -6,42 +6,42 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: attractors.meridio.nordix.org
+  name: gateways.meridio.nordix.org
 spec:
   group: meridio.nordix.org
   names:
-    kind: Attractor
-    listKind: AttractorList
-    plural: attractors
-    singular: attractor
+    kind: Gateway
+    listKind: GatewayList
+    plural: gateways
+    singular: gateway
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.replicas
-      name: Replicas
-      type: integer
-    - jsonPath: .spec.vlan-id
-      name: VlanID
-      type: integer
-    - jsonPath: .spec.vlan-interface
-      name: VlanITF
+    - jsonPath: .spec.address
+      name: address
       type: string
-    - jsonPath: .spec.gateways
-      name: Gateways
+    - jsonPath: .spec.protocol
+      name: protocol
+      type: string
+    - jsonPath: .spec.bfd
+      name: BFD
       type: string
     - jsonPath: .metadata.labels.trench
       name: trench
       type: string
-    - jsonPath: .status.lb-fe
-      name: LB-FE
+    - jsonPath: .metadata.labels.attractor
+      name: attractor
       type: string
-    - jsonPath: .status.gateways-in-use
-      name: gw-in-use
+    - jsonPath: .status.status
+      name: status
+      type: string
+    - jsonPath: .status.message
+      name: message
       type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Attractor is the Schema for the attractors API
+        description: Gateway is the Schema for the gateways API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -56,37 +56,23 @@ spec:
           metadata:
             type: object
           spec:
-            description: AttractorSpec defines the desired state of Attractor
+            description: GatewaySpec defines the desired state of Gateway
             properties:
-              gateways:
-                description: gateways that attractor expect to use
-                items:
-                  type: string
-                type: array
-              replicas:
-                description: replicas of attractor deployment
-                format: int32
-                type: integer
-              vlan-id:
-                description: vlan ID, cannot be updated
-                type: integer
-              vlan-interface:
-                description: vlan interface, cannot be updated
+              address:
+                type: string
+              bfd:
+                type: boolean
+              protocol:
                 type: string
             required:
-            - vlan-id
-            - vlan-interface
+            - address
             type: object
           status:
-            description: AttractorStatus defines the observed state of Attractor
+            description: GatewayStatus defines the observed state of Gateway
             properties:
-              gateways-in-use:
-                items:
-                  type: string
-                type: array
-              lb-fe:
-                type: string
               message:
+                type: string
+              status:
                 type: string
             type: object
         type: object
