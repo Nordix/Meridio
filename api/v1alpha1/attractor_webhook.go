@@ -67,7 +67,7 @@ func (r *Attractor) ValidateCreate() error {
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Attractor) ValidateUpdate(old runtime.Object) error {
 	attractorlog.Info("validate update", "name", r.Name)
-	err := r.validateLabelUpdate(old)
+	err := r.validateUpdate(old)
 	if err != nil {
 		return err
 	}
@@ -102,7 +102,7 @@ func (r *Attractor) validateLabels() error {
 	return nil
 }
 
-func (r *Attractor) validateLabelUpdate(old runtime.Object) error {
+func (r *Attractor) validateUpdate(old runtime.Object) error {
 	attrOld, ok := old.(*Attractor)
 	if !ok {
 		return apierrors.NewBadRequest(fmt.Sprintf("expected a attractor got got a %T", attrOld))

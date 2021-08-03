@@ -26,8 +26,17 @@ spec:
     - jsonPath: .spec.vlan-interface
       name: VlanITF
       type: string
+    - jsonPath: .spec.gateways
+      name: Gateways
+      type: string
+    - jsonPath: .metadata.labels.trench
+      name: trench
+      type: string
     - jsonPath: .status.lb-fe
       name: LB-FE
+      type: string
+    - jsonPath: .status.gateways-in-use
+      name: gw-in-use
       type: string
     name: v1alpha1
     schema:
@@ -49,6 +58,11 @@ spec:
           spec:
             description: AttractorSpec defines the desired state of Attractor
             properties:
+              gateways:
+                description: gateways that attractor expect to use
+                items:
+                  type: string
+                type: array
               replicas:
                 description: replicas of attractor deployment
                 format: int32
@@ -66,6 +80,10 @@ spec:
           status:
             description: AttractorStatus defines the observed state of Attractor
             properties:
+              gateways-in-use:
+                items:
+                  type: string
+                type: array
               lb-fe:
                 type: string
               message:

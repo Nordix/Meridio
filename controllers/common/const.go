@@ -122,3 +122,7 @@ func getAppNsName(app string, meta metav1.ObjectMeta) string {
 func getResourceNamePrefix() string {
 	return os.Getenv(ResourceNamePrefixEnv)
 }
+
+func NsName(meta metav1.ObjectMeta) string {
+	return fmt.Sprintf("%s/%s", meta.Namespace, meta.Name)
+}

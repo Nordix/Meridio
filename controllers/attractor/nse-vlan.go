@@ -27,11 +27,13 @@ const (
 type NseDeployment struct {
 	model     *appsv1.Deployment
 	attractor *meridiov1alpha1.Attractor
+	exec      *common.Executor
 }
 
 func NewNSE(e *common.Executor, attr *meridiov1alpha1.Attractor) (*NseDeployment, error) {
 	nse := &NseDeployment{
 		attractor: attr,
+		exec:      e,
 	}
 	err := nse.getModel()
 	if err != nil {
@@ -120,10 +122,10 @@ func (i *NseDeployment) getReconciledDesiredStatus(cd *appsv1.Deployment) *appsv
 	return i.insertParamters(cd)
 }
 
-func (i *NseDeployment) getCurrentStatus(e *common.Executor) (*appsv1.Deployment, error) {
+func (i *NseDeployment) getCurrentStatus() (*appsv1.Deployment, error) {
 	currentStatus := &appsv1.Deployment{}
 	selector := i.getSelector()
-	err := e.GetObject(selector, currentStatus)
+	err := i.exec.GetObject(selector, currentStatus)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -133,10 +135,10 @@ func (i *NseDeployment) getCurrentStatus(e *common.Executor) (*appsv1.Deployment
 	return currentStatus, nil
 }
 
-func (i *NseDeployment) getAction(e *common.Executor) (common.Action, error) {
+func (i *NseDeployment) getAction() (common.Action, error) {
 	elem := common.NSEDeploymentName(i.attractor)
 	var action common.Action
-	cs, err := i.getCurrentStatus(e)
+	cs, err := i.getCurrentStatus()
 	if err != nil {
 		return nil, err
 	}
@@ -145,12 +147,12 @@ func (i *NseDeployment) getAction(e *common.Executor) (common.Action, error) {
 		if err != nil {
 			return nil, err
 		}
-		e.LogInfo(fmt.Sprintf("add action: create %s", elem))
+		i.exec.LogInfo(fmt.Sprintf("add action: create %s", elem))
 		action = common.NewCreateAction(ds, fmt.Sprintf("create %s", elem))
 	} else {
 		ds := i.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			e.LogInfo(fmt.Sprintf("add action: update %s", elem))
+			i.exec.LogInfo(fmt.Sprintf("add action: update %s", elem))
 			action = common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem))
 		}
 	}

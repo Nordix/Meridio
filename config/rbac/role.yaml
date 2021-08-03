@@ -95,6 +95,32 @@ rules:
 - apiGroups:
   - meridio.nordix.org
   resources:
+  - gateways
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - gateways/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - gateways/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - meridio.nordix.org
+  resources:
   - trenches
   verbs:
   - create

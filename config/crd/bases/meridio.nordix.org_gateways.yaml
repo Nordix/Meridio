@@ -6,20 +6,42 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.4.1
   creationTimestamp: null
-  name: trenches.meridio.nordix.org
+  name: gateways.meridio.nordix.org
 spec:
   group: meridio.nordix.org
   names:
-    kind: Trench
-    listKind: TrenchList
-    plural: trenches
-    singular: trench
+    kind: Gateway
+    listKind: GatewayList
+    plural: gateways
+    singular: gateway
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.address
+      name: address
+      type: string
+    - jsonPath: .spec.protocol
+      name: protocol
+      type: string
+    - jsonPath: .spec.bfd
+      name: BFD
+      type: string
+    - jsonPath: .metadata.labels.trench
+      name: trench
+      type: string
+    - jsonPath: .metadata.labels.attractor
+      name: attractor
+      type: string
+    - jsonPath: .status.status
+      name: status
+      type: string
+    - jsonPath: .status.message
+      name: message
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Trench is the Schema for the trenches API
+        description: Gateway is the Schema for the gateways API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -34,10 +56,24 @@ spec:
           metadata:
             type: object
           spec:
-            description: TrenchSpec defines the desired state of Trench
+            description: GatewaySpec defines the desired state of Gateway
+            properties:
+              address:
+                type: string
+              bfd:
+                type: boolean
+              protocol:
+                type: string
+            required:
+            - address
             type: object
           status:
-            description: TrenchStatus defines the observed state of Trench
+            description: GatewayStatus defines the observed state of Gateway
+            properties:
+              message:
+                type: string
+              status:
+                type: string
             type: object
         type: object
     served: true

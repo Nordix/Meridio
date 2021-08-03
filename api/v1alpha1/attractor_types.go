@@ -29,12 +29,15 @@ type AttractorSpec struct {
 	VlanInterface string `json:"vlan-interface"`
 	// vlan ID, cannot be updated
 	VlanID int `json:"vlan-id"`
+	// gateways that attractor expect to use
+	Gateways []string `json:"gateways,omitempty"`
 }
 
 // AttractorStatus defines the observed state of Attractor
 type AttractorStatus struct {
-	Message string `json:"message,omitempty"`
-	LbFe    string `json:"lb-fe,omitempty"`
+	Message      string   `json:"message,omitempty"`
+	LbFe         string   `json:"lb-fe,omitempty"`
+	GatewayInUse []string `json:"gateways-in-use,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -42,7 +45,10 @@ type AttractorStatus struct {
 //+kubebuilder:printcolumn:name="Replicas",type=integer,JSONPath=`.spec.replicas`
 //+kubebuilder:printcolumn:name="VlanID",type=integer,JSONPath=`.spec.vlan-id`
 //+kubebuilder:printcolumn:name="VlanITF",type=string,JSONPath=`.spec.vlan-interface`
+//+kubebuilder:printcolumn:name="Gateways",type=string,JSONPath=`.spec.gateways`
+//+kubebuilder:printcolumn:name="trench",type=string,JSONPath=`.metadata.labels.trench`
 //+kubebuilder:printcolumn:name="LB-FE",type=string,JSONPath=`.status.lb-fe`
+//+kubebuilder:printcolumn:name="gw-in-use",type=string,JSONPath=`.status.gateways-in-use`
 // Attractor is the Schema for the attractors API
 type Attractor struct {
 	metav1.TypeMeta   `json:",inline"`
