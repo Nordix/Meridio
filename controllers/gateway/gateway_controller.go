@@ -71,7 +71,7 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	executor.SetOwner(attr)
+	executor.SetOwnerReference(gw, attr)
 	actions := getGatewayActions(executor, gw, cgw)
 	err = executor.RunAll(actions)
 	return ctrl.Result{}, err
@@ -134,14 +134,8 @@ func getGatewayActions(e *common.Executor, new, old *meridiov1alpha1.Gateway) []
 	if !equality.Semantic.DeepEqual(new.Status, old.Status) {
 		actions = append(actions, common.NewUpdateStatusAction(new, fmt.Sprintf("update %s status: %v", nsname, new.Status.Status)))
 	}
-	// if attr doesn't have an existing trench, update the status only
-	if owner, ok := e.GetOwner().(*meridiov1alpha1.Attractor); !ok {
-		e.LogError(fmt.Errorf("type mismatch"), fmt.Sprintf("Owner expected to be attractor type, actual %T", owner))
-		return actions
-	} else if owner == nil {
-		return actions
+	if !equality.Semantic.DeepEqual(new.ObjectMeta, old.ObjectMeta) {
+		actions = append(actions, common.NewUpdateAction(new, fmt.Sprintf("update %s ownerReference", nsname)))
 	}
-	// if labeled trench exsits, update the ownerReference
-	actions = append(actions, common.NewSetOwnerAction(new, fmt.Sprintf("update %s ownerReference: %s", nsname, e.GetOwner().GetName())))
 	return actions
 }

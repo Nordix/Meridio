@@ -8,6 +8,9 @@ spec:
   gateways:
   - gateway1
   - gateway3
+  vips:
+  - vip1
+  - vip2
   replicas: 1
   vlan-id: 100
   vlan-interface: eth0
@@ -21,6 +24,8 @@ metadata:
 spec:
   gateways:
   - gateway2
+  vips:
+  - vip3
   replicas: 1
   vlan-id: 101
   vlan-interface: eth0

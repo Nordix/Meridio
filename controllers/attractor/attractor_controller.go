@@ -112,7 +112,7 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 	// update attractor
-	executor.SetOwner(trench)
+	executor.SetOwnerReference(attr, trench)
 	actions := getAttractorActions(executor, attr, currentAttr)
 	err = executor.RunAll(actions)
 	if err != nil {
@@ -163,19 +163,16 @@ func validateAttractor(e *common.Executor, attr *meridiov1alpha1.Attractor) (*me
 	return trench, nil
 }
 
-func getAttractorActions(e *common.Executor, attrnew, attrOld *meridiov1alpha1.Attractor) []common.Action {
+func getAttractorActions(e *common.Executor, new, old *meridiov1alpha1.Attractor) []common.Action {
 	var actions []common.Action
 	// set the status for the vip
-	attrnsname := common.NsName(attrnew.ObjectMeta)
-	if !equality.Semantic.DeepEqual(attrnew.Status, attrOld.Status) {
-		actions = append(actions, common.NewUpdateStatusAction(attrnew, fmt.Sprintf("update %s status: %v", attrnsname, attrnew.Status.LbFe)))
+	attrnsname := common.NsName(new.ObjectMeta)
+	if !equality.Semantic.DeepEqual(new.Status, old.Status) {
+		actions = append(actions, common.NewUpdateStatusAction(new, fmt.Sprintf("update %s status: %v", attrnsname, new.Status.LbFe)))
 	}
-	// if attr doesn't have an existing trench, update the status only
-	if e.GetOwner().(*meridiov1alpha1.Trench) == nil {
-		return actions
+	if !equality.Semantic.DeepEqual(new.ObjectMeta, old.ObjectMeta) {
+		actions = append(actions, common.NewUpdateAction(new, fmt.Sprintf("update %s ownerReference", attrnsname)))
 	}
-	// if labeled trench exsits, update the ownerReference
-	actions = append(actions, common.NewSetOwnerAction(attrnew, fmt.Sprintf("update %s ownerReference: %s", attrnsname, e.GetOwner().GetName())))
 	return actions
 }
 
@@ -185,8 +182,13 @@ func (r *AttractorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&meridiov1alpha1.Attractor{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.ConfigMap{}).
-		Watches(&source.Kind{Type: &meridiov1alpha1.Gateway{}}, // Attractors are not the controllers of Gateways, so here uses Watches with IsController: false
+		Watches(
+			&source.Kind{Type: &meridiov1alpha1.Gateway{}},
 			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Attractor{}, IsController: false},
-		).
+		). // Attractors are not the controllers of Gateways, so here uses Watches with IsController: false
+		Watches(
+			&source.Kind{Type: &meridiov1alpha1.Vip{}},
+			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Attractor{}, IsController: false},
+		). // Attractors are not the controllers of Vips, so here uses Watches with IsController: false
 		Complete(r)
 }

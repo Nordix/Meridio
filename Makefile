@@ -120,6 +120,11 @@ deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
+apply-samples: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+	kubectl apply -f config/samples/meridio_v1alpha1_trench.yaml
+	kubectl apply -f config/samples/meridio_v1alpha1_attractor.yaml
+	kubectl apply -f config/samples/meridio_v1alpha1_vip.yaml
+	kubectl apply -f config/samples/meridio_v1alpha1_gateway.yaml
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.

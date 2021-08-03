@@ -3,7 +3,8 @@ kind: Vip
 metadata:
   labels:
     trench: trench-a
-  name: meridio.conf
+    attractor: attr1
+  name: vip1
 spec:
   # Add fields here
   address: "20.0.0.1/32"
@@ -13,7 +14,8 @@ kind: Vip
 metadata:
   labels:
     trench: trench-a
-  name: meridio.conf3
+    attractor: attr1
+  name: vip2
 spec:
   # Add fields here
   address: "20.0.0.1/32"
@@ -23,7 +25,8 @@ kind: Vip
 metadata:
   labels:
     trench: trench-b
-  name: meridio.conf2
+    attractor: attr2
+  name: vip3
 spec:
   # Add fields here
   address: "2000::1/128"
