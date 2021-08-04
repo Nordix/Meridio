@@ -42,8 +42,6 @@ type VipReconciler struct {
 //+kubebuilder:rbac:groups=meridio.nordix.org,resources=vips,verbs=get;list;watch;update;patch;delete
 //+kubebuilder:rbac:groups=meridio.nordix.org,resources=vips/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=meridio.nordix.org,resources=vips/finalizers,verbs=update
-//+kubebuilder:rbac:groups=meridio.nordix.org,resources=trenches,verbs=get
-//+kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
