@@ -115,16 +115,22 @@ func (r *Vip) validateLabels() error {
 	return nil
 }
 
-func (r *Vip) validateLabelUpdate(old runtime.Object) error {
-	vipOld, ok := old.(*Vip)
+func (r *Vip) validateLabelUpdate(oldObj runtime.Object) error {
+	vipOld, ok := oldObj.(*Vip)
 	if !ok {
 		return apierrors.NewBadRequest(fmt.Sprintf("expected a vip got got a %T", vipOld))
 	}
-	trenchNew := r.ObjectMeta.Labels["trench"]
-	trenchOld := vipOld.ObjectMeta.Labels["trench"]
-	if trenchNew != trenchOld {
+	new := r.ObjectMeta.Labels["trench"]
+	old := vipOld.ObjectMeta.Labels["trench"]
+	if new != old {
 		return apierrors.NewForbidden(r.GroupResource(),
 			r.Name, field.Forbidden(field.NewPath("metadata", "labels", "trench"), "update on vip label trench is forbidden"))
+	}
+	new = r.ObjectMeta.Labels["attractor"]
+	old = vipOld.ObjectMeta.Labels["attractor"]
+	if new != old {
+		return apierrors.NewForbidden(r.GroupResource(),
+			r.Name, field.Forbidden(field.NewPath("metadata", "labels", "attractor"), "update on vip label attractor is forbidden"))
 	}
 	return nil
 }

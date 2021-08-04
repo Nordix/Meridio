@@ -31,6 +31,8 @@ type AttractorSpec struct {
 	VlanID int `json:"vlan-id"`
 	// gateways that attractor expect to use
 	Gateways []string `json:"gateways,omitempty"`
+	// vips that attractor expect to use
+	Vips []string `json:"vips,omitempty"`
 }
 
 // AttractorStatus defines the observed state of Attractor
@@ -38,17 +40,19 @@ type AttractorStatus struct {
 	Message      string   `json:"message,omitempty"`
 	LbFe         string   `json:"lb-fe,omitempty"`
 	GatewayInUse []string `json:"gateways-in-use,omitempty"`
+	VipsInUse    []string `json:"vips-in-use,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name="Replicas",type=integer,JSONPath=`.spec.replicas`
 //+kubebuilder:printcolumn:name="VlanID",type=integer,JSONPath=`.spec.vlan-id`
 //+kubebuilder:printcolumn:name="VlanITF",type=string,JSONPath=`.spec.vlan-interface`
 //+kubebuilder:printcolumn:name="Gateways",type=string,JSONPath=`.spec.gateways`
+//+kubebuilder:printcolumn:name="gw-in-use",type=string,JSONPath=`.status.gateways-in-use`
+//+kubebuilder:printcolumn:name="Vips",type=string,JSONPath=`.spec.vips`
+//+kubebuilder:printcolumn:name="vips-in-use",type=string,JSONPath=`.status.vips-in-use`
 //+kubebuilder:printcolumn:name="trench",type=string,JSONPath=`.metadata.labels.trench`
 //+kubebuilder:printcolumn:name="LB-FE",type=string,JSONPath=`.status.lb-fe`
-//+kubebuilder:printcolumn:name="gw-in-use",type=string,JSONPath=`.status.gateways-in-use`
 // Attractor is the Schema for the attractors API
 type Attractor struct {
 	metav1.TypeMeta   `json:",inline"`

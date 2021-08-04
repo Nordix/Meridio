@@ -17,9 +17,6 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.replicas
-      name: Replicas
-      type: integer
     - jsonPath: .spec.vlan-id
       name: VlanID
       type: integer
@@ -29,14 +26,20 @@ spec:
     - jsonPath: .spec.gateways
       name: Gateways
       type: string
+    - jsonPath: .status.gateways-in-use
+      name: gw-in-use
+      type: string
+    - jsonPath: .spec.vips
+      name: Vips
+      type: string
+    - jsonPath: .status.vips-in-use
+      name: vips-in-use
+      type: string
     - jsonPath: .metadata.labels.trench
       name: trench
       type: string
     - jsonPath: .status.lb-fe
       name: LB-FE
-      type: string
-    - jsonPath: .status.gateways-in-use
-      name: gw-in-use
       type: string
     name: v1alpha1
     schema:
@@ -67,6 +70,11 @@ spec:
                 description: replicas of attractor deployment
                 format: int32
                 type: integer
+              vips:
+                description: vips that attractor expect to use
+                items:
+                  type: string
+                type: array
               vlan-id:
                 description: vlan ID, cannot be updated
                 type: integer
@@ -88,6 +96,10 @@ spec:
                 type: string
               message:
                 type: string
+              vips-in-use:
+                items:
+                  type: string
+                type: array
             type: object
         type: object
     served: true

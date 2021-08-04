@@ -18,7 +18,6 @@ package main
 
 import (
 	"flag"
-	"net"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -95,12 +94,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	trenchVip := make(map[string]map[string]map[string]*net.IPNet)
 	if err = (&vipcontroller.VipReconciler{
-		Client:    mgr.GetClient(),
-		Log:       ctrl.Log.WithName("controllers").WithName("Vip"),
-		Scheme:    mgr.GetScheme(),
-		TrenchVip: trenchVip,
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Vip"),
+		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Vip")
 		os.Exit(1)

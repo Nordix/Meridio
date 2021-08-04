@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"net"
 
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/go-logr/logr"
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
@@ -35,9 +35,8 @@ import (
 // VipReconciler reconciles a Vip object
 type VipReconciler struct {
 	client.Client
-	Log       logr.Logger
-	Scheme    *runtime.Scheme
-	TrenchVip map[string]map[string]map[string]*net.IPNet //namespace->trench->vip name->vip address
+	Log    logr.Logger
+	Scheme *runtime.Scheme
 }
 
 //+kubebuilder:rbac:groups=meridio.nordix.org,resources=vips,verbs=get;list;watch;update;patch;delete
@@ -58,79 +57,91 @@ type VipReconciler struct {
 func (r *VipReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("vip", req.NamespacedName)
 
-	configmap := &ConfigMap{}
 	vip := &meridiov1alpha1.Vip{}
 	executor := common.NewExecutor(r.Scheme, r.Client, ctx, nil, r.Log)
 
 	err := r.Get(ctx, req.NamespacedName, vip)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			r.TrenchVip, err = configmap.deleteKey(executor, req.Namespace, req.Name, r.TrenchVip)
 			if err != nil {
-				return ctrl.Result{}, err
+				return ctrl.Result{}, nil
 			}
-			return reconcile.Result{}, nil
+			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
 	}
 	// clear vip status
+	currentVip := vip.DeepCopy()
 	vip = setVipStatus(vip, meridiov1alpha1.BaseStatus.NoPhase, "")
 
+	trench, attr, err := validateVip(executor, vip)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// actions to update vip
+	if attr != nil {
+		err = executor.SetOwnerReference(vip, trench, attr)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	actions := getVipActions(executor, vip, currentVip)
+	err = executor.RunAll(actions)
+
+	return ctrl.Result{}, err
+}
+
+func validateVip(e *common.Executor, vip *meridiov1alpha1.Vip) (*meridiov1alpha1.Trench, *meridiov1alpha1.Attractor, error) {
 	// Get the trench by the label in vip
 	selector := client.ObjectKey{
 		Namespace: vip.ObjectMeta.Namespace,
 		Name:      vip.ObjectMeta.Labels["trench"],
 	}
-	trench, err := common.GetTrenchbySelector(executor, selector)
+	trench, err := common.GetTrenchbySelector(e, selector)
 	if err != nil {
 		// set vip status to rejected if trench is not found
 		if apierrors.IsNotFound(err) {
-			vip = setVipStatus(vip,
-				meridiov1alpha1.ConfigStatus.Rejected,
-				fmt.Sprintf("trench %s must be created first", vip.ObjectMeta.Labels["trench"]))
+			setVipStatus(vip,
+				meridiov1alpha1.ConfigStatus.Disengaged,
+				"labeled trench not found")
+			return nil, nil, nil
 		} else {
-			return ctrl.Result{}, err
+			return nil, nil, err
 		}
 	}
 
-	if vip.Status.Status != meridiov1alpha1.ConfigStatus.Rejected {
-		// record trench and ns in a map
-		r.addNsTrenchToMap(trench)
-		executor.SetOwner(trench)
-		// validate overlapping, set vip status to rejected if there is overlapping
-		_, vIPNets, _ := net.ParseCIDR(vip.Spec.Address)
-		if err := vipsOverlap(r.TrenchVip[trench.ObjectMeta.Namespace][trench.ObjectMeta.Name], vIPNets, vip.ObjectMeta.Name); err != nil {
-			vip = setVipStatus(vip,
-				meridiov1alpha1.ConfigStatus.Rejected,
-				fmt.Sprintf("validation error: %s", err))
-		} else {
-			// only add vip which is not rejected to the map
-			r.TrenchVip[vip.ObjectMeta.Namespace][trench.ObjectMeta.Name][vip.ObjectMeta.Name] = vIPNets
+	attrname, ok := vip.ObjectMeta.Labels["attractor"]
+	if !ok {
+		setVipStatus(vip,
+			meridiov1alpha1.ConfigStatus.Disengaged,
+			"labeled trench not found")
+		return nil, nil, nil
+	}
+	selector = client.ObjectKey{
+		Namespace: vip.ObjectMeta.Namespace,
+		Name:      attrname,
+	}
+	attr := &meridiov1alpha1.Attractor{}
+	if err := e.GetObject(selector, attr); err != nil {
+		if apierrors.IsNotFound(err) {
+			msg := "labeled attractor not found"
+			vip.Status.Status = meridiov1alpha1.ConfigStatus.Disengaged
+			vip.Status.Message = msg
+			return nil, nil, nil
 		}
+		return nil, nil, err
+	}
+	if attr.ObjectMeta.Labels["trench"] != vip.ObjectMeta.Labels["trench"] {
+		msg := "attractor and trench label mismatch"
+		vip.Status.Status = meridiov1alpha1.ConfigStatus.Disengaged
+		vip.Status.Message = msg
+		return nil, nil, nil
 	}
 
-	if vip.Status.Status != meridiov1alpha1.ConfigStatus.Rejected {
-		vip = setVipStatus(vip, meridiov1alpha1.ConfigStatus.Accepted, "")
-	}
-	// actions to update vip
-	actions := getVipActions(executor, vip)
-	err = executor.RunAll(actions)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	if vip.Status.Status == meridiov1alpha1.ConfigStatus.Rejected {
-		return ctrl.Result{}, nil
-	}
-	// action to update update/create configmap
-	action, err := configmap.getAction(executor, r.TrenchVip[vip.ObjectMeta.Namespace][trench.ObjectMeta.Name], vip)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	if action != nil {
-		executor.RunAll(append(actions, action))
-	}
-
-	return ctrl.Result{}, nil
+	setVipStatus(vip, meridiov1alpha1.ConfigStatus.Engaged, "")
+	return trench, attr, nil
 }
 
 func setVipStatus(vip *meridiov1alpha1.Vip, status string, msg string) *meridiov1alpha1.Vip {
@@ -166,26 +177,16 @@ func cidrContainsCIDR(outer, inner *net.IPNet) bool {
 	return false
 }
 
-func (r *VipReconciler) addNsTrenchToMap(trench *meridiov1alpha1.Trench) {
-	if _, ok := r.TrenchVip[trench.ObjectMeta.Namespace]; !ok {
-		r.TrenchVip[trench.ObjectMeta.Namespace] = make(map[string]map[string]*net.IPNet)
-	}
-	if _, ok := r.TrenchVip[trench.ObjectMeta.Namespace][trench.ObjectMeta.Name]; !ok {
-		r.TrenchVip[trench.ObjectMeta.Namespace][trench.ObjectMeta.Name] = make(map[string]*net.IPNet)
-	}
-}
-
-func getVipActions(e *common.Executor, vip *meridiov1alpha1.Vip) []common.Action {
+func getVipActions(e *common.Executor, new, old *meridiov1alpha1.Vip) []common.Action {
 	var actions []common.Action
 	// set the status for the vip
-	vipnsname := fmt.Sprintf("%s/%s", vip.GetNamespace(), vip.GetName())
-	// if vip is rejected due to trench not found, update the status only
-	actions = append(actions, common.NewUpdateStatusAction(vip, fmt.Sprintf("update vip %s status: %v", vipnsname, vip.Status.Status)))
-	if e.GetOwner().(*meridiov1alpha1.Trench) == nil {
-		return actions
+	nsname := common.NsName(new.ObjectMeta)
+	if !equality.Semantic.DeepEqual(new.Status, old.Status) {
+		actions = append(actions, common.NewUpdateStatusAction(new, fmt.Sprintf("update %s status: %v", nsname, new.Status.Status)))
 	}
-	// if vip is rejected due to overlapping address, also
-	actions = append(actions, common.NewUpdateAction(vip, fmt.Sprintf("update vip %s ownerReference", vipnsname)))
+	if !equality.Semantic.DeepEqual(new.ObjectMeta, old.ObjectMeta) {
+		actions = append(actions, common.NewUpdateAction(new, fmt.Sprintf("update %s ownerReference", nsname)))
+	}
 	return actions
 }
 

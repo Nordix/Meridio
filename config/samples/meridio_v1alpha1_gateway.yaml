@@ -7,7 +7,6 @@ metadata:
   name: gateway1
 spec:
   address: 2.3.4.5
-  bfd: true
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Gateway
