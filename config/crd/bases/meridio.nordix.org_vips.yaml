@@ -45,6 +45,8 @@ spec:
             properties:
               address:
                 type: string
+            required:
+            - address
             type: object
           status:
             description: VipStatus defines the observed state of Vip
