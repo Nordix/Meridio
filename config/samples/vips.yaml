@@ -17,3 +17,13 @@ metadata:
   name: vip2
 spec:
   address: "10.0.0.1/32"
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Vip
+metadata:
+  labels:
+    trench: trench-b
+    attractor: attr2
+  name: vip3
+spec:
+  address: "2000::1/128"

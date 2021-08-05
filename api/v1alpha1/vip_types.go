@@ -26,7 +26,7 @@ import (
 
 // VipSpec defines the desired state of Vip
 type VipSpec struct {
-	Address string `json:"address,omitempty"`
+	Address string `json:"address"`
 }
 
 // VipStatus defines the observed state of Vip

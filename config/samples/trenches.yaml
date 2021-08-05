@@ -1,0 +1,9 @@
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Trench
+metadata:
+  name: trench-a
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Trench
+metadata:
+  name: trench-b
