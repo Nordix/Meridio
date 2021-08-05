@@ -7,6 +7,7 @@ import (
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"github.com/nordix/meridio-operator/controllers/common"
+	meridioconfig "github.com/nordix/meridio-operator/controllers/config"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
@@ -14,32 +15,6 @@ import (
 
 	"gopkg.in/yaml.v2"
 )
-
-const (
-	gatewayConfigKey = "gateways"
-	vipsConfigKey    = "vips"
-)
-
-type GatewayConfig struct {
-	Gateways []Gateway `yaml:"items"`
-}
-
-type VipConfig struct {
-	Vips []Vip `yaml:"items"`
-}
-
-type Gateway struct {
-	Name     string `yaml:"name"`
-	Address  string `yaml:"address"`
-	IPFamily string `yaml:"ip-family"`
-	BFD      bool   `yaml:"bfd"`
-	Protocol string `yaml:"protocol"`
-}
-
-type Vip struct {
-	Name    string `yaml:"name"`
-	Address string `yaml:"address"`
-}
 
 type ConfigMap struct {
 	attr   *meridiov1alpha1.Attractor
@@ -57,70 +32,40 @@ func NewConfigMap(e *common.Executor, t *meridiov1alpha1.Trench, attr *meridiov1
 }
 
 func diffConfigContent(mapA, mapB map[string]string) (bool, string) {
-	gw, gwmsg := diffGateways(mapA[gatewayConfigKey], mapB[gatewayConfigKey])
-	vip, vipmsg := diffVips(mapA[vipsConfigKey], mapB[vipsConfigKey])
+	gw, gwmsg := diffGateways(mapA[meridioconfig.GatewayConfigKey], mapB[meridioconfig.GatewayConfigKey])
+	vip, vipmsg := diffVips(mapA[meridioconfig.VipsConfigKey], mapB[meridioconfig.VipsConfigKey])
 	return gw || vip, fmt.Sprintf("%s %s", gwmsg, vipmsg)
 }
 
 func diffGateways(cc, cd string) (bool, string) {
-	configcd, err := unmarshalGatewayConfig(cd)
+	configcd, err := meridioconfig.UnmarshalGatewayConfig(cd)
 	if err != nil {
 		return true, fmt.Sprintf("unmarshal desired gateway error %s", err)
 	}
-	mapcd := makeMapFromGWList(configcd)
-	configcc, err := unmarshalGatewayConfig(cc)
+	mapcd := meridioconfig.MakeMapFromGWList(configcd)
+	configcc, err := meridioconfig.UnmarshalGatewayConfig(cc)
 	if err != nil {
 		return true, fmt.Sprintf("unmarshal current gateway error %s", err)
 	}
-	mapcc := makeMapFromGWList(configcc)
-	return itemsDifferent(mapcc, mapcd)
+	mapcc := meridioconfig.MakeMapFromGWList(configcc)
+	return gwItemsDifferent(mapcc, mapcd)
 }
 
 func diffVips(cc, cd string) (bool, string) {
-	configcd, err := unmarshalVipConfig(cd)
+	configcd, err := meridioconfig.UnmarshalVipConfig(cd)
 	if err != nil {
 		return true, fmt.Sprintf("unmarshal desired vip error %s", err)
 	}
-	mapcd := makeMapFromVipList(configcd)
-	configcc, err := unmarshalVipConfig(cc)
+	mapcd := meridioconfig.MakeMapFromVipList(configcd)
+	configcc, err := meridioconfig.UnmarshalVipConfig(cc)
 	if err != nil {
 		return true, fmt.Sprintf("unmarshal current vip error %s", err)
 	}
-	mapcc := makeMapFromVipList(configcc)
-	return itemsDifferent(mapcc, mapcd)
+	mapcc := meridioconfig.MakeMapFromVipList(configcc)
+	return vipItemsDifferent(mapcc, mapcd)
 }
 
-func unmarshalGatewayConfig(c string) (*GatewayConfig, error) {
-	config := &GatewayConfig{}
-	err := yaml.Unmarshal([]byte(c), &config)
-	return config, err
-}
-
-func unmarshalVipConfig(c string) (*VipConfig, error) {
-	config := &VipConfig{}
-	err := yaml.Unmarshal([]byte(c), &config)
-	return config, err
-}
-
-func makeMapFromVipList(config *VipConfig) map[string]interface{} {
-	list := config.Vips
-	ret := make(map[string]interface{})
-	for _, item := range list {
-		ret[item.Name] = item
-	}
-	return ret
-}
-
-func makeMapFromGWList(config *GatewayConfig) map[string]interface{} {
-	list := config.Gateways
-	ret := make(map[string]interface{})
-	for _, item := range list {
-		ret[item.Name] = item
-	}
-	return ret
-}
-
-func itemsDifferent(mapA, mapB map[string]interface{}) (bool, string) {
+func gwItemsDifferent(mapA, mapB map[string]meridioconfig.Gateway) (bool, string) {
 	for name := range mapA {
 		if _, ok := mapB[name]; !ok {
 			return true, fmt.Sprintf("%s needs updated", name)
@@ -131,10 +76,25 @@ func itemsDifferent(mapA, mapB map[string]interface{}) (bool, string) {
 			return true, fmt.Sprintf("%s needs updated", name)
 		}
 	}
-	return structDiff(mapA, mapB)
+	for key, value := range mapA {
+		if !reflect.DeepEqual(mapB[key], value) {
+			return true, fmt.Sprintf("%s needs updated", key)
+		}
+	}
+	return false, ""
 }
 
-func structDiff(mapA, mapB map[string]interface{}) (bool, string) {
+func vipItemsDifferent(mapA, mapB map[string]meridioconfig.Vip) (bool, string) {
+	for name := range mapA {
+		if _, ok := mapB[name]; !ok {
+			return true, fmt.Sprintf("%s needs updated", name)
+		}
+	}
+	for name := range mapB {
+		if _, ok := mapA[name]; !ok {
+			return true, fmt.Sprintf("%s needs updated", name)
+		}
+	}
 	for key, value := range mapA {
 		if !reflect.DeepEqual(mapB[key], value) {
 			return true, fmt.Sprintf("%s needs updated", key)
@@ -177,8 +137,8 @@ func (c *ConfigMap) getDesiredStatus(al *meridiov1alpha1.GatewayList, vl *meridi
 		return nil, err
 	}
 	configmap.Data = map[string]string{
-		gatewayConfigKey: data,
-		vipsConfigKey:    vdata,
+		meridioconfig.GatewayConfigKey: data,
+		meridioconfig.VipsConfigKey:    vdata,
 	}
 	return configmap, nil
 }
@@ -250,13 +210,13 @@ func (c *ConfigMap) getReconciledDesiredStatus(al *meridiov1alpha1.GatewayList, 
 		return nil, err
 	}
 	ret := cm.DeepCopy()
-	ret.Data[gatewayConfigKey] = data
-	ret.Data[vipsConfigKey] = vdata
+	ret.Data[meridioconfig.GatewayConfigKey] = data
+	ret.Data[meridioconfig.VipsConfigKey] = vdata
 	return ret, nil
 }
 
 func (c *ConfigMap) getGatewayData(gws *meridiov1alpha1.GatewayList) (string, error) {
-	config := &GatewayConfig{}
+	config := &meridioconfig.GatewayConfig{}
 	gwlist := []string{}
 	for _, gw := range gws.Items {
 		if gw.Status.Status != meridiov1alpha1.ConfigStatus.Engaged {
@@ -266,7 +226,7 @@ func (c *ConfigMap) getGatewayData(gws *meridiov1alpha1.GatewayList) (string, er
 		if net.ParseIP(gw.Spec.Address).To4() == nil {
 			ipFamily = "ipv6"
 		}
-		config.Gateways = append(config.Gateways, Gateway{
+		config.Gateways = append(config.Gateways, meridioconfig.Gateway{
 			Name:     gw.ObjectMeta.Name,
 			Address:  gw.Spec.Address,
 			BFD:      *gw.Spec.BFD,
@@ -284,13 +244,13 @@ func (c *ConfigMap) getGatewayData(gws *meridiov1alpha1.GatewayList) (string, er
 }
 
 func (c *ConfigMap) getVipData(vips *meridiov1alpha1.VipList) (string, error) {
-	config := &VipConfig{}
+	config := &meridioconfig.VipConfig{}
 	viplist := []string{}
 	for _, vp := range vips.Items {
 		if vp.Status.Status != meridiov1alpha1.ConfigStatus.Engaged {
 			continue
 		}
-		config.Vips = append(config.Vips, Vip{
+		config.Vips = append(config.Vips, meridioconfig.Vip{
 			Name:    vp.ObjectMeta.Name,
 			Address: vp.Spec.Address,
 		})
