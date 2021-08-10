@@ -8,7 +8,7 @@
 - [X] Runtime configuration (Only VIP support for the moment)
 - [X] External connectivity (VLAN)
 - [X] Ambassador
-- [ ] Front-end / BGP Support
+- [X] Front-end / BGP Support
 - [ ] Operator
 
 ## Components
@@ -56,6 +56,29 @@ The target contains an ambassador container where the application can request or
 Once the connection is established, a source based route is added to ensure traffic with the VIP as source IP is always going back through the proxy, and the VIP addresses are added to the loopback interface to handle the traffic.
 
 The other container in the target pod is ctraffic which contains the ctraffic program and a simple ambassador API client application. The simple ambassador API client application will connect to a conduit and request a stream when the pod starts. ctraffic is a testing application offering a TCP server listening on port 5000. This testing application can be also used as a TCP client from the external host to generate traffic in the system and create a traffic report.
+
+### Frontend
+
+The frontend makes it possible to attract external traffic to Meridio via a secondary network.
+
+The external interface to be used for external connectivity must be provided to the frontend.  
+Currently this is achieved by relying on NSM that through a NSC container installs a VLAN interface into the particular frontend POD. The trunk interface (i.e. secondary network), the VLAN ID and the IP subnet of the VLAN network NSM will use to assign IP address to the external interface can be set during deployment to get consumed by the VLAN NSE.
+
+When started, the frontend installs src routing rules for each configured VIP address, then configures and spins off a [BIRD](https://bird.network.cz/) routing program instance providing for external connectivity. The bird routing suite is restricted to the external interface. The frontend uses [birdc](https://bird.network.cz/?get_doc&v=20&f=bird-4.html) for both monitoring and changing BIRD configuration.
+
+Only BGP protocol is supported at the moment, which lacks inherent neighbor discovery mechanism. Thus the external gateway IP addresses must be configured during deployment time (or runtime once Meridio operator support is implemented).  
+A next-hop route for each VIP address gets announced by BGP to its external peer advertising the frontend IP as next-hop, thus attracting external traffic to the frontend. While from the external BGP peer a default next-hop route is expected that will be utilized by the VIP src routing to steer egress traffic. Both ingress and egress traffic traverse a frontend POD (not necessarily the same).
+
+Currently the frontend is collocated with the load balancer, hence reside in the same POD. A load balancer relies on the collocated frontend to forwarder egress traffic, and the other way around to handle ingress traffic. There's no direct communication between the two though.
+
+For setting external connectivity related parameters for Meridio refer to the vlan options in the values file and the [install guide](https://github.com/Nordix/Meridio/tree/master/docs/demo#meridio).
+
+#### External gateway router
+The external peer a frontend is intended to connect with must be configured separately as it is outside the scope of Meridio.
+
+Some generic pointers to setup the external router side:  
+The external peer must be part of the same (secondary) network and subnet as the external interface of the connected frontend. At the moment the IPAM assigning external IPs to frontends has no means to reserve IPs (e.g. to be used by external peers). However the IPAM starts assigning IPs from the start of the range, thus it is recommended to pick IPs from the end of the range to configure external peers. To avoid the need of having to configure all the possible IPs the frontends might use to connect to an external BGP router, it's worth considering passive BGP peering on the router side.  
+By default Meridio side uses BGP AS 8103 and assumes AS 4248829953 on the gateway router side, while default BGP port for both side is 10179.
 
 ### Services
 
