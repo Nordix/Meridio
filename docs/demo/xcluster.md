@@ -117,3 +117,27 @@ Scale-In/Scale-Out load-balancer
 ```
 kubectl -n=red scale deployment load-balancer --replicas=1
 ```
+
+## Ambassador
+
+From a target:
+
+Connect to a conduit/trench (Conduit/Network Service: load-balancer, Trench: trench-a)
+```
+./target-client connect -ns load-balancer -t trench-a
+```
+
+Disconnect from a conduit/trench (Conduit/Network Service: load-balancer, Trench: trench-a)
+```
+./target-client disconnect -ns load-balancer -t trench-a
+```
+
+Request a stream (Conduit/Network Service: load-balancer, Trench: trench-a)
+```
+./target-client request -ns load-balancer -t trench-a
+```
+
+Close a stream (Conduit/Network Service: load-balancer, Trench: trench-a)
+```
+./target-client close -ns load-balancer -t trench-a
+```

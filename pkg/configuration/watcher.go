@@ -37,7 +37,7 @@ func (w *Watcher) Start() {
 			logrus.Errorf("Unable to watch configmap: %v", err)
 			return
 		}
-		w.updateCurrentEndpoint(w.watcher.ResultChan())
+		w.watchEvent(w.watcher.ResultChan())
 	}
 }
 
@@ -65,7 +65,7 @@ func (w *Watcher) eventHandler(event *watch.Event) {
 	w.configEvent <- config
 }
 
-func (w *Watcher) updateCurrentEndpoint(eventChannel <-chan watch.Event) {
+func (w *Watcher) watchEvent(eventChannel <-chan watch.Event) {
 	for {
 		event, open := <-eventChannel
 		if open {

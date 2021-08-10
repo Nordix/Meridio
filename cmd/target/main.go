@@ -59,14 +59,20 @@ func main() {
 	if err != nil {
 		logrus.Fatalf("Error creating new ambassador: %v", err)
 	}
-	err = ambassador.Start(ctx)
-	if err != nil {
-		logrus.Fatalf("Error starting ambassador: %v", err)
-	}
-	err = ambassador.Delete()
-	if err != nil {
-		logrus.Fatalf("Error deleting ambassador: %v", err)
-	}
+
+	defer func() {
+		err = ambassador.Delete()
+		if err != nil {
+			logrus.Fatalf("Error deleting ambassador: %v", err)
+		}
+	}()
+
+	go func() {
+		err = ambassador.Start(ctx)
+		if err != nil {
+			logrus.Fatalf("Error starting ambassador: %v", err)
+		}
+	}()
 
 	<-ctx.Done()
 }

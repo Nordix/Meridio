@@ -17,6 +17,8 @@ do
 
     docker run -t -d --network="kind" --name="$container_name" --privileged registry.nordix.org/cloud-native/meridio/kind-host:latest
 
+    docker exec -it $container_name sh -c "echo \"PS1='$container_name | vlan-id:$vi> '\" >> ~/.bashrc"
+
     docker exec -it $container_name sysctl -w net.ipv6.conf.all.disable_ipv6=0
     docker exec -it $container_name sysctl -w net.ipv4.fib_multipath_hash_policy=1
     docker exec -it $container_name sysctl -w net.ipv6.fib_multipath_hash_policy=1
@@ -29,5 +31,4 @@ do
     docker exec -it $container_name ip addr add $ip dev $vlan_if_name
     docker exec -it $container_name ip addr add $ip6 dev $vlan_if_name
 
-    docker exec -it $container_name sh -c "echo \"PS1='$container_name | vlan-id:$vi> '\" >> ~/.bashrc"
 done

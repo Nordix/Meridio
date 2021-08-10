@@ -115,17 +115,34 @@ ctraffic -analyze hosts -stat_file v4traffic.json
 
 Scale-In/Scale-Out target
 ```
-kubectl scale deployment target --replicas=5
+kubectl scale deployment target -n red --replicas=5
 ```
 
 Scale-In/Scale-Out load-balancer
 ```
-kubectl scale deployment load-balancer --replicas=1
+kubectl scale deployment load-balancer -n red --replicas=1
+```
 
-# TODO: reconfigure links between the external host and the LBs
+## Ambassador
 
-# ipv4
-docker exec -it ubuntu-ext ip route replace 20.0.0.1/32 nexthop via 192.168.1.1 nexthop via 192.168.2.1
-# ipv6
-docker exec -it ubuntu-ext ip route replace 2000::1/128 nexthop via 1500:1::1 nexthop via 1500:2::1
+From a target:
+
+Connect to a conduit/trench (Conduit/Network Service: load-balancer, Trench: trench-a)
+```
+./target-client connect -ns load-balancer -t trench-a
+```
+
+Disconnect from a conduit/trench (Conduit/Network Service: load-balancer, Trench: trench-a)
+```
+./target-client disconnect -ns load-balancer -t trench-a
+```
+
+Request a stream (Conduit/Network Service: load-balancer, Trench: trench-a)
+```
+./target-client request -ns load-balancer -t trench-a
+```
+
+Close a stream (Conduit/Network Service: load-balancer, Trench: trench-a)
+```
+./target-client close -ns load-balancer -t trench-a
 ```
