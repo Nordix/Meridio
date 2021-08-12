@@ -15,8 +15,8 @@ type Trench struct {
 	namespace            string
 	conduits             []*Conduit
 	vips                 []string
-	configurationWatcher *configuration.Watcher
-	configWatcher        <-chan *configuration.Config
+	configurationWatcher *configuration.OperatorWatcher
+	configWatcher        <-chan *configuration.OperatorConfig
 	config               *Config
 }
 
@@ -69,9 +69,9 @@ func (t *Trench) watchConfig() {
 	for {
 		select {
 		case config := <-t.configWatcher:
-			t.vips = config.VIPs
+			t.vips = configuration.AddrListFromVipConfig(config.VIPs)
 			for _, conduit := range t.conduits {
-				conduit.SetVIPs(config.VIPs)
+				conduit.SetVIPs(t.vips)
 			}
 		case <-t.context.Done():
 			return
@@ -93,8 +93,8 @@ func (t *Trench) GetConfig() *Config {
 
 func NewTrench(name string, namespace string, config *Config) *Trench {
 	configMapName := fmt.Sprintf("%s-%s", config.configMapName, name)
-	configWatcher := make(chan *configuration.Config)
-	configurationWatcher := configuration.NewWatcher(configMapName, namespace, configWatcher)
+	configWatcher := make(chan *configuration.OperatorConfig)
+	configurationWatcher := configuration.NewOperatorWatcher(configMapName, namespace, configWatcher)
 	go configurationWatcher.Start()
 
 	context, cancel := context.WithCancel(context.Background())

@@ -117,14 +117,14 @@ func main() {
 	ep := startNSE(ctx, endpointConfig, nsmAPIClient, p, interfaceMonitorServer)
 	defer ep.Delete()
 
-	configWatcher := make(chan *configuration.Config, 10)
-	configurationWatcher := configuration.NewWatcher(config.ConfigMapName, config.Namespace, configWatcher)
+	configWatcher := make(chan *configuration.OperatorConfig)
+	configurationWatcher := configuration.NewOperatorWatcher(config.ConfigMapName, config.Namespace, configWatcher)
 	go configurationWatcher.Start()
 
 	for {
 		select {
 		case config := <-configWatcher:
-			p.SetVIPs(config.VIPs)
+			p.SetVIPs(configuration.AddrListFromVipConfig(config.VIPs))
 		case <-ctx.Done():
 			return
 		}

@@ -118,14 +118,14 @@ func main() {
 
 	sns.Start()
 
-	configWatcher := make(chan *configuration.Config)
-	configurationWatcher := configuration.NewWatcher(config.ConfigMapName, config.Namespace, configWatcher)
+	configWatcher := make(chan *configuration.OperatorConfig)
+	configurationWatcher := configuration.NewOperatorWatcher(config.ConfigMapName, config.Namespace, configWatcher)
 	go configurationWatcher.Start()
 
 	for {
 		select {
 		case config := <-configWatcher:
-			sns.SetVIPs(config.VIPs)
+			sns.SetVIPs(configuration.AddrListFromVipConfig(config.VIPs))
 		case <-ctx.Done():
 			return
 		}
