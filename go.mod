@@ -17,6 +17,7 @@ require (
 	github.com/networkservicemesh/api v1.0.0
 	github.com/networkservicemesh/sdk v1.0.0
 	github.com/networkservicemesh/sdk-sriov v1.0.0
+	github.com/nordix/meridio-operator v0.0.0-20210805145341-52782b7d5ca8
 	github.com/open-policy-agent/opa v0.30.1 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1
@@ -40,7 +41,6 @@ require (
 	google.golang.org/grpc v1.39.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
-	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 	k8s.io/api v0.21.2
 	k8s.io/apimachinery v0.21.2

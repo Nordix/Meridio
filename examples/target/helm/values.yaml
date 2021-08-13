@@ -9,6 +9,8 @@ applicationName: target-a
 
 configMapName: meridio-configuration
 
+lb: lb-fe
+
 default:
   trench: 
     name: trench-a

@@ -16,29 +16,31 @@ import (
 	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+
+	"github.com/nordix/meridio-operator/controllers/config"
 )
 
 // FrontEndService -
-func NewFrontEndService(config *Config) *FrontEndService {
+func NewFrontEndService(c *Config) *FrontEndService {
 	logrus.Infof("NewFrontEndService")
 
 	frontEndService := &FrontEndService{
 		vips:          []string{},
-		gateways:      []string{},
-		vrrps:         config.VRRPs,
-		birdConfPath:  config.BirdConfigPath,
-		birdConfFile:  config.BirdConfigPath + "/bird-fe-meridio.conf",
-		kernelTableId: config.TableID,
-		extInterface:  config.ExternalInterface,
-		localAS:       config.LocalAS,
-		remoteAS:      config.RemoteAS,
-		localPortBGP:  config.BGPLocalPort,
-		remotePortBGP: config.BGPRemotePort,
-		holdTimeBGP:   config.BGPHoldTime,
-		ecmp:          config.ECMP,
-		bfd:           config.BFD,
-		dropIfNoPeer:  config.DropIfNoPeer,
-		logBird:       config.LogBird,
+		gateways:      &config.GatewayConfig{},
+		vrrps:         c.VRRPs,
+		birdConfPath:  c.BirdConfigPath,
+		birdConfFile:  c.BirdConfigPath + "/bird-fe-meridio.conf",
+		kernelTableId: c.TableID,
+		extInterface:  c.ExternalInterface,
+		localAS:       c.LocalAS,
+		remoteAS:      c.RemoteAS,
+		localPortBGP:  c.BGPLocalPort,
+		remotePortBGP: c.BGPRemotePort,
+		holdTimeBGP:   c.BGPHoldTime,
+		ecmp:          c.ECMP,
+		bfd:           c.BFD,
+		dropIfNoPeer:  c.DropIfNoPeer,
+		logBird:       c.LogBird,
 		reconfCh:      make(chan struct{}),
 	}
 
@@ -53,7 +55,7 @@ func NewFrontEndService(config *Config) *FrontEndService {
 // FrontEndService -
 type FrontEndService struct {
 	vips          []string
-	gateways      []string
+	gateways      *config.GatewayConfig
 	vrrps         []string
 	birdConfPath  string
 	birdConfFile  string
@@ -104,18 +106,23 @@ func (fes *FrontEndService) RemoveVIPRules() error {
 	return fes.setVIPRules([]string{}, fes.vips)
 }
 
-// SetVIPs -
+// SetNewConfig -
 // Adjust BIRD config on the fly
-func (fes *FrontEndService) SetNewConfig(c *configuration.Config) error {
+func (fes *FrontEndService) SetNewConfig(c interface{}) error {
 	configChange := false
 	logrus.Infof("SetNewConfig")
 
-	if err := fes.setVIPs(c.VIPs, &configChange); err != nil {
-		return err
-	}
+	switch c := c.(type) {
+	case *configuration.OperatorConfig:
+		if err := fes.setVIPs(c.VIPs, &configChange); err != nil {
+			return err
+		}
 
-	if err := fes.setGateways(c.GWs, &configChange); err != nil {
-		return err
+		if err := fes.setGateways(c.GWs, &configChange); err != nil {
+			return err
+		}
+	default:
+		logrus.Infof("SetNewConfig: config format not known")
 	}
 
 	if configChange {
@@ -124,6 +131,7 @@ func (fes *FrontEndService) SetNewConfig(c *configuration.Config) error {
 			return err
 		}
 		// send signal to reconfiguration agent to apply the new config
+		logrus.Debugf("SetNewConfig: Singnal config change")
 		fes.reconfCh <- struct{}{}
 	}
 	return nil
@@ -274,7 +282,7 @@ func (fes *FrontEndService) WriteConfig() error {
 		fes.WriteConfigDropIfNoPeer(&conf, hasVIP4, hasVIP6)
 	}
 	fes.WriteConfigKernel(&conf, hasVIP4, hasVIP6)
-	fes.WriteConfigBGP(&conf)
+	fes.WriteConfigGW(&conf)
 
 	logrus.Infof("FrontEndService: BIRD config generated")
 	logrus.Debugf("\n%v", conf)
@@ -367,7 +375,7 @@ func (fes *FrontEndService) WriteConfigBase(conf *string) {
 	*conf += "\n"
 }
 
-// WriteConfigBGP -
+// WriteConfigGW -
 // Create BGP proto part of the BIRD config for each gateway to connect with them
 //
 // BGP is restricted to the external interface.
@@ -376,37 +384,44 @@ func (fes *FrontEndService) WriteConfigBase(conf *string) {
 // Note: When VRRP IPs are configured, BGP sessions won't import any routes from external
 // peers, as external routes are going to be taken care of by static default routes (VRRP IPs
 // as next hops).
-func (fes *FrontEndService) WriteConfigBGP(conf *string) {
-	for _, gw := range fes.gateways {
-		if isIPv6(gw) || isIPv4(gw) {
-			ipv := ""
-			if isIPv4(gw) {
-				ipv += "\tipv4 {\n"
-				if len(fes.vrrps) > 0 {
-					ipv += "\t\timport none;\n"
-				} else {
-					ipv += "\t\timport filter default_v4;\n"
+func (fes *FrontEndService) WriteConfigGW(conf *string) {
+	for _, gw := range fes.gateways.Gateways {
+		if isIPv6(gw.Address) || isIPv4(gw.Address) {
+			// TODO: const
+			if gw.Protocol == "bgp" {
+				ipv := ""
+				if isIPv4(gw.Address) {
+					ipv += "\tipv4 {\n"
+					if len(fes.vrrps) > 0 {
+						ipv += "\t\timport none;\n"
+					} else {
+						ipv += "\t\timport filter default_v4;\n"
+					}
+					ipv += "\t\texport filter cluster_e_static;\n"
+					ipv += "\t};\n"
+				} else if isIPv6(gw.Address) {
+					ipv = "\tipv6 {\n"
+					if len(fes.vrrps) > 0 {
+						ipv += "\t\timport none;\n"
+					} else {
+						ipv += "\t\timport filter default_v6;\n"
+					}
+					ipv += "\t\texport filter cluster_e_static;\n"
+					ipv += "\t};\n"
 				}
-				ipv += "\t\texport filter cluster_e_static;\n"
-				ipv += "\t};\n"
-			} else if isIPv6(gw) {
-				ipv = "\tipv6 {\n"
-				if len(fes.vrrps) > 0 {
-					ipv += "\t\timport none;\n"
-				} else {
-					ipv += "\t\timport filter default_v6;\n"
+				nbr := strings.Split(gw.Address, "/")[0]
+				*conf += "protocol bgp 'NBR-" + gw.Name + "' from LINK {\n"
+				*conf += "\tinterface \"" + fes.extInterface + "\";\n"
+				// currently Gateway does not hold much BGP specific details, using common FE values
+				*conf += "\tlocal port " + fes.localPortBGP + " as " + fes.localAS + ";\n"
+				*conf += "\tneighbor " + nbr + " port " + fes.remotePortBGP + " as " + fes.remoteAS + ";\n"
+				if gw.BFD {
+					*conf += "\tbfd on;"
 				}
-				ipv += "\t\texport filter cluster_e_static;\n"
-				ipv += "\t};\n"
+				*conf += ipv
+				*conf += "}\n"
+				*conf += "\n"
 			}
-			nbr := strings.Split(gw, "/")[0]
-			*conf += "protocol bgp 'NBR-" + nbr + "' from LINK {\n"
-			*conf += "\tinterface \"" + fes.extInterface + "\";\n"
-			*conf += "\tlocal port " + fes.localPortBGP + " as " + fes.localAS + ";\n"
-			*conf += "\tneighbor " + nbr + " port " + fes.remotePortBGP + " as " + fes.remoteAS + ";\n"
-			*conf += ipv
-			*conf += "}\n"
-			*conf += "\n"
 		}
 	}
 }
@@ -723,10 +738,19 @@ func (fes *FrontEndService) reconfigure(ctx context.Context, path string) error 
 
 // setVIPs -
 // Adjust config to changes affecting VIP addresses
-func (fes *FrontEndService) setVIPs(vips []string, change *bool) error {
-	added, removed := difference(fes.vips, vips)
-	logrus.Debugf("SetVIPs: vips: %v, (added: %v, removed: %v)", vips, added, removed)
-	fes.vips = vips
+func (fes *FrontEndService) setVIPs(vips interface{}, change *bool) error {
+	var added, removed []string
+	switch vips := vips.(type) {
+	case *config.VipConfig:
+		if vips != nil {
+			list := configuration.AddrListFromVipConfig(vips)
+			added, removed = difference(fes.vips, list)
+			logrus.Debugf("SetVIPs: got: %v, (added: %v, removed: %v)", vips.Vips, added, removed)
+			fes.vips = list
+		}
+	default:
+		logrus.Debugf("setVIPs: vips format not supported")
+	}
 
 	if len(added) > 0 || len(removed) > 0 {
 		*change = true
@@ -741,13 +765,18 @@ func (fes *FrontEndService) setVIPs(vips []string, change *bool) error {
 
 // setGateways -
 // Adjust config to changes affecting external gateway addresses
-func (fes *FrontEndService) setGateways(gateways []string, change *bool) error {
-	added, removed := difference(fes.gateways, gateways)
-	logrus.Debugf("SetGateways: gws: %v, (added: %v, removed: %v)", gateways, added, removed)
-	fes.gateways = gateways
-
-	if len(added) > 0 || len(removed) > 0 {
-		*change = true
+func (fes *FrontEndService) setGateways(gateways interface{}, change *bool) error {
+	switch gateways := gateways.(type) {
+	case *config.GatewayConfig:
+		if gateways != nil {
+			logrus.Debugf("SetGateways: \ngot: %v \nhave: %v", gateways.Gateways, fes.gateways.Gateways)
+			if configuration.DiffGatewayConfig(gateways, fes.gateways) {
+				fes.gateways.Gateways = gateways.Gateways
+				*change = true
+			}
+		}
+	default:
+		logrus.Debugf("SetGateways: gateways format not supported")
 	}
 
 	return nil

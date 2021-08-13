@@ -13,6 +13,8 @@ unset __mem1
 export __mem201=1024
 export __mem202=1024
 xc mkcdrom meridio; xc starts --nets_vm=0,1,2 --nvm=2 --mem=4096 --smp=4
+# or using private docker registry
+xc mkcdrom private-reg meridio; xc starts --nets_vm=0,1,2 --nvm=2 --mem=4096 --smp=4
 ```
 
 ### External host / External connectivity
@@ -22,8 +24,8 @@ prerequisite; Multus is ready (deployed by meridio ovl)
 ```
 # default interface setup
 helm install xcluster/ovl/meridio/helm/gateway --generate-name
-# eth1:meridio--gateways, eth2:gateways--tg, k8s namespace: red
-helm install xcluster/ovl/meridio/helm/gateway --create-namespace --namespace red --generate-name --set masterItf=eth1,tgMasterItf=eth2
+# eth1:meridio--gateways, eth2:gateways--tg
+helm install xcluster/ovl/meridio/helm/gateway --generate-name --set masterItf=eth1,tgMasterItf=eth2
 ```
 
 ### NSM
@@ -43,39 +45,158 @@ Deploy NSM
 helm install docs/demo/deployments/nsm-vlan/ --generate-name
 ```
 
+### Meridio-Operator
+
+Refer to the [description](https://github.com/Nordix/Meridio-Operator/blob/master/readme.md) on how to take hold of a Meridio-Operator image
+if non available.  
+
+```
+# if using a private docker registry with xcluster
+make docker-build docker-push IMG="localhost:80/meridio/meridio-operator:v0.0.1"
+# NOT using a private registry; upload the built image to a registry of your choice
+make docker-build docker-push IMG="registry.nordix.org/meridio/meridio-operator:v0.0.1"
+```
+
+Deploy Meridio-Operator
+```
+kubectl apply -f https://github.com/jetstack/cert-manager/releases/latest/download/cert-manager.yaml
+# deploy operator image (irrespective of the registry type)
+make deploy IMG="registry.nordix.org/meridio/meridio-operator:v0.0.1"
+```
+
 ### Meridio
 
 Configure Spire for trench-a
 ```
-docs/demo/scripts/spire.sh meridio-trench-a red
+docs/demo/scripts/spire.sh meridio-trench-a default
 ```
 
-Install Meridio for trench-a  
-Note: the external interface must match the one used by external gateway PODs
+Install Meridio for trench-a through Meridio-Operator  
+Note: vlan-interface in Custom Resource (CR) Attractor must match the one used by external gateway PODs
 ```
-# ipv4
-helm install deployments/helm/ --generate-name --namespace red --set trench.name=trench-a --set vlan.interface=eth1
-# ipv6
-helm install deployments/helm/ --generate-name --namespace red --set trench.name=trench-a --set ipFamily=ipv6 
-# dualstack
-helm install deployments/helm/ --generate-name --namespace red --set trench.name=trench-a --set vlan.interface=eth1,ipFamily=dualstack 
+# add Trench
+cat <<EOF | kubectl apply -f -
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Trench
+metadata:
+  name: trench-a
+EOF
+
+# add Attractor
+cat <<EOF | kubectl apply -f -
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Attractor
+metadata:
+  name: attr1
+  labels:
+    trench: trench-a
+spec:
+  gateways:
+  - gateway1
+  - gateway2
+  - gateway3
+  - gateway4
+  vips:
+  - vip1
+  - vip2
+  - vip3
+  replicas: 2
+  vlan-id: 100
+  vlan-interface: eth1
+EOF
+
+# add Gateways
+cat <<EOF | kubectl apply -f -
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Gateway
+metadata:
+  labels:
+    trench: trench-a
+    attractor: attr1
+  name: gateway1
+spec:
+  address: 169.254.100.254
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Gateway
+metadata:
+  labels:
+    trench: trench-a
+    attractor: attr1
+  name: gateway2
+spec:
+  address: fe80::beef
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Gateway
+metadata:
+  labels:
+    trench: trench-a
+    attractor: attr1
+  name: gateway3
+spec:
+  address: 169.254.100.253
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Gateway
+metadata:
+  labels:
+    trench: trench-a
+    attractor: attr1
+  name: gateway4
+spec:
+  address: fe80::beee
+EOF
+
+# add Vips
+cat <<EOF | kubectl apply -f -
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Vip
+metadata:
+  labels:
+    trench: trench-a
+    attractor: attr1
+  name: vip1
+spec:
+  address: "20.0.0.1/32"
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Vip
+metadata:
+  labels:
+    trench: trench-a
+    attractor: attr1
+  name: vip2
+spec:
+  address: "10.0.0.1/32"
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Vip
+metadata:
+  labels:
+    trench: trench-a
+    attractor: attr1
+  name: vip3
+spec:
+  address: "2000::1/128"
+EOF
 ```
 
 ## Target
 
 Configure Spire for the targets
 ```
-./docs/demo/scripts/spire.sh meridio red
+./docs/demo/scripts/spire.sh meridio default
 ```
 
 Deploy common resources for the targets
 ```
-helm install examples/target/common/ --generate-name --namespace=red
+helm install examples/target/common/ --generate-name
 ```
 
 Install targets connected to trench-a
 ```
-helm install examples/target/helm/ --generate-name --namespace=red --set applicationName=target-a --set default.trench.name=trench-a
+helm install examples/target/helm/ --generate-name --set applicationName=target-a --set default.trench.name=trench-a --set configMapName=meridio-configuration
 ```
 
 ## Traffic
@@ -83,12 +204,13 @@ helm install examples/target/helm/ --generate-name --namespace=red --set applica
 Connect to the Traffic Generator POD
 ```
 # exec into traffic generator POD
-kubectl -n=red exec -ti tg -- bash
+kubectl exec -ti tg -- bash
 ```
 
 Ping
 ```
 ping 20.0.0.1 -c 3
+ping 10.0.0.1 -c 3
 ping 2000::1 -c 3
 
 ```
@@ -106,38 +228,26 @@ Verification
 ./ctraffic -analyze hosts -stat_file v4traffic.json
 ```
 
-## Scaling
-
-Scale-In/Scale-Out target
-```
-kubectl -n=red scale deployment target --replicas=5
-```
-
-Scale-In/Scale-Out load-balancer
-```
-kubectl -n=red scale deployment load-balancer --replicas=1
-```
-
 ## Ambassador
 
 From a target:
 
-Connect to a conduit/trench (Conduit/Network Service: load-balancer, Trench: trench-a)
+Connect to a conduit/trench (Conduit/Network Service: lb-fe, Trench: trench-a)
 ```
-./target-client connect -ns load-balancer -t trench-a
-```
-
-Disconnect from a conduit/trench (Conduit/Network Service: load-balancer, Trench: trench-a)
-```
-./target-client disconnect -ns load-balancer -t trench-a
+./target-client connect -ns lb-fe -t trench-a
 ```
 
-Request a stream (Conduit/Network Service: load-balancer, Trench: trench-a)
+Disconnect from a conduit/trench (Conduit/Network Service: lb-fe, Trench: trench-a)
 ```
-./target-client request -ns load-balancer -t trench-a
+./target-client disconnect -ns lb-fe -t trench-a
+```
+
+Request a stream (Conduit/Network Service: lb-fe, Trench: trench-a)
+```
+./target-client request -ns lb-fe -t trench-a
 ```
 
 Close a stream (Conduit/Network Service: load-balancer, Trench: trench-a)
 ```
-./target-client close -ns load-balancer -t trench-a
+./target-client close -ns lb-fe -t trench-a
 ```
