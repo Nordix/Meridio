@@ -26,9 +26,6 @@ spec:
     - jsonPath: .spec.bfd
       name: BFD
       type: string
-    - jsonPath: .metadata.labels.trench
-      name: trench
-      type: string
     - jsonPath: .metadata.labels.attractor
       name: attractor
       type: string

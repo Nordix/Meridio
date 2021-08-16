@@ -67,7 +67,7 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 	cgw := gw.DeepCopy()
 	gw.Status = meridiov1alpha1.GatewayStatus{}
-	_, attr, err := validateGateway(executor, gw)
+	attr, err := validateGateway(executor, gw)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -84,26 +84,9 @@ func (r *GatewayReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func validateGateway(e *common.Executor, gw *meridiov1alpha1.Gateway) (*meridiov1alpha1.Trench, *meridiov1alpha1.Attractor, error) {
-	// get the trench by gateway label
+func validateGateway(e *common.Executor, gw *meridiov1alpha1.Gateway) (*meridiov1alpha1.Attractor, error) {
+	// get the attractor by gateway label
 	selector := client.ObjectKey{
-		Namespace: gw.ObjectMeta.Namespace,
-		Name:      gw.ObjectMeta.Labels["trench"],
-	}
-	trench, err := common.GetTrenchbySelector(e, selector)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			msg := "labeled trench not found"
-			gw.Status.Status = meridiov1alpha1.ConfigStatus.Disengaged
-			gw.Status.Message = msg
-			return nil, nil, nil
-		} else {
-			return nil, nil, err
-		}
-	}
-
-	// get the attractor(with trench label) by gateway label
-	selector = client.ObjectKey{
 		Namespace: gw.ObjectMeta.Namespace,
 		Name:      gw.ObjectMeta.Labels["attractor"],
 	}
@@ -113,18 +96,12 @@ func validateGateway(e *common.Executor, gw *meridiov1alpha1.Gateway) (*meridiov
 			msg := "labeled attractor not found"
 			gw.Status.Status = meridiov1alpha1.ConfigStatus.Disengaged
 			gw.Status.Message = msg
-			return nil, nil, nil
+			return nil, nil
 		}
-		return nil, nil, err
-	}
-	if attr.ObjectMeta.Labels["trench"] != gw.ObjectMeta.Labels["trench"] {
-		msg := "attractor and trench label mismatch"
-		gw.Status.Status = meridiov1alpha1.ConfigStatus.Disengaged
-		gw.Status.Message = msg
-		return nil, nil, nil
+		return nil, err
 	}
 	gw.Status.Status = meridiov1alpha1.ConfigStatus.Engaged
-	return trench, attr, nil
+	return attr, nil
 }
 
 func getGatewayActions(e *common.Executor, new, old *meridiov1alpha1.Gateway) []common.Action {

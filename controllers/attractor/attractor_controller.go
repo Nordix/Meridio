@@ -30,7 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/go-logr/logr"
@@ -62,13 +61,7 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	err := r.Get(ctx, req.NamespacedName, attr)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			if err != nil {
-				return ctrl.Result{}, nil
-			}
-			return reconcile.Result{}, nil
-		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 	currentAttr := attr.DeepCopy()
 	attr.Status = meridiov1alpha1.AttractorStatus{}

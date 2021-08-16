@@ -45,7 +45,6 @@ type GatewayStatus struct {
 //+kubebuilder:printcolumn:name="address",type=string,JSONPath=`.spec.address`
 //+kubebuilder:printcolumn:name="protocol",type=string,JSONPath=`.spec.protocol`
 //+kubebuilder:printcolumn:name="BFD",type=string,JSONPath=`.spec.bfd`
-//+kubebuilder:printcolumn:name="trench",type=string,JSONPath=`.metadata.labels.trench`
 //+kubebuilder:printcolumn:name="attractor",type=string,JSONPath=`.metadata.labels.attractor`
 //+kubebuilder:printcolumn:name="status",type=string,JSONPath=`.status.status`
 //+kubebuilder:printcolumn:name="message",type=string,JSONPath=`.status.message`

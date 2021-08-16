@@ -143,9 +143,11 @@ func (c *ConfigMap) getDesiredStatus(al *meridiov1alpha1.GatewayList, vl *meridi
 	return configmap, nil
 }
 
+// list all existing gateways expected by attractor
 func (c *ConfigMap) listGatewaysByLabel() (*meridiov1alpha1.GatewayList, error) {
 	gatewayList := &meridiov1alpha1.GatewayList{}
 	for _, gwName := range c.attr.Spec.Gateways {
+		// iterating 'gateway' field in attractor, find gateway by name
 		gateway := &meridiov1alpha1.Gateway{}
 		err := c.exec.GetObject(client.ObjectKey{
 			Name:      gwName,
@@ -157,10 +159,9 @@ func (c *ConfigMap) listGatewaysByLabel() (*meridiov1alpha1.GatewayList, error) 
 			}
 			return nil, err
 		}
-		// referred gateway should also match the attractor label
+		// only append the gateways having the attractor label same as this attractor to the return gateway list
 		sel := labels.Set{
 			"attractor": c.attr.ObjectMeta.Name,
-			"trench":    c.trench.ObjectMeta.Name,
 		}
 		gatewayLabels := gateway.ObjectMeta.Labels
 		if gatewayLabels == nil {
@@ -280,6 +281,8 @@ func (c *ConfigMap) getAction() (common.Action, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// update owner of the gateways
 	if cs == nil {
 		ds, err := c.getDesiredStatus(al, vl)
 		if err != nil {

@@ -104,7 +104,7 @@ attractor.meridio.nordix.org/attr1   100      eth0      ["gateway1","gateway3"] 
 
 ### Gateway
 
-A gateway should specify its owner reference attractor and trench by `attractor` and `trench` label. Likewise, they are immutable. If either the attractor or the trench is not found in the cluster, the status of gateway will be verdicted as `disengaged`, and attractor will not use it. Similarly, the status will not be updated if the attractor is created afterwards. There is a limitation of order also stands for attractors and gateways. Attractors should be created in advance than the gateways.
+A gateway should specify its owner reference attractor and trench by `attractor` label. Likewise, this label is immutable. If the attractor is not found in the cluster, the status of gateway resource will be verdicted as `disengaged`, and no attractor will not use it. Similarly, the status will not be updated if the attractor is created afterwards. There is a limitation of order also stands for attractors and gateways. Attractors should be created in advance than the gateways.
 
 In gateway custom resource `address` is a mandatory parameter.
 `bfd` is set to false by default, and that is the only supported value too.
@@ -120,9 +120,9 @@ The following resources should be found
 
 ```bash
 kubectl get gateways
-NAME                                  ADDRESS   PROTOCOL   BFD     TRENCH     ATTRACTOR   STATUS    MESSAGE
-gateway.meridio.nordix.org/gateway1   2.3.4.5   bgp        false   trench-a   attr1       engaged
-gateway.meridio.nordix.org/gateway2   1000::1   bgp        false   trench-a   attr1       engaged
+NAME                                  ADDRESS   PROTOCOL   BFD     ATTRACTOR   STATUS    MESSAGE
+gateway.meridio.nordix.org/gateway1   2.3.4.5   bgp        false   attr1       engaged
+gateway.meridio.nordix.org/gateway2   1000::1   bgp        false   attr1       engaged
 ```
 
 And the *GW-IN-USE* coloumn of the attractor should be updated with the existing expected gateways. Shown as below
@@ -132,7 +132,7 @@ NAME                                 VLANID   VLANITF   GATEWAYS                
 attractor.meridio.nordix.org/attr1   100      eth0      ["gateway1","gateway2"]   ["gateway1","gateway2"]   ["vip1","vip2"]                 trench-a   engaged
 ```
 
-#### Vip
+### Vip
 
 A vip should belong to one `attractor` and `trench`, which specified with labels, same as gateway. Also they need to follow an order that trench and attractor are created before the vips. Otherwise the status will be verdicted as `disengaged`, and cannot be revised if labeled trench or attractor are created afterwards.
 
