@@ -3,15 +3,6 @@
 {{/*
 Set IP Family
 */}}
-{{- define "meridio.vips" -}}
-{{- if eq .Values.ipFamily "dualstack" -}}
-{{- (printf "%s,%s" .Values.vip.ipv4 .Values.vip.ipv6) -}}
-{{- else if eq .Values.ipFamily "ipv6" -}}
-{{- printf .Values.vip.ipv6 -}}
-{{- else -}}
-{{- printf .Values.vip.ipv4 -}}
-{{- end -}}
-{{- end -}}
 
 {{- define "meridio.subnetPool.prefixes" -}}
 {{- if eq .Values.ipFamily "dualstack" -}}
@@ -71,10 +62,6 @@ Set IP Family
 
 {{- define "meridio.vlan.networkServiceName" -}}
 {{- printf "%s.%s" .Values.vlan.networkServiceName .Release.Namespace -}}
-{{- end -}}
-
-{{- define "meridio.gateways" -}}
-{{- join "," .Values.vlan.fe.gateway }}
 {{- end -}}
 
 {{- define "meridio.vrrps" -}}

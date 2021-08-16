@@ -4,9 +4,21 @@ kind: ConfigMap
 metadata:
   name: {{ template "meridio.configuration" . }}
 data:
-  meridio.conf: |
-    vips: [{{ template "meridio.vips" . }}]
-    gateways: [{{ template "meridio.gateways" . }}]
+  gateways: |
+    items:
+    {{- range .Values.vlan.fe.gateways }}
+    - name: {{ .name }}
+      address: {{ .address }}
+      ip-family: {{ .ipFamily }}
+      bfd: {{ .bfd }}
+      protocol: {{ .protocol }}
+    {{- end }} 
+  vips: |
+    items:
+    {{- range .Values.vips }}
+    - name: {{ .name }}
+      address: {{ .address }}
+    {{- end }}
 ---
 apiVersion: v1
 kind: ServiceAccount
