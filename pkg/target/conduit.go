@@ -50,6 +50,19 @@ type Conduit struct {
 	ips                  []string
 	tableID              int
 	stream               *Stream
+	conduitWatcher       chan<- *ConduitEvent
+}
+
+type ConduitStatus int
+
+const (
+	Connect = iota
+	Disconnect
+)
+
+type ConduitEvent struct {
+	Conduit *Conduit
+	ConduitStatus
 }
 
 func (c *Conduit) Delete() error {
@@ -61,14 +74,15 @@ func (c *Conduit) Delete() error {
 	if err != nil {
 		return err
 	}
+	c.notifyWatcher(Disconnect)
 	c.deleteVIPs(c.vips)
 	c.nexthops = []string{}
 	c.tableID = 1
 	return nil
 }
 
-func (c *Conduit) RequestStream() error {
-	c.stream = NewStream(c.name, c)
+func (c *Conduit) RequestStream(streamWatcher chan<- *StreamEvent) error {
+	c.stream = NewStream(c.name, c, streamWatcher)
 	return c.stream.Request()
 }
 
@@ -82,6 +96,16 @@ func (c *Conduit) DeleteStream() error {
 	}
 	c.stream = nil
 	return nil
+}
+
+func (c *Conduit) notifyWatcher(status ConduitStatus) {
+	if c.conduitWatcher == nil {
+		return
+	}
+	c.conduitWatcher <- &ConduitEvent{
+		Conduit:       c,
+		ConduitStatus: status,
+	}
 }
 
 func (c *Conduit) getAdditionalFunctionalities() networkservice.NetworkServiceClient {
@@ -128,6 +152,9 @@ func (c *Conduit) request() error {
 			},
 		},
 	})
+	if err == nil {
+		c.notifyWatcher(Connect)
+	}
 	return err
 }
 
@@ -249,14 +276,15 @@ func (c *Conduit) GetConfig() *Config {
 	return c.trench.GetConfig()
 }
 
-func NewConduit(name string, trench *Trench) (*Conduit, error) {
+func NewConduit(name string, trench *Trench, conduitWatcher chan<- *ConduitEvent) (*Conduit, error) {
 	conduit := &Conduit{
-		name:     name,
-		trench:   trench,
-		vips:     []*virtualIP{},
-		nexthops: []string{},
-		ips:      []string{},
-		tableID:  1,
+		name:           name,
+		trench:         trench,
+		vips:           []*virtualIP{},
+		nexthops:       []string{},
+		ips:            []string{},
+		tableID:        1,
+		conduitWatcher: conduitWatcher,
 	}
 	err := conduit.request()
 	return conduit, err

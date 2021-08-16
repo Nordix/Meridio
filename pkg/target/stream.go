@@ -25,9 +25,22 @@ import (
 )
 
 type Stream struct {
-	name       string
-	identifier int
-	conduit    *Conduit
+	name          string
+	identifier    int
+	conduit       *Conduit
+	streamWatcher chan<- *StreamEvent
+}
+
+type StreamStatus int
+
+const (
+	Request = iota
+	Close
+)
+
+type StreamEvent struct {
+	Stream *Stream
+	StreamStatus
 }
 
 func (s *Stream) Request() error {
@@ -42,6 +55,7 @@ func (s *Stream) Request() error {
 	if err != nil {
 		return err
 	}
+	s.notifyWatcher(Request)
 	return nspClient.Delete()
 }
 
@@ -54,7 +68,18 @@ func (s *Stream) Delete() error {
 	if err != nil {
 		return err
 	}
+	s.notifyWatcher(Close)
 	return nspClient.Delete()
+}
+
+func (s *Stream) notifyWatcher(status StreamStatus) {
+	if s.streamWatcher == nil {
+		return
+	}
+	s.streamWatcher <- &StreamEvent{
+		Stream:       s,
+		StreamStatus: status,
+	}
 }
 
 func (s *Stream) getNSPService() string {
@@ -81,13 +106,14 @@ func (s *Stream) GetConfig() *Config {
 	return s.conduit.GetConfig()
 }
 
-func NewStream(name string, conduit *Conduit) *Stream {
+func NewStream(name string, conduit *Conduit, streamWatcher chan<- *StreamEvent) *Stream {
 	hostname, _ := os.Hostname()
 	identifier := Hash(hostname, 100)
 	stream := &Stream{
-		name:       name,
-		identifier: identifier,
-		conduit:    conduit,
+		name:          name,
+		identifier:    identifier,
+		conduit:       conduit,
+		streamWatcher: streamWatcher,
 	}
 	return stream
 }

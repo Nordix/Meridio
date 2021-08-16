@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"sync"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	targetAPI "github.com/nordix/meridio/api/target"
@@ -30,13 +31,18 @@ import (
 )
 
 type Ambassador struct {
-	listener        net.Listener
-	server          *grpc.Server
-	port            int
-	vips            []string
-	trenches        []*Trench
-	trenchNamespace string
-	config          *Config
+	context                  context.Context
+	listener                 net.Listener
+	server                   *grpc.Server
+	port                     int
+	vips                     []string
+	trenches                 []*Trench
+	trenchNamespace          string
+	config                   *Config
+	watchConduitsSubscribers sync.Map // map[nspAPI.Ambassador_WatchConduitsServer]struct{}
+	watchStreamsSubscribers  sync.Map // map[nspAPI.Ambassador_WatchStreamsServer]struct{}
+	conduitWatcher           chan *ConduitEvent
+	streamWatcher            chan *StreamEvent
 }
 
 func (a *Ambassador) Connect(ctx context.Context, conduit *targetAPI.Conduit) (*empty.Empty, error) {
@@ -45,7 +51,7 @@ func (a *Ambassador) Connect(ctx context.Context, conduit *targetAPI.Conduit) (*
 	if trench == nil {
 		trench = a.addTrench(conduit.Trench.Name, a.trenchNamespace)
 	}
-	_, err := trench.AddConduit(conduit.NetworkServiceName)
+	_, err := trench.AddConduit(conduit.NetworkServiceName, a.conduitWatcher)
 	return &empty.Empty{}, err
 }
 
@@ -73,7 +79,7 @@ func (a *Ambassador) Request(ctx context.Context, stream *targetAPI.Stream) (*em
 	if conduit == nil {
 		return &empty.Empty{}, nil
 	}
-	err := conduit.RequestStream()
+	err := conduit.RequestStream(a.streamWatcher)
 	return &empty.Empty{}, err
 }
 
@@ -89,6 +95,68 @@ func (a *Ambassador) Close(ctx context.Context, stream *targetAPI.Stream) (*empt
 	}
 	err := conduit.DeleteStream()
 	return &empty.Empty{}, err
+}
+
+func (a *Ambassador) WatchConduits(empty *empty.Empty, stream targetAPI.Ambassador_WatchConduitsServer) error {
+	a.watchConduitsSubscribers.Store(stream, struct{}{})
+	for _, conduit := range a.trenches[0].conduits {
+		a.notifyConduitsSubscriber(stream, conduit, Connect)
+	}
+	<-stream.Context().Done()
+	a.watchConduitsSubscribers.Delete(stream)
+	return nil
+}
+
+func (a *Ambassador) WatchStreams(empty *empty.Empty, stream targetAPI.Ambassador_WatchStreamsServer) error {
+	a.watchStreamsSubscribers.Store(stream, struct{}{})
+	for _, conduit := range a.trenches[0].conduits {
+		a.notifyStreamsSubscriber(stream, conduit.stream, Request)
+	}
+	<-stream.Context().Done()
+	a.watchStreamsSubscribers.Delete(stream)
+	return nil
+}
+
+func (a *Ambassador) notifyConduitsSubscribers(conduit *Conduit, status ConduitStatus) {
+	a.watchConduitsSubscribers.Range(func(key interface{}, value interface{}) bool {
+		a.notifyConduitsSubscriber(key.(targetAPI.Ambassador_WatchConduitsServer), conduit, status)
+		return true
+	})
+}
+
+func (a *Ambassador) notifyConduitsSubscriber(subscriber targetAPI.Ambassador_WatchConduitsServer, conduit *Conduit, status ConduitStatus) {
+	conduitEvent := &targetAPI.ConduitEvent{
+		ConduitEventStatus: targetAPI.ConduitEventStatus(status),
+		Conduit: &targetAPI.Conduit{
+			NetworkServiceName: conduit.name,
+			Trench: &targetAPI.Trench{
+				Name: conduit.GetTrenchName(),
+			},
+		},
+	}
+	_ = subscriber.Send(conduitEvent)
+}
+
+func (a *Ambassador) notifyStreamsSubscribers(stream *Stream, status StreamStatus) {
+	a.watchStreamsSubscribers.Range(func(key interface{}, value interface{}) bool {
+		a.notifyStreamsSubscriber(key.(targetAPI.Ambassador_WatchStreamsServer), stream, status)
+		return true
+	})
+}
+
+func (a *Ambassador) notifyStreamsSubscriber(subscriber targetAPI.Ambassador_WatchStreamsServer, stream *Stream, status StreamStatus) {
+	streamEvent := &targetAPI.StreamEvent{
+		StreamEventStatus: targetAPI.StreamEventStatus(status),
+		Stream: &targetAPI.Stream{
+			Conduit: &targetAPI.Conduit{
+				NetworkServiceName: stream.GetConduitName(),
+				Trench: &targetAPI.Trench{
+					Name: stream.GetTrenchName(),
+				},
+			},
+		},
+	}
+	_ = subscriber.Send(streamEvent)
 }
 
 func (a *Ambassador) addTrench(name string, namespace string) *Trench {
@@ -124,11 +192,14 @@ func (a *Ambassador) getTrench(name string, namespace string) *Trench {
 }
 
 func (a *Ambassador) Start(ctx context.Context) error {
-	a.config.apiClient = nsm.NewAPIClient(ctx, a.config.nsmConfig)
+	a.context = ctx
+	a.config.apiClient = nsm.NewAPIClient(a.context, a.config.nsmConfig)
+	go a.watcher()
 	return a.server.Serve(a.listener)
 }
 
 func (a *Ambassador) Delete() error {
+	a.context.Done()
 	a.server.Stop()
 	for _, trench := range a.trenches {
 		err := trench.Delete()
@@ -137,6 +208,19 @@ func (a *Ambassador) Delete() error {
 		}
 	}
 	return nil
+}
+
+func (a *Ambassador) watcher() {
+	for {
+		select {
+		case conduitEvent := <-a.conduitWatcher:
+			a.notifyConduitsSubscribers(conduitEvent.Conduit, conduitEvent.ConduitStatus)
+		case streamEvent := <-a.streamWatcher:
+			a.notifyStreamsSubscribers(streamEvent.Stream, streamEvent.StreamStatus)
+		case <-a.context.Done():
+			return
+		}
+	}
 }
 
 func NewAmbassador(port int, trenchNamespace string, config *Config) (*Ambassador, error) {
@@ -154,6 +238,8 @@ func NewAmbassador(port int, trenchNamespace string, config *Config) (*Ambassado
 		trenches:        []*Trench{},
 		trenchNamespace: trenchNamespace,
 		config:          config,
+		conduitWatcher:  make(chan *ConduitEvent, 10),
+		streamWatcher:   make(chan *StreamEvent, 10),
 	}
 
 	targetAPI.RegisterAmbassadorServer(s, ambassador)

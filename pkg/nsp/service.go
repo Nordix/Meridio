@@ -22,7 +22,6 @@ import (
 	"net"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	nspAPI "github.com/nordix/meridio/api/nsp"
@@ -92,9 +91,7 @@ func (nsps *NetworkServicePlateformService) Monitor(empty *empty.Empty, stream n
 	for _, target := range nsps.targets.Get() {
 		nsps.notifyMonitorStream(stream, target)
 	}
-	for nsps.streamAlive(stream) {
-		time.Sleep(1 * time.Second)
-	}
+	<-stream.Context().Done()
 	nsps.monitorStreams.Delete(stream)
 	return nil
 }
