@@ -88,9 +88,6 @@ func (r *Gateway) ValidateDelete() error {
 
 func (r *Gateway) validateLabels() field.ErrorList {
 	var allErrs field.ErrorList
-	if value, ok := r.ObjectMeta.Labels["trench"]; !ok {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("labels").Child("trench"), value, "gateway must have a trench label"))
-	}
 	if value, ok := r.ObjectMeta.Labels["attractor"]; !ok {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("labels").Child("attractor"), value, "gateway must have a attractor label"))
 	}
@@ -139,17 +136,11 @@ func (r *Gateway) validateUpdate(oldObj runtime.Object) error {
 	if !ok {
 		return apierrors.NewBadRequest(fmt.Sprintf("expected a gateway got got a %T", old))
 	}
-	trenchNew := r.ObjectMeta.Labels["trench"]
-	trenchOld := old.ObjectMeta.Labels["trench"]
-	if trenchNew != trenchOld {
-		return apierrors.NewForbidden(r.GroupResource(),
-			r.Name, field.Forbidden(field.NewPath("metadata", "labels", "trench"), "update on trench label trench is forbidden"))
-	}
 	attrNew := r.ObjectMeta.Labels["attractor"]
 	attrOld := old.ObjectMeta.Labels["attractor"]
 	if attrNew != attrOld {
 		return apierrors.NewForbidden(r.GroupResource(),
-			r.Name, field.Forbidden(field.NewPath("metadata", "labels", "attractor"), "update on attractor label trench is forbidden"))
+			r.Name, field.Forbidden(field.NewPath("metadata", "labels", "attractor"), "update on attractor label is forbidden"))
 	}
 
 	return nil
