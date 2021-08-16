@@ -53,8 +53,6 @@ spec:
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
               value: {{ template "meridio.proxy.networkServiceName" . }}
-            - name: NSM_VIPS
-              value: {{ template "meridio.vips" . }}
             - name: NSM_SUBNET_POOLS
               value: {{ template "meridio.subnetPool.prefixes" . }}
             - name: NSM_SUBNET_PREFIX_LENGTHS

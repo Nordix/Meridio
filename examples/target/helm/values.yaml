@@ -9,7 +9,7 @@ applicationName: target-a
 
 configMapName: meridio-configuration
 
-lb: lb-fe
+networkService: load-balancer
 
 default:
   trench: 
