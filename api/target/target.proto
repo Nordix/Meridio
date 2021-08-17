@@ -23,8 +23,11 @@ import "google/protobuf/empty.proto";
 service Ambassador {
     rpc Connect(Conduit) returns (google.protobuf.Empty) {}
     rpc Disconnect(Conduit) returns (google.protobuf.Empty) {}
+    rpc WatchConduits(google.protobuf.Empty) returns (stream ConduitEvent) {}
+
     rpc Request(Stream) returns (google.protobuf.Empty) {}
     rpc Close(Stream) returns (google.protobuf.Empty) {}
+    rpc WatchStreams(google.protobuf.Empty) returns (stream StreamEvent) {}
 }
 
 message Trench {
@@ -39,3 +42,24 @@ message Conduit {
 message Stream {
     Conduit conduit = 1;
 }
+
+enum ConduitEventStatus {
+	Connect = 0;
+	Disconnect = 1;
+}
+
+message ConduitEvent {
+    Conduit conduit = 1;
+    ConduitEventStatus conduitEventStatus = 2;
+}
+
+enum StreamEventStatus {
+	Request = 0;
+	Close = 1;
+}
+
+message StreamEvent {
+    Stream stream = 1;
+    StreamEventStatus streamEventStatus = 2;
+}
+

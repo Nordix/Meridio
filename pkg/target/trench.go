@@ -36,8 +36,8 @@ type Trench struct {
 	config               *Config
 }
 
-func (t *Trench) AddConduit(name string) (*Conduit, error) {
-	conduit, err := NewConduit(name, t)
+func (t *Trench) AddConduit(name string, conduitWatcher chan<- *ConduitEvent) (*Conduit, error) {
+	conduit, err := NewConduit(name, t, conduitWatcher)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (t *Trench) GetConfig() *Config {
 
 func NewTrench(name string, namespace string, config *Config) *Trench {
 	configMapName := fmt.Sprintf("%s-%s", config.configMapName, name)
-	configWatcher := make(chan *configuration.OperatorConfig)
+	configWatcher := make(chan *configuration.OperatorConfig, 10)
 	configurationWatcher := configuration.NewOperatorWatcher(configMapName, namespace, configWatcher)
 	go configurationWatcher.Start()
 
