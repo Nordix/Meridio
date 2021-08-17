@@ -20,10 +20,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"os/signal"
+	"syscall"
 
 	targetAPI "github.com/nordix/meridio/api/target"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 const (
@@ -44,6 +48,7 @@ func main() {
 	disconnectCommand := flag.NewFlagSet("disconnect", flag.ExitOnError)
 	requestCommand := flag.NewFlagSet("request", flag.ExitOnError)
 	closeCommand := flag.NewFlagSet("close", flag.ExitOnError)
+	watchCommand := flag.NewFlagSet("watch", flag.ExitOnError)
 
 	networkServiceConnect := connectCommand.String("ns", "load-balancer", "Network Service to connect conduit")
 	trenchConnect := connectCommand.String("t", "", "Trench of the network Service to connect conduit")
@@ -110,6 +115,16 @@ func main() {
 		if err != nil {
 			fmt.Printf("Error close: %v", err.Error())
 		}
+	case "watch":
+		err := watchCommand.Parse(os.Args[2:])
+		if err != nil {
+			fmt.Printf("Error watch Parse: %v", err.Error())
+			os.Exit(1)
+		}
+		err = watch()
+		if err != nil {
+			fmt.Printf("Error to watch: %v", err.Error())
+		}
 	default:
 		flag.PrintDefaults()
 		os.Exit(1)
@@ -175,6 +190,55 @@ func close(networkService string, trench string) error {
 		},
 	})
 	return err
+}
+
+func watch() error {
+	ctx, cancel := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGHUP,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
+	defer cancel()
+	client, err := getClient()
+	if err != nil {
+		return err
+	}
+	watchConduitClient, err := client.WatchConduits(ctx, &emptypb.Empty{})
+	if err != nil {
+		return err
+	}
+	watchStreamClient, err := client.WatchStreams(ctx, &emptypb.Empty{})
+	if err != nil {
+		return err
+	}
+	go func() {
+		for {
+			conduitEvent, err := watchConduitClient.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				break
+			}
+			fmt.Printf("conduit event: %v - %v - %v\n", conduitEvent.Conduit.GetTrench().Name, conduitEvent.Conduit.NetworkServiceName, conduitEvent.ConduitEventStatus)
+		}
+	}()
+	go func() {
+		for {
+			streamEvent, err := watchStreamClient.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				break
+			}
+			fmt.Printf("stream event: %v - %v - %v\n", streamEvent.Stream.Conduit.GetTrench().Name, streamEvent.Stream.Conduit.NetworkServiceName, streamEvent.StreamEventStatus)
+		}
+	}()
+	<-ctx.Done()
+	return nil
 }
 
 func getClient() (targetAPI.AmbassadorClient, error) {
