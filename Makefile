@@ -126,6 +126,10 @@ apply-samples: ## Undeploy controller from the K8s cluster specified in ~/.kube/
 	kubectl apply -f config/samples/meridio_v1alpha1_vip.yaml
 	kubectl apply -f config/samples/meridio_v1alpha1_gateway.yaml
 
+print-manifests: manifests kustomize ## Generate manifests to be deployed in the cluster
+	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	$(KUSTOMIZE) build config/default
+
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
