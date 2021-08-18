@@ -20,11 +20,17 @@ spec:
     - jsonPath: .spec.address
       name: address
       type: string
+    - jsonPath: .spec.asn
+      name: ASN
+      type: string
     - jsonPath: .spec.protocol
       name: protocol
       type: string
     - jsonPath: .spec.bfd
       name: BFD
+      type: string
+    - jsonPath: .spec.hold-time
+      name: holdtime
       type: string
     - jsonPath: .metadata.labels.attractor
       name: attractor
@@ -57,12 +63,17 @@ spec:
             properties:
               address:
                 type: string
+              asn:
+                type: integer
               bfd:
                 type: boolean
+              hold-time:
+                type: string
               protocol:
                 type: string
             required:
             - address
+            - asn
             type: object
           status:
             description: GatewayStatus defines the observed state of Gateway

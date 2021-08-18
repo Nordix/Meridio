@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"time"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"github.com/nordix/meridio-operator/controllers/common"
@@ -227,11 +228,14 @@ func (c *ConfigMap) getGatewayData(gws *meridiov1alpha1.GatewayList) (string, er
 		if net.ParseIP(gw.Spec.Address).To4() == nil {
 			ipFamily = "ipv6"
 		}
+		ht := parseHoldTime(gw.Spec.HoldTime)
 		config.Gateways = append(config.Gateways, meridioconfig.Gateway{
 			Name:     gw.ObjectMeta.Name,
 			Address:  gw.Spec.Address,
 			BFD:      *gw.Spec.BFD,
 			Protocol: string(gw.Spec.Protocol),
+			ASN:      *gw.Spec.ASN,
+			HoldTime: ht,
 			IPFamily: ipFamily,
 		})
 		gwlist = append(gwlist, gw.ObjectMeta.Name)
@@ -242,6 +246,12 @@ func (c *ConfigMap) getGatewayData(gws *meridiov1alpha1.GatewayList) (string, er
 	}
 	c.attr.Status.GatewayInUse = gwlist
 	return string(configYAML), nil
+}
+
+func parseHoldTime(ht string) uint {
+	// validation is done in gateway webhook
+	d, _ := time.ParseDuration(ht)
+	return uint(d.Seconds())
 }
 
 func (c *ConfigMap) getVipData(vips *meridiov1alpha1.VipList) (string, error) {
