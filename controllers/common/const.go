@@ -18,10 +18,6 @@ const (
 	Tag             = "latest"
 	PullPolicy      = "IfNotPresent"
 
-	IPv4      ipFamily = "ipv4"
-	IPv6      ipFamily = "ipv6"
-	Dualstack ipFamily = "dualstack"
-
 	subnetPoolIpv4   = "172.16.0.0/16"
 	subnetPoolIpv6   = "fd00::/48"
 	prefixLengthIpv4 = "24"

@@ -17,6 +17,9 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"fmt"
+	"strings"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -44,8 +47,11 @@ var _ webhook.Defaulter = &Trench{}
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *Trench) Default() {
 	trenchlog.Info("default", "name", r.Name)
-
-	// TODO(user): fill in your defaulting logic.
+	if r.Spec.IPFamily == "" {
+		r.Spec.IPFamily = string(Dualstack)
+	} else {
+		r.Spec.IPFamily = strings.ToLower(r.Spec.IPFamily)
+	}
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
@@ -62,6 +68,10 @@ func (r *Trench) ValidateCreate() error {
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Trench) ValidateUpdate(old runtime.Object) error {
 	trenchlog.Info("validate update", "name", r.Name)
+	err := r.validateUpdate(old)
+	if err != nil {
+		return err
+	}
 	return r.validateTrench()
 }
 
@@ -74,6 +84,10 @@ func (r *Trench) ValidateDelete() error {
 func (r *Trench) validateTrench() error {
 	var allErrs field.ErrorList
 
+	if err := r.validateSpec(); err != nil {
+		allErrs = append(allErrs, err...)
+	}
+
 	if len(allErrs) == 0 {
 		return nil
 	}
@@ -81,4 +95,28 @@ func (r *Trench) validateTrench() error {
 	return apierrors.NewInvalid(
 		schema.GroupKind{Group: "meridio.nordix.org", Kind: "Trench"},
 		r.Name, allErrs)
+}
+
+func (r *Trench) validateSpec() field.ErrorList {
+	var allErrs field.ErrorList
+	if err := ipFamily(r.Spec.IPFamily).IsValid(); err != nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("ip-family"), r.Spec.IPFamily, "invalid IP family"))
+	}
+	if len(allErrs) == 0 {
+		return nil
+	}
+	return allErrs
+}
+
+func (r *Trench) validateUpdate(old runtime.Object) error {
+	typedOld, ok := old.(*Trench)
+	if !ok {
+		return apierrors.NewBadRequest(fmt.Sprintf("expected a trench got got a %T", typedOld))
+	}
+
+	if r.Spec.IPFamily != typedOld.Spec.IPFamily {
+		return apierrors.NewForbidden(r.GroupResource(),
+			r.Name, field.Forbidden(field.NewPath("spec", "ip-family"), "update on ip-family is forbidden"))
+	}
+	return nil
 }

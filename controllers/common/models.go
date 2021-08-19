@@ -13,28 +13,24 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
-type ipFamily string
-
 func GetSubnetPool(cr *meridiov1alpha1.Trench) string {
-	ipFamily := IPv4
-	if ipFamily == IPv4 {
-		return subnetPoolIpv4
-	} else if ipFamily == IPv6 {
-		return subnetPoolIpv6
-	} else if ipFamily == Dualstack {
+	if cr.Spec.IPFamily == string(meridiov1alpha1.Dualstack) {
 		return fmt.Sprintf("%s,%s", subnetPoolIpv4, subnetPoolIpv6)
+	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv4) {
+		return subnetPoolIpv4
+	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv6) {
+		return subnetPoolIpv6
 	}
 	return ""
 }
 
 func GetPrefixLength(cr *meridiov1alpha1.Trench) string {
-	ipFamily := IPv4
-	if ipFamily == IPv4 {
-		return prefixLengthIpv4
-	} else if ipFamily == IPv6 {
-		return prefixLengthIpv6
-	} else if ipFamily == Dualstack {
+	if cr.Spec.IPFamily == string(meridiov1alpha1.Dualstack) {
 		return fmt.Sprintf("%s,%s", prefixLengthIpv4, prefixLengthIpv6)
+	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv4) {
+		return prefixLengthIpv4
+	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv6) {
+		return prefixLengthIpv6
 	}
 	return ""
 }
