@@ -20,13 +20,16 @@ type VipConfig struct {
 }
 
 type Gateway struct {
-	Name     string `yaml:"name"`
-	Address  string `yaml:"address"`
-	ASN      uint16 `yaml:"asn"`
-	IPFamily string `yaml:"ip-family"`
-	BFD      bool   `yaml:"bfd"`
-	Protocol string `yaml:"protocol"`
-	HoldTime uint   `yaml:"hold-time"`
+	Name       string `yaml:"name"`
+	Address    string `yaml:"address"`
+	RemoteASN  uint32 `yaml:"remote-asn"`
+	LocalASN   uint32 `yaml:"local-asn"`
+	RemotePort uint16 `yaml:"remote-port"`
+	LocalPort  uint16 `yaml:"local-port"`
+	IPFamily   string `yaml:"ip-family"`
+	BFD        bool   `yaml:"bfd"`
+	Protocol   string `yaml:"protocol"`
+	HoldTime   uint   `yaml:"hold-time"`
 }
 
 type Vip struct {

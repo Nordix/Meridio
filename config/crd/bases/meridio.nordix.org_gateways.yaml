@@ -20,17 +20,8 @@ spec:
     - jsonPath: .spec.address
       name: address
       type: string
-    - jsonPath: .spec.asn
-      name: ASN
-      type: string
     - jsonPath: .spec.protocol
       name: protocol
-      type: string
-    - jsonPath: .spec.bfd
-      name: BFD
-      type: string
-    - jsonPath: .spec.hold-time
-      name: holdtime
       type: string
     - jsonPath: .metadata.labels.attractor
       name: attractor
@@ -63,17 +54,40 @@ spec:
             properties:
               address:
                 type: string
-              asn:
-                type: integer
-              bfd:
-                type: boolean
-              hold-time:
-                type: string
+              bgp:
+                properties:
+                  bfd:
+                    description: (optional) BFD monitoring of BGP session. Default
+                      "false"
+                    type: boolean
+                  hold-time:
+                    description: (optional) Hold timer of the BGP session. Default
+                      240s
+                    type: string
+                  local-asn:
+                    description: (mandatory) The ASN number of the system where the
+                      FrontEnd locates
+                    format: int32
+                    type: integer
+                  local-port:
+                    description: (optional) BGP listening port of the FrontEnd. Default
+                      179
+                    type: integer
+                  remote-asn:
+                    description: (mandatory) The ASN number of the Gateway
+                    format: int32
+                    type: integer
+                  remote-port:
+                    description: (optional) BGP listening port of the gateway. Default
+                      179
+                    type: integer
+                type: object
               protocol:
                 type: string
+              static:
+                type: object
             required:
             - address
-            - asn
             type: object
           status:
             description: GatewayStatus defines the observed state of Gateway

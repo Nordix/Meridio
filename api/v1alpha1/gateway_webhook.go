@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"fmt"
 	"net"
+	"strings"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -50,12 +51,25 @@ func (r *Gateway) Default() {
 
 	if r.Spec.Protocol == "" {
 		r.Spec.Protocol = string(BGP)
+	} else {
+		r.Spec.Protocol = strings.ToLower(r.Spec.Protocol)
 	}
-	if r.Spec.BFD == nil {
-		r.Spec.BFD = new(bool)
-	}
-	if r.Spec.HoldTime == "" {
-		r.Spec.HoldTime = "240s"
+
+	if r.Spec.Protocol == string(BGP) {
+		if r.Spec.Bgp.BFD == nil {
+			r.Spec.Bgp.BFD = new(bool)
+		}
+		if r.Spec.Bgp.HoldTime == "" {
+			r.Spec.Bgp.HoldTime = "240s"
+		}
+		if r.Spec.Bgp.RemotePort == nil {
+			r.Spec.Bgp.RemotePort = new(uint16)
+			*r.Spec.Bgp.RemotePort = 179
+		}
+		if r.Spec.Bgp.LocalPort == nil {
+			r.Spec.Bgp.LocalPort = new(uint16)
+			*r.Spec.Bgp.LocalPort = 179
+		}
 	}
 }
 
@@ -103,23 +117,40 @@ func (r *Gateway) validateLabels() field.ErrorList {
 
 func (r *Gateway) validateSpec() field.ErrorList {
 	var allErrs field.ErrorList
-	if *r.Spec.BFD {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("bfd"), r.Spec.BFD, "bfd is not supported yet"))
-	}
-	if r.Spec.Protocol != string(BGP) {
+
+	protocol := Protocol(r.Spec.Protocol)
+
+	if !protocol.IsValid() {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("protocol"), r.Spec.Protocol, "protocols other than bgp is not supported yet"))
 	}
 	ip := net.ParseIP(r.Spec.Address)
 	if ip == nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("address"), r.Spec.Address, "invalid IP format"))
 	}
-	d, err := time.ParseDuration(r.Spec.HoldTime)
-	if err != nil {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("hold-time"), r.Spec.HoldTime, "invalid time duration format, must be a decimal number with time unit s/m/h"))
-	} else {
-		rounded := int(d.Seconds())
-		if rounded < 3 {
-			return append(allErrs, field.Invalid(field.NewPath("spec").Child("hold-time"), r.Spec.HoldTime, "invalid time duration value, must >3 seconds"))
+	// if protocol is BGP
+	switch protocol {
+	case BGP:
+		// remote-asn cannot be nil
+		if r.Spec.Bgp.RemoteASN == nil {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("bgp").Child("remote-asn"), r.Spec.Bgp.RemoteASN, "mandatory parameter is missing"))
+		}
+		// local-asn cannot be nil
+		if r.Spec.Bgp.LocalASN == nil {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("bgp").Child("local-asn"), r.Spec.Bgp.LocalASN, "mandatory parameter is missing"))
+		}
+		// hold-time must be no less than 3 seconds
+		d, err := time.ParseDuration(r.Spec.Bgp.HoldTime)
+		if err != nil {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("bgp").Child("hold-time"), r.Spec.Bgp.HoldTime, "invalid time duration format, must be a decimal number with time unit s/m/h"))
+		} else {
+			rounded := int(d.Seconds())
+			if rounded < 3 {
+				allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("bgp").Child("hold-time"), r.Spec.Bgp.HoldTime, "invalid time duration value, must >3 seconds"))
+			}
+		}
+		emp := StaticSpec{}
+		if r.Spec.Static != emp {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("static"), r.Spec.Static, "must be empty when protocol is bgp"))
 		}
 	}
 	if len(allErrs) == 0 {

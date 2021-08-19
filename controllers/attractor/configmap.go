@@ -228,15 +228,18 @@ func (c *ConfigMap) getGatewayData(gws *meridiov1alpha1.GatewayList) (string, er
 		if net.ParseIP(gw.Spec.Address).To4() == nil {
 			ipFamily = "ipv6"
 		}
-		ht := parseHoldTime(gw.Spec.HoldTime)
+		ht := parseHoldTime(gw.Spec.Bgp.HoldTime)
 		config.Gateways = append(config.Gateways, meridioconfig.Gateway{
-			Name:     gw.ObjectMeta.Name,
-			Address:  gw.Spec.Address,
-			BFD:      *gw.Spec.BFD,
-			Protocol: string(gw.Spec.Protocol),
-			ASN:      *gw.Spec.ASN,
-			HoldTime: ht,
-			IPFamily: ipFamily,
+			Name:       gw.ObjectMeta.Name,
+			Address:    gw.Spec.Address,
+			BFD:        *gw.Spec.Bgp.BFD,
+			Protocol:   string(gw.Spec.Protocol),
+			RemoteASN:  *gw.Spec.Bgp.RemoteASN,
+			LocalASN:   *gw.Spec.Bgp.LocalASN,
+			RemotePort: *gw.Spec.Bgp.RemotePort,
+			LocalPort:  *gw.Spec.Bgp.LocalPort,
+			HoldTime:   ht,
+			IPFamily:   ipFamily,
 		})
 		gwlist = append(gwlist, gw.ObjectMeta.Name)
 	}

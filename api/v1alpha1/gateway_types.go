@@ -26,14 +26,28 @@ import (
 
 // GatewaySpec defines the desired state of Gateway
 type GatewaySpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	Address  string     `json:"address"`
+	Protocol string     `json:"protocol,omitempty"`
+	Bgp      BgpSpec    `json:"bgp,omitempty"`
+	Static   StaticSpec `json:"static,omitempty"`
+}
 
-	Address  string  `json:"address"`
-	ASN      *uint16 `json:"asn"`
-	Protocol string  `json:"protocol,omitempty"`
-	BFD      *bool   `json:"bfd,omitempty"`
-	HoldTime string  `json:"hold-time,omitempty"`
+type BgpSpec struct {
+	// (mandatory) The ASN number of the Gateway
+	RemoteASN *uint32 `json:"remote-asn,omitempty"`
+	// (mandatory) The ASN number of the system where the FrontEnd locates
+	LocalASN *uint32 `json:"local-asn,omitempty"`
+	// (optional) BFD monitoring of BGP session. Default "false"
+	BFD *bool `json:"bfd,omitempty"`
+	// (optional) Hold timer of the BGP session. Default 240s
+	HoldTime string `json:"hold-time,omitempty"`
+	// (optional) BGP listening port of the gateway. Default 179
+	RemotePort *uint16 `json:"remote-port,omitempty"`
+	// (optional) BGP listening port of the FrontEnd. Default 179
+	LocalPort *uint16 `json:"local-port,omitempty"`
+}
+
+type StaticSpec struct {
 }
 
 // GatewayStatus defines the observed state of Gateway
@@ -45,10 +59,7 @@ type GatewayStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="address",type=string,JSONPath=`.spec.address`
-//+kubebuilder:printcolumn:name="ASN",type=string,JSONPath=`.spec.asn`
 //+kubebuilder:printcolumn:name="protocol",type=string,JSONPath=`.spec.protocol`
-//+kubebuilder:printcolumn:name="BFD",type=string,JSONPath=`.spec.bfd`
-//+kubebuilder:printcolumn:name="holdtime",type=string,JSONPath=`.spec.hold-time`
 //+kubebuilder:printcolumn:name="attractor",type=string,JSONPath=`.metadata.labels.attractor`
 //+kubebuilder:printcolumn:name="status",type=string,JSONPath=`.status.status`
 //+kubebuilder:printcolumn:name="message",type=string,JSONPath=`.status.message`

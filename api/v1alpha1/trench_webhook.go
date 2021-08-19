@@ -99,7 +99,7 @@ func (r *Trench) validateTrench() error {
 
 func (r *Trench) validateSpec() field.ErrorList {
 	var allErrs field.ErrorList
-	if err := ipFamily(r.Spec.IPFamily).IsValid(); err != nil {
+	if !ipFamily(r.Spec.IPFamily).IsValid() {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("ip-family"), r.Spec.IPFamily, "invalid IP family"))
 	}
 	if len(allErrs) == 0 {
