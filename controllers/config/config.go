@@ -22,9 +22,11 @@ type VipConfig struct {
 type Gateway struct {
 	Name     string `yaml:"name"`
 	Address  string `yaml:"address"`
+	ASN      uint16 `yaml:"asn"`
 	IPFamily string `yaml:"ip-family"`
 	BFD      bool   `yaml:"bfd"`
 	Protocol string `yaml:"protocol"`
+	HoldTime uint   `yaml:"hold-time"`
 }
 
 type Vip struct {

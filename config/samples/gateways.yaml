@@ -2,28 +2,30 @@ apiVersion: meridio.nordix.org/v1alpha1
 kind: Gateway
 metadata:
   labels:
-    trench: trench-a
     attractor: attr1
   name: gateway1
 spec:
   address: 2.3.4.5
+  asn: 2000
+  hold-time: 24s
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Gateway
 metadata:
   labels:
-    trench: trench-a
     attractor: attr1
   name: gateway2
 spec:
   address: 1000::1
+  asn: 1000
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Gateway
 metadata:
   labels:
-    trench: trench-b
     attractor: attr2
   name: gateway3
 spec:
   address: 1.2.3.4
+  asn: 3000
+  hold-time: 1m

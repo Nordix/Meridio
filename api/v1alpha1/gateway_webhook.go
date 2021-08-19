@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	"fmt"
 	"net"
+	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -52,6 +53,9 @@ func (r *Gateway) Default() {
 	}
 	if r.Spec.BFD == nil {
 		r.Spec.BFD = new(bool)
+	}
+	if r.Spec.HoldTime == "" {
+		r.Spec.HoldTime = "240s"
 	}
 }
 
@@ -108,6 +112,15 @@ func (r *Gateway) validateSpec() field.ErrorList {
 	ip := net.ParseIP(r.Spec.Address)
 	if ip == nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("address"), r.Spec.Address, "invalid IP format"))
+	}
+	d, err := time.ParseDuration(r.Spec.HoldTime)
+	if err != nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("hold-time"), r.Spec.HoldTime, "invalid time duration format, must be a decimal number with time unit s/m/h"))
+	} else {
+		rounded := int(d.Seconds())
+		if rounded < 3 {
+			return append(allErrs, field.Invalid(field.NewPath("spec").Child("hold-time"), r.Spec.HoldTime, "invalid time duration value, must >3 seconds"))
+		}
 	}
 	if len(allErrs) == 0 {
 		return nil

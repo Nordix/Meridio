@@ -29,9 +29,11 @@ type GatewaySpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Address  string `json:"address"`
-	Protocol string `json:"protocol,omitempty"`
-	BFD      *bool  `json:"bfd,omitempty"`
+	Address  string  `json:"address"`
+	ASN      *uint16 `json:"asn"`
+	Protocol string  `json:"protocol,omitempty"`
+	BFD      *bool   `json:"bfd,omitempty"`
+	HoldTime string  `json:"hold-time,omitempty"`
 }
 
 // GatewayStatus defines the observed state of Gateway
@@ -43,8 +45,10 @@ type GatewayStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="address",type=string,JSONPath=`.spec.address`
+//+kubebuilder:printcolumn:name="ASN",type=string,JSONPath=`.spec.asn`
 //+kubebuilder:printcolumn:name="protocol",type=string,JSONPath=`.spec.protocol`
 //+kubebuilder:printcolumn:name="BFD",type=string,JSONPath=`.spec.bfd`
+//+kubebuilder:printcolumn:name="holdtime",type=string,JSONPath=`.spec.hold-time`
 //+kubebuilder:printcolumn:name="attractor",type=string,JSONPath=`.metadata.labels.attractor`
 //+kubebuilder:printcolumn:name="status",type=string,JSONPath=`.status.status`
 //+kubebuilder:printcolumn:name="message",type=string,JSONPath=`.status.message`
