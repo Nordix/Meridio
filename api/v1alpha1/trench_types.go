@@ -26,8 +26,7 @@ import (
 
 // TrenchSpec defines the desired state of Trench
 type TrenchSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	IPFamily string `json:"ip-family,omitempty"`
 }
 
 // TrenchStatus defines the observed state of Trench
@@ -38,7 +37,7 @@ type TrenchStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-
+//+kubebuilder:printcolumn:name="IP-Family",type=string,JSONPath=`.spec.ip-family`
 // Trench is the Schema for the trenches API
 type Trench struct {
 	metav1.TypeMeta   `json:",inline"`

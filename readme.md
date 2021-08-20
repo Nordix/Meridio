@@ -36,7 +36,7 @@ make deploy IMG="localhost:5000/meridio/meridio-operator:v0.0.1"
 
 ### Trench
 
-A trench resource does not have any parameters in its specification.
+A trench configures the IP family. The default value of `ip-family` is 'dualstack', but it can also be 'ipv4' or 'ipv6'.
 Deploying a trench spawns the IPAM, NSP, Proxy, and needed role, role-binding and service accounts. The resouces created by a trench will be suffixed with the trench's name.
 
 ```bash
@@ -47,8 +47,8 @@ After applying, you should able to see the following instances in the cluster
 
 ```bash
 kubectl get trench
-NAME       AGE
-trench-a   1m
+NAME                                 IP-FAMILY
+trench.meridio.nordix.org/trench-a   dualstack
 
 kubectl get all
 NAME                                  READY   STATUS        RESTARTS   AGE
