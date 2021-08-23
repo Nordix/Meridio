@@ -59,7 +59,10 @@ make docker-build docker-push IMG="registry.nordix.org/meridio/meridio-operator:
 
 Deploy Meridio-Operator
 ```
+# install most recent cert-manager
 kubectl apply -f https://github.com/jetstack/cert-manager/releases/latest/download/cert-manager.yaml
+# alternatively install a specific version of cert-manager (useful when running with private docker registry)
+kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.1/cert-manager.yaml
 # deploy operator image (irrespective of the registry type)
 make deploy IMG="registry.nordix.org/meridio/meridio-operator:v0.0.1"
 ```
@@ -116,6 +119,12 @@ metadata:
   name: gateway1
 spec:
   address: 169.254.100.254
+  bgp:
+    local-asn: 8103
+    remote-asn: 4248829953
+    hold-time: "3s"
+    local-port: 10179
+    remote-port: 10179
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Gateway
@@ -126,6 +135,12 @@ metadata:
   name: gateway2
 spec:
   address: fe80::beef
+  bgp:
+    local-asn: 8103
+    remote-asn: 4248829953
+    hold-time: "3s"
+    local-port: 10179
+    remote-port: 10179
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Gateway
@@ -136,6 +151,12 @@ metadata:
   name: gateway3
 spec:
   address: 169.254.100.253
+  bgp:
+    local-asn: 8103
+    remote-asn: 4248829953
+    hold-time: "3s"
+    local-port: 10179
+    remote-port: 10179
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Gateway
@@ -146,6 +167,12 @@ metadata:
   name: gateway4
 spec:
   address: fe80::beee
+  bgp:
+    local-asn: 8103
+    remote-asn: 4248829953
+    hold-time: "3s"
+    local-port: 10179
+    remote-port: 10179
 EOF
 
 # add Vips
@@ -196,7 +223,7 @@ helm install examples/target/common/ --generate-name
 
 Install targets connected to trench-a
 ```
-helm install examples/target/helm/ --generate-name --set applicationName=target-a --set default.trench.name=trench-a --set configMapName=meridio-configuration
+helm install examples/target/helm/ --generate-name --set applicationName=target-a --set default.trench.name=trench-a --set configMapName=meridio-configuration --set networkService=lb-fe
 ```
 
 ## Traffic

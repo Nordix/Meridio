@@ -17,7 +17,7 @@ require (
 	github.com/networkservicemesh/api v1.0.0
 	github.com/networkservicemesh/sdk v1.0.0
 	github.com/networkservicemesh/sdk-sriov v1.0.0
-	github.com/nordix/meridio-operator v0.0.0-20210805145341-52782b7d5ca8
+	github.com/nordix/meridio-operator v0.0.0-20210823114908-9c4d92ddee94
 	github.com/open-policy-agent/opa v0.30.1 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1

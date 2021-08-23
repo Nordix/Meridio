@@ -48,8 +48,8 @@ func NewFrontEndService(c *Config) *FrontEndService {
 		birdConfFile:  c.BirdConfigPath + "/bird-fe-meridio.conf",
 		kernelTableId: c.TableID,
 		extInterface:  c.ExternalInterface,
-		localAS:       c.LocalAS,
-		remoteAS:      c.RemoteAS,
+		localASN:      c.LocalAS,
+		remoteASN:     c.RemoteAS,
 		localPortBGP:  c.BGPLocalPort,
 		remotePortBGP: c.BGPRemotePort,
 		holdTimeBGP:   c.BGPHoldTime,
@@ -77,8 +77,8 @@ type FrontEndService struct {
 	birdConfFile  string
 	kernelTableId int
 	extInterface  string
-	localAS       string
-	remoteAS      string
+	localASN      string
+	remoteASN     string
 	localPortBGP  string
 	remotePortBGP string
 	holdTimeBGP   string
@@ -428,11 +428,33 @@ func (fes *FrontEndService) WriteConfigGW(conf *string) {
 				nbr := strings.Split(gw.Address, "/")[0]
 				*conf += "protocol bgp 'NBR-" + gw.Name + "' from LINK {\n"
 				*conf += "\tinterface \"" + fes.extInterface + "\";\n"
-				// currently Gateway does not hold much BGP specific details, using common FE values
-				*conf += "\tlocal port " + fes.localPortBGP + " as " + fes.localAS + ";\n"
-				*conf += "\tneighbor " + nbr + " port " + fes.remotePortBGP + " as " + fes.remoteAS + ";\n"
+
+				// session specific BGP params
+				localASN := fes.localASN
+				localPort := fes.localPortBGP
+				remoteASN := fes.remoteASN
+				remotePort := fes.remotePortBGP
+				if gw.LocalASN != 0 {
+					localASN = strconv.FormatUint(uint64(gw.LocalASN), 10)
+				}
+				if gw.LocalPort != 0 {
+					localPort = strconv.FormatUint(uint64(gw.LocalPort), 10)
+				}
+				if gw.RemoteASN != 0 {
+					remoteASN = strconv.FormatUint(uint64(gw.RemoteASN), 10)
+				}
+				if gw.RemotePort != 0 {
+					remotePort = strconv.FormatUint(uint64(gw.RemotePort), 10)
+				}
+				*conf += "\tlocal port " + localPort + " as " + localASN + ";\n"
+				*conf += "\tneighbor " + nbr + " port " + remotePort + " as " + remoteASN + ";\n"
+
 				if gw.BFD {
 					*conf += "\tbfd on;"
+				}
+
+				if gw.HoldTime != 0 {
+					*conf += "\thold time " + strconv.FormatUint(uint64(gw.HoldTime), 10) + ";\n"
 				}
 				*conf += ipv
 				*conf += "}\n"
