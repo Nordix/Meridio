@@ -1,7 +1,5 @@
 package v1alpha1
 
-import "errors"
-
 type Status struct {
 	NoPhase string
 	Error   string
@@ -36,8 +34,17 @@ var DeploymentStatus = DeploymentStatusType{
 
 type Protocol string
 
-var BFD Protocol = "static"
+var Static Protocol = "static"
 var BGP Protocol = "bgp"
+
+func (p Protocol) IsValid() bool {
+	switch p {
+	case BGP:
+		return true
+	default:
+		return false
+	}
+}
 
 type ipFamily string
 
@@ -47,11 +54,11 @@ var (
 	Dualstack ipFamily = "dualstack"
 )
 
-func (f ipFamily) IsValid() error {
+func (f ipFamily) IsValid() bool {
 	switch f {
 	case IPv4, IPv6, Dualstack:
-		return nil
+		return true
 	default:
-		return errors.New("invalid ip-family type")
+		return false
 	}
 }
