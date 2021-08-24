@@ -89,10 +89,6 @@ func (r *Vip) validateVip() error {
 }
 
 func (r *Vip) validateAddresses() error {
-	_, _, err := net.ParseCIDR(r.Spec.Address)
-	if err != nil {
-		return err
-	}
 	ip, ipnet, err := net.ParseCIDR(r.Spec.Address)
 	if err != nil {
 		return err

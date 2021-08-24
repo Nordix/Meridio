@@ -19,9 +19,6 @@ const (
 	nseEnvSerive   = "NSE_SERVICE_NAME"
 	nseEnvPrefixV4 = "NSE_CIDR_PREFIX"
 	nseEnvPrefixV6 = "NSE_IPV6_PREFIX"
-
-	vlanPrefixIPv4 = "169.254.100.0/24"
-	vlanPrefixIPv6 = "100:100::/64"
 )
 
 type NseDeployment struct {
@@ -61,11 +58,11 @@ func (i *NseDeployment) getEnvVars(con corev1.Container) []corev1.EnvVar {
 		},
 		{
 			Name:  nseEnvPrefixV4,
-			Value: vlanPrefixIPv4,
+			Value: i.attractor.Spec.VlanPrefixIPv4,
 		},
 		{
 			Name:  nseEnvPrefixV6,
-			Value: vlanPrefixIPv6,
+			Value: i.attractor.Spec.VlanPrefixIPv6,
 		},
 	}
 

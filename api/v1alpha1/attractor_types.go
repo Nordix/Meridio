@@ -29,6 +29,10 @@ type AttractorSpec struct {
 	VlanInterface string `json:"vlan-interface"`
 	// vlan ID, cannot be updated
 	VlanID int `json:"vlan-id"`
+	// vlan ipv4 prefix
+	VlanPrefixIPv4 string `json:"vlan-ipv4-prefix"`
+	// vlan ipv6 prefix
+	VlanPrefixIPv6 string `json:"vlan-ipv6-prefix"`
 	// gateways that attractor expect to use
 	Gateways []string `json:"gateways,omitempty"`
 	// vips that attractor expect to use
