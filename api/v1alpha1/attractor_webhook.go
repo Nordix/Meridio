@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"fmt"
+	"net"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -86,6 +87,16 @@ func (r *Attractor) validateAttractor() error {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("labels"), r.ObjectMeta.Labels, err.Error()))
 	}
 
+	_, _, err := net.ParseCIDR(r.Spec.VlanPrefixIPv4)
+	if err != nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vlan-ipv4-prefix"), r.Spec.VlanPrefixIPv4, err.Error()))
+	}
+
+	_, _, err = net.ParseCIDR(r.Spec.VlanPrefixIPv6)
+	if err != nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vlan-ipv6-prefix"), r.Spec.VlanPrefixIPv6, err.Error()))
+	}
+
 	if len(allErrs) == 0 {
 		return nil
 	}
@@ -121,7 +132,17 @@ func (r *Attractor) validateUpdate(old runtime.Object) error {
 
 	if r.Spec.VlanInterface != attrOld.Spec.VlanInterface {
 		return apierrors.NewForbidden(r.GroupResource(),
-			r.Name, field.Forbidden(field.NewPath("metadata", "vlan-interface"), "update on vlan interface is forbidden"))
+			r.Name, field.Forbidden(field.NewPath("spec", "vlan-interface"), "update on vlan interface is forbidden"))
+	}
+
+	if r.Spec.VlanPrefixIPv4 != attrOld.Spec.VlanPrefixIPv4 {
+		return apierrors.NewForbidden(r.GroupResource(),
+			r.Name, field.Forbidden(field.NewPath("spec", "vlan-ipv4-prefix"), "update on vlan prefix is forbidden"))
+	}
+
+	if r.Spec.VlanPrefixIPv6 != attrOld.Spec.VlanPrefixIPv6 {
+		return apierrors.NewForbidden(r.GroupResource(),
+			r.Name, field.Forbidden(field.NewPath("spec", "vlan-ipv6-prefix"), "update on vlan prefix is forbidden"))
 	}
 	return nil
 }

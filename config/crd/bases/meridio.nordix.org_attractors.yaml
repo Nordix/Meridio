@@ -81,9 +81,17 @@ spec:
               vlan-interface:
                 description: vlan interface, cannot be updated
                 type: string
+              vlan-ipv4-prefix:
+                description: vlan ipv4 prefix
+                type: string
+              vlan-ipv6-prefix:
+                description: vlan ipv6 prefix
+                type: string
             required:
             - vlan-id
             - vlan-interface
+            - vlan-ipv4-prefix
+            - vlan-ipv6-prefix
             type: object
           status:
             description: AttractorStatus defines the observed state of Attractor
