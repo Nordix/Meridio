@@ -44,6 +44,7 @@ spec:
             description: VipSpec defines the desired state of Vip
             properties:
               address:
+                description: vip address
                 type: string
             required:
             - address
@@ -52,10 +53,12 @@ spec:
             description: VipStatus defines the observed state of Vip
             properties:
               message:
-                description: the reason why vip is rejected
+                description: Describes why Status is not "engaged"
                 type: string
               status:
-                description: if the vip is accepted or rejected by controller
+                description: 'Describes if this vips is ready to be used possible
+                  values: - engaged: the vip is ready to be used - disengaged: the
+                  vip cannot be used - : vip is not processed by the controller yet'
                 type: string
             type: object
         type: object

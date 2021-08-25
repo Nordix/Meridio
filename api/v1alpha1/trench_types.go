@@ -21,23 +21,27 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // TrenchSpec defines the desired state of Trench
 type TrenchSpec struct {
+	// +kubebuilder:default=dualstack
+
+	// Defines the IP family of the trench. It should be set according to what type of traffic is expected in the trench.
+	// Valid values:
+	// - dualstack (default)
+	// - ipv4
+	// - ipv6
+	// +optional
 	IPFamily string `json:"ip-family,omitempty"`
 }
 
 // TrenchStatus defines the observed state of Trench
 type TrenchStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="IP-Family",type=string,JSONPath=`.spec.ip-family`
+
 // Trench is the Schema for the trenches API
 type Trench struct {
 	metav1.TypeMeta   `json:",inline"`

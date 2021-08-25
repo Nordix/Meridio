@@ -62,15 +62,16 @@ func (r *Gateway) Default() {
 		if r.Spec.Bgp.HoldTime == "" {
 			r.Spec.Bgp.HoldTime = "240s"
 		}
-		if r.Spec.Bgp.RemotePort == nil {
-			r.Spec.Bgp.RemotePort = new(uint16)
-			*r.Spec.Bgp.RemotePort = 179
-		}
-		if r.Spec.Bgp.LocalPort == nil {
-			r.Spec.Bgp.LocalPort = new(uint16)
-			*r.Spec.Bgp.LocalPort = 179
-		}
 	}
+	if r.Spec.Bgp.RemotePort == nil {
+		r.Spec.Bgp.RemotePort = new(uint16)
+		*r.Spec.Bgp.RemotePort = 179
+	}
+	if r.Spec.Bgp.LocalPort == nil {
+		r.Spec.Bgp.LocalPort = new(uint16)
+		*r.Spec.Bgp.LocalPort = 179
+	}
+
 }
 
 // TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
@@ -118,9 +119,9 @@ func (r *Gateway) validateLabels() field.ErrorList {
 func (r *Gateway) validateSpec() field.ErrorList {
 	var allErrs field.ErrorList
 
-	protocol := Protocol(r.Spec.Protocol)
+	proto := Protocol(r.Spec.Protocol)
 
-	if !protocol.IsValid() {
+	if !proto.IsValid() {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("protocol"), r.Spec.Protocol, "protocols other than bgp is not supported yet"))
 	}
 	ip := net.ParseIP(r.Spec.Address)
@@ -128,7 +129,7 @@ func (r *Gateway) validateSpec() field.ErrorList {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("address"), r.Spec.Address, "invalid IP format"))
 	}
 	// if protocol is BGP
-	switch protocol {
+	switch proto {
 	case BGP:
 		// remote-asn cannot be nil
 		if r.Spec.Bgp.RemoteASN == nil {

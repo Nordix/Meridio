@@ -53,38 +53,55 @@ spec:
             description: GatewaySpec defines the desired state of Gateway
             properties:
               address:
+                description: Address of the Edge Router
                 type: string
               bgp:
+                description: Parameters to set up the BGP session to specified Address.
+                  If the Protocol is static, this property must be empty. If the Protocol
+                  is bgp, the minimal parameters to be defined in BgpSpec are RemoteASN
+                  and LocalASN.
                 properties:
                   bfd:
-                    description: (optional) BFD monitoring of BGP session. Default
-                      "false"
+                    default: false
+                    description: 'BFD monitoring of BGP session. Valid values are:
+                      - false (default): no BFD monitoring - true: turns on the BFD
+                      monitoring. (Currently not supported)'
                     type: boolean
                   hold-time:
-                    description: (optional) Hold timer of the BGP session. Default
-                      240s
+                    default: 240s
+                    description: 'Hold timer of the BGP session. Please refere to
+                      BGP material to understand what this implies. The value must
+                      be a valid duration format. For example, 90s, 1m, 1h Minimum
+                      duration is 3s. Default: 240s'
                     type: string
                   local-asn:
-                    description: (mandatory) The ASN number of the system where the
-                      FrontEnd locates
+                    description: The ASN number of the system where the FrontEnd locates
                     format: int32
                     type: integer
                   local-port:
-                    description: (optional) BGP listening port of the FrontEnd. Default
-                      179
+                    default: false
+                    description: BGP listening port of the frontend. Default 179
                     type: integer
                   remote-asn:
-                    description: (mandatory) The ASN number of the Gateway
+                    description: The ASN number of the Gateway
                     format: int32
                     type: integer
                   remote-port:
-                    description: (optional) BGP listening port of the gateway. Default
-                      179
+                    default: 179
+                    description: BGP listening port of the gateway. Default 179
                     type: integer
+                required:
+                - local-asn
+                - remote-asn
                 type: object
               protocol:
+                default: bgp
+                description: The routing choice between the gateway and frontend
                 type: string
               static:
+                description: Parameters to work with the static routing configured
+                  on the Edge Router with specified Address If the Protocol is bgp,
+                  this property must be empty.
                 type: object
             required:
             - address
@@ -93,8 +110,13 @@ spec:
             description: GatewayStatus defines the observed state of Gateway
             properties:
               message:
+                description: Describes why Status is not "engaged"
                 type: string
               status:
+                description: 'If the gateway is ready to be used by the labeled attractor
+                  Possible values: - disengaged: gateway is not ready to be used by
+                  any attractor - engaged: gateway is ready to be used by the labeled
+                  attractor - : gateway is not processed by the controller yet'
                 type: string
             type: object
         type: object
