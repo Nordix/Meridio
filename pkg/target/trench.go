@@ -18,7 +18,9 @@ package target
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/sirupsen/logrus"
@@ -34,9 +36,15 @@ type Trench struct {
 	configurationWatcher *configuration.OperatorWatcher
 	configWatcher        <-chan *configuration.OperatorConfig
 	config               *Config
+	mu                   sync.Mutex
 }
 
 func (t *Trench) AddConduit(name string, conduitWatcher chan<- *ConduitEvent) (*Conduit, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.conduitExists(name) {
+		return nil, errors.New("this conduit is already connected")
+	}
 	conduit, err := NewConduit(name, t, conduitWatcher)
 	if err != nil {
 		return nil, err
@@ -47,6 +55,8 @@ func (t *Trench) AddConduit(name string, conduitWatcher chan<- *ConduitEvent) (*
 }
 
 func (t *Trench) DeleteConduit(name string) error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	for index, conduit := range t.conduits {
 		if conduit.name == name {
 			t.conduits = append(t.conduits[:index], t.conduits[index+1:]...)
@@ -57,6 +67,8 @@ func (t *Trench) DeleteConduit(name string) error {
 }
 
 func (t *Trench) GetConduit(name string) *Conduit {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	for _, conduit := range t.conduits {
 		if conduit.name == name {
 			return conduit
@@ -69,11 +81,20 @@ func (t *Trench) GetConduits() []*Conduit {
 	return t.conduits
 }
 
+func (t *Trench) conduitExists(name string) bool {
+	for _, conduit := range t.conduits {
+		if conduit.GetName() == name {
+			return true
+		}
+	}
+	return false
+}
+
 func (t *Trench) Delete() error {
 	t.cancel()
 	t.configurationWatcher.Delete()
 	for _, conduit := range t.conduits {
-		err := conduit.Delete()
+		err := t.DeleteConduit(conduit.name)
 		if err != nil {
 			logrus.Errorf("Error deleting a conduit: %v", err)
 		}
