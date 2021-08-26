@@ -2,21 +2,21 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: forwarder-kernel
+  name: forwarder-vlan
   labels:
-    app: forwarder-kernel
+    app: forwarder-vlan
 spec:
   selector:
     matchLabels:
-      app: forwarder-kernel
+      app: forwarder-vlan
   template:
     metadata:
       labels:
-        app: forwarder-kernel
+        app: forwarder-vlan
     spec:
       hostNetwork: true
       containers:
-        - name: forwarder-kernel
+        - name: forwarder-vlan
           image: registry.nordix.org/cloud-native/nsm/forwarder-vlan:latest
           imagePullPolicy: {{ .Values.pullPolicy }}
           securityContext:
@@ -35,7 +35,7 @@ spec:
                 fieldRef:
                   fieldPath: status.podIP
             - name: NSM_LABELS
-              value: forwarder:forwarder-kernel
+              value: forwarder:forwarder-vlan
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
