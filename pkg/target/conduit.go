@@ -17,7 +17,9 @@ limitations under the License.
 package target
 
 import (
+	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -51,6 +53,7 @@ type Conduit struct {
 	tableID              int
 	stream               *Stream
 	conduitWatcher       chan<- *ConduitEvent
+	mu                   sync.Mutex
 }
 
 type ConduitStatus int
@@ -82,12 +85,19 @@ func (c *Conduit) Delete() error {
 }
 
 func (c *Conduit) RequestStream(streamWatcher chan<- *StreamEvent) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.streamExists() {
+		return errors.New("this stream is already connect")
+	}
 	c.stream = NewStream(c.name, c, streamWatcher)
 	return c.stream.Request()
 }
 
 func (c *Conduit) DeleteStream() error {
-	if c.stream == nil {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.streamExists() {
 		return nil
 	}
 	err := c.stream.Delete()
@@ -96,6 +106,10 @@ func (c *Conduit) DeleteStream() error {
 	}
 	c.stream = nil
 	return nil
+}
+
+func (c *Conduit) streamExists() bool {
+	return c.stream != nil
 }
 
 func (c *Conduit) notifyWatcher(status ConduitStatus) {

@@ -18,6 +18,7 @@ package target
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -47,11 +48,11 @@ type Ambassador struct {
 
 func (a *Ambassador) Connect(ctx context.Context, conduit *targetAPI.Conduit) (*empty.Empty, error) {
 	logrus.Infof("Connect to conduit: %v trench %v (%v)", conduit.NetworkServiceName, conduit.Trench.Name, a.trenchNamespace)
-	trench := a.getTrench(conduit.Trench.Name, a.trenchNamespace)
-	if trench == nil {
-		trench = a.addTrench(conduit.Trench.Name, a.trenchNamespace)
+	trench, err := a.addTrench(conduit.Trench.Name, a.trenchNamespace)
+	if err != nil {
+		return &empty.Empty{}, err
 	}
-	_, err := trench.AddConduit(conduit.NetworkServiceName, a.conduitWatcher)
+	_, err = trench.AddConduit(conduit.NetworkServiceName, a.conduitWatcher)
 	return &empty.Empty{}, err
 }
 
@@ -73,11 +74,11 @@ func (a *Ambassador) Request(ctx context.Context, stream *targetAPI.Stream) (*em
 	logrus.Infof("Request stream: %v trench %v (%v)", stream.Conduit.NetworkServiceName, stream.Conduit.Trench.Name, a.trenchNamespace)
 	trench := a.getTrench(stream.Conduit.Trench.Name, a.trenchNamespace)
 	if trench == nil {
-		return &empty.Empty{}, nil
+		return &empty.Empty{}, errors.New("not connected to the trench")
 	}
 	conduit := trench.GetConduit(stream.Conduit.NetworkServiceName)
 	if conduit == nil {
-		return &empty.Empty{}, nil
+		return &empty.Empty{}, errors.New("not connected to the conduit")
 	}
 	err := conduit.RequestStream(a.streamWatcher)
 	return &empty.Empty{}, err
@@ -159,17 +160,17 @@ func (a *Ambassador) notifyStreamsSubscriber(subscriber targetAPI.Ambassador_Wat
 	_ = subscriber.Send(streamEvent)
 }
 
-func (a *Ambassador) addTrench(name string, namespace string) *Trench {
-	if len(a.trenches) >= 1 { // TODO
-		return a.trenches[0]
-	}
+func (a *Ambassador) addTrench(name string, namespace string) (*Trench, error) {
 	trench := a.getTrench(name, namespace)
 	if trench != nil {
-		return trench
+		return trench, nil
+	}
+	if len(a.trenches) >= 1 { // TODO
+		return a.trenches[0], errors.New("a trench is already connected")
 	}
 	trench = NewTrench(name, namespace, a.config)
 	a.trenches = append(a.trenches, trench)
-	return trench
+	return trench, nil
 }
 
 func (a *Ambassador) deleteTrench(name string, namespace string) error {
