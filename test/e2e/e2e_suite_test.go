@@ -19,10 +19,13 @@ import (
 )
 
 const (
-	timeout    = time.Minute * 3
-	interval   = time.Second * 2
-	namespace  = "red"
-	trenchName = "trench-a"
+	timeout       = time.Minute * 3
+	interval      = time.Second * 2
+	namespace     = "red"
+	trenchName    = "trench-a"
+	attractorName = "attr-1"
+	gateway1Name  = "gw-1"
+	vip1Name      = "vip-1"
 )
 
 var (
@@ -60,6 +63,9 @@ var _ = BeforeSuite(func() {
 			Name: namespace,
 		},
 	}
-	_, err = clientset.CoreV1().Namespaces().Create(context.Background(), n, metav1.CreateOptions{})
-	Expect(err).ToNot(HaveOccurred())
+	ns, err := clientset.CoreV1().Namespaces().Get(context.Background(), namespace, metav1.GetOptions{})
+	if ns == nil || err != nil {
+		_, err = clientset.CoreV1().Namespaces().Create(context.Background(), n, metav1.CreateOptions{})
+		Expect(err).ToNot(HaveOccurred())
+	}
 })
