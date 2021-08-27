@@ -40,6 +40,8 @@ BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:0.0.1
+BUILDER ?= golang:1.15
+BASE_IMG ?= ubuntu:20.10
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
@@ -97,7 +99,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 docker-build: test ## Build docker image with the manager.
-	docker build -t ${IMG} .
+	docker build -t ${IMG} --build-arg BUILDER=${BUILDER} --build-arg BASE_IMG=${BASE_IMG} .
 
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}

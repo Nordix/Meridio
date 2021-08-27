@@ -13,8 +13,14 @@ Build image
 ```bash
 make docker-build
 
-# And push the image to a registry
-make docker-build docker-push IMG="localhost:5000/meridio/meridio-operator:v0.0.1"
+# change:
+# - image tag by setting IMG
+# - builder image by setting BUILDER
+# - base image by setting BASE_IMG
+make docker-build IMG="localhost:5000/meridio/meridio-operator:v0.0.1" BUILDER="golang:1.16" BASE_IMG="ubuntu:18.04"
+
+# Push the image to a registry
+make docker-push
 ```
 
 Deploy cert manager
