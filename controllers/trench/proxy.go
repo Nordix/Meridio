@@ -88,7 +88,7 @@ func (i *Proxy) getEnvVars(ds *appsv1.DaemonSet) []corev1.EnvVar {
 	return env
 }
 
-func (i *Proxy) insertParamters(init *appsv1.DaemonSet) *appsv1.DaemonSet {
+func (i *Proxy) insertParameters(init *appsv1.DaemonSet) *appsv1.DaemonSet {
 	// if status proxy daemonset parameters are specified in the cr, use those
 	// else use the default parameters
 	proxyDeploymentName := common.ProxyDeploymentName(i.trench)
@@ -127,13 +127,13 @@ func (i *Proxy) getSelector() client.ObjectKey {
 }
 
 func (i *Proxy) getDesiredStatus() *appsv1.DaemonSet {
-	return i.insertParamters(i.model)
+	return i.insertParameters(i.model)
 }
 
 // getReconciledDesiredStatus gets the desired status of proxy daemonset after it's created
 // more paramters than what are defined in the model could be added by K8S
 func (i *Proxy) getReconciledDesiredStatus(cd *appsv1.DaemonSet) *appsv1.DaemonSet {
-	return i.insertParamters(cd)
+	return i.insertParameters(cd)
 }
 
 func (i *Proxy) getCurrentStatus(e *common.Executor) (*appsv1.DaemonSet, error) {

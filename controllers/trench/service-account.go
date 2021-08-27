@@ -45,7 +45,7 @@ func (i *ServiceAccount) getModel() error {
 	return nil
 }
 
-func (sa *ServiceAccount) insertParamters(init *corev1.ServiceAccount) *corev1.ServiceAccount {
+func (sa *ServiceAccount) insertParameters(init *corev1.ServiceAccount) *corev1.ServiceAccount {
 	ret := init.DeepCopy()
 	ret.ObjectMeta.Name = common.ServiceAccountName(sa.trench)
 	ret.ObjectMeta.Namespace = sa.trench.ObjectMeta.Namespace
@@ -62,7 +62,7 @@ func (sa *ServiceAccount) getCurrentStatus(e *common.Executor) (*corev1.ServiceA
 		}
 		return nil, err
 	}
-	return sa.insertParamters(currentState), nil
+	return sa.insertParameters(currentState), nil
 }
 
 func (sa *ServiceAccount) getDesiredStatus() *corev1.ServiceAccount {
@@ -75,7 +75,7 @@ func (sa *ServiceAccount) getDesiredStatus() *corev1.ServiceAccount {
 }
 
 func (sa *ServiceAccount) getReconciledDesiredStatus(current *corev1.ServiceAccount) *corev1.ServiceAccount {
-	return sa.insertParamters(current)
+	return sa.insertParameters(current)
 }
 
 func (sa *ServiceAccount) getAction(e *common.Executor) (common.Action, error) {

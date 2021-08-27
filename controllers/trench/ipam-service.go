@@ -35,7 +35,7 @@ func (i *IpamService) getSelector() client.ObjectKey {
 	}
 }
 
-func (i *IpamService) insertParamters(svc *corev1.Service) *corev1.Service {
+func (i *IpamService) insertParameters(svc *corev1.Service) *corev1.Service {
 	// if status ipam service parameters are specified in the cr, use those
 	// else use the default parameters
 	ret := svc.DeepCopy()
@@ -59,13 +59,13 @@ func (i *IpamService) getCurrentStatus(e *common.Executor) (*corev1.Service, err
 }
 
 func (i *IpamService) getDesiredStatus() *corev1.Service {
-	return i.insertParamters(i.model)
+	return i.insertParameters(i.model)
 }
 
 // getReconciledDesiredStatus gets the desired status of ipam service after it's created
 // more paramters than what are defined in the model could be added by K8S
 func (i *IpamService) getReconciledDesiredStatus(svc *corev1.Service) *corev1.Service {
-	return i.insertParamters(svc)
+	return i.insertParameters(svc)
 }
 
 func (i *IpamService) getModel() error {

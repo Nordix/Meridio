@@ -44,7 +44,7 @@ func (r *Role) getModel() error {
 	return nil
 }
 
-func (r *Role) insertParamters(role *rbacv1.Role) *rbacv1.Role {
+func (r *Role) insertParameters(role *rbacv1.Role) *rbacv1.Role {
 	ret := role.DeepCopy()
 	ret.ObjectMeta.Name = common.RoleName(r.trench)
 	ret.ObjectMeta.Namespace = r.trench.ObjectMeta.Namespace
@@ -65,11 +65,11 @@ func (r *Role) getCurrentStatus(e *common.Executor) (*rbacv1.Role, error) {
 }
 
 func (r *Role) getDesiredStatus() *rbacv1.Role {
-	return r.insertParamters(r.model)
+	return r.insertParameters(r.model)
 }
 
 func (r *Role) getReconciledDesiredStatus(current *rbacv1.Role) *rbacv1.Role {
-	return r.insertParamters(current)
+	return r.insertParameters(current)
 }
 
 func (r *Role) getAction(e *common.Executor) (common.Action, error) {

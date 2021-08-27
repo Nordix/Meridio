@@ -48,7 +48,7 @@ func (i *NspService) getSelector() client.ObjectKey {
 	}
 }
 
-func (i *NspService) insertParamters(svc *corev1.Service) *corev1.Service {
+func (i *NspService) insertParameters(svc *corev1.Service) *corev1.Service {
 	// if status nsp service parameters are specified in the cr, use those
 	// else use the default parameters
 	ret := svc.DeepCopy()
@@ -73,13 +73,13 @@ func (i *NspService) getCurrentStatus(e *common.Executor) (*corev1.Service, erro
 }
 
 func (i *NspService) getDesiredStatus() *corev1.Service {
-	return i.insertParamters(i.model)
+	return i.insertParameters(i.model)
 }
 
 // getReconciledDesiredStatus gets the desired status of nsp service after it's created
 // more paramters than what are defined in the model could be added by K8S
 func (i *NspService) getReconciledDesiredStatus(svc *corev1.Service) *corev1.Service {
-	return i.insertParamters(svc)
+	return i.insertParameters(svc)
 }
 
 func (i *NspService) getModel() error {

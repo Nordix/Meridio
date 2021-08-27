@@ -33,7 +33,7 @@ func NewIPAM(t *meridiov1alpha1.Trench) (*IpamDeployment, error) {
 	return l, nil
 }
 
-func (i *IpamDeployment) insertParamters(dep *appsv1.Deployment) *appsv1.Deployment {
+func (i *IpamDeployment) insertParameters(dep *appsv1.Deployment) *appsv1.Deployment {
 	// if status ipam deployment parameters are specified in the cr, use those
 	// else use the default parameters
 	ret := dep.DeepCopy()
@@ -67,13 +67,13 @@ func (i *IpamDeployment) getSelector() client.ObjectKey {
 }
 
 func (i *IpamDeployment) getDesiredStatus() *appsv1.Deployment {
-	return i.insertParamters(i.model)
+	return i.insertParameters(i.model)
 }
 
 // getIpamDeploymentReconciledDesiredStatus gets the desired status of ipam deployment after it's created
 // more paramters than what are defined in the model could be added by K8S
 func (i *IpamDeployment) getReconciledDesiredStatus(cd *appsv1.Deployment) *appsv1.Deployment {
-	return i.insertParamters(cd)
+	return i.insertParameters(cd)
 }
 
 func (i *IpamDeployment) getCurrentStatus(e *common.Executor) (*appsv1.Deployment, error) {

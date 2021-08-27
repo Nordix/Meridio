@@ -78,7 +78,7 @@ func (i *NseDeployment) getEnvVars(con corev1.Container) []corev1.EnvVar {
 	return env
 }
 
-func (i *NseDeployment) insertParamters(dep *appsv1.Deployment) *appsv1.Deployment {
+func (i *NseDeployment) insertParameters(dep *appsv1.Deployment) *appsv1.Deployment {
 	ret := dep.DeepCopy()
 	nseVLANDeploymentName := common.NSEDeploymentName(i.attractor)
 	ret.ObjectMeta.Name = nseVLANDeploymentName
@@ -109,14 +109,14 @@ func (i *NseDeployment) getSelector() client.ObjectKey {
 }
 
 func (i *NseDeployment) getDesiredStatus() *appsv1.Deployment {
-	return i.insertParamters(i.model)
+	return i.insertParameters(i.model)
 
 }
 
 // getReconciledDesiredStatus gets the desired status of nse deployment after it's created
 // more paramters than what are defined in the model could be added by K8S
 func (i *NseDeployment) getReconciledDesiredStatus(cd *appsv1.Deployment) *appsv1.Deployment {
-	return i.insertParamters(cd)
+	return i.insertParameters(cd)
 }
 
 func (i *NseDeployment) getCurrentStatus() (*appsv1.Deployment, error) {
