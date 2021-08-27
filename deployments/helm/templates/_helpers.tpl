@@ -61,7 +61,7 @@ Set IP Family
 {{- end -}}
 
 {{- define "meridio.vlan.networkServiceName" -}}
-{{- printf "%s.%s" .Values.vlan.networkServiceName .Release.Namespace -}}
+{{- printf "%s.%s.%s" .Values.vlan.networkServiceName .Values.trench.name .Release.Namespace -}}
 {{- end -}}
 
 {{- define "meridio.vrrps" -}}
