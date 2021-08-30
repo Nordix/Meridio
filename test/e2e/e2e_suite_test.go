@@ -19,13 +19,19 @@ import (
 )
 
 const (
-	timeout       = time.Minute * 3
-	interval      = time.Second * 2
-	namespace     = "red"
-	trenchName    = "trench-a"
-	attractorName = "attr-1"
-	gateway1Name  = "gw-1"
-	vip1Name      = "vip-1"
+	timeout           = time.Minute * 3
+	interval          = time.Second * 2
+	operatorNamespace = "meridio-operator-system"
+	namespace         = "red"
+	trenchName        = "trench-a"
+	attractorName     = "attr-1"
+	gateway1Name      = "gw-1"
+	vip1Name          = "vip-1"
+
+	TrenchCRDName    = "trenches.meridio.nordix.org"
+	AttractorCRDName = "attractors.meridio.nordix.org"
+	GatewayCRDName   = "gateways.meridio.nordix.org"
+	VIPCRDName       = "vips.meridio.nordix.org"
 )
 
 var (
