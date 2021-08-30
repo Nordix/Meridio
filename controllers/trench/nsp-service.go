@@ -15,11 +15,13 @@ import (
 type NspService struct {
 	trench *meridiov1alpha1.Trench
 	model  *corev1.Service
+	exec   *common.Executor
 }
 
-func NewNspService(t *meridiov1alpha1.Trench) (*NspService, error) {
+func NewNspService(e *common.Executor, t *meridiov1alpha1.Trench) (*NspService, error) {
 	l := &NspService{
 		trench: t.DeepCopy(),
+		exec:   e,
 	}
 
 	// get model
@@ -59,10 +61,10 @@ func (i *NspService) insertParameters(svc *corev1.Service) *corev1.Service {
 	return ret
 }
 
-func (i *NspService) getCurrentStatus(e *common.Executor) (*corev1.Service, error) {
+func (i *NspService) getCurrentStatus() (*corev1.Service, error) {
 	currentStatus := &corev1.Service{}
 	selector := i.getSelector()
-	err := e.GetObject(selector, currentStatus)
+	err := i.exec.GetObject(selector, currentStatus)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -91,22 +93,22 @@ func (i *NspService) getModel() error {
 	return nil
 }
 
-func (i *NspService) getAction(e *common.Executor) (common.Action, error) {
+func (i *NspService) getAction() ([]common.Action, error) {
 	elem := common.NSPServiceName(i.trench)
-	var action common.Action
-	cs, err := i.getCurrentStatus(e)
+	var action []common.Action
+	cs, err := i.getCurrentStatus()
 	if err != nil {
 		return action, err
 	}
 	if cs == nil {
 		ds := i.getDesiredStatus()
-		e.LogInfo(fmt.Sprintf("add action: create %s", elem))
-		action = common.NewCreateAction(ds, fmt.Sprintf("create %s", elem))
+		i.exec.LogInfo(fmt.Sprintf("add action: create %s", elem))
+		action = append(action, common.NewCreateAction(ds, fmt.Sprintf("create %s", elem)))
 	} else {
 		ds := i.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			e.LogInfo(fmt.Sprintf("add action: update %s", elem))
-			action = common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem))
+			i.exec.LogInfo(fmt.Sprintf("add action: update %s", elem))
+			action = append(action, common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem)))
 		}
 	}
 	return action, nil

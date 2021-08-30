@@ -26,11 +26,13 @@ const (
 type Proxy struct {
 	trench *meridiov1alpha1.Trench
 	model  *appsv1.DaemonSet
+	exec   *common.Executor
 }
 
-func NewProxy(t *meridiov1alpha1.Trench) (*Proxy, error) {
+func NewProxy(e *common.Executor, t *meridiov1alpha1.Trench) (*Proxy, error) {
 	l := &Proxy{
 		trench: t.DeepCopy(),
+		exec:   e,
 	}
 
 	// get model
@@ -142,10 +144,10 @@ func (i *Proxy) getReconciledDesiredStatus(cd *appsv1.DaemonSet) *appsv1.DaemonS
 	return i.insertParameters(cd)
 }
 
-func (i *Proxy) getCurrentStatus(e *common.Executor) (*appsv1.DaemonSet, error) {
+func (i *Proxy) getCurrentStatus() (*appsv1.DaemonSet, error) {
 	currentStatus := &appsv1.DaemonSet{}
 	selector := i.getSelector()
-	err := e.GetObject(selector, currentStatus)
+	err := i.exec.GetObject(selector, currentStatus)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -155,22 +157,22 @@ func (i *Proxy) getCurrentStatus(e *common.Executor) (*appsv1.DaemonSet, error) 
 	return currentStatus, nil
 }
 
-func (i *Proxy) getAction(e *common.Executor) (common.Action, error) {
+func (i *Proxy) getAction() ([]common.Action, error) {
 	elem := common.ProxyDeploymentName(i.trench)
-	var action common.Action
-	cs, err := i.getCurrentStatus(e)
+	var action []common.Action
+	cs, err := i.getCurrentStatus()
 	if err != nil {
 		return action, err
 	}
 	if cs == nil {
 		ds := i.getDesiredStatus()
-		e.LogInfo(fmt.Sprintf("add action: create %s", elem))
-		action = common.NewCreateAction(ds, fmt.Sprintf("create %s", elem))
+		i.exec.LogInfo(fmt.Sprintf("add action: create %s", elem))
+		action = append(action, common.NewCreateAction(ds, fmt.Sprintf("create %s", elem)))
 	} else {
 		ds := i.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			e.LogInfo(fmt.Sprintf("add action: update %s", elem))
-			action = common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem))
+			i.exec.LogInfo(fmt.Sprintf("add action: update %s", elem))
+			action = append(action, common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem)))
 		}
 	}
 	return action, nil

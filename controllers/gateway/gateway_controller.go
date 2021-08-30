@@ -71,17 +71,17 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	executor.SetOwnerReference(gw, attr)
-	actions := getGatewayActions(executor, gw, cgw)
+
+	if attr != nil {
+		err = executor.SetOwnerReference(gw, attr)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	actions := getActions(gw, cgw)
 	err = executor.RunAll(actions)
 	return ctrl.Result{}, err
-}
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *GatewayReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&meridiov1alpha1.Gateway{}).
-		Complete(r)
 }
 
 func validateGateway(e *common.Executor, gw *meridiov1alpha1.Gateway) (*meridiov1alpha1.Attractor, error) {
@@ -104,7 +104,7 @@ func validateGateway(e *common.Executor, gw *meridiov1alpha1.Gateway) (*meridiov
 	return attr, nil
 }
 
-func getGatewayActions(e *common.Executor, new, old *meridiov1alpha1.Gateway) []common.Action {
+func getActions(new, old *meridiov1alpha1.Gateway) []common.Action {
 	var actions []common.Action
 	// set the status for the vip
 	nsname := common.NsName(new.ObjectMeta)
@@ -115,4 +115,11 @@ func getGatewayActions(e *common.Executor, new, old *meridiov1alpha1.Gateway) []
 		actions = append(actions, common.NewUpdateAction(new, fmt.Sprintf("update %s ownerReference", nsname)))
 	}
 	return actions
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *GatewayReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&meridiov1alpha1.Gateway{}).
+		Complete(r)
 }

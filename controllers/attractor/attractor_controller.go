@@ -159,7 +159,6 @@ func validateAttractor(e *common.Executor, attr *meridiov1alpha1.Attractor) (*me
 
 func getAttractorActions(e *common.Executor, new, old *meridiov1alpha1.Attractor) []common.Action {
 	var actions []common.Action
-	// set the status for the vip
 	attrnsname := common.NsName(new.ObjectMeta)
 	if !equality.Semantic.DeepEqual(new.Status, old.Status) {
 		actions = append(actions, common.NewUpdateStatusAction(new, fmt.Sprintf("update %s status: %v", attrnsname, new.Status.LbFe)))

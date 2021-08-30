@@ -114,11 +114,5 @@ func (r *Vip) validateLabelUpdate(oldObj runtime.Object) error {
 		return apierrors.NewForbidden(r.GroupResource(),
 			r.Name, field.Forbidden(field.NewPath("metadata", "labels", "trench"), "update on vip label trench is forbidden"))
 	}
-	new = r.ObjectMeta.Labels["attractor"]
-	old = vipOld.ObjectMeta.Labels["attractor"]
-	if new != old {
-		return apierrors.NewForbidden(r.GroupResource(),
-			r.Name, field.Forbidden(field.NewPath("metadata", "labels", "attractor"), "update on vip label attractor is forbidden"))
-	}
 	return nil
 }
