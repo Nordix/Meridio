@@ -122,7 +122,7 @@ func (l *LoadBalancer) getFeEnvVars(con corev1.Container) []corev1.EnvVar {
 	return env
 }
 
-func (l *LoadBalancer) insertParamters(dep *appsv1.Deployment) *appsv1.Deployment {
+func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployment {
 	// if status lb-fe deployment parameters are specified in the cr, use those
 	// else use the default parameters
 	loadBalancerDeploymentName := common.LoadBalancerDeploymentName(l.trench)
@@ -166,13 +166,13 @@ func (l *LoadBalancer) getCurrentStatus() (*appsv1.Deployment, error) {
 }
 
 func (l *LoadBalancer) getDesiredStatus() *appsv1.Deployment {
-	return l.insertParamters(l.model)
+	return l.insertParameters(l.model)
 }
 
 // getReconciledDesiredStatus gets the desired status of lb-fe deployment after it's created
 // more paramters than what are defined in the model could be added by K8S
 func (i *LoadBalancer) getReconciledDesiredStatus(lb *appsv1.Deployment) *appsv1.Deployment {
-	return i.insertParamters(lb)
+	return i.insertParameters(lb)
 }
 
 func (l *LoadBalancer) getAction() (common.Action, error) {

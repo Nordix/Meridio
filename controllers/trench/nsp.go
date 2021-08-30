@@ -45,7 +45,7 @@ func (i *NspDeployment) getEnvVars() []corev1.EnvVar {
 	}
 }
 
-func (i *NspDeployment) insertParamters(init *appsv1.Deployment) *appsv1.Deployment {
+func (i *NspDeployment) insertParameters(init *appsv1.Deployment) *appsv1.Deployment {
 	// if status nsp deployment parameters are specified in the cr, use those
 	// else use the default parameters
 	nspDeploymentName := common.NSPDeploymentName(i.trench)
@@ -80,13 +80,13 @@ func (i *NspDeployment) getSelector() client.ObjectKey {
 }
 
 func (i *NspDeployment) getDesiredStatus() *appsv1.Deployment {
-	return i.insertParamters(i.model)
+	return i.insertParameters(i.model)
 }
 
 // getNspDeploymentReconciledDesiredStatus gets the desired status of nsp deployment after it's created
 // more paramters than what are defined in the model could be added by K8S
 func (i *NspDeployment) getReconciledDesiredStatus(cd *appsv1.Deployment) *appsv1.Deployment {
-	return i.insertParamters(cd)
+	return i.insertParameters(cd)
 }
 
 func (i *NspDeployment) getCurrentStatus(e *common.Executor) (*appsv1.Deployment, error) {

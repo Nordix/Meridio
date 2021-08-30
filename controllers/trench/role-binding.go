@@ -37,7 +37,7 @@ func (r *RoleBinding) getModel() error {
 	return nil
 }
 
-func (r *RoleBinding) insertParamters(init *rbacv1.RoleBinding) *rbacv1.RoleBinding {
+func (r *RoleBinding) insertParameters(init *rbacv1.RoleBinding) *rbacv1.RoleBinding {
 	ret := init.DeepCopy()
 	ret.ObjectMeta.Name = common.RoleBindingName(r.trench)
 	ret.ObjectMeta.Namespace = r.trench.ObjectMeta.Namespace
@@ -76,11 +76,11 @@ func (r *RoleBinding) getCurrentStatus(e *common.Executor) (*rbacv1.RoleBinding,
 }
 
 func (r *RoleBinding) getDesiredStatus() *rbacv1.RoleBinding {
-	return r.insertParamters(r.model)
+	return r.insertParameters(r.model)
 }
 
 func (r *RoleBinding) getReconciledDesiredStatus(current *rbacv1.RoleBinding) *rbacv1.RoleBinding {
-	return r.insertParamters(current)
+	return r.insertParameters(current)
 }
 
 func (r *RoleBinding) getAction(e *common.Executor) (common.Action, error) {
