@@ -156,7 +156,7 @@ func (c *Conduit) request() error {
 		Connection: &networkservice.Connection{
 			Id:             fmt.Sprintf("%s-%s-%d", c.GetConfig().nsmConfig.Name, proxyNetworkServiceName, 0),
 			NetworkService: proxyNetworkServiceName,
-			Labels:         make(map[string]string),
+			Labels:         map[string]string{"forwarder": "forwarder-vpp"},
 			Payload:        payload.Ethernet,
 		},
 		MechanismPreferences: []*networkservice.Mechanism{
