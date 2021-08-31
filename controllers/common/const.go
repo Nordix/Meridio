@@ -16,7 +16,6 @@ const (
 	Organization    = "cloud-native/meridio"
 	OrganizationNsm = "cloud-native/nsm"
 	Tag             = "latest"
-	PullPolicy      = "IfNotPresent"
 
 	subnetPoolIpv4   = "172.16.0.0/16"
 	subnetPoolIpv6   = "fd00::/48"
@@ -39,6 +38,7 @@ const (
 	rbName      = "meridio-configuration-role-binding"
 	cmName      = "meridio-configuration"
 
+	networkServiceName  = "external-vlan"
 	proxyNetworkService = "proxy.lb-fe"
 )
 
@@ -104,7 +104,7 @@ func LoadBalancerNsName(cr *meridiov1alpha1.Trench) string {
 }
 
 func NSENsName(attr *meridiov1alpha1.Attractor) string {
-	return getAppNsName(NSEDeploymentName(attr), attr.ObjectMeta)
+	return getAppNsName(networkServiceName, attr.ObjectMeta)
 }
 
 func getFullName(meta *metav1.ObjectMeta, resourceName string) string {

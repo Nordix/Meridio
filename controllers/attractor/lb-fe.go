@@ -14,6 +14,7 @@ import (
 
 const (
 	lbImage      = "load-balancer"
+	feImage      = "frontend"
 	lbEnvConfig  = "NSM_CONFIG_MAP_NAME"
 	lbEnvService = "NSM_SERVICE_NAME"
 	lbEnvNsp     = "NSM_NSP_SERVICE"
@@ -51,8 +52,7 @@ func NewLoadBalancer(e *common.Executor, attr *meridiov1alpha1.Attractor, t *mer
 	return l, nil
 }
 
-func (l *LoadBalancer) getLbEnvVars(con corev1.Container) []corev1.EnvVar {
-	allEnv := con.Env
+func (l *LoadBalancer) getLbEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	env := []corev1.EnvVar{
 		{
 			Name:  lbEnvConfig,
@@ -80,8 +80,7 @@ func (l *LoadBalancer) getLbEnvVars(con corev1.Container) []corev1.EnvVar {
 	return env
 }
 
-func (l *LoadBalancer) getNscEnvVars(con corev1.Container) []corev1.EnvVar {
-	allEnv := con.Env
+func (l *LoadBalancer) getNscEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	env := []corev1.EnvVar{
 		{
 			Name:  nscEnvNwSvc,
@@ -101,8 +100,7 @@ func (l *LoadBalancer) getNscEnvVars(con corev1.Container) []corev1.EnvVar {
 	return env
 }
 
-func (l *LoadBalancer) getFeEnvVars(con corev1.Container) []corev1.EnvVar {
-	allEnv := con.Env
+func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	env := []corev1.EnvVar{
 		{
 			Name:  feEnvConfig,
@@ -113,7 +111,6 @@ func (l *LoadBalancer) getFeEnvVars(con corev1.Container) []corev1.EnvVar {
 	for _, e := range allEnv {
 		// append all hard coded envVars
 		if e.Name == "NFE_NAMESPACE" ||
-			e.Name == "NFE_GATEWAYS" ||
 			e.Name == "NFE_LOG_BIRD" ||
 			e.Name == "NFE_ECMP" {
 			env = append(env, e)
@@ -135,13 +132,29 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 	ret.Spec.Replicas = l.attractor.Spec.Replicas
 	ret.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchExpressions[0].Values[0] = loadBalancerDeploymentName
 	ret.Spec.Template.Spec.ServiceAccountName = common.ServiceAccountName(l.trench)
-	ret.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, lbImage, common.Tag)
-	ret.Spec.Template.Spec.Containers[0].ImagePullPolicy = common.PullPolicy
-	ret.Spec.Template.Spec.Containers[0].LivenessProbe = common.GetLivenessProbe(l.trench)
-	ret.Spec.Template.Spec.Containers[0].ReadinessProbe = common.GetReadinessProbe(l.trench)
-	ret.Spec.Template.Spec.Containers[0].Env = l.getLbEnvVars(ret.Spec.Template.Spec.Containers[0])
-	ret.Spec.Template.Spec.Containers[1].Env = l.getNscEnvVars(ret.Spec.Template.Spec.Containers[1])
-	ret.Spec.Template.Spec.Containers[2].Env = l.getFeEnvVars(ret.Spec.Template.Spec.Containers[2])
+
+	for i, container := range ret.Spec.Template.Spec.Containers {
+		switch name := container.Name; name {
+		case "load-balancer":
+			if container.Image == "" {
+				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, lbImage, common.Tag)
+			}
+			container.LivenessProbe = common.GetLivenessProbe(l.trench)
+			container.ReadinessProbe = common.GetReadinessProbe(l.trench)
+			container.Env = l.getLbEnvVars(container.Env)
+		case "nsc":
+			if container.Image == "" {
+				container.Image = "registry.nordix.org/cloud-native/nsm/cmd-nsc:latest-dns-fix"
+			}
+			container.Env = l.getNscEnvVars(container.Env)
+		case "fe":
+			if container.Image == "" {
+				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, feImage, common.Tag)
+			}
+			container.Env = l.getFeEnvVars(container.Env)
+		}
+		ret.Spec.Template.Spec.Containers[i] = container
+	}
 
 	return ret
 }

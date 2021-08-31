@@ -39,10 +39,9 @@ func NewNSE(e *common.Executor, attr *meridiov1alpha1.Attractor) (*NseDeployment
 	return nse, nil
 }
 
-func (i *NseDeployment) getEnvVars(con corev1.Container) []corev1.EnvVar {
+func (i *NseDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	// if envVars are set in the cr, use the values
 	// else return default envVars
-	allEnv := con.Env
 	env := []corev1.EnvVar{
 		{
 			Name:  nseEnvItf,
@@ -86,9 +85,10 @@ func (i *NseDeployment) insertParameters(dep *appsv1.Deployment) *appsv1.Deploym
 	ret.ObjectMeta.Labels["app"] = nseVLANDeploymentName
 	ret.Spec.Selector.MatchLabels["app"] = nseVLANDeploymentName
 	ret.Spec.Template.ObjectMeta.Labels["app"] = nseVLANDeploymentName
-	ret.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.OrganizationNsm, nseImage, common.Tag)
-	ret.Spec.Template.Spec.Containers[0].ImagePullPolicy = common.PullPolicy
-	ret.Spec.Template.Spec.Containers[0].Env = i.getEnvVars(ret.Spec.Template.Spec.Containers[0])
+	if ret.Spec.Template.Spec.Containers[0].Image == "" {
+		ret.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.OrganizationNsm, nseImage, common.Tag)
+	}
+	ret.Spec.Template.Spec.Containers[0].Env = i.getEnvVars(ret.Spec.Template.Spec.Containers[0].Env)
 	return ret
 }
 

@@ -17,8 +17,8 @@ spec:
     spec:
       containers:
         - name: nsp
-          image: registry.nordix.org/cloud-native/meridio/nsp:latest
-          imagePullPolicy: IfNotPresent
+          image: # to be filed by operator
+          imagePullPolicy: # Kubernetes default according to image tag
           readinessProbe:
             exec:
               command:

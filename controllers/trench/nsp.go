@@ -34,7 +34,7 @@ func NewNspDeployment(t *meridiov1alpha1.Trench) (*NspDeployment, error) {
 	return l, nil
 }
 
-func (i *NspDeployment) getEnvVars() []corev1.EnvVar {
+func getEnvVars() []corev1.EnvVar {
 	// if envVars are set in the cr, use the values
 	// else return default envVars
 	return []corev1.EnvVar{
@@ -55,11 +55,14 @@ func (i *NspDeployment) insertParameters(init *appsv1.Deployment) *appsv1.Deploy
 	dep.ObjectMeta.Labels["app"] = nspDeploymentName
 	dep.Spec.Selector.MatchLabels["app"] = nspDeploymentName
 	dep.Spec.Template.ObjectMeta.Labels["app"] = nspDeploymentName
-	dep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, imageNsp, common.Tag)
-	dep.Spec.Template.Spec.Containers[0].ImagePullPolicy = common.PullPolicy
+
+	if dep.Spec.Template.Spec.Containers[0].Image == "" {
+		dep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, imageNsp, common.Tag)
+	}
 	dep.Spec.Template.Spec.Containers[0].LivenessProbe = common.GetLivenessProbe(i.trench)
 	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = common.GetReadinessProbe(i.trench)
-	dep.Spec.Template.Spec.Containers[0].Env = i.getEnvVars()
+
+	dep.Spec.Template.Spec.Containers[0].Env = getEnvVars()
 	return dep
 }
 
