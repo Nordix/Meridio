@@ -450,7 +450,7 @@ func (fes *FrontEndService) WriteConfigGW(conf *string) {
 				*conf += "\tneighbor " + nbr + " port " + remotePort + " as " + remoteASN + ";\n"
 
 				if gw.BFD {
-					*conf += "\tbfd on;"
+					*conf += "\tbfd on;\n"
 				}
 
 				if gw.HoldTime != 0 {

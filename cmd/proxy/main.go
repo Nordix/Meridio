@@ -37,9 +37,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/nordix/meridio/pkg/client"
 	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/nordix/meridio/pkg/endpoint"
@@ -176,6 +178,8 @@ func getNSC(ctx context.Context,
 	networkServiceClient := chain.NewNetworkServiceClient(
 		updatepath.NewClient(config.Name),
 		serialize.NewClient(),
+		refresh.NewClient(ctx),
+		metadata.NewClient(),
 		sriovtoken.NewClient(),
 		mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
 			vfiomech.MECHANISM:   chain.NewNetworkServiceClient(vfio.NewClient()),
