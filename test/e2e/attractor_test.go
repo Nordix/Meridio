@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	"github.com/nordix/meridio-operator/controllers/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -18,6 +19,7 @@ var _ = Describe("Attractor", func() {
 		var (
 			trench    *meridiov1alpha1.Trench
 			attractor *meridiov1alpha1.Attractor
+			replicas  *int32
 		)
 
 		BeforeEach(func() {
@@ -31,7 +33,7 @@ var _ = Describe("Attractor", func() {
 				},
 			}
 			Expect(kubeAPIClient.Create(context.Background(), trench)).Should(Succeed())
-			replicas := new(int32)
+			replicas = new(int32)
 			*replicas = 1
 			attractor = &meridiov1alpha1.Attractor{
 				ObjectMeta: metav1.ObjectMeta{
@@ -59,7 +61,7 @@ var _ = Describe("Attractor", func() {
 
 		It("should have the attractor pods in running state", func() {
 			By("checking if lb-fe pods are in running state")
-			loadBalancerName := fmt.Sprintf("lb-fe-%s", trench.ObjectMeta.Name)
+			loadBalancerName := fmt.Sprintf("%s-%s", common.LBName, trench.ObjectMeta.Name)
 			Eventually(func() bool {
 				deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), loadBalancerName, metav1.GetOptions{})
 				if err != nil {
@@ -74,13 +76,12 @@ var _ = Describe("Attractor", func() {
 			Expect(err).ToNot(HaveOccurred())
 			deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), loadBalancerName, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred())
-			Expect(len(pods.Items)).To(Equal(int(deployment.Status.Replicas)))
 			for _, pod := range pods.Items {
 				Expect(pod.Status.Phase).To(Equal(corev1.PodRunning))
 			}
 
 			By("checking if nse-vlan pods are in running state")
-			nseVLANName := fmt.Sprintf("nse-vlan-%s", attractorName)
+			nseVLANName := fmt.Sprintf("%s-%s", common.NseName, attractorName)
 			Eventually(func() bool {
 				deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), nseVLANName, metav1.GetOptions{})
 				if err != nil {
@@ -95,13 +96,13 @@ var _ = Describe("Attractor", func() {
 			Expect(err).ToNot(HaveOccurred())
 			deployment, err = clientset.AppsV1().Deployments(namespace).Get(context.Background(), nseVLANName, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred())
-			Expect(len(pods.Items)).To(Equal(int(deployment.Status.Replicas)))
+			Expect(int(deployment.Status.Replicas)).To(Equal(int(*replicas)))
 			for _, pod := range pods.Items {
 				Expect(pod.Status.Phase).To(Equal(corev1.PodRunning))
 			}
 
 			By("checking if configmap has been created")
-			configmapName := fmt.Sprintf("meridio-configuration-%s", trench.ObjectMeta.Name)
+			configmapName := fmt.Sprintf("%s-%s", common.CMName, trench.ObjectMeta.Name)
 			configmap, err := clientset.CoreV1().ConfigMaps(namespace).Get(context.Background(), configmapName, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(configmap).ToNot(BeNil())

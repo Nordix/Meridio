@@ -15,22 +15,22 @@ import (
 
 func GetSubnetPool(cr *meridiov1alpha1.Trench) string {
 	if cr.Spec.IPFamily == string(meridiov1alpha1.Dualstack) {
-		return fmt.Sprintf("%s,%s", subnetPoolIpv4, subnetPoolIpv6)
+		return fmt.Sprintf("%s,%s", SubnetPoolIpv4, SubnetPoolIpv6)
 	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv4) {
-		return subnetPoolIpv4
+		return SubnetPoolIpv4
 	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv6) {
-		return subnetPoolIpv6
+		return SubnetPoolIpv6
 	}
 	return ""
 }
 
 func GetPrefixLength(cr *meridiov1alpha1.Trench) string {
 	if cr.Spec.IPFamily == string(meridiov1alpha1.Dualstack) {
-		return fmt.Sprintf("%s,%s", prefixLengthIpv4, prefixLengthIpv6)
+		return fmt.Sprintf("%s,%s", PrefixLengthIpv4, PrefixLengthIpv6)
 	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv4) {
-		return prefixLengthIpv4
+		return PrefixLengthIpv4
 	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv6) {
-		return prefixLengthIpv6
+		return PrefixLengthIpv6
 	}
 	return ""
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	"github.com/nordix/meridio-operator/controllers/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -37,7 +38,7 @@ var _ = Describe("Trench", func() {
 
 		It("should have the trench pods in running state and the resources created", func() {
 			By("checking if proxy pods are in running state")
-			proxyName := fmt.Sprintf("proxy-%s", trench.ObjectMeta.Name)
+			proxyName := fmt.Sprintf("%s-%s", common.ProxyName, trench.ObjectMeta.Name)
 			Eventually(func() bool {
 				daemonset, err := clientset.AppsV1().DaemonSets(namespace).Get(context.Background(), proxyName, metav1.GetOptions{})
 				if err != nil {
@@ -58,7 +59,7 @@ var _ = Describe("Trench", func() {
 			}
 
 			By("checking if ipam pods are in running state")
-			ipamName := fmt.Sprintf("ipam-%s", trench.ObjectMeta.Name)
+			ipamName := fmt.Sprintf("%s-%s", common.IpamName, trench.ObjectMeta.Name)
 			Eventually(func() bool {
 				deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), ipamName, metav1.GetOptions{})
 				if err != nil {
@@ -71,15 +72,12 @@ var _ = Describe("Trench", func() {
 			}
 			pods, err = clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
 			Expect(err).ToNot(HaveOccurred())
-			deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), ipamName, metav1.GetOptions{})
-			Expect(err).ToNot(HaveOccurred())
-			Expect(len(pods.Items)).To(Equal(int(deployment.Status.Replicas)))
 			for _, pod := range pods.Items {
 				Expect(pod.Status.Phase).To(Equal(corev1.PodRunning))
 			}
 
 			By("checking if nsp pods are in running state")
-			nspName := fmt.Sprintf("nsp-%s", trench.ObjectMeta.Name)
+			nspName := fmt.Sprintf("%s-%s", common.NspName, trench.ObjectMeta.Name)
 			Eventually(func() bool {
 				deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), nspName, metav1.GetOptions{})
 				if err != nil {
@@ -92,39 +90,36 @@ var _ = Describe("Trench", func() {
 			}
 			pods, err = clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
 			Expect(err).ToNot(HaveOccurred())
-			deployment, err = clientset.AppsV1().Deployments(namespace).Get(context.Background(), nspName, metav1.GetOptions{})
-			Expect(err).ToNot(HaveOccurred())
-			Expect(len(pods.Items)).To(Equal(int(deployment.Status.Replicas)))
 			for _, pod := range pods.Items {
 				Expect(pod.Status.Phase).To(Equal(corev1.PodRunning))
 			}
 
 			By("checking if nsp service has been created")
-			nspServiceName := fmt.Sprintf("nsp-service-%s", trench.ObjectMeta.Name)
+			nspServiceName := fmt.Sprintf("%s-%s", common.NspSvcName, trench.ObjectMeta.Name)
 			service, err := clientset.CoreV1().Services(namespace).Get(context.Background(), nspServiceName, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(service).ToNot(BeNil())
 
 			By("checking if ipam service has been created")
-			ipamServiceName := fmt.Sprintf("ipam-service-%s", trench.ObjectMeta.Name)
+			ipamServiceName := fmt.Sprintf("%s-%s", common.IpamSvcName, trench.ObjectMeta.Name)
 			service, err = clientset.CoreV1().Services(namespace).Get(context.Background(), ipamServiceName, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(service).ToNot(BeNil())
 
 			By("checking if role has been created")
-			roleName := fmt.Sprintf("meridio-configuration-role-%s", trench.ObjectMeta.Name)
+			roleName := fmt.Sprintf("%s-%s", common.RlName, trench.ObjectMeta.Name)
 			role, err := clientset.RbacV1().Roles(namespace).Get(context.Background(), roleName, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(role).ToNot(BeNil())
 
 			By("checking if role binding has been created")
-			roleBindingName := fmt.Sprintf("meridio-configuration-role-binding-%s", trench.ObjectMeta.Name)
+			roleBindingName := fmt.Sprintf("%s-%s", common.RBName, trench.ObjectMeta.Name)
 			roleBinding, err := clientset.RbacV1().RoleBindings(namespace).Get(context.Background(), roleBindingName, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(roleBinding).ToNot(BeNil())
 
 			By("checking if service account has been created")
-			serviceAccountName := fmt.Sprintf("meridio-%s", trench.ObjectMeta.Name)
+			serviceAccountName := fmt.Sprintf("%s-%s", common.SAName, trench.ObjectMeta.Name)
 			serviceAccount, err := clientset.CoreV1().ServiceAccounts(namespace).Get(context.Background(), serviceAccountName, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(serviceAccount).ToNot(BeNil())
