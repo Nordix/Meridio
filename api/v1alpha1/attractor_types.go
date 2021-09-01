@@ -23,28 +23,51 @@ import (
 
 // AttractorSpec defines the desired state of Attractor
 type AttractorSpec struct {
-	// replicas of attractor deployment
+	// +kubebuilder:default=1
+
+	// replicas of the lb-fe deployment
+	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
-	// vlan interface, cannot be updated
+
+	// (immutable) master interface of the vlan interface to be used for external connectivity
 	VlanInterface string `json:"vlan-interface"`
-	// vlan ID, cannot be updated
+
+	// (immutable) vlan ID of the vlan interface to be used for external connectivity
 	VlanID int `json:"vlan-id"`
-	// vlan ipv4 prefix
+
+	// (immutable) ipv4 prefix of the vlan interface, which is used for frontend to set up communication with the ipv4 gateways
 	VlanPrefixIPv4 string `json:"vlan-ipv4-prefix"`
-	// vlan ipv6 prefix
+
+	// (immutable) ipv6 prefix of the vlan interface, which is used for frontend to set up communication with the ipv6 gateways
 	VlanPrefixIPv6 string `json:"vlan-ipv6-prefix"`
+
 	// gateways that attractor expect to use
+	// +optional
 	Gateways []string `json:"gateways,omitempty"`
+
 	// vips that attractor expect to use
+	// +optional
 	Vips []string `json:"vips,omitempty"`
 }
 
 // AttractorStatus defines the observed state of Attractor
 type AttractorStatus struct {
-	Message      string   `json:"message,omitempty"`
-	LbFe         string   `json:"lb-fe,omitempty"`
+	// Load balancer and front-end status.
+	// Possible values:
+	// - engaged: the attractor can be used for creating resources
+	// - disengaged: the attractor cannot be used for creating resources
+	// - error: there is validation error in controller
+	// - : attractor is not processed by the controller yet
+	LbFe ConfigStatus `json:"lb-fe,omitempty"`
+
+	// Describes why LbFe is disengaged
+	Message string `json:"message,omitempty"`
+
+	// Gateways from spec.gateway that are currently used by the attractor
 	GatewayInUse []string `json:"gateways-in-use,omitempty"`
-	VipsInUse    []string `json:"vips-in-use,omitempty"`
+
+	// Vips from spec.vips that are currently used by the attractor
+	VipsInUse []string `json:"vips-in-use,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -57,6 +80,7 @@ type AttractorStatus struct {
 //+kubebuilder:printcolumn:name="vips-in-use",type=string,JSONPath=`.status.vips-in-use`
 //+kubebuilder:printcolumn:name="trench",type=string,JSONPath=`.metadata.labels.trench`
 //+kubebuilder:printcolumn:name="LB-FE",type=string,JSONPath=`.status.lb-fe`
+
 // Attractor is the Schema for the attractors API
 type Attractor struct {
 	metav1.TypeMeta   `json:",inline"`

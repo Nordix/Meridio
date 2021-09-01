@@ -26,33 +26,79 @@ import (
 
 // GatewaySpec defines the desired state of Gateway
 type GatewaySpec struct {
-	Address  string     `json:"address"`
-	Protocol string     `json:"protocol,omitempty"`
-	Bgp      BgpSpec    `json:"bgp,omitempty"`
-	Static   StaticSpec `json:"static,omitempty"`
+	// Address of the Edge Router
+	Address string `json:"address"`
+
+	// +kubebuilder:default=bgp
+
+	// The routing choice between the gateway and frontend
+	// +optional
+	Protocol string `json:"protocol,omitempty"`
+
+	// Parameters to set up the BGP session to specified Address.
+	// If the Protocol is static, this property must be empty.
+	// If the Protocol is bgp, the minimal parameters to be defined in BgpSpec are RemoteASN and LocalASN.
+	// +optional
+	Bgp BgpSpec `json:"bgp,omitempty"`
+
+	// Parameters to work with the static routing configured on the Edge Router with specified Address
+	// If the Protocol is bgp, this property must be empty.
+	// +optional
+	Static StaticSpec `json:"static,omitempty"`
 }
 
+// BgpSpec defines the parameters to set up a BGP session
 type BgpSpec struct {
-	// (mandatory) The ASN number of the Gateway
-	RemoteASN *uint32 `json:"remote-asn,omitempty"`
-	// (mandatory) The ASN number of the system where the FrontEnd locates
-	LocalASN *uint32 `json:"local-asn,omitempty"`
-	// (optional) BFD monitoring of BGP session. Default "false"
+	// The ASN number of the Gateway
+	RemoteASN *uint32 `json:"remote-asn"`
+
+	// The ASN number of the system where the FrontEnd locates
+	LocalASN *uint32 `json:"local-asn"`
+
+	// +kubebuilder:default=false
+
+	// BFD monitoring of BGP session.
+	// Valid values are:
+	// - false (default): no BFD monitoring
+	// - true: turns on the BFD monitoring. (Currently not supported)
+	// +optional
 	BFD *bool `json:"bfd,omitempty"`
-	// (optional) Hold timer of the BGP session. Default 240s
+
+	// +kubebuilder:default="240s"
+
+	// Hold timer of the BGP session. Please refere to BGP material to understand what this implies.
+	// The value must be a valid duration format. For example, 90s, 1m, 1h
+	// Minimum duration is 3s. Default: 240s
+	// +optional
 	HoldTime string `json:"hold-time,omitempty"`
-	// (optional) BGP listening port of the gateway. Default 179
+
+	// +kubebuilder:default=179
+
+	// BGP listening port of the gateway. Default 179
+	// +optional
 	RemotePort *uint16 `json:"remote-port,omitempty"`
-	// (optional) BGP listening port of the FrontEnd. Default 179
+
+	// +kubebuilder:default=179
+
+	// BGP listening port of the frontend. Default 179
+	// +optional
 	LocalPort *uint16 `json:"local-port,omitempty"`
 }
 
+// StaticSpec defines the parameters to set up static routes
 type StaticSpec struct {
 }
 
 // GatewayStatus defines the observed state of Gateway
 type GatewayStatus struct {
-	Status  string `json:"status,omitempty"`
+	// If the gateway is ready to be used by the labeled attractor
+	// Possible values:
+	// - disengaged: gateway is not ready to be used by any attractor
+	// - engaged: gateway is ready to be used by the labeled attractor
+	// - : gateway is not processed by the controller yet
+	Status ConfigStatus `json:"status,omitempty"`
+
+	// Describes why Status is not "engaged"
 	Message string `json:"message,omitempty"`
 }
 
@@ -63,6 +109,7 @@ type GatewayStatus struct {
 //+kubebuilder:printcolumn:name="attractor",type=string,JSONPath=`.metadata.labels.attractor`
 //+kubebuilder:printcolumn:name="status",type=string,JSONPath=`.status.status`
 //+kubebuilder:printcolumn:name="message",type=string,JSONPath=`.status.message`
+
 // Gateway is the Schema for the gateways API
 type Gateway struct {
 	metav1.TypeMeta   `json:",inline"`

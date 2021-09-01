@@ -67,7 +67,8 @@ spec:
                   type: string
                 type: array
               replicas:
-                description: replicas of attractor deployment
+                default: 1
+                description: replicas of the lb-fe deployment
                 format: int32
                 type: integer
               vips:
@@ -76,16 +77,20 @@ spec:
                   type: string
                 type: array
               vlan-id:
-                description: vlan ID, cannot be updated
+                description: (immutable) vlan ID of the vlan interface to be used
+                  for external connectivity
                 type: integer
               vlan-interface:
-                description: vlan interface, cannot be updated
+                description: (immutable) master interface of the vlan interface to
+                  be used for external connectivity
                 type: string
               vlan-ipv4-prefix:
-                description: vlan ipv4 prefix
+                description: (immutable) ipv4 prefix of the vlan interface, which
+                  is used for frontend to set up communication with the ipv4 gateways
                 type: string
               vlan-ipv6-prefix:
-                description: vlan ipv6 prefix
+                description: (immutable) ipv6 prefix of the vlan interface, which
+                  is used for frontend to set up communication with the ipv6 gateways
                 type: string
             required:
             - vlan-id
@@ -97,14 +102,23 @@ spec:
             description: AttractorStatus defines the observed state of Attractor
             properties:
               gateways-in-use:
+                description: Gateways from spec.gateway that are currently used by
+                  the attractor
                 items:
                   type: string
                 type: array
               lb-fe:
+                description: 'Load balancer and front-end status. Possible values:
+                  - engaged: the attractor can be used for creating resources - disengaged:
+                  the attractor cannot be used for creating resources - error: there
+                  is validation error in controller - : attractor is not processed
+                  by the controller yet'
                 type: string
               message:
+                description: Describes why LbFe is disengaged
                 type: string
               vips-in-use:
+                description: Vips from spec.vips that are currently used by the attractor
                 items:
                   type: string
                 type: array

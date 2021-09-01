@@ -26,14 +26,20 @@ import (
 
 // VipSpec defines the desired state of Vip
 type VipSpec struct {
+	// vip address
 	Address string `json:"address"`
 }
 
 // VipStatus defines the observed state of Vip
 type VipStatus struct {
-	// if the vip is accepted or rejected by controller
-	Status string `json:"status,omitempty"`
-	// the reason why vip is rejected
+	// Describes if this vips is ready to be used
+	// possible values:
+	// - engaged: the vip is ready to be used
+	// - disengaged: the vip cannot be used
+	// - : vip is not processed by the controller yet
+	Status ConfigStatus `json:"status,omitempty"`
+
+	// Describes why Status is not "engaged"
 	Message string `json:"message,omitempty"`
 }
 
@@ -41,6 +47,7 @@ type VipStatus struct {
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Address",type=string,JSONPath=`.spec.address`
 //+kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.status`
+
 // Vip is the Schema for the vips API
 type Vip struct {
 	metav1.TypeMeta   `json:",inline"`

@@ -72,7 +72,7 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	// if attractor is not engaged, do nothing to lb-fe & nse-vlan deployment
-	if attr.Status.LbFe != meridiov1alpha1.ConfigStatus.Engaged {
+	if attr.Status.LbFe != meridiov1alpha1.Engaged {
 		return ctrl.Result{}, nil
 	}
 
@@ -125,7 +125,7 @@ func validateAttractor(e *common.Executor, attr *meridiov1alpha1.Attractor) (*me
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			msg := "labeled trench not found"
-			attr.Status.LbFe = meridiov1alpha1.ConfigStatus.Disengaged
+			attr.Status.LbFe = meridiov1alpha1.Disengaged
 			attr.Status.Message = msg
 			return nil, nil
 		} else {
@@ -141,18 +141,18 @@ func validateAttractor(e *common.Executor, attr *meridiov1alpha1.Attractor) (*me
 	})
 	if err != nil {
 		msg := "at least one attractor should be found"
-		attr.Status.LbFe = meridiov1alpha1.BaseStatus.Error
+		attr.Status.LbFe = meridiov1alpha1.Error
 		attr.Status.Message = msg
 		return trench, nil
 	}
 	if len(al.Items) > 1 {
 		msg := "only one attractor is supported per trench"
-		attr.Status.LbFe = meridiov1alpha1.ConfigStatus.Rejected
+		attr.Status.LbFe = meridiov1alpha1.Error
 		attr.Status.Message = msg
 		return trench, nil
 	}
-	if attr.Status.LbFe == meridiov1alpha1.BaseStatus.NoPhase {
-		attr.Status.LbFe = meridiov1alpha1.ConfigStatus.Engaged
+	if attr.Status.LbFe == meridiov1alpha1.NoPhase {
+		attr.Status.LbFe = meridiov1alpha1.Engaged
 	}
 	return trench, nil
 }

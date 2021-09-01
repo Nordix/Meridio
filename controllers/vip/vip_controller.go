@@ -70,7 +70,7 @@ func (r *VipReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 	// clear vip status
 	currentVip := vip.DeepCopy()
-	vip = setVipStatus(vip, meridiov1alpha1.BaseStatus.NoPhase, "")
+	vip = setVipStatus(vip, meridiov1alpha1.NoPhase, "")
 
 	trench, attr, err := validateVip(executor, vip)
 	if err != nil {
@@ -102,7 +102,7 @@ func validateVip(e *common.Executor, vip *meridiov1alpha1.Vip) (*meridiov1alpha1
 		// set vip status to rejected if trench is not found
 		if apierrors.IsNotFound(err) {
 			setVipStatus(vip,
-				meridiov1alpha1.ConfigStatus.Disengaged,
+				meridiov1alpha1.Disengaged,
 				"labeled trench not found")
 			return nil, nil, nil
 		} else {
@@ -113,7 +113,7 @@ func validateVip(e *common.Executor, vip *meridiov1alpha1.Vip) (*meridiov1alpha1
 	attrname, ok := vip.ObjectMeta.Labels["attractor"]
 	if !ok {
 		setVipStatus(vip,
-			meridiov1alpha1.ConfigStatus.Disengaged,
+			meridiov1alpha1.Disengaged,
 			"labeled trench not found")
 		return nil, nil, nil
 	}
@@ -125,7 +125,7 @@ func validateVip(e *common.Executor, vip *meridiov1alpha1.Vip) (*meridiov1alpha1
 	if err := e.GetObject(selector, attr); err != nil {
 		if apierrors.IsNotFound(err) {
 			msg := "labeled attractor not found"
-			vip.Status.Status = meridiov1alpha1.ConfigStatus.Disengaged
+			vip.Status.Status = meridiov1alpha1.Disengaged
 			vip.Status.Message = msg
 			return nil, nil, nil
 		}
@@ -133,16 +133,16 @@ func validateVip(e *common.Executor, vip *meridiov1alpha1.Vip) (*meridiov1alpha1
 	}
 	if attr.ObjectMeta.Labels["trench"] != vip.ObjectMeta.Labels["trench"] {
 		msg := "attractor and trench label mismatch"
-		vip.Status.Status = meridiov1alpha1.ConfigStatus.Disengaged
+		vip.Status.Status = meridiov1alpha1.Disengaged
 		vip.Status.Message = msg
 		return nil, nil, nil
 	}
 
-	setVipStatus(vip, meridiov1alpha1.ConfigStatus.Engaged, "")
+	setVipStatus(vip, meridiov1alpha1.Engaged, "")
 	return trench, attr, nil
 }
 
-func setVipStatus(vip *meridiov1alpha1.Vip, status string, msg string) *meridiov1alpha1.Vip {
+func setVipStatus(vip *meridiov1alpha1.Vip, status meridiov1alpha1.ConfigStatus, msg string) *meridiov1alpha1.Vip {
 	vip.Status.Status = status
 	vip.Status.Message = msg
 	return vip

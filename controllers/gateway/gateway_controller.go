@@ -94,13 +94,13 @@ func validateGateway(e *common.Executor, gw *meridiov1alpha1.Gateway) (*meridiov
 	if err := e.GetObject(selector, attr); err != nil {
 		if apierrors.IsNotFound(err) {
 			msg := "labeled attractor not found"
-			gw.Status.Status = meridiov1alpha1.ConfigStatus.Disengaged
+			gw.Status.Status = meridiov1alpha1.Disengaged
 			gw.Status.Message = msg
 			return nil, nil
 		}
 		return nil, err
 	}
-	gw.Status.Status = meridiov1alpha1.ConfigStatus.Engaged
+	gw.Status.Status = meridiov1alpha1.Engaged
 	return attr, nil
 }
 

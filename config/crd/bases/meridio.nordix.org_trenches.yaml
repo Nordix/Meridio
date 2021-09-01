@@ -41,6 +41,10 @@ spec:
             description: TrenchSpec defines the desired state of Trench
             properties:
               ip-family:
+                default: dualstack
+                description: 'Defines the IP family of the trench. It should be set
+                  according to what type of traffic is expected in the trench. Valid
+                  values: - dualstack (default) - ipv4 - ipv6'
                 type: string
             type: object
           status:

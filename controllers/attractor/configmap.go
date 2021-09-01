@@ -221,7 +221,7 @@ func (c *ConfigMap) getGatewayData(gws *meridiov1alpha1.GatewayList) (string, er
 	config := &meridioconfig.GatewayConfig{}
 	gwlist := []string{}
 	for _, gw := range gws.Items {
-		if gw.Status.Status != meridiov1alpha1.ConfigStatus.Engaged {
+		if gw.Status.Status != meridiov1alpha1.Engaged {
 			continue
 		}
 		ipFamily := "ipv4"
@@ -261,7 +261,7 @@ func (c *ConfigMap) getVipData(vips *meridiov1alpha1.VipList) (string, error) {
 	config := &meridioconfig.VipConfig{}
 	viplist := []string{}
 	for _, vp := range vips.Items {
-		if vp.Status.Status != meridiov1alpha1.ConfigStatus.Engaged {
+		if vp.Status.Status != meridiov1alpha1.Engaged {
 			continue
 		}
 		config.Vips = append(config.Vips, meridioconfig.Vip{
