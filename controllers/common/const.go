@@ -17,6 +17,9 @@ const (
 	OrganizationNsm = "cloud-native/nsm"
 	Tag             = "latest"
 
+	BusyboxImage = "busybox"
+	BusyboxTag   = "1.29"
+
 	subnetPoolIpv4   = "172.16.0.0/16"
 	subnetPoolIpv6   = "fd00::/48"
 	prefixLengthIpv4 = "24"

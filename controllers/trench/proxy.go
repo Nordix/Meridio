@@ -15,9 +15,6 @@ import (
 const (
 	imageProxy = "proxy"
 
-	busyboxImage = "busybox"
-	busyboxTag   = "1.29"
-
 	proxyEnvConfig        = "NSM_CONFIG_MAP_NAME"
 	proxyEnvService       = "NSM_SERVICE_NAME"
 	proxyEnvSubnetPools   = "NSM_SUBNET_POOLS"
@@ -100,7 +97,11 @@ func (i *Proxy) insertParameters(init *appsv1.DaemonSet) *appsv1.DaemonSet {
 	ds.Spec.Template.Spec.ServiceAccountName = common.ServiceAccountName(i.trench)
 	// init container
 	if ds.Spec.Template.Spec.InitContainers[0].Image == "" {
-		ds.Spec.Template.Spec.InitContainers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, busyboxImage, busyboxTag)
+		ds.Spec.Template.Spec.InitContainers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, common.BusyboxImage, common.BusyboxTag)
+	}
+	ds.Spec.Template.Spec.InitContainers[0].Args = []string{
+		"-c",
+		common.GetProxySysCtl(i.trench),
 	}
 	// proxy container
 	if ds.Spec.Template.Spec.Containers[0].Image == "" {

@@ -133,6 +133,14 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 	ret.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchExpressions[0].Values[0] = loadBalancerDeploymentName
 	ret.Spec.Template.Spec.ServiceAccountName = common.ServiceAccountName(l.trench)
 
+	if ret.Spec.Template.Spec.InitContainers[0].Image == "" {
+		ret.Spec.Template.Spec.InitContainers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, common.BusyboxImage, common.BusyboxTag)
+	}
+	ret.Spec.Template.Spec.InitContainers[0].Args = []string{
+		"-c",
+		common.GetLoadBalancerSysCtl(l.trench),
+	}
+
 	for i, container := range ret.Spec.Template.Spec.Containers {
 		switch name := container.Name; name {
 		case "load-balancer":
