@@ -95,6 +95,9 @@ func (i *Proxy) insertParameters(init *appsv1.DaemonSet) *appsv1.DaemonSet {
 	ds.Spec.Selector.MatchLabels["app"] = proxyDeploymentName
 	ds.Spec.Template.ObjectMeta.Labels["app"] = proxyDeploymentName
 	ds.Spec.Template.Spec.ServiceAccountName = common.ServiceAccountName(i.trench)
+
+	ds.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
+
 	// init container
 	if ds.Spec.Template.Spec.InitContainers[0].Image == "" {
 		ds.Spec.Template.Spec.InitContainers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, common.BusyboxImage, common.BusyboxTag)

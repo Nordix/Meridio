@@ -46,6 +46,7 @@ func (i *IpamDeployment) insertParameters(dep *appsv1.Deployment) *appsv1.Deploy
 	if ret.Spec.Template.Spec.Containers[0].Image == "" {
 		ret.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, imageIpam, common.Tag)
 	}
+	ret.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
 	ret.Spec.Template.Spec.Containers[0].LivenessProbe = common.GetLivenessProbe(i.trench)
 	ret.Spec.Template.Spec.Containers[0].ReadinessProbe = common.GetReadinessProbe(i.trench)
 	return ret

@@ -3,6 +3,9 @@ package common
 import (
 	"fmt"
 	"os"
+	"strings"
+
+	corev1 "k8s.io/api/core/v1"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -11,6 +14,7 @@ import (
 const (
 	serviceAccountName    = "meridio"
 	ResourceNamePrefixEnv = "RESOURCE_NAME_PREFIX"
+	ImagePullSecretEnv    = "IMAGE_PULL_SECRET"
 
 	Registry        = "registry.nordix.org"
 	Organization    = "cloud-native/meridio"
@@ -120,6 +124,18 @@ func getAppNsName(app string, meta metav1.ObjectMeta) string {
 
 func getResourceNamePrefix() string {
 	return os.Getenv(ResourceNamePrefixEnv)
+}
+
+func GetImagePullSecrets() []corev1.LocalObjectReference {
+	secstr := os.Getenv(ImagePullSecretEnv)
+	secs := strings.Split(secstr, ",")
+	var pullSecs []corev1.LocalObjectReference
+	for _, sec := range secs {
+		pullSecs = append(pullSecs, corev1.LocalObjectReference{
+			Name: strings.TrimSpace(sec),
+		})
+	}
+	return pullSecs
 }
 
 func NsName(meta metav1.ObjectMeta) string {

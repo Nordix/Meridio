@@ -56,6 +56,8 @@ func (i *NspDeployment) insertParameters(init *appsv1.Deployment) *appsv1.Deploy
 	dep.Spec.Selector.MatchLabels["app"] = nspDeploymentName
 	dep.Spec.Template.ObjectMeta.Labels["app"] = nspDeploymentName
 
+	dep.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
+
 	if dep.Spec.Template.Spec.Containers[0].Image == "" {
 		dep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, imageNsp, common.Tag)
 	}
