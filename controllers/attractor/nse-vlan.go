@@ -53,7 +53,7 @@ func (i *NseDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 		},
 		{
 			Name:  nseEnvSerive,
-			Value: common.NSENsName(i.attractor),
+			Value: common.VlanNtwkSvcName(i.attractor),
 		},
 		{
 			Name:  nseEnvPrefixV4,
