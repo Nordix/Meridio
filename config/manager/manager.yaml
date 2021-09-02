@@ -51,6 +51,8 @@ spec:
         env:
           - name: RESOURCE_NAME_PREFIX
             value: ""
+          - name: IMAGE_PULL_SECRET
+            value: "" # multiple secrets supported, use "," as the delimiter
         securityContext:
           allowPrivilegeEscalation: false
         livenessProbe:

@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
         - name: nse
-          image: registry.nordix.org/cloud-native/nsm/nse-vlan:latest
-          imagePullPolicy: IfNotPresent
+          image: # to be filed by operator
+          imagePullPolicy: # Kubernetes default according to image tag
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
@@ -28,15 +28,15 @@ spec:
             - name: NSE_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSE_VLAN_BASE_IFNAME
-              value: eth0
+              value: # to be filed by operator according to Attractor
             - name: NSE_VLAN_ID
-              value: "100"
+              value: # to be filed by operator according to Attractor
             - name: NSE_SERVICE_NAME
-              value: external-vlan.default
+              value: # to be filed by operator
             - name: NSE_CIDR_PREFIX
-              value: "169.254.100.0/24"
+              value: # to be filed by operator according to Attractor
             - name: NSE_IPV6_PREFIX
-              value: "100:100::/64"
+              value: # to be filed by operator according to Attractor
             - name: NSE_POINT2POINT
               value: "False"
           volumeMounts:

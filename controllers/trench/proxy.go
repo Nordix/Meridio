@@ -15,9 +15,6 @@ import (
 const (
 	imageProxy = "proxy"
 
-	busyboxImage = "busybox"
-	busyboxTag   = "1.29"
-
 	proxyEnvConfig        = "NSM_CONFIG_MAP_NAME"
 	proxyEnvService       = "NSM_SERVICE_NAME"
 	proxyEnvSubnetPools   = "NSM_SUBNET_POOLS"
@@ -43,10 +40,9 @@ func NewProxy(t *meridiov1alpha1.Trench) (*Proxy, error) {
 	return l, nil
 }
 
-func (i *Proxy) getEnvVars(ds *appsv1.DaemonSet) []corev1.EnvVar {
+func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	// if envVars are set in the cr, use the values
 	// else return default envVars
-	allEnv := ds.Spec.Template.Spec.Containers[0].Env
 	env := []corev1.EnvVar{
 		{
 			Name:  proxyEnvConfig,
@@ -99,14 +95,24 @@ func (i *Proxy) insertParameters(init *appsv1.DaemonSet) *appsv1.DaemonSet {
 	ds.Spec.Selector.MatchLabels["app"] = proxyDeploymentName
 	ds.Spec.Template.ObjectMeta.Labels["app"] = proxyDeploymentName
 	ds.Spec.Template.Spec.ServiceAccountName = common.ServiceAccountName(i.trench)
+
+	ds.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
+
 	// init container
-	ds.Spec.Template.Spec.InitContainers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, busyboxImage, busyboxTag)
+	if ds.Spec.Template.Spec.InitContainers[0].Image == "" {
+		ds.Spec.Template.Spec.InitContainers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, common.BusyboxImage, common.BusyboxTag)
+	}
+	ds.Spec.Template.Spec.InitContainers[0].Args = []string{
+		"-c",
+		common.GetProxySysCtl(i.trench),
+	}
 	// proxy container
-	ds.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, imageProxy, common.Tag)
-	ds.Spec.Template.Spec.Containers[0].ImagePullPolicy = common.PullPolicy
+	if ds.Spec.Template.Spec.Containers[0].Image == "" {
+		ds.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, imageProxy, common.Tag)
+	}
 	ds.Spec.Template.Spec.Containers[0].LivenessProbe = common.GetLivenessProbe(i.trench)
 	ds.Spec.Template.Spec.Containers[0].ReadinessProbe = common.GetLivenessProbe(i.trench)
-	ds.Spec.Template.Spec.Containers[0].Env = i.getEnvVars(ds)
+	ds.Spec.Template.Spec.Containers[0].Env = i.getEnvVars(ds.Spec.Template.Spec.Containers[0].Env)
 	return ds
 }
 

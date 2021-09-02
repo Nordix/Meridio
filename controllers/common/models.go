@@ -35,6 +35,31 @@ func GetPrefixLength(cr *meridiov1alpha1.Trench) string {
 	return ""
 }
 
+const ipv4SysCtl = "sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1 ; sysctl -w net.ipv4.conf.all.rp_filter=0 ; sysctl -w net.ipv4.conf.default.rp_filter=0"
+const ipv6SysCtl = "sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1"
+
+func GetLoadBalancerSysCtl(cr *meridiov1alpha1.Trench) string {
+	if cr.Spec.IPFamily == string(meridiov1alpha1.Dualstack) {
+		return fmt.Sprintf("%s ; %s", ipv4SysCtl, ipv6SysCtl)
+	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv4) {
+		return ipv4SysCtl
+	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv6) {
+		return ipv6SysCtl
+	}
+	return ""
+}
+
+func GetProxySysCtl(cr *meridiov1alpha1.Trench) string {
+	if cr.Spec.IPFamily == string(meridiov1alpha1.Dualstack) {
+		return fmt.Sprintf("%s ; %s ; %s", ipv4SysCtl, ipv6SysCtl, "sysctl -w net.ipv6.conf.all.accept_dad=0")
+	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv6) {
+		return fmt.Sprintf("%s ; %s", ipv6SysCtl, "sysctl -w net.ipv6.conf.all.accept_dad=0")
+	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv4) {
+		return ipv4SysCtl
+	}
+	return ""
+}
+
 func GetReadinessProbe(cr *meridiov1alpha1.Trench) *corev1.Probe {
 	// if readiness probe is set in the cr do something
 	// else use the default readiness probe

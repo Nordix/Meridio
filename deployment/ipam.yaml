@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
         - name: ipam
-          image: registry.nordix.org/cloud-native/meridio/ipam:latest
-          imagePullPolicy: IfNotPresent
+          image: # to be filed by operator
+          imagePullPolicy: # Kubernetes default according to image tag
           readinessProbe:
             exec:
               command: ["/bin/grpc_health_probe", "-addr=:8000", "-connect-timeout=100ms", "-rpc-timeout=150ms"]
