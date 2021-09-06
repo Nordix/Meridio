@@ -24,6 +24,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/proto"
 )
 
 type SimpleNetworkServiceClient struct {
@@ -37,7 +38,8 @@ func (snsc *SimpleNetworkServiceClient) Request(request *networkservice.NetworkS
 		return errors.New("request is not valid")
 	}
 	for {
-		connection, err := snsc.networkServiceClient.Request(context.Background(), request)
+		req := proto.Clone(request).(*networkservice.NetworkServiceRequest)
+		connection, err := snsc.networkServiceClient.Request(context.Background(), req)
 		if err != nil {
 			time.Sleep(15 * time.Second)
 			logrus.Errorf("Network Service Client: Request err: %v", err)

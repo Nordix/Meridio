@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/nordix/meridio/pkg/configuration"
+	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 
@@ -239,7 +240,7 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 				//linkCh <- "Failed to fetch protocol status"
 			} else if strings.Contains(stringOut, "No protocols match") {
 				if extConnsOK {
-					/* _ = denounceFrontend(nsp.FRONTEND, fes.nspService) */
+					_ = denounceFrontend(nsp.FRONTEND, fes.nspService)
 					extConnsOK = false
 					logrus.Warnf("Monitor: %v", stringOut)
 					//linkCh <- "No protocols match"
@@ -250,6 +251,8 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 
 				// Gateway availibility notifications
 
+				// XXX: in case denounceFrontend/announceFrontend would block the thread for too long
+				// (no NSP is listening etc.), and it is a problem, move them to dedicated go thread
 				// TODO: maybe move logic to separate function
 				if status.noConnectivity() {
 					// although configured at least one IP family has no connectivity
@@ -257,17 +260,17 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 					// crashed
 					if !noConnectivity || init {
 						noConnectivity = true
-						/* if err := denounceFrontend(nsp.FRONTEND, fes.nspService); err != nil {
+						if err := denounceFrontend(nsp.FRONTEND, fes.nspService); err != nil {
 							logrus.Infof("FrontEndService: failed to denounce frontend connectivity (err: %v)", err)
-						} */
+						}
 						fes.denounceVIP()
 					}
 				} else {
 					if noConnectivity {
 						noConnectivity = false
-						/* if err := announceFrontend(nsp.FRONTEND, fes.nspService); err != nil {
+						if err := announceFrontend(nsp.FRONTEND, fes.nspService); err != nil {
 							logrus.Infof("FrontEndService: failed to announce frontend connectivity (err: %v)", err)
-						} */
+						}
 						fes.announceVIP()
 					}
 				}
