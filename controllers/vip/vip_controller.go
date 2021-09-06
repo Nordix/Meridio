@@ -19,7 +19,6 @@ package vip
 import (
 	"context"
 	"fmt"
-	"net"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -146,33 +145,6 @@ func setVipStatus(vip *meridiov1alpha1.Vip, status meridiov1alpha1.ConfigStatus,
 	vip.Status.Status = status
 	vip.Status.Message = msg
 	return vip
-}
-
-func vipsOverlap(allVips map[string]*net.IPNet, vaddr *net.IPNet, skipName string) error {
-	for vipName, addr := range allVips {
-		if vipName != skipName {
-			if cidrsOverlap(addr, vaddr) {
-				return fmt.Errorf("vip %s overlapping", vipName)
-			}
-		}
-	}
-	return nil
-}
-
-func cidrsOverlap(a, b *net.IPNet) bool {
-	return cidrContainsCIDR(a, b) || cidrContainsCIDR(b, a)
-}
-
-func cidrContainsCIDR(outer, inner *net.IPNet) bool {
-	ol, _ := outer.Mask.Size()
-	il, _ := inner.Mask.Size()
-	if ol == il && outer.IP.Equal(inner.IP) {
-		return true
-	}
-	if ol < il && outer.Contains(inner.IP) {
-		return true
-	}
-	return false
 }
 
 func getVipActions(e *common.Executor, new, old *meridiov1alpha1.Vip) []common.Action {
