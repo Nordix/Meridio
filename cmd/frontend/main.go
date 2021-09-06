@@ -44,6 +44,7 @@ type Config struct {
 	LogBird           bool     `default:"false" desc:"Add important bird log snippets to our log" split_words:"true"`
 	Namespace         string   `default:"default" desc:"Namespace the pod is running on" split_words:"true"`
 	ConfigMapName     string   `default:"meridio-configuration" desc:"Name of the ConfigMap containing the configuration" split_words:"true"`
+	NSPService        string   `default:"nsp-service-trench-a:7778" desc:"IP (or domain) and port of the NSP Service" split_words:"true"`
 }
 
 func main() {
@@ -72,14 +73,14 @@ func main() {
 	fe := NewFrontEndService(config)
 	defer fe.CleanUp()
 
-	if err := fe.AddVIPRules(); err != nil {
+	/* if err := fe.AddVIPRules(); err != nil {
 		cancel()
 		logrus.Fatalf("Failed to setup src routes for VIPs: %v", err)
-	}
+	} */
 
-	if err := fe.WriteConfig(); err != nil {
+	if err := fe.Init(); err != nil {
 		cancel()
-		logrus.Fatalf("Failed to generate config: %v", err)
+		logrus.Fatalf("Init failed: %v", err)
 	}
 
 	feErrCh := fe.Start(ctx)

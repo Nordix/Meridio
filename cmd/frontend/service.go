@@ -20,7 +20,6 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"net"
 	"os"
 	"os/exec"
 	"regexp"
@@ -36,13 +35,40 @@ import (
 	"github.com/nordix/meridio-operator/controllers/config"
 )
 
+const (
+	IPv4Up       = uint64(1 << iota)           // FE has IPv4 external connectivity
+	IPv6Up                                     // FE has IPv6 external connectivity
+	NoIPv4Config                               // No IPv4 Gateways configured
+	NoIPv6Config                               // No IPv6 Gateways configured
+	AnyGWDown                                  // Not all configured gateways are available
+	Up           = IPv4Up | IPv6Up             // FE has IPv4 and IPv6 external connectivity
+	NoConfig     = NoIPv4Config | NoIPv6Config // No Gateways configured at all
+)
+
+type connectivityStatus struct {
+	status uint64
+	log    string
+}
+
+func (cs *connectivityStatus) noConnectivity() bool {
+	return cs.status&NoConfig != 0 || (cs.status&NoIPv4Config == 0 && cs.status&IPv4Up == 0) || (cs.status&NoIPv6Config == 0 && cs.status&IPv6Up == 0)
+}
+
+func (cs *connectivityStatus) anyGatewayDown() bool {
+	return cs.status&AnyGWDown != 0
+}
+
 // FrontEndService -
 func NewFrontEndService(c *Config) *FrontEndService {
 	logrus.Infof("NewFrontEndService")
 
 	frontEndService := &FrontEndService{
-		vips:          []string{},
-		gateways:      &config.GatewayConfig{},
+		vips:     []string{},
+		gateways: &config.GatewayConfig{},
+		gatewayNamesByFamily: map[string]map[string]struct{}{
+			"ipv4": {},
+			"ipv6": {},
+		},
 		vrrps:         c.VRRPs,
 		birdConfPath:  c.BirdConfigPath,
 		birdConfFile:  c.BirdConfigPath + "/bird-fe-meridio.conf",
@@ -58,6 +84,8 @@ func NewFrontEndService(c *Config) *FrontEndService {
 		dropIfNoPeer:  c.DropIfNoPeer,
 		logBird:       c.LogBird,
 		reconfCh:      make(chan struct{}),
+		nspService:    c.NSPService,
+		advertiseVIP:  false,
 	}
 
 	if len(frontEndService.vrrps) > 0 {
@@ -70,23 +98,28 @@ func NewFrontEndService(c *Config) *FrontEndService {
 
 // FrontEndService -
 type FrontEndService struct {
-	vips          []string
-	gateways      *config.GatewayConfig
-	vrrps         []string
-	birdConfPath  string
-	birdConfFile  string
-	kernelTableId int
-	extInterface  string
-	localASN      string
-	remoteASN     string
-	localPortBGP  string
-	remotePortBGP string
-	holdTimeBGP   string
-	ecmp          bool
-	bfd           bool
-	dropIfNoPeer  bool
-	logBird       bool
-	reconfCh      chan struct{}
+	vips                 []string
+	gateways             *config.GatewayConfig
+	gatewayNamesByFamily map[string]map[string]struct{}
+	gwMu                 sync.Mutex
+	cfgMu                sync.Mutex
+	vrrps                []string
+	birdConfPath         string
+	birdConfFile         string
+	kernelTableId        int
+	extInterface         string
+	localASN             string
+	remoteASN            string
+	localPortBGP         string
+	remotePortBGP        string
+	holdTimeBGP          string
+	ecmp                 bool
+	bfd                  bool
+	dropIfNoPeer         bool
+	logBird              bool
+	reconfCh             chan struct{}
+	nspService           string
+	advertiseVIP         bool
 }
 
 // CleanUp -
@@ -96,6 +129,12 @@ func (fes *FrontEndService) CleanUp() {
 
 	close(fes.reconfCh)
 	_ = fes.RemoveVIPRules()
+}
+
+func (fes *FrontEndService) Init() error {
+	logrus.Infof("FrontEndService: Init")
+
+	return fes.writeConfig()
 }
 
 // Start -
@@ -128,12 +167,23 @@ func (fes *FrontEndService) SetNewConfig(c interface{}) error {
 	configChange := false
 	logrus.Infof("SetNewConfig")
 
+	fes.cfgMu.Lock()
+	defer fes.cfgMu.Unlock()
+
 	switch c := c.(type) {
 	case *configuration.OperatorConfig:
 		if err := fes.setVIPs(c.VIPs, &configChange); err != nil {
 			return err
 		}
-
+		// TODO: it could make sense to increase the bird monitor interval,
+		// or to start some timer etc. that while not expired would make
+		// the BIRD monitoring results to be ignored -> it would allow on
+		// the fly added gateways to connect without the risk of disturbing
+		// the "general availability" of the particular FE (the other option
+		// is to be strict, and upon a new gateway for a new ipfamily denounce
+		// FE availablity)
+		// XXX: should we even bother? The NSM mesh between proxies and lbs
+		// is either ipv4,ipv6 or dualstack.
 		if err := fes.setGateways(c.GWs, &configChange); err != nil {
 			return err
 		}
@@ -142,20 +192,21 @@ func (fes *FrontEndService) SetNewConfig(c interface{}) error {
 	}
 
 	if configChange {
-		if err := fes.WriteConfig(); err != nil {
-			logrus.Fatalf("SetNewConfig: Failed to generate config: %v", err)
-			return err
-		}
-		// send signal to reconfiguration agent to apply the new config
-		logrus.Debugf("SetNewConfig: Singnal config change")
-		fes.reconfCh <- struct{}{}
+		return fes.promoteConfigNoLock()
 	}
+
 	return nil
 }
 
 // Monitor -
 // Check bgp prorocols' status by periodically querying birdc.
-// Log changes in availablity/connectivity.
+// - Log changes in availablity/connectivity.
+// - Reflect external connectivity through NSP to be used by LBs
+// to steer outbound traffic.
+// - Withdraw VIPs in case FE is considered down, in order to not
+// attract traffic through possible available links if any. More like
+// VIPs must be added to BIRD only if the frontend is considered up.
+// (Note: IPv4/IPv6 backplane not separated).
 func (fes *FrontEndService) Monitor(ctx context.Context) error {
 	lp, err := exec.LookPath("birdc")
 	if err != nil {
@@ -167,7 +218,8 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 	go func() {
 		var once sync.Once
 		//defer close(linkCh)
-		extConnOK, init := true, true
+		extConnsOK, init := true, true
+		noConnectivity := true // status of external connectivity; requires 1 GW per IP family if configured to be reachable
 		for {
 			select {
 			case <-ctx.Done():
@@ -186,65 +238,124 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 				//Note: if birdc is not yet running, no need to bail out
 				//linkCh <- "Failed to fetch protocol status"
 			} else if strings.Contains(stringOut, "No protocols match") {
-				if extConnOK {
-					extConnOK = false
+				if extConnsOK {
+					/* _ = denounceFrontend(nsp.FRONTEND, fes.nspService) */
+					extConnsOK = false
 					logrus.Warnf("Monitor: %v", stringOut)
 					//linkCh <- "No protocols match"
 				}
 			} else {
-				// TODO: In case the list of gateways changes on the fly, it would be
-				// beneficial to only consider the state of BIRD proto sessions belonging
-				// to valid gayeways.
-				// I think removed protos not yet shutdown can still appear in the printout.
-				// So either it check the names against the current set of gateways (might
-				// require some locking), or see if BIRD unambigously can indicate that a
-				// proto instance was ordered for removal (maybe through State or Info).
-				// For now, I just assume that protocol shutdown finishes before the next
-				// monitor check...
-				scanner := bufio.NewScanner(strings.NewReader(stringOut))
-				scanOK := true
-				scanDetails := ""
-				reBGP := regexp.MustCompile(`NBR-`)
-				reBIRD := regexp.MustCompile(`BIRD|Name\s+Proto`)
-				for scanner.Scan() {
-					if ok := reBGP.MatchString(scanner.Text()); ok {
-						scanDetails += scanner.Text()
-						if !strings.Contains(scanner.Text(), "Established") {
-							scanOK = false
-						}
-					} else if strings.Contains(scanner.Text(), `Neighbor address`) {
-						scanDetails += scanner.Text() + "\n"
-					} else if ok := reBIRD.MatchString(scanner.Text()); ok {
-						scanDetails += scanner.Text() + "\n"
+				status := fes.parseStatusOutput(stringOut)
+				//logrus.Debugf("Monitor: status %v", status.status)
+
+				// Gateway availibility notifications
+
+				// TODO: maybe move logic to separate function
+				if status.noConnectivity() {
+					// although configured at least one IP family has no connectivity
+					// Note: deanounce FE even if just started (init); container might have
+					// crashed
+					if !noConnectivity || init {
+						noConnectivity = true
+						/* if err := denounceFrontend(nsp.FRONTEND, fes.nspService); err != nil {
+							logrus.Infof("FrontEndService: failed to denounce frontend connectivity (err: %v)", err)
+						} */
+						fes.denounceVIP()
+					}
+				} else {
+					if noConnectivity {
+						noConnectivity = false
+						/* if err := announceFrontend(nsp.FRONTEND, fes.nspService); err != nil {
+							logrus.Infof("FrontEndService: failed to announce frontend connectivity (err: %v)", err)
+						} */
+						fes.announceVIP()
 					}
 				}
 
-				if extConnOK && !scanOK {
-					extConnOK = false
+				// Logging
+
+				if extConnsOK && status.anyGatewayDown() {
+					extConnsOK = false
 					if !init {
-						logrus.Warnf("Monitor: %v", scanDetails)
+						logrus.Warnf("Monitor: (status=%v) %v", status.status, status.log)
 					}
-				} else if !scanOK {
-					// Keep printing protocol information until link is down
-					extConnOK = false
+				} else if status.anyGatewayDown() {
+					extConnsOK = false
 					if !init {
-						logrus.Debugf("Monitor: %v", scanDetails)
+						logrus.Debugf("Monitor: (status=%v) %v", status.status, status.log)
 					}
-				} else if !extConnOK && scanOK {
-					extConnOK = true
+				} else if !extConnsOK && !status.anyGatewayDown() {
+					extConnsOK = true
 					if !init {
-						logrus.Infof("Monitor: %v", scanDetails)
+						logrus.Infof("Monitor: (status=%v) %v", status.status, status.log)
 					}
 				}
 				// TODO: ugly
 				once.Do(func() {
-					logrus.Infof("Monitor: %v", scanDetails)
+					logrus.Infof("Monitor: (status=%v) %v", status.status, status.log)
 					init = false
 				})
 			}
 		}
 	}()
 	return nil
+}
+
+// parseStatusOutput -
+// Parse birdc status output to determine external connectivity.
+// Consider only BIRD proto sessions belonging to valid gayeways.
+// Note: External connectivity is not yet separated for IPv4 and IPv6.
+// The frontend is considered down, if it has no established gateways at
+// all, or there are no established gateways for an IP family although
+// it has gateways configured.
+func (fes *FrontEndService) parseStatusOutput(output string) *connectivityStatus {
+	cs := &connectivityStatus{}
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	reBGP := regexp.MustCompile(`NBR-`)
+	reBIRD := regexp.MustCompile(`BIRD|Name\s+Proto`)
+
+	fes.gwMu.Lock()
+	defer fes.gwMu.Unlock()
+
+	if len(fes.gatewayNamesByFamily["ipv4"]) == 0 {
+		cs.status |= NoIPv4Config
+	}
+	if len(fes.gatewayNamesByFamily["ipv6"]) == 0 {
+		cs.status |= NoIPv6Config
+	}
+
+	for scanner.Scan() {
+		if ok := reBGP.MatchString(scanner.Text()); ok {
+			cs.log += scanner.Text()
+			// get name of the session, and check if belongs to a configured gateway
+			if fields := strings.Fields(scanner.Text()); len(fields) > 0 {
+				sgw := fields[0]
+
+				if !strings.Contains(scanner.Text(), "Established") {
+					if ok := fes.checkGatewayByName(sgw, ""); ok {
+						// configured session not Established; mark it (used by logging)
+						cs.status |= AnyGWDown
+					}
+				} else {
+					if cs.status&Up != Up {
+						if fes.checkGatewayByName(sgw, "ipv4") {
+							// at least 1 configured ipv4 gw up
+							cs.status |= IPv4Up
+						} else if fes.checkGatewayByName(sgw, "ipv6") {
+							// at least 1 configured ipv6 gw up
+							cs.status |= IPv6Up
+						}
+					}
+				}
+			}
+		} else if strings.Contains(scanner.Text(), `Neighbor address`) {
+			cs.log += scanner.Text() + "\n"
+		} else if ok := reBIRD.MatchString(scanner.Text()); ok {
+			cs.log += scanner.Text() + "\n"
+		}
+	}
+
+	return cs
 }
 
 // VerifyConfig -
@@ -274,12 +385,35 @@ func (fes *FrontEndService) VerifyConfig(ctx context.Context) error {
 	}
 }
 
-// WriteConfig -
+//-------------------------------------------------------------------------------------------
+
+// promoteConfig -
+// Write BIRD config and initiate BIRD reconfiguration
+func (fes *FrontEndService) promoteConfig() error {
+	fes.cfgMu.Lock()
+	defer fes.cfgMu.Unlock()
+
+	return fes.promoteConfigNoLock()
+}
+
+// promoteConfigNoLock -
+func (fes *FrontEndService) promoteConfigNoLock() error {
+	if err := fes.writeConfig(); err != nil {
+		logrus.Fatalf("promoteConfig: Failed to generate config: %v", err)
+		return err
+	}
+	// send signal to reconfiguration agent to apply the new config
+	logrus.Debugf("promoteConfig: Singnal config change")
+	fes.reconfCh <- struct{}{}
+	return nil
+}
+
+// writeConfig -
 // Create BIRD config file
 //
 // Can be used both for the initial config and for later changes as well. (BIRD can
 // reconfigure itself based on loading the new config file - refer to reconfigurationAgent())
-func (fes *FrontEndService) WriteConfig() error {
+func (fes *FrontEndService) writeConfig() error {
 	file, err := os.Create(fes.birdConfFile)
 	if err != nil {
 		logrus.Errorf("FrontEndService: failed to create %v, err: %v", fes.birdConfFile, err)
@@ -290,15 +424,15 @@ func (fes *FrontEndService) WriteConfig() error {
 	//conf := "include \"bird-common.conf\";\n"
 	//conf += "\n"
 	conf := ""
-	fes.WriteConfigBase(&conf)
-	hasVIP4, hasVIP6 := fes.WriteConfigVips(&conf)
+	fes.writeConfigBase(&conf)
+	hasVIP4, hasVIP6 := fes.writeConfigVips(&conf)
 	if len(fes.vrrps) > 0 {
-		fes.WriteConfigVRRPs(&conf, hasVIP4, hasVIP6)
+		fes.writeConfigVRRPs(&conf, hasVIP4, hasVIP6)
 	} else if fes.dropIfNoPeer {
-		fes.WriteConfigDropIfNoPeer(&conf, hasVIP4, hasVIP6)
+		fes.writeConfigDropIfNoPeer(&conf, hasVIP4, hasVIP6)
 	}
-	fes.WriteConfigKernel(&conf, hasVIP4, hasVIP6)
-	fes.WriteConfigGW(&conf)
+	fes.writeConfigKernel(&conf, hasVIP4, hasVIP6)
+	fes.writeConfigGW(&conf)
 
 	logrus.Infof("FrontEndService: BIRD config generated")
 	logrus.Debugf("\n%v", conf)
@@ -310,9 +444,9 @@ func (fes *FrontEndService) WriteConfig() error {
 	return err
 }
 
-// WriteConfigBase -
+// writeConfigBase -
 // Common part of BIRD config
-func (fes *FrontEndService) WriteConfigBase(conf *string) {
+func (fes *FrontEndService) writeConfigBase(conf *string) {
 	*conf += "log syslog all;\n"
 	*conf += "log \"/var/log/bird.log\" { debug, trace, info, remote, warning, error, auth, fatal, bug };\n"
 	if fes.logBird {
@@ -391,7 +525,7 @@ func (fes *FrontEndService) WriteConfigBase(conf *string) {
 	*conf += "\n"
 }
 
-// WriteConfigGW -
+// writeConfigGW -
 // Create BGP proto part of the BIRD config for each gateway to connect with them
 //
 // BGP is restricted to the external interface.
@@ -400,13 +534,20 @@ func (fes *FrontEndService) WriteConfigBase(conf *string) {
 // Note: When VRRP IPs are configured, BGP sessions won't import any routes from external
 // peers, as external routes are going to be taken care of by static default routes (VRRP IPs
 // as next hops).
-func (fes *FrontEndService) WriteConfigGW(conf *string) {
+func (fes *FrontEndService) writeConfigGW(conf *string) {
+	fes.gwMu.Lock()
+	defer fes.gwMu.Unlock()
+	fes.gatewayNamesByFamily["ipv4"] = map[string]struct{}{}
+	fes.gatewayNamesByFamily["ipv6"] = map[string]struct{}{}
+
 	for _, gw := range fes.gateways.Gateways {
 		if isIPv6(gw.Address) || isIPv4(gw.Address) {
 			// TODO: const
 			if gw.Protocol == "bgp" {
 				ipv := ""
 				if isIPv4(gw.Address) {
+					fes.gatewayNamesByFamily["ipv4"]["NBR-"+gw.Name] = struct{}{}
+
 					ipv += "\tipv4 {\n"
 					if len(fes.vrrps) > 0 {
 						ipv += "\t\timport none;\n"
@@ -416,6 +557,8 @@ func (fes *FrontEndService) WriteConfigGW(conf *string) {
 					ipv += "\t\texport filter cluster_e_static;\n"
 					ipv += "\t};\n"
 				} else if isIPv6(gw.Address) {
+					fes.gatewayNamesByFamily["ipv6"]["NBR-"+gw.Name] = struct{}{}
+
 					ipv = "\tipv6 {\n"
 					if len(fes.vrrps) > 0 {
 						ipv += "\t\timport none;\n"
@@ -464,14 +607,14 @@ func (fes *FrontEndService) WriteConfigGW(conf *string) {
 	}
 }
 
-// WriteConfigKernel -
+// writeConfigKernel -
 // Create kernel proto part of the BIRD config
 //
 // Kernel proto is used to sync default routes learnt from BGP peer into
 // local network stack (to the specified routing table).
 // Note: No need to sync learnt default routes to stack, in case there are
 // no VIPs configured for the particular IP family.
-func (fes *FrontEndService) WriteConfigKernel(conf *string, hasVIP4 bool, hasVIP6 bool) {
+func (fes *FrontEndService) writeConfigKernel(conf *string, hasVIP4 bool, hasVIP6 bool) {
 	eFilter := "none"
 	if hasVIP4 {
 		eFilter = "filter default_v4"
@@ -523,12 +666,14 @@ func (fes *FrontEndService) WriteConfigKernel(conf *string, hasVIP4 bool, hasVIP
 	*conf += "\n"
 }
 
-// WriteConfigVips -
+// writeConfigVips -
 // Create static routes for VIP addresses in BIRD config
 //
 // VIP addresses are configured as static routes in BIRD. They are
 // only advertised to BGP peers and not synced into local network stack.
-func (fes *FrontEndService) WriteConfigVips(conf *string) (hasVIP4, hasVIP6 bool) {
+//
+// Note: VIPs shall be advertised only if external connectivity is OK
+func (fes *FrontEndService) writeConfigVips(conf *string) (hasVIP4, hasVIP6 bool) {
 	v4, v6 := "", ""
 	hasVIP4, hasVIP6 = false, false
 
@@ -546,25 +691,29 @@ func (fes *FrontEndService) WriteConfigVips(conf *string) (hasVIP4, hasVIP6 bool
 
 	if v4 != "" {
 		hasVIP4 = true
-		*conf += "protocol static VIP4 {\n"
-		*conf += "\tipv4 { preference 110; };\n"
-		*conf += v4
-		*conf += "}\n"
-		*conf += "\n"
+		if fes.advertiseVIP {
+			*conf += "protocol static VIP4 {\n"
+			*conf += "\tipv4 { preference 110; };\n"
+			*conf += v4
+			*conf += "}\n"
+			*conf += "\n"
+		}
 	}
 
 	if v6 != "" {
 		hasVIP6 = true
-		*conf += "protocol static VIP6 {\n"
-		*conf += "\tipv6 { preference 110; };\n"
-		*conf += v6
-		*conf += "}\n"
-		*conf += "\n"
+		if fes.advertiseVIP {
+			*conf += "protocol static VIP6 {\n"
+			*conf += "\tipv6 { preference 110; };\n"
+			*conf += v6
+			*conf += "}\n"
+			*conf += "\n"
+		}
 	}
 	return
 }
 
-// WriteConfigDropIfNoPeer -
+// writeConfigDropIfNoPeer -
 // Create static default blackhole routes, that will be synced to the routing table
 // used by VIP src routing rules.
 //
@@ -583,7 +732,7 @@ func (fes *FrontEndService) WriteConfigVips(conf *string) (hasVIP4, hasVIP6 bool
 //              - BIRD fails to remove all the BGP related routes when there's a BIRD
 //                managed blackhole route for the same destination as well
 //		- IPv6: default route with the highest preference gets installed to OS kernel routing table
-func (fes *FrontEndService) WriteConfigDropIfNoPeer(conf *string, hasVIP4 bool, hasVIP6 bool) {
+func (fes *FrontEndService) writeConfigDropIfNoPeer(conf *string, hasVIP4 bool, hasVIP6 bool) {
 	if hasVIP4 {
 		*conf += "protocol static BH4 {\n"
 		*conf += "\tipv4 { preference 0; };\n"
@@ -605,10 +754,10 @@ func (fes *FrontEndService) WriteConfigDropIfNoPeer(conf *string, hasVIP4 bool, 
 	}
 }
 
-// WriteConfigVRRPs -
+// writeConfigVRRPs -
 // BIRD managed default static routes substituting other routing protocol related
 // external routes.
-func (fes *FrontEndService) WriteConfigVRRPs(conf *string, hasVIP4, hasVIP6 bool) {
+func (fes *FrontEndService) writeConfigVRRPs(conf *string, hasVIP4, hasVIP6 bool) {
 	for _, ip := range fes.vrrps {
 		if isIPv6(ip) || isIPv4(ip) {
 			*conf += "protocol static {\n"
@@ -774,6 +923,8 @@ func (fes *FrontEndService) reconfigure(ctx context.Context, path string) error 
 	}
 }
 
+//-------------------------------------------------------------------------------------------
+
 // setVIPs -
 // Adjust config to changes affecting VIP addresses
 func (fes *FrontEndService) setVIPs(vips interface{}, change *bool) error {
@@ -863,56 +1014,65 @@ func (fes *FrontEndService) setVIPRules(vipsAdded, vipsRemoved []string) error {
 	return nil
 }
 
-// ------------------------------------------------------------------------------------------
-
-func isIPv4(ip string) bool {
-	return strings.Count(ip, ":") == 0
-}
-
-func isIPv6(ip string) bool {
-	return strings.Count(ip, ":") >= 2
-}
-
-func strToIPNet(in string) *net.IPNet {
-	if in == "" {
-		return nil
-	}
-	ip, ipNet, err := net.ParseCIDR(in)
-	if err != nil {
-		return nil
-	}
-	ipNet.IP = ip
-	return ipNet
-}
-
-// compare two lists
-// return values: (b - a), (a - b)
-func difference(a, b []string) ([]string, []string) {
-	m := make(map[string]bool)
-	uniqueB := []string{}
-	uniqueA := []string{}
-
-	for _, item := range b {
-		// items in b
-		m[item] = true
-	}
-
-	for _, item := range a {
-		if _, ok := m[item]; !ok {
-			//  not in b
-			uniqueA = append(uniqueA, item)
-		} else {
-			// both in a and b; mark that it's not unique to b
-			m[item] = false
+func (fes *FrontEndService) checkGatewayByName(name, ipfamily string) bool {
+	switch ipfamily {
+	case "ipv4":
+		_, ok := fes.gatewayNamesByFamily["ipv4"][name]
+		return ok
+	case "ipv6":
+		_, ok := fes.gatewayNamesByFamily["ipv6"][name]
+		return ok
+	case "":
+		if _, ok := fes.gatewayNamesByFamily["ipv4"][name]; ok {
+			return true
+		} else if _, ok := fes.gatewayNamesByFamily["ipv6"][name]; ok {
+			return true
 		}
+	default:
+		logrus.Infof("checkGatewayByName: unsupported ipfamily: %v (name: %v)", ipfamily, name)
+		return false
 	}
 
-	// check items unique to b
-	for k, v := range m {
-		if v {
-			uniqueB = append(uniqueB, k)
+	return false
+}
+
+//-------------------------------------------------------------------------------------------
+
+// TODO: what to do once Static+BFD gets introduced? Probably do nothing...
+
+func (fes *FrontEndService) announceVIP() {
+	logrus.Infof("FrontEndService: Announce VIPs")
+	fes.cfgMu.Lock()
+	fes.advertiseVIP = true
+	fes.cfgMu.Unlock()
+
+	go func() {
+		if err := fes.promoteConfig(); err != nil {
+			logrus.Warnf("FrontEndService: err AnnounceVIPs: %v", err)
 		}
+	}()
+}
+
+func (fes *FrontEndService) denounceVIP() {
+	logrus.Infof("FrontEndService: Denounce VIPs")
+
+	if !func() bool {
+		fes.cfgMu.Lock()
+		defer fes.cfgMu.Unlock()
+		advertised := fes.advertiseVIP
+		if advertised {
+			fes.advertiseVIP = false
+		}
+		return advertised
+	}() {
+		// no need to rewrite config, VIPs not advertised in old config
+		logrus.Debugf("Denounce VIPs: VIPs were not advertised")
+		return
 	}
 
-	return uniqueB, uniqueA
+	go func() {
+		if err := fes.promoteConfig(); err != nil {
+			logrus.Warnf("FrontEndService: err DenounceVIPs: %v", err)
+		}
+	}()
 }
