@@ -21,10 +21,21 @@ import (
 	"sync"
 
 	nspAPI "github.com/nordix/meridio/api/nsp"
+	"github.com/sirupsen/logrus"
+)
+
+const (
+	FRONTEND string = "frontends"
+	DEFAULT  string = "meridio-target"
+)
+
+const (
+	IDENTIFIER string = "identifier"
+	TARGETTYPE string = "target-type"
 )
 
 type targetList struct {
-	targets []*target
+	targets map[string][]*target
 	mu      sync.Mutex
 }
 
@@ -61,16 +72,24 @@ func (tl *targetList) Exists(nspAPITarget *nspAPI.Target) bool {
 }
 
 func (tl *targetList) exists(tar *target) bool {
-	for _, t := range tl.targets {
-		if t.Equals(tar) {
-			return true
+	if tarType, ok := tar.GetContext()[TARGETTYPE]; ok {
+		if targets, ok := tl.targets[tarType]; ok {
+			for _, t := range targets {
+				if t.Equals(tar) {
+					return true
+				}
+			}
 		}
 	}
 	return false
 }
 
 func (tl *targetList) getIndex(tar *target) int {
-	for index, t := range tl.targets {
+	targets := []*target{}
+	if tarType, ok := tar.GetContext()[TARGETTYPE]; ok {
+		targets = tl.targets[tarType]
+	}
+	for index, t := range targets {
 		if t.Equals(tar) {
 			return index
 		}
@@ -78,8 +97,10 @@ func (tl *targetList) getIndex(tar *target) int {
 	return -1
 }
 
-func (tl *targetList) removeIndex(index int) {
-	tl.targets = append(tl.targets[:index], tl.targets[index+1:]...)
+func (tl *targetList) removeIndex(index int, targetType string) {
+	if targets, ok := tl.targets[targetType]; ok {
+		tl.targets[targetType] = append(targets[:index], targets[index+1:]...)
+	}
 }
 
 func (tl *targetList) Add(nspAPITarget *nspAPI.Target) error {
@@ -89,9 +110,14 @@ func (tl *targetList) Add(nspAPITarget *nspAPI.Target) error {
 		nspAPITarget,
 	}
 	if tl.exists(nt) {
+		logrus.Debugf("targetList: target exists: %v", nt)
 		return errors.New("target already exists")
 	}
-	tl.targets = append(tl.targets, nt)
+
+	if tarType, ok := nt.GetContext()[TARGETTYPE]; ok {
+		logrus.Debugf("targetList: Add target %v", nt)
+		tl.targets[tarType] = append(tl.targets[tarType], nt)
+	}
 	return nil
 }
 
@@ -105,16 +131,25 @@ func (tl *targetList) Remove(nspAPITarget *nspAPI.Target) (*nspAPI.Target, error
 	if index < 0 {
 		return nil, errors.New("target is not existing")
 	}
-	target := tl.targets[index]
-	tl.removeIndex(index)
+	var target *target
+	if tarType, ok := nt.GetContext()[TARGETTYPE]; ok {
+		logrus.Debugf("targetList: Remove target %v", nt)
+		target = tl.targets[tarType][index]
+		tl.removeIndex(index, tarType)
+
+		if len(tl.targets[tarType]) == 0 {
+			// no more targets for type, remove from map
+			delete(tl.targets, tarType)
+		}
+	}
 	return target.Target, nil
 }
 
-func (tl *targetList) Get() []*nspAPI.Target {
+func (tl *targetList) Get(targetType string) []*nspAPI.Target {
 	tl.mu.Lock()
 	defer tl.mu.Unlock()
 	targets := []*nspAPI.Target{}
-	for _, t := range tl.targets {
+	for _, t := range tl.targets[targetType] {
 		targets = append(targets, t.Target)
 	}
 	return targets

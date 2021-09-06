@@ -23,8 +23,12 @@ import "google/protobuf/empty.proto";
 service NetworkServicePlateformService {
     rpc Register(Target) returns (google.protobuf.Empty) {}
     rpc Unregister(Target) returns (google.protobuf.Empty) {}
-    rpc Monitor(google.protobuf.Empty) returns (stream Target) {}
-    rpc GetTargets(google.protobuf.Empty) returns (GetTargetsResponse) {}
+    rpc Monitor(TargetType) returns (stream Target) {}
+    rpc GetTargets(TargetType) returns (GetTargetsResponse) {}
+    //rpc Monitor(google.protobuf.Empty) returns (stream Target) {}
+    //rpc MonitorType(TargetType) returns (stream Target) {}
+    //rpc GetTargets(google.protobuf.Empty) returns (GetTargetsResponse) {}
+    //rpc GetTypedTargets(TargetType) returns (GetTargetsResponse) {}
 }
 
 message GetTargetsResponse {
@@ -35,6 +39,10 @@ message Target {
     repeated string ips = 1;
     map<string, string> context = 2;
     Status status = 3;
+}
+
+message TargetType {
+    string type = 1;
 }
 
 enum Status {

@@ -19,7 +19,6 @@ package nsp
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	nspAPI "github.com/nordix/meridio/api/nsp"
 	"google.golang.org/grpc"
 )
@@ -30,6 +29,9 @@ type NetworkServicePlateformClient struct {
 }
 
 func (nspc *NetworkServicePlateformClient) Register(ips []string, targetContext map[string]string) error {
+	if _, ok := targetContext[TARGETTYPE]; !ok {
+		targetContext[TARGETTYPE] = DEFAULT
+	}
 	target := &nspAPI.Target{
 		Ips:     ips,
 		Context: targetContext,
@@ -41,17 +43,56 @@ func (nspc *NetworkServicePlateformClient) Register(ips []string, targetContext 
 func (nspc *NetworkServicePlateformClient) Unregister(ips []string) error {
 	target := &nspAPI.Target{
 		Ips: ips,
+		Context: map[string]string{
+			TARGETTYPE: DEFAULT,
+		},
+	}
+	_, err := nspc.networkServicePlateformClient.Unregister(context.Background(), target)
+	return err
+}
+
+func (nspc *NetworkServicePlateformClient) UnregisterWithContext(ips []string, targetContext map[string]string) error {
+	if _, ok := targetContext[TARGETTYPE]; !ok {
+		targetContext[TARGETTYPE] = DEFAULT
+	}
+	target := &nspAPI.Target{
+		Ips:     ips,
+		Context: targetContext,
 	}
 	_, err := nspc.networkServicePlateformClient.Unregister(context.Background(), target)
 	return err
 }
 
 func (nspc *NetworkServicePlateformClient) Monitor() (nspAPI.NetworkServicePlateformService_MonitorClient, error) {
-	return nspc.networkServicePlateformClient.Monitor(context.Background(), &empty.Empty{})
+	targetType := &nspAPI.TargetType{
+		Type: DEFAULT,
+	}
+	return nspc.networkServicePlateformClient.Monitor(context.Background(), targetType)
+}
+
+func (nspc *NetworkServicePlateformClient) MonitorType(t string) (nspAPI.NetworkServicePlateformService_MonitorClient, error) {
+	targetType := &nspAPI.TargetType{
+		Type: t,
+	}
+	return nspc.networkServicePlateformClient.Monitor(context.Background(), targetType)
 }
 
 func (nspc *NetworkServicePlateformClient) GetTargets() ([]*nspAPI.Target, error) {
-	GetTargetsResponse, err := nspc.networkServicePlateformClient.GetTargets(context.Background(), &empty.Empty{})
+	targetType := &nspAPI.TargetType{
+		Type: DEFAULT,
+	}
+	GetTargetsResponse, err := nspc.networkServicePlateformClient.GetTargets(context.Background(), targetType)
+	if err != nil {
+		return nil, err
+	}
+	return GetTargetsResponse.Targets, nil
+}
+
+func (nspc *NetworkServicePlateformClient) GetTypedTargets(t string) ([]*nspAPI.Target, error) {
+	targetType := &nspAPI.TargetType{
+		Type: t,
+	}
+	GetTargetsResponse, err := nspc.networkServicePlateformClient.GetTargets(context.Background(), targetType)
 	if err != nil {
 		return nil, err
 	}
