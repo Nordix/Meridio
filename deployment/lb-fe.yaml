@@ -78,6 +78,7 @@ spec:
               value:  # to be filed by operator
             - name: NSM_NSP_SERVICE
               value:  # Kubernetes default according to image tag
+          volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
               readOnly: true
