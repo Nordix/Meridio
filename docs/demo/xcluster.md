@@ -106,6 +106,8 @@ spec:
   replicas: 2
   vlan-id: 100
   vlan-interface: eth1
+  vlan-ipv4-prefix: 169.254.100.0/24
+  vlan-ipv6-prefix: 100:100::/64
 EOF
 
 # add Gateways
