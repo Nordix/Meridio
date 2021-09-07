@@ -20,6 +20,7 @@ const (
 	lbEnvNsp     = "NSM_NSP_SERVICE"
 	nscEnvNwSvc  = "NSM_NETWORK_SERVICES"
 	feEnvConfig  = "NFE_CONFIG_MAP_NAME"
+	feEnvNsp     = "NFE_NSP_SERVICE"
 )
 
 type LoadBalancer struct {
@@ -105,6 +106,10 @@ func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 		{
 			Name:  feEnvConfig,
 			Value: common.ConfigMapName(l.trench),
+		},
+		{
+			Name:  feEnvNsp,
+			Value: common.NSPServiceWithPort(l.trench),
 		},
 	}
 
