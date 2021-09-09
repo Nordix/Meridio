@@ -41,15 +41,15 @@ type TrenchReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=meridio.nordix.org,resources=trenches,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=meridio.nordix.org,resources=trenches/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=meridio.nordix.org,resources=trenches/finalizers,verbs=update
-//+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=services,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=trenches,verbs=get;list;watch;update;patch
+//+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=trenches/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=trenches/finalizers,verbs=update
+//+kubebuilder:rbac:groups=apps,resources=deployments,namespace=system,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=apps,resources=daemonsets,namespace=system,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=services,namespace=system,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,namespace=system,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,namespace=system,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=core,resources=serviceaccounts,namespace=system,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.

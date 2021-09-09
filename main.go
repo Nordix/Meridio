@@ -68,6 +68,14 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	// Set operator scope to the namespace where the operator pod exists
+	// An empty value means the operator is running with cluster scope
+	namespace := os.Getenv("WATCH_NAMESPACE")
+	if namespace == "" {
+		setupLog.Info("operator is cluster-scoped")
+	} else {
+		setupLog.Info("operator is namespace-scoped", "namespace", namespace)
+	}
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
@@ -75,6 +83,7 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "132659e3.nordix.org",
+		Namespace:              namespace,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

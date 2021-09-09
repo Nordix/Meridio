@@ -39,9 +39,9 @@ type GatewayReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=meridio.nordix.org,resources=gateways,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=meridio.nordix.org,resources=gateways/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=meridio.nordix.org,resources=gateways/finalizers,verbs=update
+//+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=gateways,verbs=get;list;watch;update;patch
+//+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=gateways/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=gateways/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
