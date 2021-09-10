@@ -7,6 +7,9 @@ VERSION_NSP ?= $(VERSION)
 VERSION_CTRAFFIC ?= $(VERSION)
 VERSION_FRONTEND ?= $(VERSION)
 
+E2E_FOCUS ?= ""
+TRAFFIC_GENERATOR_CMD ?= "docker exec -i {trench}"
+
 REGISTRY ?= localhost:5000/meridio
 
 .PHONY: all
@@ -75,9 +78,13 @@ default: load-balancer proxy target ipam nsp ctraffic frontend
 lint: 
 	golangci-lint run ./...
 
+.PHONY: e2e
+e2e: 
+	ginkgo --failFast --focus=$(E2E_FOCUS) ./test/e2e/... -- -traffic-generator-cmd=$(TRAFFIC_GENERATOR_CMD)
+
 .PHONY: test
 test: 
-	go test ./...
+	go test -v ./... -short
 
 .PHONY: check
 check: lint test
