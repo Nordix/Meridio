@@ -40,6 +40,8 @@ const (
       Request a stream
   close [arguments]
       Close a stream
+  watch
+      Watch conduit connection/disconnect events and stream request/close events
 `
 )
 

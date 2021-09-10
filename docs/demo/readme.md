@@ -32,6 +32,11 @@ helm install docs/demo/deployments/nsm-vlan/ --generate-name
 
 ### Meridio
 
+Configure Spire for trenches in namespace red
+```
+./docs/demo/scripts/spire.sh default red
+```
+
 Configure Spire for trench-a
 ```
 ./docs/demo/scripts/spire.sh meridio-trench-a red
@@ -120,7 +125,7 @@ kubectl scale deployment target -n red --replicas=5
 
 Scale-In/Scale-Out load-balancer
 ```
-kubectl scale deployment load-balancer -n red --replicas=1
+kubectl scale deployment load-balancer-trench-a -n red --replicas=1
 ```
 
 ## Ambassador

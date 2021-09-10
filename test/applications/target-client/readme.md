@@ -6,28 +6,6 @@ Ambassador client testing application
 
 Connect to a conduit
 ```
-./target-client connect -ns load-balancer
-```
-
-Disconnect from a conduit
-```
-./target-client disconnect -ns load-balancer
-```
-
-Request a stream
-```
-./target-client request -ns load-balancer
-```
-
-Close a stream
-```
-./target-client close -ns load-balancer
-```
-
-## Specific Trench 
-
-Connect to a conduit
-```
 ./target-client connect -ns load-balancer -t trench-a
 ```
 
@@ -44,4 +22,9 @@ Request a stream
 Close a stream
 ```
 ./target-client close -ns load-balancer -t trench-a
+```
+
+Watch conduit connection/disconnect events and stream request/close events
+```
+./target-client watch
 ```

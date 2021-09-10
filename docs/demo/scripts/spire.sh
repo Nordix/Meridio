@@ -25,6 +25,5 @@ then
    exit 1
 fi
 
-registerWorkload "default" "$2"
 registerWorkload "$1" "$2"
 
