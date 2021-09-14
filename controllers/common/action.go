@@ -119,16 +119,16 @@ func (e *Executor) create(obj client.Object) error {
 	if err != nil {
 		return err
 	}
-	return e.client.Create(e.ctx, obj)
+	// conflicts will happen when there are frequent actions
+	if err = e.client.Create(e.ctx, obj); err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+	return nil
 }
 
 func (e *Executor) update(obj client.Object) error {
-	err := e.client.Update(e.ctx, obj)
-	if err != nil {
-		// conflicts will happen when there are frequent actions
-		if errors.IsConflict(err) {
-			return nil
-		}
+	// conflicts will happen when there are frequent actions
+	if err := e.client.Update(e.ctx, obj); err != nil && !errors.IsConflict(err) {
 		return err
 	}
 	return nil

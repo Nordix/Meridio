@@ -6,7 +6,7 @@ metadata:
     attractor: attr1
   name: vip1
 spec:
-  address: "20.0.0.1/30"
+  address: "20.0.0.0/30"
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Vip
@@ -16,7 +16,7 @@ metadata:
     attractor: attr1
   name: vip2
 spec:
-  address: "10.0.0.1/28"
+  address: "10.0.0.0/28"
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Vip
@@ -26,4 +26,4 @@ metadata:
     attractor: attr2
   name: vip3
 spec:
-  address: "2000::1/126"
+  address: "2000::/126"

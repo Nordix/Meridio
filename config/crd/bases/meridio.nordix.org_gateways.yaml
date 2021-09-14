@@ -79,7 +79,7 @@ spec:
                     format: int32
                     type: integer
                   local-port:
-                    default: false
+                    default: 179
                     description: BGP listening port of the frontend. Default 179
                     type: integer
                   remote-asn:
