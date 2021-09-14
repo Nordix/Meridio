@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	serviceAccountName    = "meridio"
+	SAName                = "meridio"
 	ResourceNamePrefixEnv = "RESOURCE_NAME_PREFIX"
 	ImagePullSecretEnv    = "IMAGE_PULL_SECRET"
 
@@ -24,72 +24,72 @@ const (
 	BusyboxImage = "busybox"
 	BusyboxTag   = "1.29"
 
-	subnetPoolIpv4   = "172.16.0.0/16"
-	subnetPoolIpv6   = "fd00::/48"
-	prefixLengthIpv4 = "24"
-	prefixLengthIpv6 = "64"
+	SubnetPoolIpv4   = "172.16.0.0/16"
+	SubnetPoolIpv6   = "fd00::/48"
+	PrefixLengthIpv4 = "24"
+	PrefixLengthIpv6 = "64"
 
 	NspPort        = 7778
 	NspTargetPort  = 7778
-	ipamPort       = 7777
-	ipamTargetPort = 7777
+	IpamPort       = 7777
+	IpamTargetPort = 7777
 
-	ipamSvcName = "ipam-service"
-	nspSvcName  = "nsp-service"
-	lbName      = "lb-fe"
-	proxyName   = "proxy"
-	ipamName    = "ipam"
-	nseName     = "nse-vlan"
-	nspName     = "nsp"
-	roleName    = "meridio-configuration-role"
-	rbName      = "meridio-configuration-role-binding"
-	cmName      = "meridio-configuration"
+	IpamSvcName = "ipam-service"
+	NspSvcName  = "nsp-service"
+	LBName      = "lb-fe"
+	ProxyName   = "proxy"
+	IpamName    = "ipam"
+	NseName     = "nse-vlan"
+	NspName     = "nsp"
+	RlName      = "meridio-configuration-role"
+	RBName      = "meridio-configuration-role-binding"
+	CMName      = "meridio-configuration"
 
-	networkServiceName = "external-vlan"
+	NetworkServiceName = "external-vlan"
 )
 
 func ServiceAccountName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(serviceAccountName, trench)
+	return getTrenchSuffixedName(SAName, trench)
 }
 
 func IPAMServiceName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(ipamSvcName, trench)
+	return getTrenchSuffixedName(IpamSvcName, trench)
 }
 
 func NSPServiceName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(nspSvcName, trench)
+	return getTrenchSuffixedName(NspSvcName, trench)
 }
 
 func LoadBalancerDeploymentName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(lbName, trench)
+	return getTrenchSuffixedName(LBName, trench)
 }
 
 func ProxyDeploymentName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(proxyName, trench)
+	return getTrenchSuffixedName(ProxyName, trench)
 }
 
 func IPAMDeploymentName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(ipamName, trench)
+	return getTrenchSuffixedName(IpamName, trench)
 }
 
 func NSEDeploymentName(attractor *meridiov1alpha1.Attractor) string {
-	return getAttractorSuffixedName(nseName, attractor)
+	return getAttractorSuffixedName(NseName, attractor)
 }
 
 func NSPDeploymentName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(nspName, trench)
+	return getTrenchSuffixedName(NspName, trench)
 }
 
 func RoleName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(roleName, trench)
+	return getTrenchSuffixedName(RlName, trench)
 }
 
 func RoleBindingName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(rbName, trench)
+	return getTrenchSuffixedName(RBName, trench)
 }
 
 func ConfigMapName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(cmName, trench)
+	return getTrenchSuffixedName(CMName, trench)
 }
 
 func NSPServiceWithPort(cr *meridiov1alpha1.Trench) string {
@@ -97,7 +97,7 @@ func NSPServiceWithPort(cr *meridiov1alpha1.Trench) string {
 }
 
 func IPAMServiceWithPort(cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s:%d", IPAMServiceName(cr), ipamTargetPort)
+	return fmt.Sprintf("%s:%d", IPAMServiceName(cr), IpamTargetPort)
 }
 
 func getTrenchSuffixedName(resourceName string, cr *meridiov1alpha1.Trench) string {
@@ -109,16 +109,16 @@ func getAttractorSuffixedName(resourceName string, cr *meridiov1alpha1.Attractor
 }
 
 func ProxyNtwkSvcNsName(cr *meridiov1alpha1.Trench) string {
-	return strings.Join([]string{proxyName, lbName, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace}, ".")
+	return strings.Join([]string{ProxyName, LBName, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace}, ".")
 }
 
 // alpha release: lb-fe instance is affiliated to a trench
 func LoadBalancerNsName(cr *meridiov1alpha1.Trench) string {
-	return strings.Join([]string{lbName, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace}, ".")
+	return strings.Join([]string{LBName, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace}, ".")
 }
 
 func VlanNtwkSvcName(attr *meridiov1alpha1.Attractor) string {
-	return strings.Join([]string{networkServiceName, attr.ObjectMeta.Namespace}, ".")
+	return strings.Join([]string{NetworkServiceName, attr.ObjectMeta.Namespace}, ".")
 }
 
 func getResourceNamePrefix() string {
