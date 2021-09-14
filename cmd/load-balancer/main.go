@@ -260,7 +260,7 @@ func (sns *SimpleNetworkService) recv() {
 }
 
 func (sns *SimpleNetworkService) parseLoadBalancerTarget(target *nspAPI.Target) (*loadbalancer.Target, error) {
-	identifierStr, exists := target.Context[nsp.IDENTIFIER]
+	identifierStr, exists := target.Context[nsp.Identifier.String()]
 	if !exists {
 		logrus.Errorf("SimpleNetworkService: identifier does not exist: %v", target.Context)
 		return nil, errors.New("identifier does not exist")

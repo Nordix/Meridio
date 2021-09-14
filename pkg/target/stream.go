@@ -49,7 +49,7 @@ func (s *Stream) Request() error {
 		return err
 	}
 	targetContext := map[string]string{
-		nsp.IDENTIFIER: strconv.Itoa(s.identifier),
+		nsp.Identifier.String(): strconv.Itoa(s.identifier),
 	}
 	err = nspClient.Register(s.conduit.ips, targetContext)
 	if err != nil {

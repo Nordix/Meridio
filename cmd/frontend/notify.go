@@ -19,6 +19,7 @@ package main
 import (
 	"os"
 
+	nspAPI "github.com/nordix/meridio/api/nsp"
 	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/sirupsen/logrus"
 )
@@ -39,36 +40,34 @@ import (
 // TODO: NSP must be improved to somehow learn if source of a Register event has disappeared (check NSM registry for clue)
 // (maybe introduce timed Register that requires registration)
 // TODO: maybe introduce update target through new context keyword, indicating nsp to replace found item with new one
-func announceFrontend(target, service string) error {
+func announceFrontend(service string) error {
 	nspClient, err := nsp.NewNetworkServicePlateformClient(service)
 	if err != nil {
 		return err
 	}
 	hn, _ := os.Hostname()
 	targetContext := map[string]string{
-		nsp.TARGETTYPE: target,
-		nsp.IDENTIFIER: hn,
+		nsp.Identifier.String(): hn,
 	}
-	logrus.Infof("announceFrontend: hostname: %v, targetType: %v, nsp-service: %v", hn, target, service)
-	err = nspClient.Register([]string{hn}, targetContext)
+	logrus.Infof("announceFrontend: hostname: %v, targetType: %v, nsp-service: %v", hn, nspAPI.Target_FRONTEND, service)
+	err = nspClient.RegisterWithType(nspAPI.Target_FRONTEND, []string{hn}, targetContext)
 	if err != nil {
 		return err
 	}
 	return nspClient.Delete()
 }
 
-func denounceFrontend(target, service string) error {
+func denounceFrontend(service string) error {
 	nspClient, err := nsp.NewNetworkServicePlateformClient(service)
 	if err != nil {
 		return err
 	}
 	hn, _ := os.Hostname()
 	targetContext := map[string]string{
-		nsp.TARGETTYPE: target,
-		nsp.IDENTIFIER: hn,
+		nsp.Identifier.String(): hn,
 	}
-	logrus.Infof("denounceFrontend: hostname: %v, targetType: %v, nsp-service: %v", hn, target, service)
-	err = nspClient.UnregisterWithContext([]string{hn}, targetContext)
+	logrus.Infof("denounceFrontend: hostname: %v, targetType: %v, nsp-service: %v", hn, nspAPI.Target_FRONTEND, service)
+	err = nspClient.UnregisterWithContext(nspAPI.Target_FRONTEND, []string{hn}, targetContext)
 	if err != nil {
 		return err
 	}

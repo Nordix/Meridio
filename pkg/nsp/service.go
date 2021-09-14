@@ -18,7 +18,6 @@ package nsp
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"strconv"
@@ -35,7 +34,7 @@ type NetworkServicePlateformService struct {
 	Server         *grpc.Server
 	Port           int
 	targets        *targetList
-	monitorStreams sync.Map
+	monitorStreams sync.Map // map[nspAPI.Target_Type]map[nspAPI.NetworkServicePlateformService_MonitorServer]bool
 }
 
 func (nsps *NetworkServicePlateformService) addTarget(target *nspAPI.Target) error {
@@ -62,7 +61,7 @@ func (nsps *NetworkServicePlateformService) removeTarget(target *nspAPI.Target) 
 
 func (nsps *NetworkServicePlateformService) notifyMonitorStreams(target *nspAPI.Target) {
 	logrus.Debugf("notifyMonitorStreams: target: %v,", target)
-	streams, err := nsps.getStreams(target.GetContext()[TARGETTYPE])
+	streams, err := nsps.getStreams(target.GetType())
 	if err != nil {
 		logrus.Infof("notifyMonitorStreams: err: %v", err)
 		return
@@ -74,7 +73,7 @@ func (nsps *NetworkServicePlateformService) notifyMonitorStreams(target *nspAPI.
 }
 
 func (nsps *NetworkServicePlateformService) notifyMonitorStream(stream nspAPI.NetworkServicePlateformService_MonitorServer, target *nspAPI.Target) {
-	streams, err := nsps.getStreams(target.GetContext()[TARGETTYPE])
+	streams, err := nsps.getStreams(target.GetType())
 	if err != nil {
 		logrus.Infof("notifyMonitorStream: err: %v", err)
 		return
@@ -108,7 +107,7 @@ func (nsps *NetworkServicePlateformService) Monitor(tt *nspAPI.TargetType, strea
 		return err
 	}
 
-	logrus.Debugf("Monitor: targetType: \"%v\", stream: %v", targetType, stream)
+	logrus.Debugf("Monitor: targetType: %v, stream: %v", targetType, stream)
 	streams.Store(stream, true)
 	for _, target := range nsps.targets.Get(targetType) {
 		nsps.notifyMonitorStream(stream, target)
@@ -118,12 +117,9 @@ func (nsps *NetworkServicePlateformService) Monitor(tt *nspAPI.TargetType, strea
 	return nil
 }
 
-func (nsps *NetworkServicePlateformService) getStreams(targetType string) (*sync.Map, error) {
-	if targetType != "" {
-		value, _ := nsps.monitorStreams.LoadOrStore(targetType, &sync.Map{})
-		return value.(*sync.Map), nil
-	}
-	return nil, errors.New(`"` + targetType + `" monitor streams not found`)
+func (nsps *NetworkServicePlateformService) getStreams(targetType nspAPI.Target_Type) (*sync.Map, error) {
+	value, _ := nsps.monitorStreams.LoadOrStore(targetType, &sync.Map{})
+	return value.(*sync.Map), nil
 }
 
 func (nsps *NetworkServicePlateformService) streamAlive(stream nspAPI.NetworkServicePlateformService_MonitorServer, streams *sync.Map) bool {
@@ -161,7 +157,7 @@ func NewNetworkServicePlateformService(port int) (*NetworkServicePlateformServic
 		Server:   s,
 		Port:     port,
 		targets: &targetList{
-			targets: map[string][]*target{},
+			targets: map[nspAPI.Target_Type][]*target{},
 		},
 	}
 

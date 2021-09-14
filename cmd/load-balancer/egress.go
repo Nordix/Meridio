@@ -50,9 +50,9 @@ type FrontendNetworkService struct {
 // Start -
 func (fns *FrontendNetworkService) Start() {
 	var err error
-	fns.networkServicePlateformServiceStream, err = fns.networkServicePlateformClient.MonitorType(nsp.FRONTEND)
+	fns.networkServicePlateformServiceStream, err = fns.networkServicePlateformClient.MonitorType(nspAPI.Target_FRONTEND)
 	if err != nil {
-		logrus.Errorf("FrontendNetworkService: err MonitorType(%v): %v", nsp.FRONTEND, err)
+		logrus.Errorf("FrontendNetworkService: err MonitorType(%v): %v", nspAPI.Target_FRONTEND, err)
 	}
 	go fns.recv()
 }
@@ -72,7 +72,7 @@ func (fns *FrontendNetworkService) recv() {
 
 		if fns.isLocal(target) {
 			if target.Status == nspAPI.Status_Register {
-				logrus.Infof("FrontendNetworkService: (local) FE available: %v", target.GetContext()[nsp.IDENTIFIER])
+				logrus.Infof("FrontendNetworkService: (local) FE available: %v", target.GetContext()[nsp.Identifier.String()])
 				// inform controlled services they are allowed to operate:
 				// SimpleNetworkService is allowed to accept new Targets.
 				if fns.serviceControlDispatcher != nil {
@@ -86,7 +86,7 @@ func (fns *FrontendNetworkService) recv() {
 					continue
 				}
 			} else if target.Status == nspAPI.Status_Unregister {
-				logrus.Warnf("FrontendNetworkService: (local) FE unavailable: %v", target.GetContext()[nsp.IDENTIFIER])
+				logrus.Warnf("FrontendNetworkService: (local) FE unavailable: %v", target.GetContext()[nsp.Identifier.String()])
 				// inform controlled services they must pause operation:
 				// SimpleNetworkService must not accept new Targets, and must
 				// clean-up known Targets. (The nsm interfaces in ingress routes become unusable
@@ -110,9 +110,9 @@ func (fns *FrontendNetworkService) recv() {
 
 // isLocal -
 // Check if target is running in the same POD as the loadbalancer.
-// (Targets of type nsp.FRONTEND are supposed to have their hostname as identifier.)
+// (Targets of type FRONTEND are supposed to have their hostname as identifier.)
 func (fns *FrontendNetworkService) isLocal(target *nspAPI.Target) bool {
-	identifierStr, exists := target.GetContext()[nsp.IDENTIFIER]
+	identifierStr, exists := target.GetContext()[nsp.Identifier.String()]
 	if !exists {
 		logrus.Errorf("FrontendNetworkService: identifier does not exist: %v", target.Context)
 		return false

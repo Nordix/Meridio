@@ -29,11 +29,18 @@ type NetworkServicePlateformClient struct {
 }
 
 func (nspc *NetworkServicePlateformClient) Register(ips []string, targetContext map[string]string) error {
-	if _, ok := targetContext[TARGETTYPE]; !ok {
-		targetContext[TARGETTYPE] = DEFAULT
-	}
 	target := &nspAPI.Target{
 		Ips:     ips,
+		Context: targetContext,
+	}
+	_, err := nspc.networkServicePlateformClient.Register(context.Background(), target)
+	return err
+}
+
+func (nspc *NetworkServicePlateformClient) RegisterWithType(t nspAPI.Target_Type, ips []string, targetContext map[string]string) error {
+	target := &nspAPI.Target{
+		Ips:     ips,
+		Type:    t,
 		Context: targetContext,
 	}
 	_, err := nspc.networkServicePlateformClient.Register(context.Background(), target)
@@ -43,20 +50,24 @@ func (nspc *NetworkServicePlateformClient) Register(ips []string, targetContext 
 func (nspc *NetworkServicePlateformClient) Unregister(ips []string) error {
 	target := &nspAPI.Target{
 		Ips: ips,
-		Context: map[string]string{
-			TARGETTYPE: DEFAULT,
-		},
 	}
 	_, err := nspc.networkServicePlateformClient.Unregister(context.Background(), target)
 	return err
 }
 
-func (nspc *NetworkServicePlateformClient) UnregisterWithContext(ips []string, targetContext map[string]string) error {
-	if _, ok := targetContext[TARGETTYPE]; !ok {
-		targetContext[TARGETTYPE] = DEFAULT
+func (nspc *NetworkServicePlateformClient) UnregisterWithType(t nspAPI.Target_Type, ips []string) error {
+	target := &nspAPI.Target{
+		Ips:  ips,
+		Type: t,
 	}
+	_, err := nspc.networkServicePlateformClient.Unregister(context.Background(), target)
+	return err
+}
+
+func (nspc *NetworkServicePlateformClient) UnregisterWithContext(t nspAPI.Target_Type, ips []string, targetContext map[string]string) error {
 	target := &nspAPI.Target{
 		Ips:     ips,
+		Type:    t,
 		Context: targetContext,
 	}
 	_, err := nspc.networkServicePlateformClient.Unregister(context.Background(), target)
@@ -65,12 +76,12 @@ func (nspc *NetworkServicePlateformClient) UnregisterWithContext(ips []string, t
 
 func (nspc *NetworkServicePlateformClient) Monitor() (nspAPI.NetworkServicePlateformService_MonitorClient, error) {
 	targetType := &nspAPI.TargetType{
-		Type: DEFAULT,
+		Type: nspAPI.Target_DEFAULT,
 	}
 	return nspc.networkServicePlateformClient.Monitor(context.Background(), targetType)
 }
 
-func (nspc *NetworkServicePlateformClient) MonitorType(t string) (nspAPI.NetworkServicePlateformService_MonitorClient, error) {
+func (nspc *NetworkServicePlateformClient) MonitorType(t nspAPI.Target_Type) (nspAPI.NetworkServicePlateformService_MonitorClient, error) {
 	targetType := &nspAPI.TargetType{
 		Type: t,
 	}
@@ -78,9 +89,7 @@ func (nspc *NetworkServicePlateformClient) MonitorType(t string) (nspAPI.Network
 }
 
 func (nspc *NetworkServicePlateformClient) GetTargets() ([]*nspAPI.Target, error) {
-	targetType := &nspAPI.TargetType{
-		Type: DEFAULT,
-	}
+	targetType := &nspAPI.TargetType{}
 	GetTargetsResponse, err := nspc.networkServicePlateformClient.GetTargets(context.Background(), targetType)
 	if err != nil {
 		return nil, err
@@ -88,7 +97,7 @@ func (nspc *NetworkServicePlateformClient) GetTargets() ([]*nspAPI.Target, error
 	return GetTargetsResponse.Targets, nil
 }
 
-func (nspc *NetworkServicePlateformClient) GetTypedTargets(t string) ([]*nspAPI.Target, error) {
+func (nspc *NetworkServicePlateformClient) GetTargetsWithType(t nspAPI.Target_Type) ([]*nspAPI.Target, error) {
 	targetType := &nspAPI.TargetType{
 		Type: t,
 	}
