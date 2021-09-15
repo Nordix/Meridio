@@ -48,7 +48,7 @@ func main() {
 		port = 7778
 	}
 
-	nsps, _ := nsp.NewNetworkServicePlateformService(port)
+	nsps, _ := nsp.NewServer(port)
 
 	nsps.Start()
 }

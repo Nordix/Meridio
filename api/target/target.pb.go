@@ -137,6 +137,7 @@ type Trench struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// Name of the trench
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 }
 
@@ -179,13 +180,19 @@ func (x *Trench) GetName() string {
 	return ""
 }
 
+// The message contains the properties of a conduit
 type Conduit struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	NetworkServiceName string  `protobuf:"bytes,1,opt,name=networkServiceName,proto3" json:"networkServiceName,omitempty"`
-	Trench             *Trench `protobuf:"bytes,2,opt,name=trench,proto3" json:"trench,omitempty"`
+	// Name of the service
+	// The name will be compiled using the proxy and the trench name
+	// e.g.: load-balancer with the proxy used in trench-a will
+	// become proxy.load-balancer.trench-a
+	NetworkServiceName string `protobuf:"bytes,1,opt,name=networkServiceName,proto3" json:"networkServiceName,omitempty"`
+	// Trench the conduit belongs to
+	Trench *Trench `protobuf:"bytes,2,opt,name=trench,proto3" json:"trench,omitempty"`
 }
 
 func (x *Conduit) Reset() {
@@ -239,6 +246,7 @@ type Stream struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// Conduit the stream belongs to
 	Conduit *Conduit `protobuf:"bytes,1,opt,name=conduit,proto3" json:"conduit,omitempty"`
 }
 
@@ -610,11 +618,31 @@ const _ = grpc.SupportPackageIsVersion6
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type AmbassadorClient interface {
+	// Connect to a conduit, so a new interface will be created.
+	// The Ambassador will also connect to the trench the
+	// conduit belongs to. And, the VIPs will be added to
+	// the loopback interface.
 	Connect(ctx context.Context, in *Conduit, opts ...grpc.CallOption) (*empty.Empty, error)
+	// Disconnect from a conduit, so the interface will be removed.
+	// The Ambassador will also close the streams which are opened
+	// in the conduit. It will disconnect the target from the trench.
+	// And, the VIPs will be removed from the loopback interface.
 	Disconnect(ctx context.Context, in *Conduit, opts ...grpc.CallOption) (*empty.Empty, error)
+	// WatchConduits will, first, returns all conduits connected with
+	// "Connect" as event status, and then, will send an event on each
+	// conduit connection/disconnection.
 	WatchConduits(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (Ambassador_WatchConduitsClient, error)
+	// Request to a stream, so the identifier will be registered
+	// in the NSP service, the LBs will start load-balancing the
+	// traffic to the target.
 	Request(ctx context.Context, in *Stream, opts ...grpc.CallOption) (*empty.Empty, error)
+	// Close a stream, so the identifier will be unregistered
+	// in the NSP service, the LBs will stop load-balancing the
+	// traffic to the target.
 	Close(ctx context.Context, in *Stream, opts ...grpc.CallOption) (*empty.Empty, error)
+	// WatchStreams will, first, returns all streams opened with "Request"
+	// as event status, and then, will send an event on each stream
+	// request/close.
 	WatchStreams(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (Ambassador_WatchStreamsClient, error)
 }
 
@@ -728,11 +756,31 @@ func (x *ambassadorWatchStreamsClient) Recv() (*StreamEvent, error) {
 
 // AmbassadorServer is the server API for Ambassador service.
 type AmbassadorServer interface {
+	// Connect to a conduit, so a new interface will be created.
+	// The Ambassador will also connect to the trench the
+	// conduit belongs to. And, the VIPs will be added to
+	// the loopback interface.
 	Connect(context.Context, *Conduit) (*empty.Empty, error)
+	// Disconnect from a conduit, so the interface will be removed.
+	// The Ambassador will also close the streams which are opened
+	// in the conduit. It will disconnect the target from the trench.
+	// And, the VIPs will be removed from the loopback interface.
 	Disconnect(context.Context, *Conduit) (*empty.Empty, error)
+	// WatchConduits will, first, returns all conduits connected with
+	// "Connect" as event status, and then, will send an event on each
+	// conduit connection/disconnection.
 	WatchConduits(*empty.Empty, Ambassador_WatchConduitsServer) error
+	// Request to a stream, so the identifier will be registered
+	// in the NSP service, the LBs will start load-balancing the
+	// traffic to the target.
 	Request(context.Context, *Stream) (*empty.Empty, error)
+	// Close a stream, so the identifier will be unregistered
+	// in the NSP service, the LBs will stop load-balancing the
+	// traffic to the target.
 	Close(context.Context, *Stream) (*empty.Empty, error)
+	// WatchStreams will, first, returns all streams opened with "Request"
+	// as event status, and then, will send an event on each stream
+	// request/close.
 	WatchStreams(*empty.Empty, Ambassador_WatchStreamsServer) error
 }
 

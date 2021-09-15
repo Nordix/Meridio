@@ -84,7 +84,7 @@ e2e:
 
 .PHONY: test
 test: 
-	go test -v ./... -short
+	go test -race -cover -short ./... 
 
 .PHONY: check
 check: lint test
