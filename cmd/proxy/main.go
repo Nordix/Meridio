@@ -220,6 +220,7 @@ func startNSE(ctx context.Context,
 	p *proxy.Proxy,
 	interfaceMonitorServer networkservice.NetworkServiceServer) *endpoint.Endpoint {
 
+	logrus.Infof("startNSE")
 	responderEndpoint := []networkservice.NetworkServiceServer{
 		recvfd.NewServer(),
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{

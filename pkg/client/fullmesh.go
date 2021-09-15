@@ -101,6 +101,8 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 	request.Connection.Id = fmt.Sprintf("%s-%s-%d", fmnsc.config.Name, request.Connection.NetworkService, fmnsc.nscIndex)
 	fmnsc.nscIndex++
 	logrus.Infof("Full Mesh Client (%v - %v): event add: %v", request.Connection.Id, request.Connection.NetworkService, networkServiceEndpointName)
+	// TODO: Request tries forever, but what if the NSE is removed in the meantime?
+	// The recv will be blocked on the Request as well... Should be refactored. (Are client components thread safe to opt for async requests?)
 	err := networkServiceClient.Request(request)
 	fmnsc.networkServiceClients[networkServiceEndpointName] = networkServiceClient
 	if err != nil {

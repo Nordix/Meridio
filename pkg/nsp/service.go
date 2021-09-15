@@ -34,7 +34,7 @@ type NetworkServicePlateformService struct {
 	Server         *grpc.Server
 	Port           int
 	targets        *targetList
-	monitorStreams sync.Map // map[nspAPI.NetworkServicePlateformService_MonitorServer]bool
+	monitorStreams sync.Map // map[nspAPI.Target_Type]map[nspAPI.NetworkServicePlateformService_MonitorServer]bool
 }
 
 func (nsps *NetworkServicePlateformService) addTarget(target *nspAPI.Target) error {
@@ -60,19 +60,32 @@ func (nsps *NetworkServicePlateformService) removeTarget(target *nspAPI.Target) 
 }
 
 func (nsps *NetworkServicePlateformService) notifyMonitorStreams(target *nspAPI.Target) {
-	nsps.monitorStreams.Range(func(key interface{}, value interface{}) bool {
+	logrus.Debugf("notifyMonitorStreams: target: %v,", target)
+	streams, err := nsps.getStreams(target.GetType())
+	if err != nil {
+		logrus.Infof("notifyMonitorStreams: err: %v", err)
+		return
+	}
+	streams.Range(func(key interface{}, value interface{}) bool {
 		nsps.notifyMonitorStream(key.(nspAPI.NetworkServicePlateformService_MonitorServer), target)
 		return true
 	})
 }
 
 func (nsps *NetworkServicePlateformService) notifyMonitorStream(stream nspAPI.NetworkServicePlateformService_MonitorServer, target *nspAPI.Target) {
-	if !nsps.streamAlive(stream) {
+	streams, err := nsps.getStreams(target.GetType())
+	if err != nil {
+		logrus.Infof("notifyMonitorStream: err: %v", err)
 		return
 	}
-	err := stream.Send(target)
+	if !nsps.streamAlive(stream, streams) {
+		return
+	}
+	logrus.Debugf("notifyMonitorStream: target: %v, stream: %v", target, stream)
+	err = stream.Send(target)
 	if err != nil {
-		nsps.monitorStreams.Store(stream, false)
+		logrus.Infof("notifyMonitorStream: send err: %v", err)
+		streams.Store(stream, false)
 	}
 }
 
@@ -86,24 +99,37 @@ func (nsps *NetworkServicePlateformService) Unregister(ctx context.Context, targ
 	return &empty.Empty{}, err
 }
 
-func (nsps *NetworkServicePlateformService) Monitor(empty *empty.Empty, stream nspAPI.NetworkServicePlateformService_MonitorServer) error {
-	nsps.monitorStreams.Store(stream, true)
-	for _, target := range nsps.targets.Get() {
+func (nsps *NetworkServicePlateformService) Monitor(tt *nspAPI.TargetType, stream nspAPI.NetworkServicePlateformService_MonitorServer) error {
+	targetType := tt.GetType()
+	streams, err := nsps.getStreams(targetType)
+	if err != nil {
+		logrus.Infof("Monitor: err: %v", err)
+		return err
+	}
+
+	logrus.Debugf("Monitor: targetType: %v, stream: %v", targetType, stream)
+	streams.Store(stream, true)
+	for _, target := range nsps.targets.Get(targetType) {
 		nsps.notifyMonitorStream(stream, target)
 	}
 	<-stream.Context().Done()
-	nsps.monitorStreams.Delete(stream)
+	streams.Delete(stream)
 	return nil
 }
 
-func (nsps *NetworkServicePlateformService) streamAlive(stream nspAPI.NetworkServicePlateformService_MonitorServer) bool {
-	value, ok := nsps.monitorStreams.Load(stream)
+func (nsps *NetworkServicePlateformService) getStreams(targetType nspAPI.Target_Type) (*sync.Map, error) {
+	value, _ := nsps.monitorStreams.LoadOrStore(targetType, &sync.Map{})
+	return value.(*sync.Map), nil
+}
+
+func (nsps *NetworkServicePlateformService) streamAlive(stream nspAPI.NetworkServicePlateformService_MonitorServer, streams *sync.Map) bool {
+	value, ok := streams.Load(stream)
 	return ok && value.(bool)
 }
 
-func (nsps *NetworkServicePlateformService) GetTargets(ctx context.Context, target *empty.Empty) (*nspAPI.GetTargetsResponse, error) {
+func (nsps *NetworkServicePlateformService) GetTargets(ctx context.Context, tt *nspAPI.TargetType) (*nspAPI.GetTargetsResponse, error) {
 	response := &nspAPI.GetTargetsResponse{
-		Targets: nsps.targets.Get(),
+		Targets: nsps.targets.Get(tt.GetType()),
 	}
 	return response, nil
 }
@@ -130,7 +156,9 @@ func NewNetworkServicePlateformService(port int) (*NetworkServicePlateformServic
 		Listener: lis,
 		Server:   s,
 		Port:     port,
-		targets:  &targetList{},
+		targets: &targetList{
+			targets: map[nspAPI.Target_Type][]*target{},
+		},
 	}
 
 	nspAPI.RegisterNetworkServicePlateformServiceServer(s, networkServicePlateformService)

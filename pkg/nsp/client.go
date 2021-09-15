@@ -19,7 +19,6 @@ package nsp
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	nspAPI "github.com/nordix/meridio/api/nsp"
 	"google.golang.org/grpc"
 )
@@ -38,6 +37,16 @@ func (nspc *NetworkServicePlateformClient) Register(ips []string, targetContext 
 	return err
 }
 
+func (nspc *NetworkServicePlateformClient) RegisterWithType(t nspAPI.Target_Type, ips []string, targetContext map[string]string) error {
+	target := &nspAPI.Target{
+		Ips:     ips,
+		Type:    t,
+		Context: targetContext,
+	}
+	_, err := nspc.networkServicePlateformClient.Register(context.Background(), target)
+	return err
+}
+
 func (nspc *NetworkServicePlateformClient) Unregister(ips []string) error {
 	target := &nspAPI.Target{
 		Ips: ips,
@@ -46,12 +55,53 @@ func (nspc *NetworkServicePlateformClient) Unregister(ips []string) error {
 	return err
 }
 
+func (nspc *NetworkServicePlateformClient) UnregisterWithType(t nspAPI.Target_Type, ips []string) error {
+	target := &nspAPI.Target{
+		Ips:  ips,
+		Type: t,
+	}
+	_, err := nspc.networkServicePlateformClient.Unregister(context.Background(), target)
+	return err
+}
+
+func (nspc *NetworkServicePlateformClient) UnregisterWithContext(t nspAPI.Target_Type, ips []string, targetContext map[string]string) error {
+	target := &nspAPI.Target{
+		Ips:     ips,
+		Type:    t,
+		Context: targetContext,
+	}
+	_, err := nspc.networkServicePlateformClient.Unregister(context.Background(), target)
+	return err
+}
+
 func (nspc *NetworkServicePlateformClient) Monitor() (nspAPI.NetworkServicePlateformService_MonitorClient, error) {
-	return nspc.networkServicePlateformClient.Monitor(context.Background(), &empty.Empty{})
+	targetType := &nspAPI.TargetType{
+		Type: nspAPI.Target_DEFAULT,
+	}
+	return nspc.networkServicePlateformClient.Monitor(context.Background(), targetType)
+}
+
+func (nspc *NetworkServicePlateformClient) MonitorType(t nspAPI.Target_Type) (nspAPI.NetworkServicePlateformService_MonitorClient, error) {
+	targetType := &nspAPI.TargetType{
+		Type: t,
+	}
+	return nspc.networkServicePlateformClient.Monitor(context.Background(), targetType)
 }
 
 func (nspc *NetworkServicePlateformClient) GetTargets() ([]*nspAPI.Target, error) {
-	GetTargetsResponse, err := nspc.networkServicePlateformClient.GetTargets(context.Background(), &empty.Empty{})
+	targetType := &nspAPI.TargetType{}
+	GetTargetsResponse, err := nspc.networkServicePlateformClient.GetTargets(context.Background(), targetType)
+	if err != nil {
+		return nil, err
+	}
+	return GetTargetsResponse.Targets, nil
+}
+
+func (nspc *NetworkServicePlateformClient) GetTargetsWithType(t nspAPI.Target_Type) ([]*nspAPI.Target, error) {
+	targetType := &nspAPI.TargetType{
+		Type: t,
+	}
+	GetTargetsResponse, err := nspc.networkServicePlateformClient.GetTargets(context.Background(), targetType)
 	if err != nil {
 		return nil, err
 	}

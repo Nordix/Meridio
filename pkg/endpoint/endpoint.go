@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 
 	"github.com/edwarnicke/grpcfd"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
@@ -33,6 +34,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
@@ -51,11 +53,22 @@ type Endpoint struct {
 
 	networkServiceRegistryClient         registryapi.NetworkServiceRegistryClient
 	networkServiceEndpointRegistryClient registryapi.NetworkServiceEndpointRegistryClient
+
+	nse *registry.NetworkServiceEndpoint
 }
 
 // Start -
 func (e *Endpoint) Start(additionalFunctionality ...networkservice.NetworkServiceServer) error {
+	err := e.StartWithoutRegister(additionalFunctionality...)
+	if err != nil {
+		return err
+	}
 
+	return e.register()
+}
+
+// Start -
+func (e *Endpoint) StartWithoutRegister(additionalFunctionality ...networkservice.NetworkServiceServer) error {
 	responderEndpoint := endpoint.NewServer(e.context,
 		spiffejwt.TokenGeneratorFunc(e.source, e.config.MaxTokenLifetime),
 		endpoint.WithName(e.config.Name),
@@ -85,7 +98,18 @@ func (e *Endpoint) Start(additionalFunctionality ...networkservice.NetworkServic
 	go e.errorHandler(srvErrCh)
 	logrus.Infof("Endpoint: grpc server started")
 
-	return e.register()
+	e.nse = &registryapi.NetworkServiceEndpoint{
+		Name:                e.config.Name,
+		NetworkServiceNames: []string{e.config.ServiceName},
+		NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
+			e.config.ServiceName: {
+				Labels: e.config.Labels,
+			},
+		},
+		Url: e.listenOn.String(),
+	}
+
+	return nil
 }
 
 // ErrorHandler -
@@ -96,6 +120,9 @@ func (e *Endpoint) errorHandler(errCh <-chan error) {
 
 // Delete -
 func (e *Endpoint) Delete() {
+	if err := e.unregister(); err != nil {
+		logrus.Warn(err)
+	}
 	_ = os.Remove(e.tmpDir)
 }
 
@@ -125,19 +152,33 @@ func (e *Endpoint) register() error {
 		return errors.Wrap(err, "Error register network service")
 	}
 
-	nse, err := e.networkServiceEndpointRegistryClient.Register(context.Background(), &registryapi.NetworkServiceEndpoint{
-		Name:                e.config.Name,
-		NetworkServiceNames: []string{e.config.ServiceName},
-		NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
-			e.config.ServiceName: {
-				Labels: e.config.Labels,
-			},
-		},
-		Url: e.listenOn.String(),
-	})
+	e.nse.ExpirationTime = nil
+	nse, err := e.networkServiceEndpointRegistryClient.Register(context.Background(), e.nse)
 	logrus.Infof("Endpoint: nse: %+v", nse)
 
 	return err
+}
+
+func (e *Endpoint) unregister() error {
+	e.nse.ExpirationTime = &timestamp.Timestamp{
+		Seconds: -1,
+	}
+
+	logrus.Infof("Endpoint: unregister nse: %+v", e.nse)
+	_, err := e.networkServiceEndpointRegistryClient.Unregister(context.Background(), e.nse)
+	if err != nil {
+		logrus.Warnf("Error unregister network service: %+v", err)
+	}
+
+	return err
+}
+
+func (e *Endpoint) Announce() error {
+	return e.register()
+}
+
+func (e *Endpoint) Denounce() error {
+	return e.unregister()
 }
 
 // NewEndpoint -

@@ -110,6 +110,8 @@ spec:
               value: "true"
             - name: NFE_ECMP
               value: "true"
+            - name: NFE_NSP_SERVICE
+              value: {{ template "meridio.nsp.serviceName" . }}:{{ .Values.nsp.targetPort }}
             - name: NFE_CONFIG_MAP_NAME
               value: {{ template "meridio.configuration" . }}
           securityContext:
