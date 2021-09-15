@@ -7,7 +7,8 @@
 
 ### Kubernetes cluster
 
-Deploy a Kubernetes cluster with xcluster while using meridio ovl
+Deploy a Kubernetes cluster with xcluster while using meridio ovl  
+(Note: also adjust XCLUSTER_OVLPATH env variable to include ovls)
 ```
 unset __mem1
 export __mem201=1024
@@ -64,7 +65,7 @@ kubectl apply -f https://github.com/jetstack/cert-manager/releases/latest/downlo
 # alternatively install a specific version of cert-manager (useful when running with private docker registry)
 kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.1/cert-manager.yaml
 # deploy operator image (irrespective of the registry type)
-make deploy IMG="registry.nordix.org/meridio/meridio-operator:v0.0.1"
+make deploy IMG="registry.nordix.org/meridio/meridio-operator:v0.0.1" NAMESPACE="default"
 ```
 
 ### Meridio
