@@ -24,22 +24,27 @@ make docker-build IMG="localhost:5000/meridio/meridio-operator:v0.0.1" BUILDER="
 make docker-push
 ```
 
-Deploy cert manager
+## Deploy
+
+### Deploy cert manager
 
 ```bash
 kubectl apply -f https://github.com/jetstack/cert-manager/releases/latest/download/cert-manager.yaml
 ```
 
-Deploy
+### Deploy Meridio-Operator
+
+Meridio-Operator is a namespace-scoped operator, which watches and manages custom resources in a single namespace where the operator is deployed.
 
 ```bash
-make deploy
-
-# Use a specific image
-make deploy IMG="localhost:5000/meridio/meridio-operator:v0.0.1"
+make deploy \
+IMG="localhost:5000/meridio/meridio-operator:v0.0.1" \ # If the image is built with a specific tag
+NAMESPACE="default" # specifies the namespace where the operator will be deployed, "meridio-operator-system" is used by default
 ```
 
-## Example
+## Configuration
+
+The meridio operator is deployed in the "default" namespace in the examples below.
 
 ### Trench
 

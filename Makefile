@@ -33,6 +33,7 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 # For example, running 'make bundle-build bundle-push catalog-build catalog-push' will build and push both
 # nordix.org/meridio-operator-bundle:$VERSION and nordix.org/meridio-operator-catalog:$VERSION.
 IMAGE_TAG_BASE ?= nordix.org/meridio-operator
+NAMESPACE ?= meridio-operator-system
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
 # You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
@@ -120,20 +121,23 @@ install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | kubectl delete -f -
 
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+namespace: ## Edit the namespace of operator to be deployed
+	cd config/default && $(KUSTOMIZE) edit set namespace ${NAMESPACE}
+
+deploy: manifests kustomize namespace## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
-undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+undeploy: namespace ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 
 apply-samples: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	kubectl apply -f config/samples/meridio_v1alpha1_trench.yaml
-	kubectl apply -f config/samples/meridio_v1alpha1_attractor.yaml
-	kubectl apply -f config/samples/meridio_v1alpha1_vip.yaml
-	kubectl apply -f config/samples/meridio_v1alpha1_gateway.yaml
+	kubectl apply -f config/samples/meridio_v1alpha1_trench.yaml -n ${NAMESPACE}
+	kubectl apply -f config/samples/meridio_v1alpha1_attractor.yaml -n ${NAMESPACE}
+	kubectl apply -f config/samples/meridio_v1alpha1_vip.yaml -n ${NAMESPACE}
+	kubectl apply -f config/samples/meridio_v1alpha1_gateway.yaml -n ${NAMESPACE}
 
-print-manifests: manifests kustomize ## Generate manifests to be deployed in the cluster
+print-manifests: manifests kustomize namespace ## Generate manifests to be deployed in the cluster
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default
 
