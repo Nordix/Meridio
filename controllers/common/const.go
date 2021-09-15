@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	SAName                = "meridio"
+	SAName                = "meridio-sa"
 	ResourceNamePrefixEnv = "RESOURCE_NAME_PREFIX"
 	ImagePullSecretEnv    = "IMAGE_PULL_SECRET"
 

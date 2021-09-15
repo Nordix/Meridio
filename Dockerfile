@@ -3,6 +3,7 @@ ARG BASE_IMG
 
 # Build the manager binary
 FROM ${BUILDER} as builder
+ARG LDFLAGS
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -18,7 +19,7 @@ COPY api/ api/
 COPY controllers/ controllers/
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o manager main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags="${LDFLAGS}" -a -o manager main.go
 
 # Copy files from builder to the final image
 FROM ${BASE_IMG}

@@ -2,10 +2,16 @@
 
 [Meridio](https://github.com/Nordix/Meridio)
 
-Run tests, generate code and objects
+Run tests
+
+The e2e tests expect the meridio operator is already running in the cluster. 
+The e2e test suite can be run in an arbitrary namespace by specifying NAMESPACE=<desired-namespace>
+as the following example shows.
 
 ```bash
-make test
+# If meridio operator is not deployed yet, run the following commented command first:
+# make deploy NAMESPACE="red"
+make e2e NAMESPACE="red"
 ```
 
 Build image

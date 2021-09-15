@@ -71,42 +71,40 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
-	// if attractor is not engaged, do nothing to lb-fe & nse-vlan deployment
-	if attr.Status.LbFe != meridiov1alpha1.Engaged {
-		return ctrl.Result{}, nil
-	}
+	// if attractor is engaged, update lb-fe & nse-vlan deployment
+	if attr.Status.LbFe == meridiov1alpha1.Engaged {
+		// create/update lb-fe & nse-vlan deployment
+		executor.SetOwner(attr)
+		lb, err := NewLoadBalancer(executor, attr, trench)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		nse, err := NewNSE(executor, attr)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		cm := NewConfigMap(executor, trench, attr)
 
-	// create/update lb-fe & nse-vlan deployment
-	executor.SetOwner(attr)
-	lb, err := NewLoadBalancer(executor, attr, trench)
-	if err != nil {
-		return ctrl.Result{}, err
+		alb, err := lb.getAction()
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		anse, err := nse.getAction()
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		ac, err := cm.getAction()
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		allAc := common.AppendActions(alb, anse, ac)
+		err = executor.RunAll(allAc)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		// update attractor
+		executor.SetOwnerReference(attr, trench)
 	}
-	nse, err := NewNSE(executor, attr)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	cm := NewConfigMap(executor, trench, attr)
-
-	alb, err := lb.getAction()
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	anse, err := nse.getAction()
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	ac, err := cm.getAction()
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	allAc := common.AppendActions(alb, anse, ac)
-	err = executor.RunAll(allAc)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	// update attractor
-	executor.SetOwnerReference(attr, trench)
 	actions := getAttractorActions(executor, attr, currentAttr)
 	err = executor.RunAll(actions)
 	if err != nil {

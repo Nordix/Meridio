@@ -73,7 +73,6 @@ func NewMeridio(e *common.Executor, trench *meridiov1alpha1.Trench) (*Meridio, e
 func (m Meridio) ReconcileAll() ([]common.Action, error) {
 	var actions []common.Action
 	resources := []Resources{
-		m.ipamService,
 		m.serviceAccount,
 		m.role,
 		m.roleBinding,
@@ -81,6 +80,7 @@ func (m Meridio) ReconcileAll() ([]common.Action, error) {
 		m.nspService,
 		m.proxy,
 		m.ipamDeployment,
+		m.ipamService,
 		m.configmap,
 	}
 

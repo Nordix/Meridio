@@ -35,6 +35,7 @@ import (
 	attactorcontroller "github.com/nordix/meridio-operator/controllers/attractor"
 	gatewaycontroller "github.com/nordix/meridio-operator/controllers/gateway"
 	trenchcontroller "github.com/nordix/meridio-operator/controllers/trench"
+	"github.com/nordix/meridio-operator/controllers/version"
 	vipcontroller "github.com/nordix/meridio-operator/controllers/vip"
 	//+kubebuilder:scaffold:imports
 )
@@ -70,6 +71,7 @@ func main() {
 
 	// Set operator scope to the namespace where the operator pod exists
 	// An empty value means the operator is running with cluster scope
+	setupLog.Info(version.VersionInfo())
 	namespace := os.Getenv("WATCH_NAMESPACE")
 	if namespace == "" {
 		setupLog.Info("operator is cluster-scoped")
