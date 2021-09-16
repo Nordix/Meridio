@@ -466,7 +466,7 @@ func NewSimpleNetworkService(ctx context.Context, networkServicePlateformClient 
 		loadbalancer:                  loadbalancer,
 		networkServicePlateformClient: networkServicePlateformClient,
 		serviceCtrCh:                  make(chan bool),
-		simpleNetworkServiceBlocked:   false,
+		simpleNetworkServiceBlocked:   true,
 		ctx:                           ctx,
 	}
 	return simpleNetworkService

@@ -1,0 +1,95 @@
+#! /bin/sh
+
+export PATH="/bin:/sbin:/usr/bin:/usr/sbin"
+. /etc/profile
+
+die() {
+        echo "$@"
+        exit 1
+}
+
+hostname | grep -Eq 'vm-[0-9]+$' || die "Invalid hostname [$(hostname)]"
+i=$(hostname | cut -d- -f2 | sed -re 's,^0+,,')
+
+test "$MASTERS" || MASTERS=vm-001
+echo ",$MASTERS," | grep -q ",$(hostname)," || exit 0
+
+test -n "$FEATURE_GATES" || FEATURE_GATES=IPv6DualStack=true
+
+CLUSTER_CIDR=11.0.0.0/16,1100::/48
+SERVICE_RANGE=12.0.0.0/16,fd00:4000::/112
+
+if echo "$FEATURE_GATES" | grep -q "IPv6DualStack=false"; then
+	CLUSTER_CIDR=11.0.0.0/16
+	SERVICE_RANGE=12.0.0.0/16
+fi
+
+if test -z "$BASE_FAMILY"; then
+	BASE_FAMILY=IPv4
+	test -n "$IPV6_PREFIX" && BASE_FAMILY=IPv6
+fi
+test -n "$IPV6_PREFIX" || IPV6_PREFIX=1000::1:
+
+ADVERTISE_ADR=192.168.1.$i
+if test "$BASE_FAMILY" = "IPv6"; then
+	SERVICE_RANGE=fd00:4000::/112,12.0.0.0/16
+	ADVERTISE_ADR=${IPV6_PREFIX}192.168.1.$i
+	if echo "$FEATURE_GATES" | grep -q "IPv6DualStack=false"; then
+		CLUSTER_CIDR=1100::/48
+		SERVICE_RANGE=fd00:4000::/112
+	fi
+fi
+
+apiserver() {
+	local log=/var/log/kube-apiserver.log
+	logger -s -t K8s "STARTED: kube-apiserver at $(date)" >> log 2>&1
+	kube-apiserver --token-auth-file=/srv/kubernetes/known_tokens.csv \
+		$API_FLAGS --allow-privileged=true \
+		--bind-address=:: --advertise-address=$ADVERTISE_ADR \
+		--authorization-mode=AlwaysAllow \
+		--feature-gates $FEATURE_GATES \
+		--etcd-servers=http://192.168.1.1:2379 --anonymous-auth=false \
+		--service-cluster-ip-range=$SERVICE_RANGE \
+		--enable-admission-plugins=ServiceAccount \
+		--client-ca-file=/srv/kubernetes/ca.crt \
+		--tls-private-key-file=/srv/kubernetes/server.key \
+		--tls-cert-file=/srv/kubernetes/server.crt \
+		>> $log 2>&1
+}
+
+controller() {
+	local log=/var/log/kube-controller-manager.log
+	logger -s -t K8s "STARTED: kube-controller-manager at $(date)" >> log 2>&1
+	kube-controller-manager --kubeconfig $KUBECONFIG $CONTROLLER_FLAGS \
+		--allocate-node-cidrs=true --cluster-cidr=$CLUSTER_CIDR \
+		--controllers="*,serviceaccount,serviceaccount-token" \
+		--feature-gates $FEATURE_GATES \
+		--service-account-private-key-file=/srv/kubernetes/server.key \
+		--root-ca-file=/srv/kubernetes/server.crt --leader-elect=false \
+		>> $log 2>&1
+}
+
+scheduler() {
+	local log=/var/log/kube-scheduler.log
+	logger -s -t K8s "STARTED: kube-scheduler at $(date)" >> log 2>&1
+	kube-scheduler --kubeconfig $KUBECONFIG --leader-elect=false \
+		$SCHEDULER_FLAGS --feature-gates $FEATURE_GATES \
+                --policy-config-file /etc/kubernetes/schedulerpolicy \
+		>> $log 2>&1
+}
+
+monitor() {
+	while true; do
+		logger -t K8s-monitor "STARTING: $1"
+		$1
+		logger -t K8s-monitor "DIED: $1"
+		sleep 2
+		. /etc/profile
+	done
+}
+
+(monitor apiserver) > /dev/null 2>&1 &
+test $i -eq 1 || exit 0
+(monitor controller) > /dev/null 2>&1 &
+(monitor scheduler) > /dev/null 2>&1 &
+

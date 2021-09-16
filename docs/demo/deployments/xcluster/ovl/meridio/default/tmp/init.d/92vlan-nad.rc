@@ -1,0 +1,37 @@
+#! /bin/sh
+
+export PATH="/bin:/sbin:/usr/bin:/usr/sbin"
+. /etc/profile
+
+die() {
+	echo "$@"
+	exit 1
+}
+
+hostname | grep -Eq 'vm-[0-9]+$' || die "Invalid hostname [$(hostname)]"
+i=$(hostname | cut -d- -f2 | sed -re 's,^0+,,')
+test $i -le 220 || exit 0
+
+
+mkdir -p /etc/kubernetes
+cat > /etc/kubernetes/vlan-nad.yaml <<EOiF
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: vlan-conf
+spec:
+  config: '{
+      "cniVersion": "0.3.1",
+      "plugins": [
+        {
+          "type": "vlan",
+          "capabilities": { "ips": true },
+          "master": "eth0",
+          "vlanId": 100,
+          "ipam": {
+            "type": "static"
+          }
+        }
+      ]
+    }'
+

@@ -1,0 +1,34 @@
+---
+# Default values for nsm.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+tag: latest
+pullPolicy: IfNotPresent
+
+# registry: docker.pkg.github.com
+# organization: networkservicemesh
+
+registry: registry.nordix.org
+organization: cloud-native/meridio
+
+postfix: ""
+gatewayImage: test-gw
+gatewayImageVer: latest
+gw1IPv4: 169.254.100.254/24
+gw1IPv6: fe80::beef/64
+gw2IPv4: 169.254.100.253/24
+gw2IPv6: fe80::beee/64
+gwVRRPIP4: 169.254.100.252/24
+gwVRRPIP6: fe80::beed/64
+masterItf: eth0
+vlanId: 100
+
+gwtg1IPv4: 11.0.0.1/24
+gwtg1IPv6: 1111::1/100
+gwtg2IPv4: 11.0.0.2/24
+gwtg2IPv6: 1111::2/100
+tg1IPv4: 11.0.0.3/24
+tg1IPv6: 1111::3/100
+tgMasterItf: eth0
+tgVlanId: 3000

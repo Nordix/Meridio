@@ -1,0 +1,52 @@
+#! /bin/sh
+
+dir=$(dirname $0); dir=$(readlink -f $dir)
+tmp=/tmp/xcluster_$$
+die() {
+    echo "ERROR: $*" >&2
+    rm -rf $tmp
+    exit 1
+}
+log() {
+    echo "$*" >&2
+}
+test -n "$1" || die "No out-file"
+
+mkdir -p $tmp
+cp -R $dir/default/* $tmp
+
+XCLUSTER_INSTALL_MULTUS=1
+
+if test -n $XCLUSTER_INSTALL_MULTUS; then
+       if [ ! -d $XCLUSTER_WORKSPACE/multus-cni ]; then
+               log "Clone multus-cni to $XCLUSTER_WORKSPACE/multus-cni"
+               git clone https://github.com/k8snetworkplumbingwg/multus-cni.git $XCLUSTER_WORKSPACE/multus-cni/ || die "git: failed to clone multus"
+       fi
+
+       if [ ! -d $XCLUSTER_WORKSPACE/cni-plugins ]; then
+               log "Clone cni-plugins to $XCLUSTER_WORKSPACE/cni-plugins"
+               git clone https://github.com/containernetworking/plugins $XCLUSTER_WORKSPACE/cni-plugins/ || die "git: failed to clone cni plugins"
+               cd $XCLUSTER_WORKSPACE/cni-plugins/
+               git checkout v0.8.7
+               log "Build CNI plugins v0.8.7"
+               ./build_linux.sh
+               cd -
+       fi
+
+       log "Copy multus-cni to $tmp/etc/kubernetes/"
+       mkdir -p $tmp/etc/kubernetes/
+       test -d $XCLUSTER_WORKSPACE/multus-cni && cp -r $XCLUSTER_WORKSPACE/multus-cni $tmp/etc/kubernetes/
+       if test -d $tmp/etc/kubernetes/multus-cni -a -f $tmp/etc/kubernetes/multus-cni/images/multus-daemonset.yml; then
+       	# make sure multus tolerates all the effects (so that it starts on tainted nodes as well)
+       	sed -i -e "/^\( *\)tolerations:/{n;n;/effect:/d;}" $tmp/etc/kubernetes/multus-cni/images/multus-daemonset.yml
+       fi
+       log "Copy CNI plugins to $tmp/opt/cni/bin"
+       test -f $XCLUSTER_WORKSPACE/cni-plugins/bin/vlan && mkdir -p $tmp/opt/cni/bin && cp $XCLUSTER_WORKSPACE/cni-plugins/bin/vlan $tmp/opt/cni/bin/
+       test -f $XCLUSTER_WORKSPACE/cni-plugins/bin/static && mkdir -p $tmp/opt/cni/bin && cp $XCLUSTER_WORKSPACE/cni-plugins/bin/static $tmp/opt/cni/bin/
+       #test -d $XCLUSTER_WORKSPACE/cni-plugins/bin && mkdir -p $tmp/opt/cni/bin && cp $XCLUSTER_WORKSPACE/cni-plugins/bin/* $tmp/opt/cni/bin/
+fi
+
+cd $tmp
+tar cf "$1" *
+cd - > /dev/null
+rm -rf $tmp

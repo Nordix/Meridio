@@ -1,0 +1,71 @@
+---
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: {{ template "tg.tgConf" . }}
+spec:
+  config: '{
+      "cniVersion": "0.3.1",
+      "plugins": [
+        {
+          "type": "vlan",
+          "capabilities": { "ips": true },
+          "master": "{{ .Values.tgMasterItf }}",
+          "vlanId": {{ .Values.tgVlanId }},
+          "ipam": {
+            "type": "static"
+          }
+        }
+      ]
+    }'
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ template "tg.tg" . }}
+  labels:
+    app: tg
+  annotations:
+      k8s.v1.cni.cncf.io/networks: '[
+        { "name": "{{ template "tg.tgConf" . }}",
+          "ips": [ "{{ .Values.tg1IPv4 }}", "{{ .Values.tg1IPv6 }}" ],
+          "interface": "tg"
+        }]'
+spec:
+#  tolerations:
+#  - key: "gw"
+#    operator: "Exists"
+#  nodeSelector:
+#    gw: "true"
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+            - "{{ template "gw.gwLabel" . }}"
+        topologyKey: kubernetes.io/hostname
+  initContainers:
+        - name: sysctl-init
+          image: {{ .Values.registry }}/{{ .Values.organization }}/busybox:1.29
+          securityContext:
+            privileged: true
+          command: ["/bin/sh"]
+          args:
+            - -c
+            - sysctl -w net.ipv4.fib_multipath_hash_policy=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1
+  containers:
+        - name: ctraffic
+          image: {{ .Values.registry }}/{{ .Values.organization }}/ctraffic:latest
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          securityContext:
+            privileged: true
+        - name: bird
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.gatewayImage }}:{{ .Values.gatewayImageVer }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          securityContext:
+            privileged: true
+          command: [ "/usr/sbin/bird" ]
+          args: ["-d", "-c", "/etc/bird/bird-tg.conf"]

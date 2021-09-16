@@ -24,9 +24,9 @@ Deploy external gateway and traffic generator
 prerequisite; Multus is ready (deployed by meridio ovl)
 ```
 # default interface setup
-helm install xcluster/ovl/meridio/helm/gateway --generate-name
+helm install docs/demo/deployments/xcluster/ovl/meridio/helm/gateway --generate-name
 # eth1:meridio--gateways, eth2:gateways--tg
-helm install xcluster/ovl/meridio/helm/gateway --generate-name --set masterItf=eth1,tgMasterItf=eth2
+helm install docs/demo/deployments/xcluster/ovl/meridio/helm/gateway --generate-name --set masterItf=eth1,tgMasterItf=eth2
 ```
 
 ### NSM
@@ -84,6 +84,8 @@ apiVersion: meridio.nordix.org/v1alpha1
 kind: Trench
 metadata:
   name: trench-a
+spec:
+  ip-family: dualstack
 EOF
 
 # add Attractor
