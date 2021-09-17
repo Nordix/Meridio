@@ -62,4 +62,3 @@ message TargetEvent {
     Target target = 1;
     Status status = 2;
 }
-
