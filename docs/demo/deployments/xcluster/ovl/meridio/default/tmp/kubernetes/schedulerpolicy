@@ -1,0 +1,22 @@
+{
+    "kind" : "Policy",
+    "apiVersion" : "v1",
+    "predicates" : [
+        {"name" : "PodFitsPorts"},
+        {"name" : "PodFitsResources"},
+        {"name" : "NoDiskConflict"},
+        {"name" : "PodToleratesNodeTaints"},
+        {"name" : "MatchNodeSelector"},
+        {"name" : "PodToleratesNodeTaints"},
+        {"name" : "PodFitsHost"}
+    ],
+    "priorities" : [
+        {"name" : "LeastRequestedPriority", "weight" : 1},
+        {"name" : "BalancedResourceAllocation", "weight" : 5},
+        {"name" : "SelectorSpreadPriority", "weight" : 10},
+        {"name" : "TaintTolerationPriority", "weight" : 1},
+        {"name" : "EqualPriority", "weight" : 1},
+        {"name" : "NodeAffinityPriority", "weight" : 1},
+        {"name" : "InterPodAffinityPriority", "weight" : 1}
+    ]
+}

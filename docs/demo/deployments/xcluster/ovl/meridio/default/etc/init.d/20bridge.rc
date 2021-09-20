@@ -1,0 +1,113 @@
+#! /bin/sh
+
+export PATH="/bin:/sbin:/usr/bin:/usr/sbin"
+. /etc/profile
+
+die() {
+	echo "$@"
+	exit 1
+}
+
+hostname | grep -Eq 'vm-[0-9]+$' || die "Invalid hostname [$(hostname)]"
+i=$(hostname | cut -d- -f2 | sed -re 's,^0+,,')
+#test $i -le 200 || exit 0
+test $i -le 220 || exit 0
+test -n "$PREFIX" || PREFIX=1000::1
+
+
+if ! grep -q CNI_INFO /etc/profile; then
+	echo CNI_INFO=bridge >> /etc/profile
+fi
+
+mkdir -p /etc/cni/net.d
+if test $i -le 200; then
+if test "$IP_FAMILY_ORDER" = "64"; then
+	cat > /etc/cni/net.d/10-bridge.conf <<EOF
+{
+  "cniVersion": "0.4.0",
+  "name": "cni-x",
+  "type": "bridge",
+  "bridge": "cbr0",
+  "isDefaultGateway": true,
+  "hairpinMode": true,
+  "ipam": {
+    "type": "host-local",
+    "ranges": [
+      [ { "subnet": "1100::${i}:0000/112" } ],
+      [ { "subnet": "11.0.$i.0/24" } ]
+    ]
+  }
+}
+EOF
+else
+	cat > /etc/cni/net.d/10-bridge.conf <<EOF
+{
+  "cniVersion": "0.4.0",
+  "name": "cni-x",
+  "type": "bridge",
+  "bridge": "cbr0",
+  "isDefaultGateway": true,
+  "hairpinMode": true,
+  "ipam": {
+    "type": "host-local",
+    "ranges": [
+      [ { "subnet": "11.0.$i.0/24" } ],
+      [ { "subnet": "1100::${i}:0000/112" } ]
+    ]
+  }
+}
+EOF
+fi
+else
+if test "$IP_FAMILY_ORDER" = "64"; then
+        cat > /etc/cni/net.d/10-bridge.conf <<EOF
+{
+  "cniVersion": "0.4.0",
+  "name": "cni-x",
+  "type": "bridge",
+  "bridge": "cbr0",
+  "isDefaultGateway": true,
+  "hairpinMode": true,
+  "ipam": {
+    "type": "host-local",
+    "ranges": [
+      [ { "subnet": "1100::${i}:000/112" } ],
+      [ { "subnet": "11.0.$i.0/24" } ]
+    ]
+  }
+}
+EOF
+else
+        cat > /etc/cni/net.d/10-bridge.conf <<EOF
+{
+  "cniVersion": "0.4.0",
+  "name": "cni-x",
+  "type": "bridge",
+  "bridge": "cbr0",
+  "isDefaultGateway": true,
+  "hairpinMode": true,
+  "ipam": {
+    "type": "host-local",
+    "ranges": [
+      [ { "subnet": "11.0.$i.0/24" } ],
+      [ { "subnet": "1100::${i}:0000/112" } ]
+    ]
+  }
+}
+EOF
+fi
+fi
+
+test -n "$__nvm" || __nvm=4
+test -n "$FIRST_WORKER" || FIRST_WORKER=1
+for n in $(seq $FIRST_WORKER $__nvm); do
+	test $n -eq $i && continue
+	ip ro add 11.0.$n.0/24 via 192.168.1.$n
+	ip -6 ro add 1100::${n}:0/112 via $PREFIX:192.168.1.$n
+done
+
+iptables -t nat -I POSTROUTING 1 -s 11.0.0.0/16 ! -d 11.0.0.0/16 -j MASQUERADE
+ip6tables -t nat -I POSTROUTING 1 -s 1100::/16 ! -d 1100::/16 -j MASQUERADE
+
+/opt/cni/bin/cni-bridge.sh monitor < /dev/null > /var/log/bridge.log 2>&1 &
+

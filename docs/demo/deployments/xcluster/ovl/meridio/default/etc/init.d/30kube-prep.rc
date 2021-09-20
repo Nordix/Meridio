@@ -1,0 +1,75 @@
+#! /bin/sh
+
+export PATH="/bin:/sbin:/usr/bin:/usr/sbin"
+. /etc/profile
+
+die() {
+	echo "$@"
+	exit 1
+}
+
+grep -q KUBECONFIG /etc/profile || \
+	echo "KUBECONFIG=/etc/kubernetes/kubeconfig.token" >> /etc/profile
+echo "export KUBECONFIG" >> /etc/profile
+
+hostname | grep -Eq 'vm-[0-9]+$' || die "Invalid hostname [$(hostname)]"
+i=$(hostname | cut -d- -f2 | sed -re 's,^0+,,')
+#test $i -le 200 || exit 0
+test $i -le 220 || exit 0
+
+printf '35f15062-7e2b-11e9-b640-0000000100%02x\n' $i > /etc/machine-id
+
+if test -n "$PROXY_MODE" -a "$PROXY_MODE" != "ipvs"; then
+   sed -i -e "s,mode: \"ipvs\",mode: \"$PROXY_MODE\"," /etc/kubernetes/kube-proxy.config
+   ip6tables -t nat -N KUBE-MARK-DROP
+   iptables -t nat -N KUBE-MARK-DROP
+fi
+
+# The tailing ':' makes sure this doesn't match an ipv6 address
+if test -n "$IPV6_PREFIX"; then
+	sed -i -e "s,192.168.1.1:,[${IPV6_PREFIX}192.168.1.1]:," \
+		/etc/kubernetes/kubeconfig
+	sed -i -e "s,192.168.1.1:,[${IPV6_PREFIX}192.168.1.1]:," \
+		/etc/kubernetes/kubeconfig.token
+fi
+
+# Work around for bad install of dropbear
+test -r /usr/bin/dbclient || ln /bin/dbclient /usr/bin/dbclient
+
+mount -t tmpfs tmpfs /sys/fs/cgroup
+for d in cpuset memory; do
+	mkdir /sys/fs/cgroup/$d
+	mount -t cgroup cgroup /sys/fs/cgroup/$d
+done
+mount --make-rshared /
+
+mkdir -p /var/lib/kubelet
+
+echo 1 > /proc/sys/net/ipv6/conf/all/forwarding
+echo 1 > /proc/sys/net/ipv4/ip_forward
+ip link add name cbr0 type bridge
+ip link set dev cbr0 up
+
+# Enable to trace cni communication
+if false; then
+	d=/opt/cni/bin
+	for f in bridge host-local loopback; do
+		mv $d/$f $d/$f.bin
+		ln /bin/tee-pipe $d/$f
+	done
+fi
+
+# https://github.com/kubernetes/kubernetes/issues/87426
+modprobe br-netfilter
+sysctl -w net.bridge.bridge-nf-call-iptables=1
+
+if kubectl version --short --client | grep -q v1.2; then
+	# Many new security updates in v1.20
+	key=/srv/kubernetes/server.key
+	grep -q API_FLAGS /etc/profile || \
+		echo "API_FLAGS='--service-account-signing-key-file=$key --service-account-issuer=Nemo --service-account-key-file=$key'" >> /etc/profile
+fi
+
+test -n "$FEATURE_GATES" || \
+	echo "FEATURE_GATES=IPv6DualStack=true,EphemeralContainers=true" >> /etc/profile
+

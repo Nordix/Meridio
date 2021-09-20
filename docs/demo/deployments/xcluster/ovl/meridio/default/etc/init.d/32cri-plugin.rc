@@ -1,0 +1,36 @@
+#! /bin/sh
+
+export PATH="/bin:/sbin:/usr/bin:/usr/sbin"
+. /etc/profile
+
+die() {
+	echo "$@"
+	exit 1
+}
+
+# ezollug
+
+hostname | grep -Eq 'vm-[0-9]+$' || die "Invalid hostname [$(hostname)]"
+i=$(hostname | cut -d- -f2 | sed -re 's,^0+,,')
+#test $i -le 200 || exit 0
+test $i -le 220 || exit 0
+test -n "$FIRST_WORKER" -a $i -lt "$FIRST_WORKER" && exit 0
+
+# Cri-o *requires* a default route to start(?!)
+if test "$i" -le 200; then
+	ip route add default via 192.168.1.201
+else
+	ip route add default via 192.168.0.250
+fi
+crio -log-level debug > /var/log/crio.log 2>&1 &
+sleep 0.2
+
+cat > /etc/cri-plugin.rc <<EOF
+# CRI options to "kubelet";
+CRI_OPTS="--container-runtime=remote --container-runtime-endpoint=unix:///var/run/crio/crio.sock --image-service-endpoint=unix:///var/run/crio/crio.sock"
+EOF
+
+cat >> /root/.profile <<EOF
+alias cri="crictl --runtime-endpoint=unix:///var/run/crio/crio.sock"
+alias images="crictl --runtime-endpoint=unix:///var/run/crio/crio.sock images"
+EOF
