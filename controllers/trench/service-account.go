@@ -15,11 +15,13 @@ import (
 type ServiceAccount struct {
 	trench *meridiov1alpha1.Trench
 	model  *corev1.ServiceAccount
+	exec   *common.Executor
 }
 
-func NewServiceAccount(t *meridiov1alpha1.Trench) (*ServiceAccount, error) {
+func NewServiceAccount(e *common.Executor, t *meridiov1alpha1.Trench) (*ServiceAccount, error) {
 	l := &ServiceAccount{
 		trench: t.DeepCopy(),
+		exec:   e,
 	}
 
 	// get model
@@ -52,10 +54,10 @@ func (sa *ServiceAccount) insertParameters(init *corev1.ServiceAccount) *corev1.
 	return ret
 }
 
-func (sa *ServiceAccount) getCurrentStatus(e *common.Executor) (*corev1.ServiceAccount, error) {
+func (sa *ServiceAccount) getCurrentStatus() (*corev1.ServiceAccount, error) {
 	currentState := &corev1.ServiceAccount{}
 	selector := sa.getSelector()
-	err := e.GetObject(selector, currentState)
+	err := sa.exec.GetObject(selector, currentState)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -78,22 +80,22 @@ func (sa *ServiceAccount) getReconciledDesiredStatus(current *corev1.ServiceAcco
 	return sa.insertParameters(current)
 }
 
-func (sa *ServiceAccount) getAction(e *common.Executor) (common.Action, error) {
+func (sa *ServiceAccount) getAction() ([]common.Action, error) {
 	elem := common.ServiceAccountName(sa.trench)
-	var action common.Action
-	cs, err := sa.getCurrentStatus(e)
+	var action []common.Action
+	cs, err := sa.getCurrentStatus()
 	if err != nil {
 		return action, err
 	}
 	if cs == nil {
 		ds := sa.getDesiredStatus()
-		e.LogInfo(fmt.Sprintf("add action: create %s", elem))
-		action = common.NewCreateAction(ds, fmt.Sprintf("create %s", elem))
+		sa.exec.LogInfo(fmt.Sprintf("add action: create %s", elem))
+		action = append(action, common.NewCreateAction(ds, fmt.Sprintf("create %s", elem)))
 	} else {
 		ds := sa.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			e.LogInfo(fmt.Sprintf("add action: update %s", elem))
-			action = common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem))
+			sa.exec.LogInfo(fmt.Sprintf("add action: update %s", elem))
+			action = append(action, common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem)))
 		}
 	}
 	return action, nil

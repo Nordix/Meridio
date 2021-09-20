@@ -61,8 +61,8 @@ func (e *Executor) GetObject(selector client.ObjectKey, obj client.Object) error
 	return e.client.Get(e.ctx, selector, obj)
 }
 
-func (e *Executor) ListObject(obj client.ObjectList, opts client.ListOption) error {
-	return e.client.List(e.ctx, obj, opts)
+func (e *Executor) ListObject(obj client.ObjectList, opts ...client.ListOption) error {
+	return e.client.List(e.ctx, obj, opts...)
 }
 
 func (e *Executor) RunAll(actions []Action) error {

@@ -14,11 +14,13 @@ import (
 type RoleBinding struct {
 	trench *meridiov1alpha1.Trench
 	model  *rbacv1.RoleBinding
+	exec   *common.Executor
 }
 
-func NewRoleBinding(t *meridiov1alpha1.Trench) (*RoleBinding, error) {
+func NewRoleBinding(e *common.Executor, t *meridiov1alpha1.Trench) (*RoleBinding, error) {
 	l := &RoleBinding{
 		trench: t.DeepCopy(),
+		exec:   e,
 	}
 
 	// get model
@@ -62,10 +64,10 @@ func (r *RoleBinding) getSelector() client.ObjectKey {
 	}
 }
 
-func (r *RoleBinding) getCurrentStatus(e *common.Executor) (*rbacv1.RoleBinding, error) {
+func (r *RoleBinding) getCurrentStatus() (*rbacv1.RoleBinding, error) {
 	currentStatus := &rbacv1.RoleBinding{}
 	selector := r.getSelector()
-	err := e.GetObject(selector, currentStatus)
+	err := r.exec.GetObject(selector, currentStatus)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -83,22 +85,22 @@ func (r *RoleBinding) getReconciledDesiredStatus(current *rbacv1.RoleBinding) *r
 	return r.insertParameters(current)
 }
 
-func (r *RoleBinding) getAction(e *common.Executor) (common.Action, error) {
+func (r *RoleBinding) getAction() ([]common.Action, error) {
 	elem := common.RoleBindingName(r.trench)
-	var action common.Action
-	cs, err := r.getCurrentStatus(e)
+	var action []common.Action
+	cs, err := r.getCurrentStatus()
 	if err != nil {
 		return action, err
 	}
 	if cs == nil {
 		ds := r.getDesiredStatus()
-		e.LogInfo(fmt.Sprintf("add action: create %s", elem))
-		action = common.NewCreateAction(ds, fmt.Sprintf("create %s", elem))
+		r.exec.LogInfo(fmt.Sprintf("add action: create %s", elem))
+		action = append(action, common.NewCreateAction(ds, fmt.Sprintf("create %s", elem)))
 	} else {
 		ds := r.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			e.LogInfo(fmt.Sprintf("add action: update %s", elem))
-			action = common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem))
+			r.exec.LogInfo(fmt.Sprintf("add action: update %s", elem))
+			action = append(action, common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem)))
 		}
 	}
 	return action, nil

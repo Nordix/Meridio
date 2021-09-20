@@ -139,11 +139,11 @@ attractor.meridio.nordix.org/attr1   100      eth0      ["gateway1","gateway2"] 
 
 ### Vip
 
-A vip is a resource that must be created with labels. It specifies its owner reference attractor and trench by `metadata.labels.attractor` and `metadata.labels.trench`.
+A vip is a resource that must be created with the label `metadata.labels.trench`, by which specifies its owner trench.
 
 To see how to configure and read the status of a vip, please refer to [vip spec](https://pkg.go.dev/github.com/nordix/meridio-operator/api/v1alpha1#VipSpec) and [vip status](https://pkg.go.dev/github.com/nordix/meridio-operator/api/v1alpha1#VipStatus).
 
-In the example below, two gateways will be created
+In the example below, two vips will be created.
 
 ```bash
 $ kubectl apply -f ./config/samples/meridio_v1alpha1_vip.yaml

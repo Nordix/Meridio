@@ -18,6 +18,7 @@ package trench
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 
@@ -28,7 +29,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"github.com/nordix/meridio-operator/controllers/common"
@@ -73,13 +76,18 @@ func (r *TrenchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	executor := common.NewExecutor(r.Scheme, r.Client, ctx, trench, r.Log)
-	meridio, err := NewMeridio(trench)
+	meridio, err := NewMeridio(executor, trench)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	err = meridio.ReconcileAll(executor, trench)
+	actions, err := meridio.ReconcileAll()
 	if err != nil {
 		return ctrl.Result{}, err
+	}
+
+	err = executor.RunAll(common.AppendActions(actions...))
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("running action error: %s", err)
 	}
 
 	return ctrl.Result{}, nil
@@ -95,5 +103,13 @@ func (r *TrenchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&rbacv1.Role{}).
 		Owns(&rbacv1.RoleBinding{}).
 		Owns(&appsv1.DaemonSet{}).
+		Watches(
+			&source.Kind{Type: &meridiov1alpha1.Attractor{}},
+			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},
+		). // Attractors are not the controllers of Attractors, so here uses Watches with IsController: false
+		Watches(
+			&source.Kind{Type: &meridiov1alpha1.Vip{}},
+			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},
+		). // Attractors are not the controllers of Vips, so here uses Watches with IsController: false
 		Complete(r)
 }

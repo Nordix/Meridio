@@ -71,26 +71,26 @@ func (r *VipReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	currentVip := vip.DeepCopy()
 	vip = setVipStatus(vip, meridiov1alpha1.NoPhase, "")
 
-	trench, attr, err := validateVip(executor, vip)
+	trench, err := validateVip(executor, vip)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
 	// actions to update vip
-	if attr != nil {
-		err = executor.SetOwnerReference(vip, trench, attr)
+	if trench != nil {
+		err = executor.SetOwnerReference(vip, trench)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
-	actions := getVipActions(executor, vip, currentVip)
+	actions := getVipActions(vip, currentVip)
 	err = executor.RunAll(actions)
 
 	return ctrl.Result{}, err
 }
 
-func validateVip(e *common.Executor, vip *meridiov1alpha1.Vip) (*meridiov1alpha1.Trench, *meridiov1alpha1.Attractor, error) {
+func validateVip(e *common.Executor, vip *meridiov1alpha1.Vip) (*meridiov1alpha1.Trench, error) {
 	// Get the trench by the label in vip
 	selector := client.ObjectKey{
 		Namespace: vip.ObjectMeta.Namespace,
@@ -103,42 +103,14 @@ func validateVip(e *common.Executor, vip *meridiov1alpha1.Vip) (*meridiov1alpha1
 			setVipStatus(vip,
 				meridiov1alpha1.Disengaged,
 				"labeled trench not found")
-			return nil, nil, nil
+			return nil, nil
 		} else {
-			return nil, nil, err
+			return nil, err
 		}
-	}
-
-	attrname, ok := vip.ObjectMeta.Labels["attractor"]
-	if !ok {
-		setVipStatus(vip,
-			meridiov1alpha1.Disengaged,
-			"labeled trench not found")
-		return nil, nil, nil
-	}
-	selector = client.ObjectKey{
-		Namespace: vip.ObjectMeta.Namespace,
-		Name:      attrname,
-	}
-	attr := &meridiov1alpha1.Attractor{}
-	if err := e.GetObject(selector, attr); err != nil {
-		if apierrors.IsNotFound(err) {
-			msg := "labeled attractor not found"
-			vip.Status.Status = meridiov1alpha1.Disengaged
-			vip.Status.Message = msg
-			return nil, nil, nil
-		}
-		return nil, nil, err
-	}
-	if attr.ObjectMeta.Labels["trench"] != vip.ObjectMeta.Labels["trench"] {
-		msg := "attractor and trench label mismatch"
-		vip.Status.Status = meridiov1alpha1.Disengaged
-		vip.Status.Message = msg
-		return nil, nil, nil
 	}
 
 	setVipStatus(vip, meridiov1alpha1.Engaged, "")
-	return trench, attr, nil
+	return trench, nil
 }
 
 func setVipStatus(vip *meridiov1alpha1.Vip, status meridiov1alpha1.ConfigStatus, msg string) *meridiov1alpha1.Vip {
@@ -147,7 +119,7 @@ func setVipStatus(vip *meridiov1alpha1.Vip, status meridiov1alpha1.ConfigStatus,
 	return vip
 }
 
-func getVipActions(e *common.Executor, new, old *meridiov1alpha1.Vip) []common.Action {
+func getVipActions(new, old *meridiov1alpha1.Vip) []common.Action {
 	var actions []common.Action
 	// set the status for the vip
 	nsname := common.NsName(new.ObjectMeta)

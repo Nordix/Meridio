@@ -14,11 +14,13 @@ import (
 type Role struct {
 	trench *meridiov1alpha1.Trench
 	model  *rbacv1.Role
+	exec   *common.Executor
 }
 
-func NewRole(t *meridiov1alpha1.Trench) (*Role, error) {
+func NewRole(e *common.Executor, t *meridiov1alpha1.Trench) (*Role, error) {
 	l := &Role{
 		trench: t.DeepCopy(),
+		exec:   e,
 	}
 
 	// get model
@@ -51,10 +53,10 @@ func (r *Role) insertParameters(role *rbacv1.Role) *rbacv1.Role {
 	return ret
 }
 
-func (r *Role) getCurrentStatus(e *common.Executor) (*rbacv1.Role, error) {
+func (r *Role) getCurrentStatus() (*rbacv1.Role, error) {
 	currentStatus := &rbacv1.Role{}
 	selector := r.getSelector()
-	err := e.GetObject(selector, currentStatus)
+	err := r.exec.GetObject(selector, currentStatus)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -72,22 +74,22 @@ func (r *Role) getReconciledDesiredStatus(current *rbacv1.Role) *rbacv1.Role {
 	return r.insertParameters(current)
 }
 
-func (r *Role) getAction(e *common.Executor) (common.Action, error) {
+func (r *Role) getAction() ([]common.Action, error) {
 	elem := common.RoleName(r.trench)
-	var action common.Action
-	cs, err := r.getCurrentStatus(e)
+	var action []common.Action
+	cs, err := r.getCurrentStatus()
 	if err != nil {
 		return action, err
 	}
 	if cs == nil {
 		ds := r.getDesiredStatus()
-		e.LogInfo(fmt.Sprintf("add action: create %s", elem))
-		action = common.NewCreateAction(ds, fmt.Sprintf("create %s", elem))
+		r.exec.LogInfo(fmt.Sprintf("add action: create %s", elem))
+		action = append(action, common.NewCreateAction(ds, fmt.Sprintf("create %s", elem)))
 	} else {
 		ds := r.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			e.LogInfo(fmt.Sprintf("add action: update %s", elem))
-			action = common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem))
+			r.exec.LogInfo(fmt.Sprintf("add action: update %s", elem))
+			action = append(action, common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem)))
 		}
 	}
 	return action, nil

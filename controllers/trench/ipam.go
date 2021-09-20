@@ -19,11 +19,13 @@ const (
 type IpamDeployment struct {
 	trench *meridiov1alpha1.Trench
 	model  *appsv1.Deployment
+	exec   *common.Executor
 }
 
-func NewIPAM(t *meridiov1alpha1.Trench) (*IpamDeployment, error) {
+func NewIPAM(e *common.Executor, t *meridiov1alpha1.Trench) (*IpamDeployment, error) {
 	l := &IpamDeployment{
 		trench: t.DeepCopy(),
+		exec:   e,
 	}
 
 	// get model
@@ -78,10 +80,10 @@ func (i *IpamDeployment) getReconciledDesiredStatus(cd *appsv1.Deployment) *apps
 	return i.insertParameters(cd)
 }
 
-func (i *IpamDeployment) getCurrentStatus(e *common.Executor) (*appsv1.Deployment, error) {
+func (i *IpamDeployment) getCurrentStatus() (*appsv1.Deployment, error) {
 	currentStatus := &appsv1.Deployment{}
 	selector := i.getSelector()
-	err := e.GetObject(selector, currentStatus)
+	err := i.exec.GetObject(selector, currentStatus)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -91,10 +93,10 @@ func (i *IpamDeployment) getCurrentStatus(e *common.Executor) (*appsv1.Deploymen
 	return currentStatus, nil
 }
 
-func (i *IpamDeployment) getAction(e *common.Executor) (common.Action, error) {
+func (i *IpamDeployment) getAction() ([]common.Action, error) {
 	elem := common.IPAMDeploymentName(i.trench)
-	var action common.Action
-	cs, err := i.getCurrentStatus(e)
+	var action []common.Action
+	cs, err := i.getCurrentStatus()
 	if err != nil {
 		return nil, err
 	}
@@ -103,13 +105,13 @@ func (i *IpamDeployment) getAction(e *common.Executor) (common.Action, error) {
 		if err != nil {
 			return nil, err
 		}
-		e.LogInfo(fmt.Sprintf("add action: create %s", elem))
-		action = common.NewCreateAction(ds, fmt.Sprintf("create %s", elem))
+		i.exec.LogInfo(fmt.Sprintf("add action: create %s", elem))
+		action = append(action, common.NewCreateAction(ds, fmt.Sprintf("create %s", elem)))
 	} else {
 		ds := i.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			e.LogInfo(fmt.Sprintf("add action: update %s", elem))
-			action = common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem))
+			i.exec.LogInfo(fmt.Sprintf("add action: update %s", elem))
+			action = append(action, common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem)))
 		}
 	}
 	return action, nil

@@ -34,8 +34,7 @@ func NewConfigMap(e *common.Executor, t *meridiov1alpha1.Trench, attr *meridiov1
 
 func diffConfigContent(mapA, mapB map[string]string) (bool, string) {
 	gw, gwmsg := diffGateways(mapA[meridioconfig.GatewayConfigKey], mapB[meridioconfig.GatewayConfigKey])
-	vip, vipmsg := diffVips(mapA[meridioconfig.VipsConfigKey], mapB[meridioconfig.VipsConfigKey])
-	return gw || vip, fmt.Sprintf("%s %s", gwmsg, vipmsg)
+	return gw, gwmsg
 }
 
 func diffGateways(cc, cd string) (bool, string) {
@@ -52,40 +51,7 @@ func diffGateways(cc, cd string) (bool, string) {
 	return gwItemsDifferent(mapcc, mapcd)
 }
 
-func diffVips(cc, cd string) (bool, string) {
-	configcd, err := meridioconfig.UnmarshalVipConfig(cd)
-	if err != nil {
-		return true, fmt.Sprintf("unmarshal desired vip error %s", err)
-	}
-	mapcd := meridioconfig.MakeMapFromVipList(configcd)
-	configcc, err := meridioconfig.UnmarshalVipConfig(cc)
-	if err != nil {
-		return true, fmt.Sprintf("unmarshal current vip error %s", err)
-	}
-	mapcc := meridioconfig.MakeMapFromVipList(configcc)
-	return vipItemsDifferent(mapcc, mapcd)
-}
-
 func gwItemsDifferent(mapA, mapB map[string]meridioconfig.Gateway) (bool, string) {
-	for name := range mapA {
-		if _, ok := mapB[name]; !ok {
-			return true, fmt.Sprintf("%s needs updated", name)
-		}
-	}
-	for name := range mapB {
-		if _, ok := mapA[name]; !ok {
-			return true, fmt.Sprintf("%s needs updated", name)
-		}
-	}
-	for key, value := range mapA {
-		if !reflect.DeepEqual(mapB[key], value) {
-			return true, fmt.Sprintf("%s needs updated", key)
-		}
-	}
-	return false, ""
-}
-
-func vipItemsDifferent(mapA, mapB map[string]meridioconfig.Vip) (bool, string) {
 	for name := range mapA {
 		if _, ok := mapB[name]; !ok {
 			return true, fmt.Sprintf("%s needs updated", name)
@@ -123,7 +89,7 @@ func (c *ConfigMap) getCurrentStatus() (*corev1.ConfigMap, error) {
 	return currentState, nil
 }
 
-func (c *ConfigMap) getDesiredStatus(al *meridiov1alpha1.GatewayList, vl *meridiov1alpha1.VipList) (*corev1.ConfigMap, error) {
+func (c *ConfigMap) getDesiredStatus(al *meridiov1alpha1.GatewayList) (*corev1.ConfigMap, error) {
 	configmap := &corev1.ConfigMap{}
 	configmap.ObjectMeta.Name = common.ConfigMapName(c.trench)
 	configmap.ObjectMeta.Namespace = c.trench.ObjectMeta.Namespace
@@ -133,13 +99,8 @@ func (c *ConfigMap) getDesiredStatus(al *meridiov1alpha1.GatewayList, vl *meridi
 		return nil, err
 	}
 
-	vdata, err := c.getVipData(vl)
-	if err != nil {
-		return nil, err
-	}
 	configmap.Data = map[string]string{
 		meridioconfig.GatewayConfigKey: data,
-		meridioconfig.VipsConfigKey:    vdata,
 	}
 	return configmap, nil
 }
@@ -175,51 +136,18 @@ func (c *ConfigMap) listGatewaysByLabel() (*meridiov1alpha1.GatewayList, error) 
 	return gatewayList, nil
 }
 
-func (c *ConfigMap) listVipsByLabel() (*meridiov1alpha1.VipList, error) {
-	vipList := &meridiov1alpha1.VipList{}
-	for _, vipName := range c.attr.Spec.Vips {
-		vip := &meridiov1alpha1.Vip{}
-		err := c.exec.GetObject(client.ObjectKey{
-			Name:      vipName,
-			Namespace: c.attr.ObjectMeta.Namespace,
-		}, vip)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				continue
-			}
-			return nil, err
-		}
-		// referred gateway should also match the attractor label
-		sel := labels.Set{"trench": c.trench.ObjectMeta.Name}
-		viplbl := vip.ObjectMeta.Labels
-		if viplbl == nil {
-			viplbl = map[string]string{}
-		}
-		if labels.SelectorFromSet(sel).Matches(labels.Set(viplbl)) {
-			vipList.Items = append(vipList.Items, *vip)
-		}
-	}
-	return vipList, nil
-}
-
-func (c *ConfigMap) getReconciledDesiredStatus(al *meridiov1alpha1.GatewayList, vl *meridiov1alpha1.VipList, cm *corev1.ConfigMap) (*corev1.ConfigMap, error) {
+func (c *ConfigMap) getReconciledDesiredStatus(al *meridiov1alpha1.GatewayList, cm *corev1.ConfigMap) (*corev1.ConfigMap, error) {
 	data, err := c.getGatewayData(al)
-	if err != nil {
-		return nil, err
-	}
-	vdata, err := c.getVipData(vl)
 	if err != nil {
 		return nil, err
 	}
 	ret := cm.DeepCopy()
 	ret.Data[meridioconfig.GatewayConfigKey] = data
-	ret.Data[meridioconfig.VipsConfigKey] = vdata
 	return ret, nil
 }
 
 func (c *ConfigMap) getGatewayData(gws *meridiov1alpha1.GatewayList) (string, error) {
 	config := &meridioconfig.GatewayConfig{}
-	gwlist := []string{}
 	for _, gw := range gws.Items {
 		if gw.Status.Status != meridiov1alpha1.Engaged {
 			continue
@@ -241,41 +169,48 @@ func (c *ConfigMap) getGatewayData(gws *meridiov1alpha1.GatewayList) (string, er
 			HoldTime:   ht,
 			IPFamily:   ipFamily,
 		})
-		gwlist = append(gwlist, gw.ObjectMeta.Name)
 	}
 	configYAML, err := yaml.Marshal(config)
 	if err != nil {
 		return "", fmt.Errorf("error yaml.Marshal: %s", err)
 	}
-	c.attr.Status.GatewayInUse = gwlist
 	return string(configYAML), nil
+}
+
+// Update attractor status.gateway-in-use
+func (c *ConfigMap) getGatewayInUse(cm *corev1.ConfigMap) error {
+	lst := []string{}
+	gw, err := meridioconfig.UnmarshalGatewayConfig(cm.Data[meridioconfig.GatewayConfigKey])
+	if err != nil {
+		return fmt.Errorf("unmarshal gateway error %s", err)
+	}
+	mapgw := meridioconfig.MakeMapFromGWList(gw)
+	for key := range mapgw {
+		lst = append(lst, key)
+	}
+	c.attr.Status.GatewayInUse = lst
+	return nil
+}
+
+// Update attractor status.vips-in-use
+func (c *ConfigMap) getVipsInUse(cm *corev1.ConfigMap) error {
+	lst := []string{}
+	vip, err := meridioconfig.UnmarshalVipConfig(cm.Data[meridioconfig.VipsConfigKey])
+	if err != nil {
+		return fmt.Errorf("unmarshal vip error %s", err)
+	}
+	mapvp := meridioconfig.MakeMapFromVipList(vip)
+	for key := range mapvp {
+		lst = append(lst, key)
+	}
+	c.attr.Status.VipsInUse = lst
+	return nil
 }
 
 func parseHoldTime(ht string) uint {
 	// validation is done in gateway webhook
 	d, _ := time.ParseDuration(ht)
 	return uint(d.Seconds())
-}
-
-func (c *ConfigMap) getVipData(vips *meridiov1alpha1.VipList) (string, error) {
-	config := &meridioconfig.VipConfig{}
-	viplist := []string{}
-	for _, vp := range vips.Items {
-		if vp.Status.Status != meridiov1alpha1.Engaged {
-			continue
-		}
-		config.Vips = append(config.Vips, meridioconfig.Vip{
-			Name:    vp.ObjectMeta.Name,
-			Address: vp.Spec.Address,
-		})
-		viplist = append(viplist, vp.ObjectMeta.Name)
-	}
-	configYAML, err := yaml.Marshal(config)
-	if err != nil {
-		return "", fmt.Errorf("error yaml.Marshal: %s", err)
-	}
-	c.attr.Status.VipsInUse = viplist
-	return string(configYAML), nil
 }
 
 func (c *ConfigMap) getAction() (common.Action, error) {
@@ -285,26 +220,33 @@ func (c *ConfigMap) getAction() (common.Action, error) {
 	if err != nil {
 		return nil, err
 	}
+	// update attractor status according to the configmap
+	if cs != nil {
+		err = c.getGatewayInUse(cs)
+		if err != nil {
+			return nil, fmt.Errorf("setting attractor status.gateway-in-use error %s", err)
+		}
+		err = c.getVipsInUse(cs)
+		if err != nil {
+			return nil, fmt.Errorf("setting attractor status.vips-in-use error %s", err)
+		}
+	}
+
+	// update configmap
 	elem := common.ConfigMapName(c.trench)
 	al, err := c.listGatewaysByLabel()
 	if err != nil {
 		return nil, err
 	}
-	vl, err := c.listVipsByLabel()
-	if err != nil {
-		return nil, err
-	}
-
-	// update owner of the gateways
 	if cs == nil {
-		ds, err := c.getDesiredStatus(al, vl)
+		ds, err := c.getDesiredStatus(al)
 		if err != nil {
 			return nil, err
 		}
 		c.exec.LogInfo(fmt.Sprintf("add action: create %s", elem))
 		action = common.NewCreateAction(ds, fmt.Sprintf("create %s", elem))
 	} else {
-		ds, err := c.getReconciledDesiredStatus(al, vl, cs)
+		ds, err := c.getReconciledDesiredStatus(al, cs)
 		if err != nil {
 			return nil, err
 		}
