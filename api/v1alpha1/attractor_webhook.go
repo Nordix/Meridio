@@ -87,14 +87,20 @@ func (r *Attractor) validateAttractor() error {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("labels"), r.ObjectMeta.Labels, err.Error()))
 	}
 
-	_, _, err := net.ParseCIDR(r.Spec.VlanPrefixIPv4)
+	_, n, err := net.ParseCIDR(r.Spec.VlanPrefixIPv4)
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vlan-ipv4-prefix"), r.Spec.VlanPrefixIPv4, err.Error()))
 	}
+	if n.String() != r.Spec.VlanPrefixIPv4 {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vlan-ipv4-prefix"), r.Spec.VlanPrefixIPv4, fmt.Sprintf("not a valid prefix, probably %v should be used", n)))
+	}
 
-	_, _, err = net.ParseCIDR(r.Spec.VlanPrefixIPv6)
+	_, n, err = net.ParseCIDR(r.Spec.VlanPrefixIPv6)
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vlan-ipv6-prefix"), r.Spec.VlanPrefixIPv6, err.Error()))
+	}
+	if n.String() != r.Spec.VlanPrefixIPv6 {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vlan-ipv6-prefix"), r.Spec.VlanPrefixIPv6, fmt.Sprintf("not a valid prefix, probably %v should be used", n)))
 	}
 
 	if len(allErrs) == 0 {

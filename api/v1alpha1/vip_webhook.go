@@ -89,9 +89,12 @@ func (r *Vip) validateVip() error {
 }
 
 func (r *Vip) validateAddresses() error {
-	_, _, err := net.ParseCIDR(r.Spec.Address)
+	_, n, err := net.ParseCIDR(r.Spec.Address)
 	if err != nil {
 		return err
+	}
+	if n.String() != r.Spec.Address {
+		return fmt.Errorf("not a valid prefix, probably %v should be used", n)
 	}
 	return nil
 }
