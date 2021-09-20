@@ -33,9 +33,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	targetAPI "github.com/nordix/meridio/api/target"
 	"github.com/nordix/meridio/pkg/client"
 	"github.com/nordix/meridio/pkg/networking"
@@ -98,7 +100,7 @@ func (c *Conduit) Connect(ctx context.Context) error {
 		RequestTimeout: c.nsmConfig.RequestTimeout,
 		ConnectTo:      c.nsmConfig.ConnectTo,
 	}
-	c.networkServiceClient = client.NewSimpleNetworkServiceClient(clientConfig, c.apiClient, c.getAdditionalFunctionalities())
+	c.networkServiceClient = client.NewSimpleNetworkServiceClient(clientConfig, c.apiClient, c.getAdditionalFunctionalities(ctx))
 	err := c.networkServiceClient.Request(&networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id:             fmt.Sprintf("%s-%s-%d", c.nsmConfig.Name, proxyNetworkServiceName, 0),
@@ -270,7 +272,7 @@ func (c *Conduit) getNetworkServiceName() string {
 	return fmt.Sprintf("%s.%s.%s.%s", proxyPrefix, c.GetName(), c.GetTrench().GetName(), c.GetTrench().GetNamespace())
 }
 
-func (c *Conduit) getAdditionalFunctionalities() networkservice.NetworkServiceClient {
+func (c *Conduit) getAdditionalFunctionalities(ctx context.Context) networkservice.NetworkServiceClient {
 	interfaceMonitor, err := c.NetUtils.NewInterfaceMonitor()
 	if err != nil {
 		logrus.Fatalf("Error creating link monitor: %+v", err)
@@ -279,6 +281,8 @@ func (c *Conduit) getAdditionalFunctionalities() networkservice.NetworkServiceCl
 	additionalFunctionalities := chain.NewNetworkServiceClient(
 		updatepath.NewClient(c.apiClient.Config.Name),
 		serialize.NewClient(),
+		refresh.NewClient(ctx),
+		metadata.NewClient(),
 		sriovtoken.NewClient(),
 		mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
 			vfiomech.MECHANISM:   chain.NewNetworkServiceClient(vfio.NewClient()),

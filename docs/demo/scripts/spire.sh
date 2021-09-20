@@ -6,7 +6,7 @@ registerWorkload()
     local namespace="$2"
     kubectl -n spire exec spire-server-0 -- \
     /opt/spire/bin/spire-server entry create \
-    -ttl 72000 \
+    -ttl 7200 \
     -spiffeID spiffe://example.org/ns/$namespace/sa/$serviceAccount \
     -parentID spiffe://example.org/ns/spire/sa/spire-agent \
     -selector k8s:ns:$namespace \
