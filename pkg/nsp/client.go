@@ -28,6 +28,11 @@ type NetworkServicePlateformClient struct {
 	networkServicePlateformClient nspAPI.NetworkServicePlateformServiceClient
 }
 
+const (
+	EnabledStatus  nspAPI.Target_Status = nspAPI.Target_Enabled
+	DisabledStatus nspAPI.Target_Status = nspAPI.Target_Disabled
+)
+
 func (nspc *NetworkServicePlateformClient) Register(ips []string, targetContext map[string]string) error {
 	target := &nspAPI.Target{
 		Ips:     ips,

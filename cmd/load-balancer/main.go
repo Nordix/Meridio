@@ -222,7 +222,7 @@ func (sns *SimpleNetworkService) Start() {
 
 func (sns *SimpleNetworkService) recv() {
 	for {
-		target, err := sns.networkServicePlateformServiceStream.Recv()
+		targetEvent, err := sns.networkServicePlateformServiceStream.Recv()
 		if err == io.EOF {
 			break
 		}
@@ -231,13 +231,14 @@ func (sns *SimpleNetworkService) recv() {
 			break
 		}
 
-		lbTarget, err := sns.parseLoadBalancerTarget(target)
+		target := targetEvent.Target
+		lbTarget, err := sns.parseLoadBalancerTarget(targetEvent.Target)
 		if err != nil {
 			logrus.Errorf("SimpleNetworkService: parseLoadBalancerTarget err: %v", err)
 			continue
 		}
 
-		if target.Status == nspAPI.Status_Register {
+		if (targetEvent.Status == nspAPI.TargetEvent_Register || targetEvent.Status == nspAPI.TargetEvent_Updated) && target.Status == nspAPI.Target_Enabled {
 			// if service is blocked, do not process new Target
 			if sns.serviceBlocked() {
 				continue
@@ -248,7 +249,7 @@ func (sns *SimpleNetworkService) recv() {
 				logrus.Errorf("SimpleNetworkService: err AddTarget (%v): %v", target, err)
 				continue
 			}
-		} else if target.Status == nspAPI.Status_Unregister {
+		} else if targetEvent.Status == nspAPI.TargetEvent_Unregister || (targetEvent.Status == nspAPI.TargetEvent_Updated && target.Status == nspAPI.Target_Disabled) {
 			err = sns.loadbalancer.RemoveTarget(lbTarget)
 			logrus.Infof("SimpleNetworkService: Remove Target: %v", target)
 			if err != nil {
@@ -304,6 +305,9 @@ func (sns *SimpleNetworkService) InterfaceCreated(intf networking.Iface) {
 				continue
 			}
 			if len(intf.GetLocalPrefixes()) <= 0 {
+				continue
+			}
+			if target.Status == nspAPI.Target_Disabled {
 				continue
 			}
 			contains, err := sns.prefixesContainsIPs(intf.GetLocalPrefixes(), lbTarget.GetIPs())

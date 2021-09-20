@@ -59,7 +59,7 @@ func (fns *FrontendNetworkService) Start() {
 
 func (fns *FrontendNetworkService) recv() {
 	for {
-		target, err := fns.networkServicePlateformServiceStream.Recv()
+		targetEvent, err := fns.networkServicePlateformServiceStream.Recv()
 		if err == io.EOF {
 			break
 		}
@@ -67,11 +67,12 @@ func (fns *FrontendNetworkService) recv() {
 			logrus.Errorf("SimpleNetworkService: event err: %v", err)
 			break
 		}
+		target := targetEvent.GetTarget()
 
 		logrus.Debugf("FrontendNetworkService: event: %v", target)
 
 		if fns.isLocal(target) {
-			if target.Status == nspAPI.Status_Register {
+			if targetEvent.Status == nspAPI.TargetEvent_Register {
 				logrus.Infof("FrontendNetworkService: (local) FE available: %v", target.GetContext()[nsp.Identifier.String()])
 				// inform controlled services they are allowed to operate:
 				// SimpleNetworkService is allowed to accept new Targets.
@@ -85,7 +86,7 @@ func (fns *FrontendNetworkService) recv() {
 					logrus.Errorf("FrontendNetworkService: endpoint announce err: %v", err)
 					continue
 				}
-			} else if target.Status == nspAPI.Status_Unregister {
+			} else if targetEvent.Status == nspAPI.TargetEvent_Unregister {
 				logrus.Warnf("FrontendNetworkService: (local) FE unavailable: %v", target.GetContext()[nsp.Identifier.String()])
 				// inform controlled services they must pause operation:
 				// SimpleNetworkService must not accept new Targets, and must
