@@ -2,7 +2,7 @@
 
 kubectl -n spire exec spire-server-0 -- \
 /opt/spire/bin/spire-server entry create \
--ttl 72000 \
+-ttl 7200 \
 -spiffeID spiffe://example.org/ns/spire/sa/spire-agent \
 -selector k8s_sat:cluster:nsm-cluster \
 -selector k8s_sat:agent_ns:spire \
@@ -11,7 +11,7 @@ kubectl -n spire exec spire-server-0 -- \
 
 kubectl -n spire exec spire-server-0 -- \
 /opt/spire/bin/spire-server entry create \
--ttl 72000 \
+-ttl 7200 \
 -spiffeID spiffe://example.org/ns/default/sa/default \
 -parentID spiffe://example.org/ns/spire/sa/spire-agent \
 -selector k8s:ns:default \
