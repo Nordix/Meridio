@@ -41,7 +41,7 @@ BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:0.0.1
-BUILDER ?= golang:1.15
+BUILDER ?= golang:1.16
 BASE_IMG ?= ubuntu:20.10
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
@@ -52,6 +52,15 @@ GOBIN=$(shell go env GOPATH)/bin
 else
 GOBIN=$(shell go env GOBIN)
 endif
+
+BUILD_HASH=$(shell git rev-parse --verify HEAD --short)
+BUILD_BRANCH=$(shell git branch --show-current)
+
+GO_BUILD_VARS = \
+	github.com/nordix/meridio-operator/controllers/version.Branch=${BUILD_BRANCH} \
+	github.com/nordix/meridio-operator/controllers/version.Hash=${BUILD_HASH}
+
+LDFLAGS := $(patsubst %,-X %, $(GO_BUILD_VARS))
 
 all: build
 
@@ -86,26 +95,32 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
-test: manifests generate fmt vet ## Run tests.
+# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
+ENVTEST_K8S_VERSION = 1.21
+test: manifests generate fmt vet envtest## Run tests.
 	mkdir -p ${ENVTEST_ASSETS_DIR}
 	test -f ${ENVTEST_ASSETS_DIR}/setup-envtest.sh || curl -sSLo ${ENVTEST_ASSETS_DIR}/setup-envtest.sh https://raw.githubusercontent.com/kubernetes-sigs/controller-runtime/v0.7.2/hack/setup-envtest.sh
-	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR); go test ./... -short -coverprofile cover.out
+	source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh; fetch_envtest_tools $(ENVTEST_ASSETS_DIR); setup_envtest_env $(ENVTEST_ASSETS_DIR)
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test -v ./... -short -coverprofile cover.out
 
 E2E_FOCUS?=""
 .PHONY: e2e
-e2e: 
-	ginkgo --failFast --focus=$(E2E_FOCUS) ./test/e2e/...
+e2e:
+	ginkgo -v --focus=$(E2E_FOCUS) ./test/e2e/... -- -namespace=${NAMESPACE}
 
+ENVTEST = $(shell pwd)/bin/setup-envtest
+envtest: ## Download envtest-setup locally if necessary.
+	$(call go-get-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest@latest)
 ##@ Build
 
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
+	go build -ldflags="${LDFLAGS}" -o bin/manager main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 docker-build: test ## Build docker image with the manager.
-	docker build -t ${IMG} --build-arg BUILDER=${BUILDER} --build-arg BASE_IMG=${BASE_IMG} .
+	docker build -t ${IMG} --build-arg BUILDER=${BUILDER} --build-arg BASE_IMG=${BASE_IMG} --build-arg LDFLAGS="${LDFLAGS}" .
 
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}

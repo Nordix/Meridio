@@ -64,7 +64,7 @@ func (sa *ServiceAccount) getCurrentStatus() (*corev1.ServiceAccount, error) {
 		}
 		return nil, err
 	}
-	return sa.insertParameters(currentState), nil
+	return currentState, nil
 }
 
 func (sa *ServiceAccount) getDesiredStatus() *corev1.ServiceAccount {
