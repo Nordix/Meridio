@@ -2,32 +2,34 @@
 
 [Meridio](https://github.com/Nordix/Meridio)
 
-Run tests
+## Build
 
-The e2e tests expect the meridio operator is already running in the cluster. 
-The e2e test suite can be run in an arbitrary namespace by specifying NAMESPACE=<desired-namespace>
+```bash
+# build the image
+# use IMG to specify the image tag, default is "controller:0.0.1"
+make docker-build IMG="<meridio-operator-tag>"
+
+# change:
+# - image tag by setting IMG
+# - builder image by setting BUILDER, default is "golang:1.16"
+# - base image by setting BASE_IMG, default is "ubuntu:18.04"
+make docker-build IMG="<meridio-operator-tag>" BUILDER="<builder>" BASE_IMG="<base-image>"
+
+# Make the image available for the cluster to use. The following commands are alternative
+make docker-push IMG="<meridio-operator-tag>"  # Push the image to a registry
+make kind-load IMG="<meridio-operator-tag>"  # Load the image to kind cluster
+```
+
+### Run tests
+
+The e2e tests expect the meridio operator is already running in the cluster.
+The e2e test suite can be run in an arbitrary namespace by specifying NAMESPACE
 as the following example shows.
 
 ```bash
 # If meridio operator is not deployed yet, run the following commented command first:
 # make deploy NAMESPACE="red"
 make e2e NAMESPACE="red"
-```
-
-Build image
-
-```bash
-# build the image
-make docker-build IMG="localhost:5000/meridio/meridio-operator:v0.0.1"
-
-# change:
-# - image tag by setting IMG
-# - builder image by setting BUILDER
-# - base image by setting BASE_IMG
-make docker-build IMG="localhost:5000/meridio/meridio-operator:v0.0.1" BUILDER="golang:1.16" BASE_IMG="ubuntu:18.04"
-
-# Push the image to a registry
-make docker-push
 ```
 
 ## Deploy
