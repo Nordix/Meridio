@@ -253,6 +253,39 @@ var _ = Describe("Vip", func() {
 			}, timeout).Should(BeTrue())
 		})
 	})
+
+	Context("when updating the configmap directly", func() {
+		vp := vipA.DeepCopy()
+		attr := attractor.DeepCopy()
+		tr := trench.DeepCopy()
+		BeforeEach(func() {
+			Expect(fw.CreateResource(tr)).To(Succeed())
+			Expect(fw.CreateResource(attr)).To(Succeed())
+			assertAttractorStatus(attractor, meridiov1alpha1.Engaged)
+			Expect(fw.CreateResource(vp)).To(Succeed())
+			assertVipStatus(vipA, meridiov1alpha1.Engaged)
+			vipItemInConfigMap(vp, configmapName)
+		})
+		It("will be reverted according to the current vip", func() {
+			By("deleting the configmap")
+			configmap := &corev1.ConfigMap{}
+			Expect(fw.GetResource(client.ObjectKey{Name: configmapName, Namespace: vp.ObjectMeta.Namespace}, configmap)).To(Succeed())
+			Expect(fw.DeleteResource(configmap)).To(Succeed())
+
+			By("checking vip item still in the configmap")
+			vipItemInConfigMap(vp, configmapName)
+
+			By("updating the configmap")
+			Expect(fw.GetResource(client.ObjectKey{Name: configmapName, Namespace: vp.ObjectMeta.Namespace}, configmap)).To(Succeed())
+			configmap.Data[config.VipsConfigKey] = ""
+			Eventually(func(g Gomega) {
+				g.Expect(fw.UpdateResource(configmap)).To(Succeed())
+			}).Should(Succeed())
+
+			By("checking vip item still in the configmap")
+			vipItemInConfigMap(vp, configmapName)
+		})
+	})
 })
 
 func vipItemNotInConfigMap(vip *meridiov1alpha1.Vip, configmapName string) {

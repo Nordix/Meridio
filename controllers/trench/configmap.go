@@ -186,12 +186,7 @@ func (c *ConfigMap) getAction() ([]common.Action, error) {
 		}
 		// create configmap if not exist, or update configmap
 		if cs == nil {
-			ds, err := c.getDesiredStatus(nil)
-			if err != nil {
-				return nil, err
-			}
-			c.exec.LogInfo(fmt.Sprintf("add action: create %s", elem))
-			actions = append(actions, common.NewCreateAction(ds, fmt.Sprintf("create %s", elem)))
+			c.exec.LogInfo(fmt.Sprintf("waiting %s to be created by attractor", elem))
 		} else {
 			ds, err := c.getReconciledDesiredStatus(vips4attr, cs)
 			if err != nil {
@@ -199,6 +194,7 @@ func (c *ConfigMap) getAction() ([]common.Action, error) {
 			}
 			if diff, diffmsg := diffConfigContent(cs.Data, ds.Data); diff {
 				c.exec.LogInfo(fmt.Sprintf("add action: update %s", elem))
+				c.exec.SetOwnerReference(ds, c.trench)
 				actions = append(actions, common.NewUpdateAction(ds, fmt.Sprintf("%s, %s", fmt.Sprintf("update %s", elem), diffmsg)))
 			}
 		}

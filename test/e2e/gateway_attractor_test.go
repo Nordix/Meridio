@@ -287,6 +287,39 @@ var _ = Describe("Gateway", func() {
 			}, timeout).Should(BeTrue())
 		})
 	})
+
+	Context("when updating the configmap directly", func() {
+		gw := gateway.DeepCopy()
+		attr := attractor.DeepCopy()
+		tr := trench.DeepCopy()
+		BeforeEach(func() {
+			Expect(fw.CreateResource(tr)).To(Succeed())
+			Expect(fw.CreateResource(attr)).To(Succeed())
+			assertAttractorStatus(attractor, meridiov1alpha1.Engaged)
+			Expect(fw.CreateResource(gw)).To(Succeed())
+			assertGatewayStatus(gateway, meridiov1alpha1.Engaged)
+			gatewayItemInConfigMap(gw, configmapName)
+		})
+		It("will be reverted according to the current vip", func() {
+			By("deleting the configmap")
+			configmap := &corev1.ConfigMap{}
+			Expect(fw.GetResource(client.ObjectKey{Name: configmapName, Namespace: gw.ObjectMeta.Namespace}, configmap)).To(Succeed())
+			Expect(fw.DeleteResource(configmap)).To(Succeed())
+
+			By("checking gateway item still in the configmap")
+			gatewayItemInConfigMap(gw, configmapName)
+
+			By("updating the configmap")
+			Expect(fw.GetResource(client.ObjectKey{Name: configmapName, Namespace: gw.ObjectMeta.Namespace}, configmap)).To(Succeed())
+			configmap.Data[config.GatewayConfigKey] = ""
+			Eventually(func(g Gomega) {
+				g.Expect(fw.UpdateResource(configmap)).To(Succeed())
+			}).Should(Succeed())
+
+			By("checking gateway item still in the configmap")
+			gatewayItemInConfigMap(gw, configmapName)
+		})
+	})
 })
 
 func gatewayItemNotInConfigMap(gateway *meridiov1alpha1.Gateway, configmapName string) {

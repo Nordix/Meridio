@@ -106,10 +106,14 @@ func (r *TrenchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Watches(
 			&source.Kind{Type: &meridiov1alpha1.Attractor{}},
 			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},
-		). // Attractors are not the controllers of Attractors, so here uses Watches with IsController: false
+		). // Trenches are not the controllers of Attractors, so here uses Watches with IsController: false
 		Watches(
 			&source.Kind{Type: &meridiov1alpha1.Vip{}},
 			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},
-		). // Attractors are not the controllers of Vips, so here uses Watches with IsController: false
+		). // Trenches are not the controllers of Vips, so here uses Watches with IsController: false
+		Watches(
+			&source.Kind{Type: &corev1.ConfigMap{}},
+			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},
+		). // Trenches are not the controllers of configmaps, so here uses Watches with IsController: false
 		Complete(r)
 }
