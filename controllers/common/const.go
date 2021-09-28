@@ -117,8 +117,8 @@ func LoadBalancerNsName(cr *meridiov1alpha1.Trench) string {
 	return strings.Join([]string{LBName, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace}, ".")
 }
 
-func VlanNtwkSvcName(attr *meridiov1alpha1.Attractor) string {
-	return strings.Join([]string{NetworkServiceName, attr.ObjectMeta.Namespace}, ".")
+func VlanNtwkSvcName(cr *meridiov1alpha1.Trench) string {
+	return strings.Join([]string{NetworkServiceName, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace}, ".")
 }
 
 func getResourceNamePrefix() string {

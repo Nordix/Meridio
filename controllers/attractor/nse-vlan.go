@@ -25,12 +25,14 @@ type NseDeployment struct {
 	model     *appsv1.Deployment
 	attractor *meridiov1alpha1.Attractor
 	exec      *common.Executor
+	trench    *meridiov1alpha1.Trench
 }
 
-func NewNSE(e *common.Executor, attr *meridiov1alpha1.Attractor) (*NseDeployment, error) {
+func NewNSE(e *common.Executor, attr *meridiov1alpha1.Attractor, t *meridiov1alpha1.Trench) (*NseDeployment, error) {
 	nse := &NseDeployment{
 		attractor: attr,
 		exec:      e,
+		trench:    t,
 	}
 	err := nse.getModel()
 	if err != nil {
@@ -53,7 +55,7 @@ func (i *NseDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 		},
 		{
 			Name:  nseEnvSerive,
-			Value: common.VlanNtwkSvcName(i.attractor),
+			Value: common.VlanNtwkSvcName(i.trench),
 		},
 		{
 			Name:  nseEnvPrefixV4,

@@ -85,7 +85,7 @@ func (l *LoadBalancer) getNscEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	env := []corev1.EnvVar{
 		{
 			Name:  nscEnvNwSvc,
-			Value: fmt.Sprintf("vlan://%s/ext-vlan?forwarder=forwarder-vlan", common.VlanNtwkSvcName(l.attractor)),
+			Value: fmt.Sprintf("vlan://%s/ext-vlan?forwarder=forwarder-vlan", common.VlanNtwkSvcName(l.trench)),
 		},
 	}
 
