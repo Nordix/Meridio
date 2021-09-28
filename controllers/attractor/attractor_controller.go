@@ -79,7 +79,7 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		nse, err := NewNSE(executor, attr)
+		nse, err := NewNSE(executor, attr, trench)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
