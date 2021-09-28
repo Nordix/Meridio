@@ -80,6 +80,7 @@ func (r *TrenchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+
 	actions, err := meridio.ReconcileAll()
 	if err != nil {
 		return ctrl.Result{}, err
@@ -111,6 +112,10 @@ func (r *TrenchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&source.Kind{Type: &meridiov1alpha1.Vip{}},
 			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},
 		). // Trenches are not the controllers of Vips, so here uses Watches with IsController: false
+		Watches(
+			&source.Kind{Type: &meridiov1alpha1.Gateway{}},
+			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},
+		). // Trenches are not the controllers of gateways, so here uses Watches with IsController: false
 		Watches(
 			&source.Kind{Type: &corev1.ConfigMap{}},
 			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},

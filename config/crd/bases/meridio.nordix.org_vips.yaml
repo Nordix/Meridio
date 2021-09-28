@@ -20,6 +20,9 @@ spec:
     - jsonPath: .spec.address
       name: Address
       type: string
+    - jsonPath: .metadata.labels.trench
+      name: Trench
+      type: string
     - jsonPath: .status.status
       name: Status
       type: string

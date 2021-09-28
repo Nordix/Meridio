@@ -18,7 +18,6 @@ package gateway
 
 import (
 	"context"
-	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -67,33 +66,33 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 	cgw := gw.DeepCopy()
 	gw.Status = meridiov1alpha1.GatewayStatus{}
-	attr, err := validateGateway(executor, gw)
+	trch, err := validateGateway(executor, gw)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	if attr != nil {
-		err = executor.SetOwnerReference(gw, attr)
+	if trch != nil {
+		err = executor.SetOwnerReference(gw, trch)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
-	actions := getActions(gw, cgw)
+	actions := getActions(executor, gw, cgw)
 	err = executor.RunAll(actions)
 	return ctrl.Result{}, err
 }
 
-func validateGateway(e *common.Executor, gw *meridiov1alpha1.Gateway) (*meridiov1alpha1.Attractor, error) {
-	// get the attractor by gateway label
+func validateGateway(e *common.Executor, gw *meridiov1alpha1.Gateway) (*meridiov1alpha1.Trench, error) {
+	// get the trench by gateway label
 	selector := client.ObjectKey{
 		Namespace: gw.ObjectMeta.Namespace,
-		Name:      gw.ObjectMeta.Labels["attractor"],
+		Name:      gw.ObjectMeta.Labels["trench"],
 	}
-	attr := &meridiov1alpha1.Attractor{}
-	if err := e.GetObject(selector, attr); err != nil {
+	trch := &meridiov1alpha1.Trench{}
+	if err := e.GetObject(selector, trch); err != nil {
 		if apierrors.IsNotFound(err) {
-			msg := "labeled attractor not found"
+			msg := "labeled trench not found"
 			gw.Status.Status = meridiov1alpha1.Disengaged
 			gw.Status.Message = msg
 			return nil, nil
@@ -101,18 +100,17 @@ func validateGateway(e *common.Executor, gw *meridiov1alpha1.Gateway) (*meridiov
 		return nil, err
 	}
 	gw.Status.Status = meridiov1alpha1.Engaged
-	return attr, nil
+	return trch, nil
 }
 
-func getActions(new, old *meridiov1alpha1.Gateway) []common.Action {
+func getActions(executor *common.Executor, new, old *meridiov1alpha1.Gateway) []common.Action {
 	var actions []common.Action
 	// set the status for the vip
-	nsname := common.NsName(new.ObjectMeta)
 	if !equality.Semantic.DeepEqual(new.Status, old.Status) {
-		actions = append(actions, common.NewUpdateStatusAction(new, fmt.Sprintf("update %s status: %v", nsname, new.Status.Status)))
+		actions = append(actions, executor.NewUpdateStatusAction(new))
 	}
 	if !equality.Semantic.DeepEqual(new.ObjectMeta, old.ObjectMeta) {
-		actions = append(actions, common.NewUpdateAction(new, fmt.Sprintf("update %s ownerReference", nsname)))
+		actions = append(actions, executor.NewUpdateAction(new))
 	}
 	return actions
 }

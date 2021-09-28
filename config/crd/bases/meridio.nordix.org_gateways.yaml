@@ -23,8 +23,8 @@ spec:
     - jsonPath: .spec.protocol
       name: protocol
       type: string
-    - jsonPath: .metadata.labels.attractor
-      name: attractor
+    - jsonPath: .metadata.labels.trench
+      name: trench
       type: string
     - jsonPath: .status.status
       name: status
@@ -113,10 +113,10 @@ spec:
                 description: Describes why Status is not "engaged"
                 type: string
               status:
-                description: 'If the gateway is ready to be used by the labeled attractor
+                description: 'If the gateway is ready to be used by the labeled trench
                   Possible values: - disengaged: gateway is not ready to be used by
-                  any attractor - engaged: gateway is ready to be used by the labeled
-                  attractor - : gateway is not processed by the controller yet'
+                  any trench - engaged: gateway is ready to be used by the labeled
+                  trench - : gateway is not processed by the controller yet'
                 type: string
             type: object
         type: object

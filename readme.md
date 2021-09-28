@@ -122,7 +122,7 @@ attractor.meridio.nordix.org/attr1   100      eth0      ["gateway1","gateway3"] 
 
 ### Gateway
 
-A gateway is a resource that must be created with label. It specifies its owner reference attractor by `metadata.labels.attractor`.
+A gateway is a resource that must be created with label. It specifies its owner reference trench by `metadata.labels.trench`.
 
 To see how to configure and read the status of a gateway, please refer to [gateway spec](https://pkg.go.dev/github.com/nordix/meridio-operator/api/v1alpha1#GatewaySpec) and [gateway status](https://pkg.go.dev/github.com/nordix/meridio-operator/api/v1alpha1#GatewayStatus).
 
@@ -134,15 +134,9 @@ $ kubectl apply -f ./config/samples/meridio_v1alpha1_gateway.yaml
 #The following resources should be found
 
 $ kubectl get gateways
-NAME                                  ADDRESS   PROTOCOL   BFD     ATTRACTOR   STATUS    MESSAGE
-gateway.meridio.nordix.org/gateway1   2.3.4.5   bgp        false   attr1       engaged
-gateway.meridio.nordix.org/gateway2   1000::1   bgp        false   attr1       engaged
-
-# The *GW-IN-USE* column of the attractor should be updated with the existing expected gateways. Shown as below
-
-$ kubectl get attractor
-NAME                                 VLANID   VLANITF   GATEWAYS                  GW-IN-USE                 VIPS              VIPS-IN-USE   TRENCH     LB-FE
-attractor.meridio.nordix.org/attr1   100      eth0      ["gateway1","gateway2"]   ["gateway1","gateway2"]   ["vip1","vip2"]                 trench-a   engaged
+NAME                                  ADDRESS   PROTOCOL   BFD     TRENCH   STATUS    MESSAGE
+gateway.meridio.nordix.org/gateway1   2.3.4.5   bgp        false   trench-a engaged
+gateway.meridio.nordix.org/gateway2   1000::1   bgp        false   trench-a engaged
 ```
 
 ### Vip
@@ -162,10 +156,4 @@ $ kubectl get vip
 NAME                          ADDRESS       STATUS
 vip.meridio.nordix.org/vip1   20.0.0.1/32   engaged
 vip.meridio.nordix.org/vip2   10.0.0.1/32   engaged
-
-# The status *VIPS-IN-USE* of gateway will also be updated with the existing expected vips.
-
-$ kubectl get attractor
-NAME                                 VLANID   VLANITF   GATEWAYS                  GW-IN-USE                 VIPS              VIPS-IN-USE       TRENCH     LB-FE
-attractor.meridio.nordix.org/attr1   100      eth0      ["gateway1","gateway2"]   ["gateway1","gateway2"]   ["vip1","vip2"]   ["vip1","vip2"]   trench-a   engaged
 ```

@@ -94,7 +94,6 @@ func (i *IpamDeployment) getCurrentStatus() (*appsv1.Deployment, error) {
 }
 
 func (i *IpamDeployment) getAction() ([]common.Action, error) {
-	elem := common.IPAMDeploymentName(i.trench)
 	var action []common.Action
 	cs, err := i.getCurrentStatus()
 	if err != nil {
@@ -105,13 +104,11 @@ func (i *IpamDeployment) getAction() ([]common.Action, error) {
 		if err != nil {
 			return nil, err
 		}
-		i.exec.LogInfo(fmt.Sprintf("add action: create %s", elem))
-		action = append(action, common.NewCreateAction(ds, fmt.Sprintf("create %s", elem)))
+		action = append(action, i.exec.NewCreateAction(ds))
 	} else {
 		ds := i.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			i.exec.LogInfo(fmt.Sprintf("add action: update %s", elem))
-			action = append(action, common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem)))
+			action = append(action, i.exec.NewUpdateAction(ds))
 		}
 	}
 	return action, nil

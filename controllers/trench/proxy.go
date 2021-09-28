@@ -158,7 +158,6 @@ func (i *Proxy) getCurrentStatus() (*appsv1.DaemonSet, error) {
 }
 
 func (i *Proxy) getAction() ([]common.Action, error) {
-	elem := common.ProxyDeploymentName(i.trench)
 	var action []common.Action
 	cs, err := i.getCurrentStatus()
 	if err != nil {
@@ -166,13 +165,11 @@ func (i *Proxy) getAction() ([]common.Action, error) {
 	}
 	if cs == nil {
 		ds := i.getDesiredStatus()
-		i.exec.LogInfo(fmt.Sprintf("add action: create %s", elem))
-		action = append(action, common.NewCreateAction(ds, fmt.Sprintf("create %s", elem)))
+		action = append(action, i.exec.NewCreateAction(ds))
 	} else {
 		ds := i.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			i.exec.LogInfo(fmt.Sprintf("add action: update %s", elem))
-			action = append(action, common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem)))
+			action = append(action, i.exec.NewUpdateAction(ds))
 		}
 	}
 	return action, nil

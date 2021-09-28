@@ -2,7 +2,7 @@ apiVersion: meridio.nordix.org/v1alpha1
 kind: Gateway
 metadata:
   labels:
-    attractor: attr1
+    trench: trench-a
   name: gateway1
 spec:
   address: 2.3.4.5
@@ -15,7 +15,7 @@ apiVersion: meridio.nordix.org/v1alpha1
 kind: Gateway
 metadata:
   labels:
-    attractor: attr1
+    trench: trench-a
   name: gateway2
 spec:
   address: 1000::1
