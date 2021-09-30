@@ -16,9 +16,9 @@ limitations under the License.
 
 syntax = "proto3";
 
-package nsp;
-option go_package = "github.com/nordix/meridio/api/nsp";
-import "api/nsp/model.proto";
+package nsp.v1;
+option go_package = "github.com/nordix/meridio/api/nsp/v1";
+import "api/nsp/v1/model.proto";
 
 // ConfigurationManager provides multiple functions to 
 // watch the Meridio resources. Each function will return a 
@@ -27,11 +27,11 @@ import "api/nsp/model.proto";
 // event (any resource created/deleted/updated) the list will 
 // be sent again.
 service ConfigurationManager {
-    rpc WatchTrench(Trench) returns (stream nsp.TrenchResponse) {}
-    rpc WatchConduit(Conduit) returns (stream nsp.ConduitResponse) {}
-    rpc WatchStream(Stream) returns (stream nsp.StreamResponse) {}
-    rpc WatchFlow(Flow) returns (stream nsp.FlowResponse) {}
-    rpc WatchVip(Vip) returns (stream nsp.VipResponse) {}
-    rpc WatchAttractor(Attractor) returns (stream nsp.AttractorResponse) {}
-    rpc WatchGateway(Gateway) returns (stream nsp.GatewayResponse) {}
+    rpc WatchTrench(Trench) returns (stream nsp.v1.TrenchResponse) {}
+    rpc WatchConduit(Conduit) returns (stream nsp.v1.ConduitResponse) {}
+    rpc WatchStream(Stream) returns (stream nsp.v1.StreamResponse) {}
+    rpc WatchFlow(Flow) returns (stream nsp.v1.FlowResponse) {}
+    rpc WatchVip(Vip) returns (stream nsp.v1.VipResponse) {}
+    rpc WatchAttractor(Attractor) returns (stream nsp.v1.AttractorResponse) {}
+    rpc WatchGateway(Gateway) returns (stream nsp.v1.GatewayResponse) {}
 }

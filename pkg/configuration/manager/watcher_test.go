@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	nspAPI "github.com/nordix/meridio/api/nsp"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/configuration/manager"
 	"github.com/nordix/meridio/pkg/configuration/manager/mocks"
 	"github.com/nordix/meridio/pkg/configuration/registry"

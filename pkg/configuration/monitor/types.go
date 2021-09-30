@@ -16,7 +16,7 @@ limitations under the License.
 
 package monitor
 
-import nspAPI "github.com/nordix/meridio/api/nsp"
+import nspAPI "github.com/nordix/meridio/api/nsp/v1"
 
 type ConfigurationRegistry interface {
 	SetTrench(*nspAPI.Trench)

@@ -21,7 +21,7 @@ import (
 	"os"
 	"sync"
 
-	nspAPI "github.com/nordix/meridio/api/nsp"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/sirupsen/logrus"

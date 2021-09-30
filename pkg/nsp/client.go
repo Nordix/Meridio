@@ -19,7 +19,7 @@ package nsp
 import (
 	"context"
 
-	nspAPI "github.com/nordix/meridio/api/nsp"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"google.golang.org/grpc"
 )
 

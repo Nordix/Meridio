@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	nsp "github.com/nordix/meridio/api/nsp"
+	v1 "github.com/nordix/meridio/api/nsp/v1"
 )
 
 // MockConfigurationRegistry is a mock of ConfigurationRegistry interface.
@@ -35,10 +35,10 @@ func (m *MockConfigurationRegistry) EXPECT() *MockConfigurationRegistryMockRecor
 }
 
 // GetAttractors mocks base method.
-func (m *MockConfigurationRegistry) GetAttractors(arg0 *nsp.Attractor) []*nsp.Attractor {
+func (m *MockConfigurationRegistry) GetAttractors(arg0 *v1.Attractor) []*v1.Attractor {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAttractors", arg0)
-	ret0, _ := ret[0].([]*nsp.Attractor)
+	ret0, _ := ret[0].([]*v1.Attractor)
 	return ret0
 }
 
@@ -49,10 +49,10 @@ func (mr *MockConfigurationRegistryMockRecorder) GetAttractors(arg0 interface{})
 }
 
 // GetConduits mocks base method.
-func (m *MockConfigurationRegistry) GetConduits(arg0 *nsp.Conduit) []*nsp.Conduit {
+func (m *MockConfigurationRegistry) GetConduits(arg0 *v1.Conduit) []*v1.Conduit {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetConduits", arg0)
-	ret0, _ := ret[0].([]*nsp.Conduit)
+	ret0, _ := ret[0].([]*v1.Conduit)
 	return ret0
 }
 
@@ -63,10 +63,10 @@ func (mr *MockConfigurationRegistryMockRecorder) GetConduits(arg0 interface{}) *
 }
 
 // GetFlows mocks base method.
-func (m *MockConfigurationRegistry) GetFlows(arg0 *nsp.Flow) []*nsp.Flow {
+func (m *MockConfigurationRegistry) GetFlows(arg0 *v1.Flow) []*v1.Flow {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetFlows", arg0)
-	ret0, _ := ret[0].([]*nsp.Flow)
+	ret0, _ := ret[0].([]*v1.Flow)
 	return ret0
 }
 
@@ -77,10 +77,10 @@ func (mr *MockConfigurationRegistryMockRecorder) GetFlows(arg0 interface{}) *gom
 }
 
 // GetGateways mocks base method.
-func (m *MockConfigurationRegistry) GetGateways(arg0 *nsp.Gateway) []*nsp.Gateway {
+func (m *MockConfigurationRegistry) GetGateways(arg0 *v1.Gateway) []*v1.Gateway {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetGateways", arg0)
-	ret0, _ := ret[0].([]*nsp.Gateway)
+	ret0, _ := ret[0].([]*v1.Gateway)
 	return ret0
 }
 
@@ -91,10 +91,10 @@ func (mr *MockConfigurationRegistryMockRecorder) GetGateways(arg0 interface{}) *
 }
 
 // GetStreams mocks base method.
-func (m *MockConfigurationRegistry) GetStreams(arg0 *nsp.Stream) []*nsp.Stream {
+func (m *MockConfigurationRegistry) GetStreams(arg0 *v1.Stream) []*v1.Stream {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetStreams", arg0)
-	ret0, _ := ret[0].([]*nsp.Stream)
+	ret0, _ := ret[0].([]*v1.Stream)
 	return ret0
 }
 
@@ -105,10 +105,10 @@ func (mr *MockConfigurationRegistryMockRecorder) GetStreams(arg0 interface{}) *g
 }
 
 // GetTrench mocks base method.
-func (m *MockConfigurationRegistry) GetTrench(arg0 *nsp.Trench) *nsp.Trench {
+func (m *MockConfigurationRegistry) GetTrench(arg0 *v1.Trench) *v1.Trench {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTrench", arg0)
-	ret0, _ := ret[0].(*nsp.Trench)
+	ret0, _ := ret[0].(*v1.Trench)
 	return ret0
 }
 
@@ -119,10 +119,10 @@ func (mr *MockConfigurationRegistryMockRecorder) GetTrench(arg0 interface{}) *go
 }
 
 // GetVips mocks base method.
-func (m *MockConfigurationRegistry) GetVips(arg0 *nsp.Vip) []*nsp.Vip {
+func (m *MockConfigurationRegistry) GetVips(arg0 *v1.Vip) []*v1.Vip {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetVips", arg0)
-	ret0, _ := ret[0].([]*nsp.Vip)
+	ret0, _ := ret[0].([]*v1.Vip)
 	return ret0
 }
 

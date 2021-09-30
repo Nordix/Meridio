@@ -16,8 +16,8 @@ limitations under the License.
 
 syntax = "proto3";
 
-package nsp;
-option go_package = "github.com/nordix/meridio/api/nsp";
+package nsp.v1;
+option go_package = "github.com/nordix/meridio/api/nsp/v1";
 import "google/protobuf/empty.proto";
 
 service NetworkServicePlateformService {

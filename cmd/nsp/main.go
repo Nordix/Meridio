@@ -25,7 +25,7 @@ import (
 	"syscall"
 
 	"github.com/kelseyhightower/envconfig"
-	nspAPI "github.com/nordix/meridio/api/nsp"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/configuration/manager"
 	"github.com/nordix/meridio/pkg/configuration/monitor"
 	"github.com/nordix/meridio/pkg/configuration/registry"

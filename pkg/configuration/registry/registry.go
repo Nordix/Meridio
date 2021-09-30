@@ -17,7 +17,7 @@ limitations under the License.
 package registry
 
 import (
-	nspAPI "github.com/nordix/meridio/api/nsp"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 )
 
 // types of resource

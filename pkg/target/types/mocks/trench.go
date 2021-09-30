@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	nsp "github.com/nordix/meridio/api/nsp"
+	v1 "github.com/nordix/meridio/api/nsp/v1"
 	types "github.com/nordix/meridio/pkg/target/types"
 )
 
@@ -93,10 +93,10 @@ func (mr *MockTrenchMockRecorder) GetConduits() *gomock.Call {
 }
 
 // GetNSPClient mocks base method.
-func (m *MockTrench) GetNSPClient() nsp.NetworkServicePlateformServiceClient {
+func (m *MockTrench) GetNSPClient() v1.NetworkServicePlateformServiceClient {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetNSPClient")
-	ret0, _ := ret[0].(nsp.NetworkServicePlateformServiceClient)
+	ret0, _ := ret[0].(v1.NetworkServicePlateformServiceClient)
 	return ret0
 }
 

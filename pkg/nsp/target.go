@@ -20,7 +20,7 @@ import (
 	"errors"
 	"sync"
 
-	nspAPI "github.com/nordix/meridio/api/nsp"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/sirupsen/logrus"
 )
 

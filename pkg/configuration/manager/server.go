@@ -17,7 +17,7 @@ limitations under the License.
 package manager
 
 import (
-	nspAPI "github.com/nordix/meridio/api/nsp"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/sirupsen/logrus"
 )
 

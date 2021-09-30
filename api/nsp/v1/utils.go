@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nsp
+package v1
 
 func (t *Trench) Equals(t2 *Trench) bool {
 	if t == nil || t2 == nil {
