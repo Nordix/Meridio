@@ -26,7 +26,7 @@ Set IP Family
 
 {{- define "meridio.loadBalancer.sysctls" -}}
 {{- if eq .Values.ipFamily "dualstack" -}}
-{{- printf "sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1" -}}
+{{- printf "sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1 ; sysctl -w net.ipv4.conf.all.rp_filter=0 ; sysctl -w net.ipv4.conf.default.rp_filter=0" -}}
 {{- else if eq .Values.ipFamily "ipv6" -}}
 {{- printf "sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1" -}}
 {{- else -}}
@@ -36,7 +36,7 @@ Set IP Family
 
 {{- define "meridio.proxy.sysctls" -}}
 {{- if eq .Values.ipFamily "dualstack" -}}
-{{- printf "sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv6.conf.all.accept_dad=0 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1" -}}
+{{- printf "sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv6.conf.all.accept_dad=0 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1 ; sysctl -w net.ipv4.conf.all.rp_filter=0 ; sysctl -w net.ipv4.conf.default.rp_filter=0" -}}
 {{- else if eq .Values.ipFamily "ipv6" -}}
 {{- printf "sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv6.conf.all.accept_dad=0 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1" -}}
 {{- else -}}
