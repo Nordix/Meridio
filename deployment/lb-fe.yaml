@@ -15,7 +15,7 @@ spec:
       labels:
         app: lb-fe
     spec:
-      serviceAccountName: meridio
+      serviceAccountName: # to be filled by operator
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -32,10 +32,10 @@ spec:
           securityContext:
             privileged: true
           command: ["/bin/sh"]
-          args: # to be filed by operator according to trench
+          args: # to be filled by operator according to trench
       containers:
         - name: load-balancer
-          image: # to be filed by operator
+          image: # to be filled by operator
           imagePullPolicy: # Kubernetes default according to image tag
           readinessProbe:
             exec:
@@ -71,13 +71,13 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: NSM_CONFIG_MAP_NAME
-              value:  # to be filed by operator
+              value:  # to be filled by operator
             - name: NSM_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
-              value:  # to be filed by operator
+              value:  # to be filled by operator
             - name: NSM_NSP_SERVICE
-              value:  # Kubernetes default according to image tag
+              value:  # to be filled by operator
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
@@ -88,7 +88,7 @@ spec:
           securityContext:
             privileged: true
         - name: nsc
-          image: # to be filed by operator
+          image: # to be filled by operator
           imagePullPolicy: # Kubernetes default according to image tag
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
@@ -111,7 +111,7 @@ spec:
               mountPath: /var/lib/networkservicemesh
               readOnly: true
         - name: fe
-          image: # to be filed by operator
+          image: # to be filled by operator
           imagePullPolicy: # Kubernetes default according to image tag
           env:
             - name: NFE_NAMESPACE
@@ -123,7 +123,7 @@ spec:
             - name: NFE_ECMP
               value: "true"
             - name: NFE_CONFIG_MAP_NAME
-              value: # to be filed by operator
+              value: # to be filled by operator
           securityContext:
             privileged: true
       volumes:

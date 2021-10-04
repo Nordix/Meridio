@@ -14,18 +14,18 @@ spec:
       labels:
         app: proxy
     spec:
-      serviceAccountName: meridio
+      serviceAccountName: # to be filled by operator
       initContainers:
         - name: sysctl-init
-          image: # to be filed by operator
+          image: # to be filled by operator
           imagePullPolicy: # Kubernetes default according to image tag
           securityContext:
             privileged: true
           command: ["/bin/sh"]
-          args: # to be filed by operator according to the Trench
+          args: # to be filled by operator according to the Trench
       containers:
         - name: proxy
-          image: # to be filed by operator
+          image: # to be filled by operator
           imagePullPolicy: # Kubernetes default according to image tag
           readinessProbe:
             exec:
@@ -65,19 +65,19 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: NSM_CONFIG_MAP_NAME
-              value: # to be filed by operator
+              value: # to be filled by operator
             - name: NSM_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
-              value: # to be filed by operator
+              value: # to be filled by operator
             - name: NSM_SUBNET_POOLS
-              value: # to be filed by operator
+              value: # to be filled by operator
             - name: NSM_SUBNET_PREFIX_LENGTHS
-              value: # to be filed by operator
+              value: # to be filled by operator
             - name: NSM_IPAM_SERVICE
-              value: # to be filed by operator
+              value: # to be filled by operator
             - name: NSM_NETWORK_SERVICE_NAME
-              value: # to be filed by operator
+              value: # to be filled by operator
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
