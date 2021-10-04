@@ -51,7 +51,7 @@ type connectivityStatus struct {
 }
 
 func (cs *connectivityStatus) noConnectivity() bool {
-	return cs.status&NoConfig != 0 || (cs.status&NoIPv4Config == 0 && cs.status&IPv4Up == 0) || (cs.status&NoIPv6Config == 0 && cs.status&IPv6Up == 0)
+	return cs.status&NoConfig == NoConfig || (cs.status&NoIPv4Config == 0 && cs.status&IPv4Up == 0) || (cs.status&NoIPv6Config == 0 && cs.status&IPv6Up == 0)
 }
 
 func (cs *connectivityStatus) anyGatewayDown() bool {
