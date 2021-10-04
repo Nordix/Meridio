@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"sync"
 
-	nspAPI "github.com/nordix/meridio/api/nsp"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/nordix/meridio/pkg/target/types"
 	"github.com/sirupsen/logrus"

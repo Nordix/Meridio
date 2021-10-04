@@ -14,21 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package types
+package manager
 
-import (
-	"context"
+import nspAPI "github.com/nordix/meridio/api/nsp/v1"
 
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
-)
+type ConfigurationRegistry interface {
+	GetTrench(*nspAPI.Trench) *nspAPI.Trench
+	GetConduits(*nspAPI.Conduit) []*nspAPI.Conduit
+	GetStreams(*nspAPI.Stream) []*nspAPI.Stream
+	GetFlows(*nspAPI.Flow) []*nspAPI.Flow
+	GetVips(*nspAPI.Vip) []*nspAPI.Vip
+	GetAttractors(*nspAPI.Attractor) []*nspAPI.Attractor
+	GetGateways(*nspAPI.Gateway) []*nspAPI.Gateway
+}
 
-type Trench interface {
-	GetName() string
-	GetNamespace() string
-	Delete(ctx context.Context) error
-	AddConduit(context.Context, Conduit) error
-	RemoveConduit(context.Context, Conduit) error
-	GetConduit(conduitName string) Conduit
-	GetConduits() []Conduit
-	GetNSPClient() nspAPI.NetworkServicePlateformServiceClient
+type WatcherRegistry interface {
+	RegisterWatcher(toWatch interface{}, ch interface{}) error
+	UnregisterWatcher(ch interface{})
 }

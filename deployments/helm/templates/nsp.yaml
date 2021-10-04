@@ -15,6 +15,7 @@ spec:
       labels:
         app: nsp-{{ .Values.trench.name }}
     spec:
+      serviceAccountName: {{ template "meridio.serviceAccount" . }}
       containers:
         - name: nsp
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.nsp.image }}:{{ .Values.nsp.version }}
@@ -26,3 +27,9 @@ spec:
           env:
             - name: NSP_PORT
               value: "{{ .Values.nsp.targetPort }}"
+            - name: NSP_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NSP_CONFIG_MAP_NAME
+              value: {{ template "meridio.configuration" . }}

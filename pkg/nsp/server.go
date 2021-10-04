@@ -18,56 +18,27 @@ package nsp
 
 import (
 	"context"
-	"fmt"
-	"net"
-	"strconv"
 	"sync"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	nspAPI "github.com/nordix/meridio/api/nsp"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
 )
 
 type Server struct {
-	Listener       net.Listener
-	Server         *grpc.Server
-	Port           int
 	targets        *targetList
 	monitorStreams sync.Map // map[nspAPI.Target_Type]map[nspAPI.NetworkServicePlateformService_MonitorServer]bool
-	// monitorStreams sync.Map // map[nspAPI.NetworkServicePlateformService_MonitorServer]bool
 }
 
 // NewServer -
-func NewServer(port int) (*Server, error) {
-	lis, err := net.Listen("tcp", fmt.Sprintf("[::]:%s", strconv.Itoa(port)))
-	if err != nil {
-		logrus.Errorf("NSP Service: failed to listen: %v", err)
-		return nil, err
-	}
-
-	s := grpc.NewServer()
-
+func NewServer() nspAPI.NetworkServicePlateformServiceServer {
 	networkServicePlateformService := &Server{
-		Listener: lis,
-		Server:   s,
-		Port:     port,
 		targets: &targetList{
 			targets: map[nspAPI.Target_Type][]*nspAPI.Target{},
 		},
 	}
 
-	nspAPI.RegisterNetworkServicePlateformServiceServer(s, networkServicePlateformService)
-
-	return networkServicePlateformService, nil
-}
-
-// Start -
-func (s *Server) Start() {
-	logrus.Infof("NSP Service: Start the service (port: %v)", s.Port)
-	if err := s.Server.Serve(s.Listener); err != nil {
-		logrus.Errorf("NSP Service: failed to serve: %v", err)
-	}
+	return networkServicePlateformService
 }
 
 func (s *Server) Register(ctx context.Context, target *nspAPI.Target) (*empty.Empty, error) {

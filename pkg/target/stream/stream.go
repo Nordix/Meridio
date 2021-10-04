@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"time"
 
-	nspAPI "github.com/nordix/meridio/api/nsp"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	targetAPI "github.com/nordix/meridio/api/target"
 	"github.com/nordix/meridio/pkg/target/types"
 )

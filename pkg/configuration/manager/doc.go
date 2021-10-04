@@ -14,21 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package types
-
-import (
-	"context"
-
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
-)
-
-type Trench interface {
-	GetName() string
-	GetNamespace() string
-	Delete(ctx context.Context) error
-	AddConduit(context.Context, Conduit) error
-	RemoveConduit(context.Context, Conduit) error
-	GetConduit(conduitName string) Conduit
-	GetConduits() []Conduit
-	GetNSPClient() nspAPI.NetworkServicePlateformServiceClient
-}
+// Package manager provides a server implementation of the ConfigurationManager
+// service of the Network Service Platform (NSP) API.
+package manager // import "github.com/nordix/meridio/pkg/configuration/manager"

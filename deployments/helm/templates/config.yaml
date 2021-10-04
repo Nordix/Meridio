@@ -4,6 +4,40 @@ kind: ConfigMap
 metadata:
   name: {{ template "meridio.configuration" . }}
 data:
+  trench: |
+    name: {{ .Values.trench.name }}
+  conduits: |
+    items:
+    - name: {{ .Values.loadBalancer.networkServiceName }}
+      trench: {{ .Values.trench.name }}
+  streams: |
+    items:
+    - name: stream-a
+      conduit: {{ .Values.loadBalancer.networkServiceName }}
+  flows: |
+    items:
+    - name: flow-a
+      vips:
+        - vip1
+        - vip2
+      stream: stream-a
+  vips: |
+    items:
+    {{- range .Values.vips }}
+    - name: {{ .name }}
+      address: {{ .address }}
+      trench: {{ $.Values.trench.name }}
+    {{- end }}
+  attractors: |
+    items:
+    - name: attractor-a
+      vips:
+        - vip1
+        - vip2
+      gateways:
+        - gateway1
+        - gateway2
+      trench: {{ .Values.trench.name }}
   gateways: |
     items:
     {{- range .Values.vlan.fe.gateways }}
@@ -12,13 +46,8 @@ data:
       ip-family: {{ .ipFamily }}
       bfd: {{ .bfd }}
       protocol: {{ .protocol }}
+      trench: {{ $.Values.trench.name }}
     {{- end }} 
-  vips: |
-    items:
-    {{- range .Values.vips }}
-    - name: {{ .name }}
-      address: {{ .address }}
-    {{- end }}
 ---
 apiVersion: v1
 kind: ServiceAccount

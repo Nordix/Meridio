@@ -1,0 +1,124 @@
+/*
+Copyright (c) 2021 Nordix Foundation
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+syntax = "proto3";
+
+package nsp.v1;
+option go_package = "github.com/nordix/meridio/api/nsp/v1";
+
+message Trench {
+    // Name of the trench
+    string name = 1;
+}
+
+message Conduit {
+    // Name of the conduit
+    string name = 1;
+    // Trench the conduit belongs to
+    Trench trench = 2;
+}
+
+message Stream {
+    // Name of the stream
+    string name = 1;
+    // Conduit the stream belongs to
+    Conduit conduit = 2;
+}
+
+message Flow {
+    // Name of the flow
+    string name = 1;
+    // Source subnets allowed in the flow
+    // e.g.: ["124.0.0.0/24", "2001::/32"]
+    repeated string sourceSubnets = 2;
+    // Destination port ranges allowed in the flow
+    // e.g.: ["80", "90-95"]
+    repeated string destinationPortRanges = 3;
+    // Source port ranges allowed in the flow
+    // e.g.: ["35000-35500", "40000"]
+    repeated string sourcePortRanges = 4;
+    // Protocols allowed 
+    // e.g.: ["tcp", "udp"]
+    repeated string protocols = 5;
+    // Stream the flow belongs to
+    Stream stream = 6;
+    repeated Vip vips = 7;
+}
+
+message Vip {
+    // Name of the vip
+    string name = 1;
+    // vip address
+    // e.g.: 124.0.0.0/24 or 2001::/32
+    string address = 2;
+    // Trench the vip belongs to
+    Trench trench = 3;
+}
+
+message Attractor {
+    // Name of the attractor
+    string name = 1;
+    // Trench the attractor belongs to
+    Trench trench = 2;
+    repeated Vip vips = 3;
+    repeated Gateway gateways = 4;
+}
+
+message Gateway {
+    // Name of the vip
+    string name = 1;
+    // address of the gateway
+    // e.g.: 124.0.0.0/24 or 2001::/32
+    string address = 2;
+    uint32 remoteASN = 3;
+    uint32 localASN = 4;
+    uint32 remotePort = 5;
+    uint32 localPort = 6;
+    string ipFamily = 7;
+    bool bfd = 8;
+    string protocol = 9;
+    uint32 holdTime = 10;
+    // Trench the gateway belongs to
+    Trench trench = 11;
+}
+
+message TrenchResponse {
+    Trench trench = 1;
+}
+
+message ConduitResponse {
+    repeated Conduit conduits = 1;
+}
+
+message StreamResponse {
+    repeated Stream streams = 1;
+}
+
+message FlowResponse {
+    repeated Flow flows = 1;
+}
+
+message VipResponse {
+    repeated Vip vips = 1;
+}
+
+message AttractorResponse {
+    repeated Attractor attractors = 1;
+}
+
+message GatewayResponse {
+    repeated Gateway gateways = 1;
+}

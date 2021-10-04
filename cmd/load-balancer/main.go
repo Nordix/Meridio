@@ -36,7 +36,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
-	nspAPI "github.com/nordix/meridio/api/nsp"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"

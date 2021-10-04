@@ -14,21 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package types
+package main
 
-import (
-	"context"
-
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
-)
-
-type Trench interface {
-	GetName() string
-	GetNamespace() string
-	Delete(ctx context.Context) error
-	AddConduit(context.Context, Conduit) error
-	RemoveConduit(context.Context, Conduit) error
-	GetConduit(conduitName string) Conduit
-	GetConduits() []Conduit
-	GetNSPClient() nspAPI.NetworkServicePlateformServiceClient
+// Config for the NSP
+type Config struct {
+	Namespace     string `default:"default" desc:"Namespace the pod is running on" split_words:"true"`
+	Port          string `default:"7778" desc:"Trench the pod is running on" split_words:"true"`
+	ConfigMapName string `default:"meridio-configuration" desc:"Name of the ConfigMap containing the configuration" split_words:"true"`
 }

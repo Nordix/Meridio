@@ -17,20 +17,42 @@ limitations under the License.
 package main
 
 import (
-	"flag"
+	"context"
+	"fmt"
+	"net"
 	"os"
-	"strconv"
+	"os/signal"
+	"syscall"
 
+	"github.com/kelseyhightower/envconfig"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/configuration/manager"
+	"github.com/nordix/meridio/pkg/configuration/monitor"
+	"github.com/nordix/meridio/pkg/configuration/registry"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 )
 
 func main() {
-	flag.Parse()
+	ctx, cancel := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGHUP,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
+	defer cancel()
 
 	logrus.SetOutput(os.Stdout)
 	logrus.SetLevel(logrus.DebugLevel)
+
+	var config Config
+	err := envconfig.Process("nsp", &config)
+	if err != nil {
+		logrus.Fatalf("%v", err)
+	}
 
 	healthChecker, err := health.NewChecker(8000)
 	if err != nil {
@@ -43,12 +65,31 @@ func main() {
 		}
 	}()
 
-	port, err := strconv.Atoi(os.Getenv("NSP_PORT"))
-	if err != nil || port <= 0 {
-		port = 7778
+	configurationEventChan := make(chan *registry.ConfigurationEvent, 10)
+	configurationRegistry := registry.New(configurationEventChan)
+	configurationMonitor, err := monitor.New(config.ConfigMapName, config.Namespace, configurationRegistry)
+	if err != nil {
+		logrus.Fatalf("Unable to start configuration monitor: %v", err)
+	}
+	go configurationMonitor.Start(context.Background())
+	watcherNotifier := manager.NewWatcherNotifier(configurationRegistry, configurationEventChan)
+	go watcherNotifier.Start(context.Background())
+
+	networkServicePlateformServer := nsp.NewServer()
+	configurationManagerServer := manager.NewServer(watcherNotifier)
+
+	server := grpc.NewServer()
+	nspAPI.RegisterNetworkServicePlateformServiceServer(server, networkServicePlateformServer)
+	nspAPI.RegisterConfigurationManagerServer(server, configurationManagerServer)
+
+	listener, err := net.Listen("tcp", fmt.Sprintf("[::]:%s", config.Port))
+	if err != nil {
+		logrus.Fatalf("NSP Service: failed to listen: %v", err)
 	}
 
-	nsps, _ := nsp.NewServer(port)
+	if err := server.Serve(listener); err != nil {
+		logrus.Errorf("NSP Service: failed to serve: %v", err)
+	}
 
-	nsps.Start()
+	<-ctx.Done()
 }

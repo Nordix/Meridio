@@ -24,8 +24,8 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/ptypes/empty"
-	nspAPI "github.com/nordix/meridio/api/nsp"
-	nspMock "github.com/nordix/meridio/api/nsp/mocks"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	nspMock "github.com/nordix/meridio/api/nsp/v1/mocks"
 	targetAPI "github.com/nordix/meridio/api/target"
 	"github.com/nordix/meridio/pkg/target/stream"
 	"github.com/nordix/meridio/pkg/target/types/mocks"

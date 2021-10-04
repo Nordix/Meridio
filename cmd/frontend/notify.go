@@ -19,7 +19,7 @@ package main
 import (
 	"os"
 
-	nspAPI "github.com/nordix/meridio/api/nsp"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/sirupsen/logrus"
 )

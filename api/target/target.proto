@@ -90,4 +90,3 @@ message StreamEvent {
     Stream stream = 1;
     StreamEventStatus streamEventStatus = 2;
 }
-
