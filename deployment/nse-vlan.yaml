@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: nse
-          image: # to be filed by operator
+          image: # to be filled by operator
           imagePullPolicy: # Kubernetes default according to image tag
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
@@ -28,15 +28,15 @@ spec:
             - name: NSE_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSE_VLAN_BASE_IFNAME
-              value: # to be filed by operator according to Attractor
+              value: # to be filled by operator according to Attractor
             - name: NSE_VLAN_ID
-              value: # to be filed by operator according to Attractor
+              value: # to be filled by operator according to Attractor
             - name: NSE_SERVICE_NAME
-              value: # to be filed by operator
+              value: # to be filled by operator
             - name: NSE_CIDR_PREFIX
-              value: # to be filed by operator according to Attractor
+              value: # to be filled by operator according to Attractor
             - name: NSE_IPV6_PREFIX
-              value: # to be filed by operator according to Attractor
+              value: # to be filled by operator according to Attractor
             - name: NSE_POINT2POINT
               value: "False"
           volumeMounts:

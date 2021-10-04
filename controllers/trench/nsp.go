@@ -13,8 +13,7 @@ import (
 )
 
 const (
-	nspEnvName = "NSP_PORT"
-	imageNsp   = "nsp"
+	imageNsp = "nsp"
 )
 
 type NspDeployment struct {
@@ -36,15 +35,21 @@ func NewNspDeployment(e *common.Executor, t *meridiov1alpha1.Trench) (*NspDeploy
 	return l, nil
 }
 
-func getEnvVars() []corev1.EnvVar {
-	// if envVars are set in the cr, use the values
-	// else return default envVars
-	return []corev1.EnvVar{
-		{
-			Name:  nspEnvName,
-			Value: fmt.Sprint(common.NspTargetPort),
-		},
+func (i *NspDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
+	ret := []corev1.EnvVar{}
+	for _, env := range allEnv {
+		switch env.Name {
+		case "NSP_PORT":
+			env.Value = fmt.Sprint(common.NspTargetPort)
+		case "NSP_CONFIG_MAP_NAME":
+			env.Value = common.ConfigMapName(i.trench)
+		case "NSP_NAMESPACE":
+		default:
+			i.exec.LogError(fmt.Errorf("env %s not expected", env.Name), "get env var error")
+		}
+		ret = append(ret, env)
 	}
+	return ret
 }
 
 func (i *NspDeployment) insertParameters(init *appsv1.Deployment) *appsv1.Deployment {
@@ -57,16 +62,25 @@ func (i *NspDeployment) insertParameters(init *appsv1.Deployment) *appsv1.Deploy
 	dep.ObjectMeta.Labels["app"] = nspDeploymentName
 	dep.Spec.Selector.MatchLabels["app"] = nspDeploymentName
 	dep.Spec.Template.ObjectMeta.Labels["app"] = nspDeploymentName
+	dep.Spec.Template.Spec.ServiceAccountName = common.ServiceAccountName(i.trench)
 
 	dep.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
 
-	if dep.Spec.Template.Spec.Containers[0].Image == "" {
-		dep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, imageNsp, common.Tag)
+	for k, container := range dep.Spec.Template.Spec.Containers {
+		switch name := container.Name; name {
+		case "nsp":
+			if container.Image == "" {
+				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, imageNsp, common.Tag)
+			}
+			container.LivenessProbe = common.GetLivenessProbe(i.trench)
+			container.ReadinessProbe = common.GetReadinessProbe(i.trench)
+			container.Env = i.getEnvVars(container.Env)
+		default:
+			i.exec.LogError(fmt.Errorf("container %s not expected", name), "get container error")
+		}
+		dep.Spec.Template.Spec.Containers[k] = container
 	}
-	dep.Spec.Template.Spec.Containers[0].LivenessProbe = common.GetLivenessProbe(i.trench)
-	dep.Spec.Template.Spec.Containers[0].ReadinessProbe = common.GetReadinessProbe(i.trench)
 
-	dep.Spec.Template.Spec.Containers[0].Env = getEnvVars()
 	return dep
 }
 

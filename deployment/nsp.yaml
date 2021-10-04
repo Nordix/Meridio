@@ -15,9 +15,10 @@ spec:
       labels:
         app: nsp
     spec:
+      serviceAccountName: # to be filled by operator
       containers:
         - name: nsp
-          image: # to be filed by operator
+          image: # to be filled by operator
           imagePullPolicy: # Kubernetes default according to image tag
           readinessProbe:
             exec:
@@ -43,4 +44,10 @@ spec:
             timeoutSeconds: 3
           env:
             - name: NSP_PORT
-              value: "7778"
+              value: # to be filled by operator
+            - name: NSP_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NSP_CONFIG_MAP_NAME
+              value: # to be filled by operator
