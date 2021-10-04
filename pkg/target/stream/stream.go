@@ -165,6 +165,15 @@ func (s *Stream) register(ctx context.Context) error {
 			identifierKey: strconv.Itoa(s.identifier),
 		},
 		Status: s.status,
+		Stream: &nspAPI.Stream{
+			Name: s.Name,
+			Conduit: &nspAPI.Conduit{
+				Name: s.Conduit.GetName(),
+				Trench: &nspAPI.Trench{
+					Name: s.Conduit.GetTrench().GetName(),
+				},
+			},
+		},
 	}
 	_, err := s.getNSPClient().Register(ctx, target)
 	return err
@@ -177,6 +186,15 @@ func (s *Stream) update(ctx context.Context) error {
 			identifierKey: strconv.Itoa(s.identifier),
 		},
 		Status: s.status,
+		Stream: &nspAPI.Stream{
+			Name: s.Name,
+			Conduit: &nspAPI.Conduit{
+				Name: s.Conduit.GetName(),
+				Trench: &nspAPI.Trench{
+					Name: s.Conduit.GetTrench().GetName(),
+				},
+			},
+		},
 	}
 	_, err := s.getNSPClient().Update(ctx, target)
 	return err

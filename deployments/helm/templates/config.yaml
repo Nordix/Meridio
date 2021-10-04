@@ -14,6 +14,8 @@ data:
     items:
     - name: stream-a
       conduit: {{ .Values.loadBalancer.networkServiceName }}
+    - name: stream-b
+      conduit: {{ .Values.loadBalancer.networkServiceName }}
   flows: |
     items:
     - name: flow-a
@@ -21,6 +23,10 @@ data:
         - vip1
         - vip2
       stream: stream-a
+    - name: flow-b
+      vips:
+        - vip3
+      stream: stream-b
   vips: |
     items:
     {{- range .Values.vips }}
@@ -34,6 +40,7 @@ data:
       vips:
         - vip1
         - vip2
+        - vip3
       gateways:
         - gateway1
         - gateway2

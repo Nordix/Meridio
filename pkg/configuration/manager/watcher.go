@@ -265,17 +265,17 @@ func (wn *WatcherNotifier) checkChannel(ch interface{}) registry.ResourceType {
 	switch ch.(type) {
 	case chan *nspAPI.Trench:
 		return registry.Trench
-	case chan *nspAPI.Conduit:
+	case chan []*nspAPI.Conduit:
 		return registry.Conduit
-	case chan *nspAPI.Stream:
+	case chan []*nspAPI.Stream:
 		return registry.Stream
-	case chan *nspAPI.Flow:
+	case chan []*nspAPI.Flow:
 		return registry.Flow
-	case chan *nspAPI.Vip:
+	case chan []*nspAPI.Vip:
 		return registry.Vip
-	case chan *nspAPI.Attractor:
+	case chan []*nspAPI.Attractor:
 		return registry.Attractor
-	case chan *nspAPI.Gateway:
+	case chan []*nspAPI.Gateway:
 		return registry.Gateway
 	default:
 	}

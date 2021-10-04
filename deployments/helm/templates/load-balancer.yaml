@@ -54,16 +54,12 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: NSM_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: NSM_CONFIG_MAP_NAME
-              value: {{ template "meridio.configuration" . }}
-            - name: NSM_CONNECT_TO
-              value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
               value: {{ template "meridio.loadBalancer.networkServiceName" . }}
+            - name: NSM_CONDUIT_NAME
+              value: {{ .Values.loadBalancer.networkServiceName }}
+            - name: NSM_TRENCH_NAME
+              value: {{ .Values.trench.name }}
             - name: NSM_NSP_SERVICE
               value: {{ template "meridio.nsp.serviceName" . }}:{{ .Values.nsp.targetPort }}
           volumeMounts:

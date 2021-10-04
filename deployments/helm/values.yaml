@@ -50,6 +50,8 @@ vips:
     address: 20.0.0.1/32
   - name: vip2
     address: 2000::1/128
+  - name: vip3
+    address: 40.0.0.0/24
 
 subnetPool:
   ipv4: 172.16.0.0/16

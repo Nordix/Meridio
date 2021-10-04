@@ -19,10 +19,10 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/signal"
-	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -37,11 +37,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
-	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
-	"github.com/nordix/meridio/pkg/loadbalancer"
+	"github.com/nordix/meridio/pkg/loadbalancer/stream"
+	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
@@ -49,6 +49,11 @@ import (
 	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+)
+
+const (
+	M = 9973
+	N = 100
 )
 
 func main() {
@@ -87,7 +92,14 @@ func main() {
 	if err != nil {
 		logrus.Errorf("NewNetworkServicePlateformClient: %v", err)
 	}
-	sns := NewSimpleNetworkService(ctx, nspClient, netUtils)
+	configurationManagerClient := nspAPI.NewConfigurationManagerClient(nspClient.Conn)
+	conduit := &nspAPI.Conduit{
+		Name: config.ConduitName,
+		Trench: &nspAPI.Trench{
+			Name: config.TrenchName,
+		},
+	}
+	sns := NewSimpleNetworkService(ctx, nspClient, configurationManagerClient, conduit, netUtils)
 
 	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
 	if err != nil {
@@ -118,7 +130,7 @@ func main() {
 	endpointConfig := &endpoint.Config{
 		Name:             config.Name,
 		ServiceName:      config.ServiceName,
-		Labels:           config.Labels,
+		Labels:           make(map[string]string),
 		MaxTokenLifetime: config.MaxTokenLifetime,
 	}
 	ep, err := endpoint.NewEndpoint(ctx, endpointConfig, nsmAPIClient.NetworkServiceRegistryClient, nsmAPIClient.NetworkServiceEndpointRegistryClient)
@@ -138,31 +150,24 @@ func main() {
 	fns := NewFrontendNetworkService(nspClient, ep, NewServiceControlDispatcher(sns))
 	fns.Start()
 
-	configWatcher := make(chan *configuration.OperatorConfig)
-	configurationWatcher := configuration.NewOperatorWatcher(config.ConfigMapName, config.Namespace, configWatcher)
-	go configurationWatcher.Start()
-
-	for {
-		select {
-		case config := <-configWatcher:
-			sns.SetVIPs(configuration.AddrListFromVipConfig(config.VIPs))
-		case <-ctx.Done():
-			return
-		}
-	}
-
+	<-ctx.Done()
 }
 
 // SimpleNetworkService -
 type SimpleNetworkService struct {
-	loadbalancer                         *loadbalancer.LoadBalancer
+	// loadbalancer                         *loadbalancer.LoadBalancer
+	*nspAPI.Conduit
 	networkServicePlateformClient        *nsp.NetworkServicePlateformClient
 	networkServicePlateformServiceStream nspAPI.NetworkServicePlateformService_MonitorClient
+	ConfigurationManagerClient           nspAPI.ConfigurationManagerClient
 	interfaces                           sync.Map
 	ctx                                  context.Context
 	serviceCtrCh                         chan bool
 	simpleNetworkServiceBlocked          bool
 	mu                                   sync.Mutex
+	streams                              map[string]types.Stream
+	netUtils                             networking.Utils
+	nfqueueIndex                         int
 }
 
 // Start -
@@ -173,6 +178,13 @@ func (sns *SimpleNetworkService) Start() {
 		logrus.Errorf("SimpleNetworkService: err Monitor: %v", err)
 	}
 	go sns.recv()
+
+	go func() {
+		err := sns.watchStreams(context.Background())
+		if err != nil {
+			logrus.Errorf("watchStreams err: %v", err)
+		}
+	}()
 
 	go func() {
 		for {
@@ -231,10 +243,23 @@ func (sns *SimpleNetworkService) recv() {
 			break
 		}
 
-		target := targetEvent.Target
-		lbTarget, err := sns.parseLoadBalancerTarget(targetEvent.Target)
+		// target := targetEvent.Target
+		// lbTarget, err := sns.parseLoadBalancerTarget(targetEvent.Target)
+		// if err != nil {
+		// 	logrus.Errorf("SimpleNetworkService: parseLoadBalancerTarget err: %v", err)
+		// 	continue
+		// }
+
+		target := targetEvent.GetTarget()
+		lbTarget, err := stream.NewTarget(target, sns.netUtils)
 		if err != nil {
-			logrus.Errorf("SimpleNetworkService: parseLoadBalancerTarget err: %v", err)
+			logrus.Errorf("SimpleNetworkService: NewTarget err: %v", err)
+			continue
+		}
+
+		stream, exists := sns.streams[target.GetStream().GetName()]
+		if !exists {
+			logrus.Errorf("Stream is not existing: %v", target.GetStream().GetName())
 			continue
 		}
 
@@ -243,35 +268,21 @@ func (sns *SimpleNetworkService) recv() {
 			if sns.serviceBlocked() {
 				continue
 			}
-			err = sns.loadbalancer.AddTarget(lbTarget)
-			logrus.Infof("SimpleNetworkService: Add Target: %v", target)
+			err = stream.AddTarget(lbTarget)
 			if err != nil {
 				logrus.Errorf("SimpleNetworkService: err AddTarget (%v): %v", target, err)
 				continue
 			}
+			logrus.Infof("SimpleNetworkService: Add Target: %v", target)
 		} else if targetEvent.Status == nspAPI.TargetEvent_Unregister || (targetEvent.Status == nspAPI.TargetEvent_Updated && target.Status == nspAPI.Target_Disabled) {
-			err = sns.loadbalancer.RemoveTarget(lbTarget)
-			logrus.Infof("SimpleNetworkService: Remove Target: %v", target)
+			err = stream.RemoveTarget(lbTarget.GetIdentifier())
 			if err != nil {
 				logrus.Errorf("SimpleNetworkService: err RemoveTarget (%v): %v", target, err)
 				continue
 			}
+			logrus.Infof("SimpleNetworkService: Remove Target: %v", target)
 		}
 	}
-}
-
-func (sns *SimpleNetworkService) parseLoadBalancerTarget(target *nspAPI.Target) (*loadbalancer.Target, error) {
-	identifierStr, exists := target.Context[nsp.Identifier.String()]
-	if !exists {
-		logrus.Errorf("SimpleNetworkService: identifier does not exist: %v", target.Context)
-		return nil, errors.New("identifier does not exist")
-	}
-	identifier, err := strconv.Atoi(identifierStr)
-	if err != nil {
-		logrus.Errorf("SimpleNetworkService: cannot parse identifier (%v): %v", identifierStr, err)
-		return nil, err
-	}
-	return loadbalancer.NewTarget(identifier, target.Ips), nil
 }
 
 // InterfaceCreated -
@@ -299,7 +310,11 @@ func (sns *SimpleNetworkService) InterfaceCreated(intf networking.Iface) {
 			return
 		}
 		for _, target := range targets {
-			lbTarget, err := sns.parseLoadBalancerTarget(target)
+			s, exists := sns.streams[target.GetStream().GetName()]
+			if !exists {
+				continue
+			}
+			lbTarget, err := stream.NewTarget(target, sns.netUtils)
 			if err != nil {
 				logrus.Errorf("SimpleNetworkService: parseLoadBalancerTarget err: %v", err)
 				continue
@@ -310,13 +325,13 @@ func (sns *SimpleNetworkService) InterfaceCreated(intf networking.Iface) {
 			if target.Status == nspAPI.Target_Disabled {
 				continue
 			}
-			contains, err := sns.prefixesContainsIPs(intf.GetLocalPrefixes(), lbTarget.GetIPs())
+			contains, err := sns.prefixesContainsIPs(intf.GetLocalPrefixes(), lbTarget.GetIps())
 			if !contains || err != nil {
 				continue
 			}
-			if !sns.loadbalancer.TargetExists(lbTarget) {
+			if !s.TargetExists(lbTarget.GetIdentifier()) {
 				logrus.Infof("SimpleNetworkService: Add Target: %v", target)
-				err = sns.loadbalancer.AddTarget(lbTarget)
+				err = s.AddTarget(lbTarget)
 				if err != nil {
 					logrus.Errorf("SimpleNetworkService: err AddTarget (%v): %v", lbTarget, err)
 				}
@@ -331,13 +346,15 @@ func (sns *SimpleNetworkService) InterfaceCreated(intf networking.Iface) {
 func (sns *SimpleNetworkService) InterfaceDeleted(intf networking.Iface) {
 	logrus.Infof("SimpleNetworkService: InterfaceDeleted: Intf %v", intf)
 	if _, ok := sns.interfaces.LoadAndDelete(intf.GetIndex()); ok {
-		for _, lbTarget := range sns.loadbalancer.GetTargets() {
-			contains, err := sns.prefixesContainsIPs(intf.GetLocalPrefixes(), lbTarget.GetIPs())
-			if contains && err == nil {
-				logrus.Infof("SimpleNetworkService: Remove Target: %v", lbTarget)
-				err := sns.loadbalancer.RemoveTarget(lbTarget)
-				if err != nil {
-					logrus.Errorf("SimpleNetworkService: err RemoveTarget (%v): %v", lbTarget, err)
+		for _, stream := range sns.streams {
+			for _, lbTarget := range stream.GetTargets() {
+				contains, err := sns.prefixesContainsIPs(intf.GetLocalPrefixes(), lbTarget.GetIps())
+				if contains && err == nil {
+					logrus.Infof("SimpleNetworkService: Remove Target: %v", lbTarget)
+					err := stream.RemoveTarget(lbTarget.GetIdentifier())
+					if err != nil {
+						logrus.Errorf("SimpleNetworkService: err RemoveTarget (%v): %v", lbTarget, err)
+					}
 				}
 			}
 		}
@@ -376,10 +393,6 @@ func (sns *SimpleNetworkService) prefixContainsIP(prefix string, ip string) (boo
 	return prefixAddr.Contains(ipAddr.IP), nil
 }
 
-func (sns *SimpleNetworkService) SetVIPs(vips []string) {
-	sns.loadbalancer.SetVIPs(vips)
-}
-
 func (sns *SimpleNetworkService) serviceBlocked() bool {
 	sns.mu.Lock()
 	defer sns.mu.Unlock()
@@ -392,11 +405,13 @@ func (sns *SimpleNetworkService) GetServiceControlChannel() interface{} {
 
 func (sns *SimpleNetworkService) evictLoadBalancerTargets() {
 	logrus.Infof("SimpleNetworkService: Evict Targets")
-	for _, lbTarget := range sns.loadbalancer.GetTargets() {
-		logrus.Debugf("SimpleNetworkService: Evict Target %v", lbTarget)
-		err := sns.loadbalancer.RemoveTarget(lbTarget)
-		if err != nil {
-			logrus.Warnf("SimpleNetworkService: err EvictTarget (%v): %v", lbTarget, err)
+	for _, stream := range sns.streams {
+		for _, lbTarget := range stream.GetTargets() {
+			logrus.Debugf("SimpleNetworkService: Evict Target %v", lbTarget)
+			err := stream.RemoveTarget(lbTarget.GetIdentifier())
+			if err != nil {
+				logrus.Warnf("SimpleNetworkService: err EvictTarget (%v): %v", lbTarget, err)
+			}
 		}
 	}
 }
@@ -453,21 +468,107 @@ func (sns *SimpleNetworkService) Close(ctx context.Context, conn *networkservice
 } */
 
 // NewSimpleNetworkService -
-func NewSimpleNetworkService(ctx context.Context, networkServicePlateformClient *nsp.NetworkServicePlateformClient, netUtils networking.Utils) *SimpleNetworkService {
-	loadbalancer, err := loadbalancer.NewLoadBalancer([]string{}, 9973, 100, netUtils)
-	if err != nil {
-		logrus.Errorf("SimpleNetworkService: NewLoadBalancer err: %v", err)
-	}
-	err = loadbalancer.Start()
-	if err != nil {
-		logrus.Errorf("SimpleNetworkService: LoadBalancer start err: %v", err)
-	}
+func NewSimpleNetworkService(ctx context.Context, networkServicePlateformClient *nsp.NetworkServicePlateformClient, configurationManagerClient nspAPI.ConfigurationManagerClient, conduit *nspAPI.Conduit, netUtils networking.Utils) *SimpleNetworkService {
 	simpleNetworkService := &SimpleNetworkService{
-		loadbalancer:                  loadbalancer,
+		Conduit:                       conduit,
 		networkServicePlateformClient: networkServicePlateformClient,
+		ConfigurationManagerClient:    configurationManagerClient,
 		serviceCtrCh:                  make(chan bool),
 		simpleNetworkServiceBlocked:   true,
 		ctx:                           ctx,
+		netUtils:                      netUtils,
+		nfqueueIndex:                  1,
+		streams:                       make(map[string]types.Stream),
 	}
 	return simpleNetworkService
+}
+
+func (sns *SimpleNetworkService) watchStreams(ctx context.Context) error {
+	streamsToWatch := &nspAPI.Stream{
+		Conduit: sns.Conduit,
+	}
+	watchStream, err := sns.ConfigurationManagerClient.WatchStream(ctx, streamsToWatch)
+	if err != nil {
+		return err
+	}
+	for {
+		streamResponse, err := watchStream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		err = sns.updateStreams(streamResponse.Streams)
+		if err != nil {
+			logrus.Errorf("updateStreams err: %v", err)
+		}
+	}
+	return nil
+}
+
+func (sns *SimpleNetworkService) updateStreams(streams []*nspAPI.Stream) error {
+	remainingStreams := make(map[string]struct{})
+	for streamName := range sns.streams {
+		remainingStreams[streamName] = struct{}{}
+	}
+	var errFinal error
+	for _, s := range streams {
+		// check if stream belongs to this conduit and trench
+		if !sns.Conduit.Equals(s.GetConduit()) {
+			continue
+		}
+		_, exists := sns.streams[s.GetName()]
+		if !exists { // todo: create a stream
+			err := sns.addStream(s)
+			if err != nil {
+				errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+			}
+		} else { // todo: check if need an update
+			delete(remainingStreams, s.GetName())
+		}
+	}
+	// remove remaining ones
+	for streamName := range remainingStreams {
+		err := sns.deleteStream(streamName)
+		if err != nil {
+			errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+		}
+	}
+	return errFinal
+}
+
+func (sns *SimpleNetworkService) addStream(strm *nspAPI.Stream) error {
+	// verify if stream belongs to this conduit and trench
+	_, exists := sns.streams[strm.GetName()]
+	if exists {
+		return errors.New("this stream already exists")
+	}
+	s, err := stream.New(strm, sns.ConfigurationManagerClient, M, N, sns.nfqueueIndex, sns.netUtils)
+	if err != nil {
+		return err
+	}
+	go func() {
+		err := s.Start(context.Background()) // todo
+		if err != nil {
+			logrus.Errorf("stream start err: %v", err)
+		}
+	}()
+	sns.nfqueueIndex = sns.nfqueueIndex + 1
+	sns.streams[strm.GetName()] = s
+	return nil
+}
+
+func (sns *SimpleNetworkService) deleteStream(streamName string) error {
+	// verify if stream belongs to this conduit and trench
+	stream, exists := sns.streams[streamName]
+	if !exists {
+		return nil
+	}
+	err := stream.Delete()
+	if err != nil {
+		return err
+	}
+	delete(sns.streams, streamName)
+	return nil
 }
