@@ -46,6 +46,7 @@ type VipStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Address",type=string,JSONPath=`.spec.address`
+//+kubebuilder:printcolumn:name="Trench",type=string,JSONPath=`.metadata.labels.trench`
 //+kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.status`
 
 // Vip is the Schema for the vips API

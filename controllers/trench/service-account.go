@@ -90,12 +90,12 @@ func (sa *ServiceAccount) getAction() ([]common.Action, error) {
 	if cs == nil {
 		ds := sa.getDesiredStatus()
 		sa.exec.LogInfo(fmt.Sprintf("add action: create %s", elem))
-		action = append(action, common.NewCreateAction(ds, fmt.Sprintf("create %s", elem)))
+		action = append(action, sa.exec.NewCreateAction(ds))
 	} else {
 		ds := sa.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
 			sa.exec.LogInfo(fmt.Sprintf("add action: update %s", elem))
-			action = append(action, common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem)))
+			action = append(action, sa.exec.NewUpdateAction(ds))
 		}
 	}
 	return action, nil

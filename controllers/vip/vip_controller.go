@@ -18,7 +18,6 @@ package vip
 
 import (
 	"context"
-	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -84,7 +83,7 @@ func (r *VipReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 	}
 
-	actions := getVipActions(vip, currentVip)
+	actions := getVipActions(executor, vip, currentVip)
 	err = executor.RunAll(actions)
 
 	return ctrl.Result{}, err
@@ -119,15 +118,14 @@ func setVipStatus(vip *meridiov1alpha1.Vip, status meridiov1alpha1.ConfigStatus,
 	return vip
 }
 
-func getVipActions(new, old *meridiov1alpha1.Vip) []common.Action {
+func getVipActions(executor *common.Executor, new, old *meridiov1alpha1.Vip) []common.Action {
 	var actions []common.Action
 	// set the status for the vip
-	nsname := common.NsName(new.ObjectMeta)
 	if !equality.Semantic.DeepEqual(new.Status, old.Status) {
-		actions = append(actions, common.NewUpdateStatusAction(new, fmt.Sprintf("update %s status: %v", nsname, new.Status.Status)))
+		actions = append(actions, executor.NewUpdateStatusAction(new))
 	}
 	if !equality.Semantic.DeepEqual(new.ObjectMeta, old.ObjectMeta) {
-		actions = append(actions, common.NewUpdateAction(new, fmt.Sprintf("update %s ownerReference", nsname)))
+		actions = append(actions, executor.NewUpdateAction(new))
 	}
 	return actions
 }

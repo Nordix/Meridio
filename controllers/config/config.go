@@ -1,86 +1,35 @@
 package config
 
 import (
-	"fmt"
-
-	"gopkg.in/yaml.v2"
+	"github.com/nordix/meridio/pkg/configuration/reader"
 )
 
-const (
-	GatewayConfigKey = "gateways"
-	VipsConfigKey    = "vips"
-)
-
-type GatewayConfig struct {
-	Gateways []Gateway `yaml:"items"`
-}
-
-type VipConfig struct {
-	Vips []Vip `yaml:"items"`
-}
-
-type Gateway struct {
-	Name       string `yaml:"name"`
-	Address    string `yaml:"address"`
-	RemoteASN  uint32 `yaml:"remote-asn"`
-	LocalASN   uint32 `yaml:"local-asn"`
-	RemotePort uint16 `yaml:"remote-port"`
-	LocalPort  uint16 `yaml:"local-port"`
-	IPFamily   string `yaml:"ip-family"`
-	BFD        bool   `yaml:"bfd"`
-	Protocol   string `yaml:"protocol"`
-	HoldTime   uint   `yaml:"hold-time"`
-}
-
-type Vip struct {
-	Name    string `yaml:"name"`
-	Address string `yaml:"address"`
-}
-
-// Input configmap.Data
-func UnmarshalConfig(data map[string]string) (*GatewayConfig, *VipConfig, error) {
-	gw, errg := UnmarshalGatewayConfig(data[GatewayConfigKey])
-	vip, errv := UnmarshalVipConfig(data[VipsConfigKey])
-	if errg != nil || errv != nil {
-		return nil, nil, fmt.Errorf("%s %s", errg, errv)
-	}
-	return gw, vip, nil
-}
-
-// Input is the value of GatewayConfigKey,
-// returned as GatewayConfig struct
-func UnmarshalGatewayConfig(c string) (*GatewayConfig, error) {
-	config := &GatewayConfig{}
-	err := yaml.Unmarshal([]byte(c), &config)
-	return config, err
-}
-
-// Input is the value of VipsConfigKey,
-// returned as VipConfig struct
-func UnmarshalVipConfig(c string) (*VipConfig, error) {
-	config := &VipConfig{}
-	err := yaml.Unmarshal([]byte(c), &config)
-	return config, err
-}
-
-// Input is VipConfig struct.
-// Return a map with key as vip names, values of the key are
-func MakeMapFromVipList(config *VipConfig) map[string]Vip {
-	list := config.Vips
-	ret := make(map[string]Vip)
-	for _, item := range list {
-		ret[item.Name] = item
+// Input is a slice of Vips.
+// Return a map with key as vip names.
+func MakeMapFromVipList(lst []*reader.Vip) map[string]reader.Vip {
+	ret := make(map[string]reader.Vip)
+	for _, item := range lst {
+		ret[item.Name] = *item
 	}
 	return ret
 }
 
-// Input is VipConfig struct.
-// Return a map with key as vip names.
-func MakeMapFromGWList(config *GatewayConfig) map[string]Gateway {
-	list := config.Gateways
-	ret := make(map[string]Gateway)
-	for _, item := range list {
-		ret[item.Name] = item
+// Input is a slice of Gateways.
+// Return a map with key as gateway names.
+func MakeMapFromGWList(lst []*reader.Gateway) map[string]reader.Gateway {
+	ret := make(map[string]reader.Gateway)
+	for _, item := range lst {
+		ret[item.Name] = *item
+	}
+	return ret
+}
+
+// Input is a slice of Attractors.
+// Return a map with key as attractor names.
+func MakeMapFromAttractorList(lst []*reader.Attractor) map[string]reader.Attractor {
+	ret := make(map[string]reader.Attractor)
+	for _, item := range lst {
+		ret[item.Name] = *item
 	}
 	return ret
 }

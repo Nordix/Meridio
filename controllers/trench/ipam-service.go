@@ -1,8 +1,6 @@
 package trench
 
 import (
-	"fmt"
-
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	common "github.com/nordix/meridio-operator/controllers/common"
 	corev1 "k8s.io/api/core/v1"
@@ -80,7 +78,6 @@ func (i *IpamService) getModel() error {
 }
 
 func (i *IpamService) getAction() ([]common.Action, error) {
-	elem := common.IPAMServiceName(i.trench)
 	var action []common.Action
 	cs, err := i.getCurrentStatus()
 	if err != nil {
@@ -88,13 +85,11 @@ func (i *IpamService) getAction() ([]common.Action, error) {
 	}
 	if cs == nil {
 		ds := i.getDesiredStatus()
-		i.exec.LogInfo(fmt.Sprintf("add action: create %s", elem))
-		action = append(action, common.NewCreateAction(ds, fmt.Sprintf("create %s", elem)))
+		action = append(action, i.exec.NewCreateAction(ds))
 	} else {
 		ds := i.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			i.exec.LogInfo(fmt.Sprintf("add action: update %s", elem))
-			action = append(action, common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem)))
+			action = append(action, i.exec.NewUpdateAction(ds))
 		}
 	}
 	return action, nil

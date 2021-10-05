@@ -1,8 +1,6 @@
 package trench
 
 import (
-	"fmt"
-
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	common "github.com/nordix/meridio-operator/controllers/common"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -75,7 +73,6 @@ func (r *Role) getReconciledDesiredStatus(current *rbacv1.Role) *rbacv1.Role {
 }
 
 func (r *Role) getAction() ([]common.Action, error) {
-	elem := common.RoleName(r.trench)
 	var action []common.Action
 	cs, err := r.getCurrentStatus()
 	if err != nil {
@@ -83,13 +80,11 @@ func (r *Role) getAction() ([]common.Action, error) {
 	}
 	if cs == nil {
 		ds := r.getDesiredStatus()
-		r.exec.LogInfo(fmt.Sprintf("add action: create %s", elem))
-		action = append(action, common.NewCreateAction(ds, fmt.Sprintf("create %s", elem)))
+		action = append(action, r.exec.NewCreateAction(ds))
 	} else {
 		ds := r.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			r.exec.LogInfo(fmt.Sprintf("add action: update %s", elem))
-			action = append(action, common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem)))
+			action = append(action, r.exec.NewUpdateAction(ds))
 		}
 	}
 	return action, nil

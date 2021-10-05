@@ -91,10 +91,10 @@ type StaticSpec struct {
 
 // GatewayStatus defines the observed state of Gateway
 type GatewayStatus struct {
-	// If the gateway is ready to be used by the labeled attractor
+	// If the gateway is ready to be used by the labeled trench
 	// Possible values:
-	// - disengaged: gateway is not ready to be used by any attractor
-	// - engaged: gateway is ready to be used by the labeled attractor
+	// - disengaged: gateway is not ready to be used by any trench
+	// - engaged: gateway is ready to be used by the labeled trench
 	// - : gateway is not processed by the controller yet
 	Status ConfigStatus `json:"status,omitempty"`
 
@@ -106,7 +106,7 @@ type GatewayStatus struct {
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="address",type=string,JSONPath=`.spec.address`
 //+kubebuilder:printcolumn:name="protocol",type=string,JSONPath=`.spec.protocol`
-//+kubebuilder:printcolumn:name="attractor",type=string,JSONPath=`.metadata.labels.attractor`
+//+kubebuilder:printcolumn:name="trench",type=string,JSONPath=`.metadata.labels.trench`
 //+kubebuilder:printcolumn:name="status",type=string,JSONPath=`.status.status`
 //+kubebuilder:printcolumn:name="message",type=string,JSONPath=`.status.message`
 

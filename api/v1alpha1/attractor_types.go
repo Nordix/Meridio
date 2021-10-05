@@ -62,12 +62,6 @@ type AttractorStatus struct {
 
 	// Describes why LbFe is disengaged
 	Message string `json:"message,omitempty"`
-
-	// Gateways from spec.gateway that are currently used by the attractor
-	GatewayInUse []string `json:"gateways-in-use,omitempty"`
-
-	// Vips from spec.vips that are currently used by the attractor
-	VipsInUse []string `json:"vips-in-use,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -75,10 +69,8 @@ type AttractorStatus struct {
 //+kubebuilder:printcolumn:name="VlanID",type=integer,JSONPath=`.spec.vlan-id`
 //+kubebuilder:printcolumn:name="VlanITF",type=string,JSONPath=`.spec.vlan-interface`
 //+kubebuilder:printcolumn:name="Gateways",type=string,JSONPath=`.spec.gateways`
-//+kubebuilder:printcolumn:name="gw-in-use",type=string,JSONPath=`.status.gateways-in-use`
 //+kubebuilder:printcolumn:name="Vips",type=string,JSONPath=`.spec.vips`
-//+kubebuilder:printcolumn:name="vips-in-use",type=string,JSONPath=`.status.vips-in-use`
-//+kubebuilder:printcolumn:name="trench",type=string,JSONPath=`.metadata.labels.trench`
+//+kubebuilder:printcolumn:name="Trench",type=string,JSONPath=`.metadata.labels.trench`
 //+kubebuilder:printcolumn:name="LB-FE",type=string,JSONPath=`.status.lb-fe`
 
 // Attractor is the Schema for the attractors API

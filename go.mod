@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/go-logr/logr v0.4.0
-	github.com/nordix/meridio v0.0.0-20210820133400-65b3add684a6
+	github.com/nordix/meridio v0.0.0-20211004081507-8c41387e453a
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.15.0
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e

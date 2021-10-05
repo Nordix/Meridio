@@ -26,17 +26,11 @@ spec:
     - jsonPath: .spec.gateways
       name: Gateways
       type: string
-    - jsonPath: .status.gateways-in-use
-      name: gw-in-use
-      type: string
     - jsonPath: .spec.vips
       name: Vips
       type: string
-    - jsonPath: .status.vips-in-use
-      name: vips-in-use
-      type: string
     - jsonPath: .metadata.labels.trench
-      name: trench
+      name: Trench
       type: string
     - jsonPath: .status.lb-fe
       name: LB-FE
@@ -101,12 +95,6 @@ spec:
           status:
             description: AttractorStatus defines the observed state of Attractor
             properties:
-              gateways-in-use:
-                description: Gateways from spec.gateway that are currently used by
-                  the attractor
-                items:
-                  type: string
-                type: array
               lb-fe:
                 description: 'Load balancer and front-end status. Possible values:
                   - engaged: the attractor can be used for creating resources - disengaged:
@@ -117,11 +105,6 @@ spec:
               message:
                 description: Describes why LbFe is disengaged
                 type: string
-              vips-in-use:
-                description: Vips from spec.vips that are currently used by the attractor
-                items:
-                  type: string
-                type: array
             type: object
         type: object
     served: true

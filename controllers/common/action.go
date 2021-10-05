@@ -19,7 +19,7 @@ type Executions interface {
 }
 
 type Action interface {
-	Run(e *Executor) (string, error)
+	Run(e *Executor) (string, string, error)
 }
 
 type Executor struct {
@@ -67,12 +67,12 @@ func (e *Executor) ListObject(obj client.ObjectList, opts ...client.ListOption) 
 
 func (e *Executor) RunAll(actions []Action) error {
 	for _, action := range actions {
-		msg, err := action.Run(e)
+		action, name, err := action.Run(e)
 		if err != nil {
-			e.log.Error(err, msg, "result", "failure")
+			e.log.Error(err, "execute action", "action", action, "object", name, "result", "failure")
 			return err
 		}
-		e.log.Info(msg, "result", "succeess")
+		e.log.Info("execute action", "action", action, "object", name, "result", "success")
 	}
 	return nil
 }
@@ -88,30 +88,30 @@ func AppendActions(actions ...Action) []Action {
 }
 
 type createAction struct {
-	obj client.Object
-	msg string
+	obj    client.Object
+	action string
 }
 
 type updateAction struct {
-	obj client.Object
-	msg string
+	obj    client.Object
+	action string
 }
 
 type updateStatusAction struct {
-	obj client.Object
-	msg string
+	obj    client.Object
+	action string
 }
 
-func (a createAction) Run(e *Executor) (string, error) {
-	return a.msg, e.create(a.obj)
+func (a createAction) Run(e *Executor) (string, string, error) {
+	return a.action, a.obj.GetName(), e.create(a.obj)
 }
 
-func (a updateAction) Run(e *Executor) (string, error) {
-	return a.msg, e.update(a.obj)
+func (a updateAction) Run(e *Executor) (string, string, error) {
+	return a.action, a.obj.GetName(), e.update(a.obj)
 }
 
-func (a updateStatusAction) Run(e *Executor) (string, error) {
-	return a.msg, e.updateStatus(a.obj)
+func (a updateStatusAction) Run(e *Executor) (string, string, error) {
+	return a.action, a.obj.GetName(), e.updateStatus(a.obj)
 }
 
 func (e *Executor) create(obj client.Object) error {
@@ -168,14 +168,20 @@ func (e *Executor) SetOwnerReference(obj client.Object, owners ...client.Object)
 	return nil
 }
 
-func NewCreateAction(obj client.Object, msg string) Action {
-	return createAction{obj: obj, msg: msg}
+func (e *Executor) NewCreateAction(obj client.Object) Action {
+	name := obj.GetName()
+	e.log.Info("add action", "action", "create", "object", name)
+	return createAction{obj: obj, action: "create"}
 }
 
-func NewUpdateAction(obj client.Object, msg string) Action {
-	return updateAction{obj: obj, msg: msg}
+func (e *Executor) NewUpdateAction(obj client.Object) Action {
+	name := obj.GetName()
+	e.log.Info("add action", "action", "update", "object", name)
+	return updateAction{obj: obj, action: "update"}
 }
 
-func NewUpdateStatusAction(obj client.Object, msg string) Action {
-	return updateStatusAction{obj: obj, msg: msg}
+func (e *Executor) NewUpdateStatusAction(obj client.Object) Action {
+	name := obj.GetName()
+	e.log.Info("add action", "action", "update status", "object", name)
+	return updateStatusAction{obj: obj, action: "update status"}
 }

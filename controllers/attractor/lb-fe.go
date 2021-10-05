@@ -204,7 +204,6 @@ func (i *LoadBalancer) getReconciledDesiredStatus(lb *appsv1.Deployment) *appsv1
 }
 
 func (l *LoadBalancer) getAction() (common.Action, error) {
-	elem := common.LoadBalancerDeploymentName(l.trench)
 	var action common.Action
 	cs, err := l.getCurrentStatus()
 	if err != nil {
@@ -215,13 +214,11 @@ func (l *LoadBalancer) getAction() (common.Action, error) {
 		if err != nil {
 			return nil, err
 		}
-		l.exec.LogInfo(fmt.Sprintf("add action: create %s", elem))
-		action = common.NewCreateAction(ds, fmt.Sprintf("create %s", elem))
+		action = l.exec.NewCreateAction(ds)
 	} else {
 		ds := l.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			l.exec.LogInfo(fmt.Sprintf("add action: update %s", elem))
-			action = common.NewUpdateAction(ds, fmt.Sprintf("update %s", elem))
+			action = l.exec.NewUpdateAction(ds)
 		}
 	}
 	return action, nil
