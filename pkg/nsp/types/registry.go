@@ -14,8 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package stream
+package types
 
-const (
-	maxNumberOfTargets = 100
+import (
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 )
+
+type TargetRegistry interface {
+	Set(*nspAPI.Target)
+	Remove(*nspAPI.Target)
+	Get(*nspAPI.Target) []*nspAPI.Target
+}

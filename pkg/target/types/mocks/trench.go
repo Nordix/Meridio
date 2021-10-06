@@ -92,20 +92,6 @@ func (mr *MockTrenchMockRecorder) GetConduits() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConduits", reflect.TypeOf((*MockTrench)(nil).GetConduits))
 }
 
-// GetNSPClient mocks base method.
-func (m *MockTrench) GetNSPClient() v1.NetworkServicePlateformServiceClient {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetNSPClient")
-	ret0, _ := ret[0].(v1.NetworkServicePlateformServiceClient)
-	return ret0
-}
-
-// GetNSPClient indicates an expected call of GetNSPClient.
-func (mr *MockTrenchMockRecorder) GetNSPClient() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNSPClient", reflect.TypeOf((*MockTrench)(nil).GetNSPClient))
-}
-
 // GetName mocks base method.
 func (m *MockTrench) GetName() string {
 	m.ctrl.T.Helper()
@@ -132,6 +118,20 @@ func (m *MockTrench) GetNamespace() string {
 func (mr *MockTrenchMockRecorder) GetNamespace() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNamespace", reflect.TypeOf((*MockTrench)(nil).GetNamespace))
+}
+
+// GetTargetRegistryClient mocks base method.
+func (m *MockTrench) GetTargetRegistryClient() v1.TargetRegistryClient {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTargetRegistryClient")
+	ret0, _ := ret[0].(v1.TargetRegistryClient)
+	return ret0
+}
+
+// GetTargetRegistryClient indicates an expected call of GetTargetRegistryClient.
+func (mr *MockTrenchMockRecorder) GetTargetRegistryClient() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTargetRegistryClient", reflect.TypeOf((*MockTrench)(nil).GetTargetRegistryClient))
 }
 
 // RemoveConduit mocks base method.

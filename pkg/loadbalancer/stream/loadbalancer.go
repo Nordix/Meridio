@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/loadbalancer/nfqlb"
@@ -33,7 +34,7 @@ import (
 // LoadBalancer -
 type LoadBalancer struct {
 	*nspAPI.Stream
-	// TargetRegistryClient       nspAPI.NetworkServicePlateformServiceClient
+	TargetRegistryClient       nspAPI.TargetRegistryClient
 	ConfigurationManagerClient nspAPI.ConfigurationManagerClient
 	nfqlb                      types.NFQueueLoadBalancer
 	vips                       []*virtualIP
@@ -41,25 +42,25 @@ type LoadBalancer struct {
 	netUtils                   networking.Utils
 	nfqueue                    int
 	mu                         sync.Mutex
+	cancel                     context.CancelFunc
+	pendingTargets             map[int]types.Target // key: Identifier
 }
 
-func New(stream *nspAPI.Stream, configurationManagerClient nspAPI.ConfigurationManagerClient, m int, n int, nfqueue int, netUtils networking.Utils) (types.Stream, error) {
+func New(stream *nspAPI.Stream, targetRegistryClient nspAPI.TargetRegistryClient, configurationManagerClient nspAPI.ConfigurationManagerClient, m int, n int, nfqueue int, netUtils networking.Utils) (types.Stream, error) {
 	nfqlb, err := nfqlb.New(stream.GetName(), m, n, nfqueue)
 	if err != nil {
 		return nil, err
 	}
 	loadBalancer := &LoadBalancer{
 		Stream:                     stream,
+		TargetRegistryClient:       targetRegistryClient,
 		ConfigurationManagerClient: configurationManagerClient,
 		vips:                       []*virtualIP{},
 		nfqlb:                      nfqlb,
 		targets:                    make(map[int]types.Target),
 		netUtils:                   netUtils,
 		nfqueue:                    nfqueue,
-	}
-	// err = loadBalancer.SetVIPs(vips)
-	if err != nil {
-		return nil, err
+		pendingTargets:             make(map[int]types.Target),
 	}
 	err = nfqlb.Start()
 	if err != nil {
@@ -70,8 +71,16 @@ func New(stream *nspAPI.Stream, configurationManagerClient nspAPI.ConfigurationM
 }
 
 func (lb *LoadBalancer) Start(ctx context.Context) error {
-	// go lb.watchTargets(ctx)
-	err := lb.watchFlows(ctx)
+	var c context.Context
+	c, lb.cancel = context.WithCancel(ctx)
+	go func() { // todo
+		err := lb.watchTargets(c)
+		if err != nil {
+			logrus.Errorf("watch Targets err: %v", err)
+		}
+	}()
+	go lb.processPendingTargets(c)
+	err := lb.watchFlows(c)
 	if err != nil {
 		return err
 	}
@@ -79,7 +88,27 @@ func (lb *LoadBalancer) Start(ctx context.Context) error {
 }
 
 func (lb *LoadBalancer) Delete() error {
-	return nil // todo
+	if lb.cancel != nil {
+		lb.cancel()
+	}
+	var errFinal error
+	for identifier := range lb.targets {
+		err := lb.RemoveTarget(identifier)
+		if err != nil {
+			errFinal = fmt.Errorf("%w; target: %v", errFinal, err)
+		}
+	}
+	for _, vip := range lb.vips {
+		err := vip.Delete()
+		if err != nil {
+			errFinal = fmt.Errorf("%w; vip: %v", errFinal, err)
+		}
+	}
+	err := lb.nfqlb.Delete()
+	if err != nil {
+		errFinal = fmt.Errorf("%w; nfqlb: %v", errFinal, err)
+	}
+	return errFinal // todo
 }
 
 // AddTarget -
@@ -92,6 +121,7 @@ func (lb *LoadBalancer) AddTarget(target types.Target) error {
 	}
 	err := target.Configure()
 	if err != nil {
+		lb.addPendingTarget(target)
 		returnErr := err
 		err = target.Delete()
 		if err != nil {
@@ -101,6 +131,7 @@ func (lb *LoadBalancer) AddTarget(target types.Target) error {
 	}
 	err = lb.nfqlb.Activate(target.GetIdentifier())
 	if err != nil {
+		lb.addPendingTarget(target)
 		returnErr := err
 		err = target.Delete()
 		if err != nil {
@@ -109,6 +140,8 @@ func (lb *LoadBalancer) AddTarget(target types.Target) error {
 		return returnErr
 	}
 	lb.targets[target.GetIdentifier()] = target
+	lb.removeFromPendingTarget(target)
+	logrus.Infof("stream: %v, target added: %v", lb.Stream.GetName(), target)
 	return nil
 }
 
@@ -120,6 +153,7 @@ func (lb *LoadBalancer) RemoveTarget(identifier int) error {
 	if target == nil {
 		return errors.New("the target is not existing")
 	}
+	lb.removeFromPendingTarget(target)
 	err := lb.nfqlb.Deactivate(target.GetIdentifier())
 	if err != nil {
 		return err
@@ -129,6 +163,7 @@ func (lb *LoadBalancer) RemoveTarget(identifier int) error {
 		return err
 	}
 	delete(lb.targets, target.GetIdentifier())
+	logrus.Infof("stream: %v, target removed: %v", lb.Stream.GetName(), target)
 	return nil
 }
 
@@ -217,4 +252,98 @@ func (lb *LoadBalancer) watchFlows(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// todo
+func (lb *LoadBalancer) watchTargets(ctx context.Context) error {
+	watchTarget, err := lb.TargetRegistryClient.Watch(ctx, &nspAPI.Target{
+		Status: nspAPI.Target_ENABLED,
+		Type:   nspAPI.Target_DEFAULT,
+		Stream: lb.Stream,
+	})
+	if err != nil {
+		return err
+	}
+	for {
+		targetResponse, err := watchTarget.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		err = lb.setTargets(targetResponse.GetTargets())
+		if err != nil {
+			logrus.Warnf("err set targets: %v", err) // todo
+		}
+	}
+	return nil
+}
+
+func (lb *LoadBalancer) setTargets(targets []*nspAPI.Target) error {
+	var errFinal error
+	toRemoveTargetsMap := make(map[int]struct{})
+	for identifier := range lb.targets {
+		toRemoveTargetsMap[identifier] = struct{}{}
+	}
+	for _, target := range targets { // targets to add
+		t, err := NewTarget(target, lb.netUtils)
+		if err != nil {
+			continue
+		}
+		if lb.targetExists(t.GetIdentifier()) {
+			delete(toRemoveTargetsMap, t.GetIdentifier())
+		} else {
+			err = lb.AddTarget(t) // todo: pending targets?
+			if err != nil {
+				errFinal = fmt.Errorf("%w; %v", errFinal, err)
+			}
+		}
+	}
+	for identifier := range toRemoveTargetsMap { // targets to remove
+		err := lb.RemoveTarget(identifier)
+		if err != nil {
+			errFinal = fmt.Errorf("%w; %v", errFinal, err)
+		}
+	}
+	return errFinal
+}
+
+// todo: find a better way to detect when the routes are available for the pending targets
+func (lb *LoadBalancer) processPendingTargets(ctx context.Context) {
+	for {
+		select {
+		case <-time.After(10 * time.Second):
+			lb.retryPendingTargets()
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (lb *LoadBalancer) retryPendingTargets() {
+	for _, target := range lb.pendingTargets {
+		err := lb.AddTarget(target)
+		if err != nil {
+			logrus.Warnf("err add target (pending): %v", err) // todo
+		}
+	}
+}
+
+func (lb *LoadBalancer) addPendingTarget(target types.Target) {
+	_, exists := lb.pendingTargets[target.GetIdentifier()]
+	if exists {
+		return
+	}
+	logrus.Infof("add pending target: %v", target)
+	lb.pendingTargets[target.GetIdentifier()] = target
+}
+
+func (lb *LoadBalancer) removeFromPendingTarget(target types.Target) {
+	_, exists := lb.pendingTargets[target.GetIdentifier()]
+	if !exists {
+		return
+	}
+	logrus.Infof("remove pending target: %v", target)
+	delete(lb.pendingTargets, target.GetIdentifier())
 }

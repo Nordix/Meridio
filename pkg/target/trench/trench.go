@@ -31,7 +31,7 @@ import (
 
 type Trench struct {
 	Name                 string
-	NSPClient            nspAPI.NetworkServicePlateformServiceClient
+	NSPClient            nspAPI.TargetRegistryClient
 	Namespace            string
 	context              context.Context
 	cancel               context.CancelFunc
@@ -151,7 +151,7 @@ func (t *Trench) GetConduits() []types.Conduit {
 	return t.conduits
 }
 
-func (t *Trench) GetNSPClient() nspAPI.NetworkServicePlateformServiceClient {
+func (t *Trench) GetTargetRegistryClient() nspAPI.TargetRegistryClient {
 	return t.NSPClient
 }
 
@@ -191,7 +191,7 @@ func (t *Trench) connectNSPService() error {
 		return nil
 	}
 
-	t.NSPClient = nspAPI.NewNetworkServicePlateformServiceClient(t.nspConn)
+	t.NSPClient = nspAPI.NewTargetRegistryClient(t.nspConn)
 	return nil
 }
 

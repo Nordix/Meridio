@@ -25,7 +25,6 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -46,9 +45,9 @@ import (
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
 	"github.com/nordix/meridio/pkg/nsm/interfacename"
-	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -88,18 +87,22 @@ func main() {
 		}
 	}()
 
-	nspClient, err := nsp.NewNetworkServicePlateformClient(config.NSPService)
+	conn, err := grpc.Dial(config.NSPService, grpc.WithInsecure(),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+		))
 	if err != nil {
-		logrus.Errorf("NewNetworkServicePlateformClient: %v", err)
+		logrus.Errorf("grpc.Dial err: %v", err)
 	}
-	configurationManagerClient := nspAPI.NewConfigurationManagerClient(nspClient.Conn)
+	targetRegistryClient := nspAPI.NewTargetRegistryClient(conn)
+	configurationManagerClient := nspAPI.NewConfigurationManagerClient(conn)
 	conduit := &nspAPI.Conduit{
 		Name: config.ConduitName,
 		Trench: &nspAPI.Trench{
 			Name: config.TrenchName,
 		},
 	}
-	sns := NewSimpleNetworkService(ctx, nspClient, configurationManagerClient, conduit, netUtils)
+	sns := NewSimpleNetworkService(ctx, targetRegistryClient, configurationManagerClient, conduit, netUtils)
 
 	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
 	if err != nil {
@@ -147,7 +150,7 @@ func main() {
 
 	sns.Start()
 	// monitor availibilty of frontends; if no feasible FE don't advertise NSE to proxies
-	fns := NewFrontendNetworkService(nspClient, ep, NewServiceControlDispatcher(sns))
+	fns := NewFrontendNetworkService(targetRegistryClient, ep, NewServiceControlDispatcher(sns))
 	fns.Start()
 
 	<-ctx.Done()
@@ -155,37 +158,62 @@ func main() {
 
 // SimpleNetworkService -
 type SimpleNetworkService struct {
-	// loadbalancer                         *loadbalancer.LoadBalancer
 	*nspAPI.Conduit
-	networkServicePlateformClient        *nsp.NetworkServicePlateformClient
-	networkServicePlateformServiceStream nspAPI.NetworkServicePlateformService_MonitorClient
-	ConfigurationManagerClient           nspAPI.ConfigurationManagerClient
-	interfaces                           sync.Map
-	ctx                                  context.Context
-	serviceCtrCh                         chan bool
-	simpleNetworkServiceBlocked          bool
-	mu                                   sync.Mutex
-	streams                              map[string]types.Stream
-	netUtils                             networking.Utils
-	nfqueueIndex                         int
+	targetRegistryClient        nspAPI.TargetRegistryClient
+	ConfigurationManagerClient  nspAPI.ConfigurationManagerClient
+	interfaces                  sync.Map
+	ctx                         context.Context
+	streams                     map[string]types.Stream
+	netUtils                    networking.Utils
+	nfqueueIndex                int
+	serviceCtrCh                chan bool
+	simpleNetworkServiceBlocked bool
+	mu                          sync.Mutex
+	cancelStreamWatcher         context.CancelFunc
+}
+
+/* // Request checks if allowed to serve the request
+// A non-nil error is returned if serving the request was rejected, or if a next element in the chain returns a non-nil error
+// It implements NetworkServiceServer for SimpleNetworkService
+//
+// TODO: Is this feature even needed? Currently, SimpleNetworkServiceClient will keep trying to establish an NSM connection
+// forever, during which it also blocks NSE event processing. So it won't notice if the NSE has disappeared in the meantime.
+// Although this is a valid problem, irrespective of the fact whether SimpleNetworkService blocks Requests or not...
+// Moreover generally NSM is really pushing to establish a connection on Requests, thus letting the Request through, could lead
+// to a better outcome...
+func (sns *SimpleNetworkService) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	if sns.serviceBlocked() {
+		return nil, errors.New("SimpleNetworkService blocked")
+	}
+	logrus.Infof("SimpleNetworkService: Request")
+	return next.Server(ctx).Request(ctx, request)
+}
+// Close it does nothing except calling the next Close in the chain
+// A non-nil error if a next element in the chain returns a non-nil error
+// It implements NetworkServiceServer for SimpleNetworkService
+func (sns *SimpleNetworkService) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	logrus.Infof("SimpleNetworkService: Close")
+	return next.Server(ctx).Close(ctx, conn)
+} */
+
+// NewSimpleNetworkService -
+func NewSimpleNetworkService(ctx context.Context, targetRegistryClient nspAPI.TargetRegistryClient, configurationManagerClient nspAPI.ConfigurationManagerClient, conduit *nspAPI.Conduit, netUtils networking.Utils) *SimpleNetworkService {
+	simpleNetworkService := &SimpleNetworkService{
+		Conduit:                     conduit,
+		targetRegistryClient:        targetRegistryClient,
+		ConfigurationManagerClient:  configurationManagerClient,
+		ctx:                         ctx,
+		netUtils:                    netUtils,
+		nfqueueIndex:                1,
+		streams:                     make(map[string]types.Stream),
+		serviceCtrCh:                make(chan bool),
+		simpleNetworkServiceBlocked: true,
+	}
+	return simpleNetworkService
 }
 
 // Start -
 func (sns *SimpleNetworkService) Start() {
-	var err error
-	sns.networkServicePlateformServiceStream, err = sns.networkServicePlateformClient.Monitor()
-	if err != nil {
-		logrus.Errorf("SimpleNetworkService: err Monitor: %v", err)
-	}
-	go sns.recv()
-
-	go func() {
-		err := sns.watchStreams(context.Background())
-		if err != nil {
-			logrus.Errorf("watchStreams err: %v", err)
-		}
-	}()
-
 	go func() {
 		for {
 			select {
@@ -220,8 +248,14 @@ func (sns *SimpleNetworkService) Start() {
 					// will keep trying to establish an NSM connection forever, while also blocking NSE event
 					// processing. So if the NSE disappeared in the meantime, it will go unnoticed by the proxy.
 					if sns.simpleNetworkServiceBlocked {
-						sns.evictLoadBalancerTargets()
+						sns.evictStreams()
 						sns.disableInterfaces()
+						if sns.cancelStreamWatcher != nil {
+							sns.cancelStreamWatcher()
+						}
+					} else {
+						// restart watching the streams
+						sns.startStreamWatcher()
 					}
 					sns.mu.Unlock()
 				}
@@ -232,255 +266,34 @@ func (sns *SimpleNetworkService) Start() {
 	}()
 }
 
-func (sns *SimpleNetworkService) recv() {
-	for {
-		targetEvent, err := sns.networkServicePlateformServiceStream.Recv()
-		if err == io.EOF {
-			break
-		}
+func (sns *SimpleNetworkService) startStreamWatcher() {
+	var ctx context.Context
+	ctx, sns.cancelStreamWatcher = context.WithCancel(sns.ctx)
+	go func() {
+		err := sns.watchStreams(ctx)
 		if err != nil {
-			logrus.Errorf("SimpleNetworkService: event err: %v", err)
-			break
+			logrus.Errorf("watchStreams err: %v", err)
 		}
-
-		// target := targetEvent.Target
-		// lbTarget, err := sns.parseLoadBalancerTarget(targetEvent.Target)
-		// if err != nil {
-		// 	logrus.Errorf("SimpleNetworkService: parseLoadBalancerTarget err: %v", err)
-		// 	continue
-		// }
-
-		target := targetEvent.GetTarget()
-		lbTarget, err := stream.NewTarget(target, sns.netUtils)
-		if err != nil {
-			logrus.Errorf("SimpleNetworkService: NewTarget err: %v", err)
-			continue
-		}
-
-		stream, exists := sns.streams[target.GetStream().GetName()]
-		if !exists {
-			logrus.Errorf("Stream is not existing: %v", target.GetStream().GetName())
-			continue
-		}
-
-		if (targetEvent.Status == nspAPI.TargetEvent_Register || targetEvent.Status == nspAPI.TargetEvent_Updated) && target.Status == nspAPI.Target_Enabled {
-			// if service is blocked, do not process new Target
-			if sns.serviceBlocked() {
-				continue
-			}
-			err = stream.AddTarget(lbTarget)
-			if err != nil {
-				logrus.Errorf("SimpleNetworkService: err AddTarget (%v): %v", target, err)
-				continue
-			}
-			logrus.Infof("SimpleNetworkService: Add Target: %v", target)
-		} else if targetEvent.Status == nspAPI.TargetEvent_Unregister || (targetEvent.Status == nspAPI.TargetEvent_Updated && target.Status == nspAPI.Target_Disabled) {
-			err = stream.RemoveTarget(lbTarget.GetIdentifier())
-			if err != nil {
-				logrus.Errorf("SimpleNetworkService: err RemoveTarget (%v): %v", target, err)
-				continue
-			}
-			logrus.Infof("SimpleNetworkService: Remove Target: %v", target)
-		}
-	}
+	}()
 }
 
 // InterfaceCreated -
 func (sns *SimpleNetworkService) InterfaceCreated(intf networking.Iface) {
 	logrus.Infof("SimpleNetworkService: InterfaceCreated: %v", intf)
-	go func() {
-		if sns.serviceBlocked() {
-			// if service blocked, do not process new interface events (which
-			// might appear until the block takes effect on NSC side)
-			// instead disable them not to interfere after the block is lifted
-			sns.disableInterface(intf)
-			return
-		}
-		sns.interfaces.Store(intf.GetIndex(), intf)
-
-		select {
-		case <-sns.ctx.Done():
-			return
-		case <-time.After(2 * time.Second): // 2 sec passed
-		}
-
-		targets, err := sns.networkServicePlateformClient.GetTargets()
-		if err != nil {
-			logrus.Errorf("SimpleNetworkService: err GetTargets: %v", err)
-			return
-		}
-		for _, target := range targets {
-			s, exists := sns.streams[target.GetStream().GetName()]
-			if !exists {
-				continue
-			}
-			lbTarget, err := stream.NewTarget(target, sns.netUtils)
-			if err != nil {
-				logrus.Errorf("SimpleNetworkService: parseLoadBalancerTarget err: %v", err)
-				continue
-			}
-			if len(intf.GetLocalPrefixes()) <= 0 {
-				continue
-			}
-			if target.Status == nspAPI.Target_Disabled {
-				continue
-			}
-			contains, err := sns.prefixesContainsIPs(intf.GetLocalPrefixes(), lbTarget.GetIps())
-			if !contains || err != nil {
-				continue
-			}
-			if !s.TargetExists(lbTarget.GetIdentifier()) {
-				logrus.Infof("SimpleNetworkService: Add Target: %v", target)
-				err = s.AddTarget(lbTarget)
-				if err != nil {
-					logrus.Errorf("SimpleNetworkService: err AddTarget (%v): %v", lbTarget, err)
-				}
-			} else {
-				logrus.Debugf("SimpleNetworkService: InterfaceCreated: TargetExists: %v", lbTarget)
-			}
-		}
-	}()
+	if sns.serviceBlocked() {
+		// if service blocked, do not process new interface events (which
+		// might appear until the block takes effect on NSC side)
+		// instead disable them not to interfere after the block is lifted
+		sns.disableInterface(intf)
+		return
+	}
+	sns.interfaces.Store(intf.GetIndex(), intf)
 }
 
 // InterfaceDeleted -
 func (sns *SimpleNetworkService) InterfaceDeleted(intf networking.Iface) {
 	logrus.Infof("SimpleNetworkService: InterfaceDeleted: Intf %v", intf)
-	if _, ok := sns.interfaces.LoadAndDelete(intf.GetIndex()); ok {
-		for _, stream := range sns.streams {
-			for _, lbTarget := range stream.GetTargets() {
-				contains, err := sns.prefixesContainsIPs(intf.GetLocalPrefixes(), lbTarget.GetIps())
-				if contains && err == nil {
-					logrus.Infof("SimpleNetworkService: Remove Target: %v", lbTarget)
-					err := stream.RemoveTarget(lbTarget.GetIdentifier())
-					if err != nil {
-						logrus.Errorf("SimpleNetworkService: err RemoveTarget (%v): %v", lbTarget, err)
-					}
-				}
-			}
-		}
-	}
-}
-
-func (sns *SimpleNetworkService) prefixesContainsIPs(prefixes []string, ips []string) (bool, error) {
-	for _, ip := range ips {
-		containedInPrefixes := false
-		for _, prefix := range prefixes {
-			contains, err := sns.prefixContainsIP(prefix, ip)
-			if err != nil {
-				return false, err
-			}
-			if contains {
-				containedInPrefixes = true
-				break
-			}
-		}
-		if !containedInPrefixes {
-			return false, nil
-		}
-	}
-	return true, nil
-}
-
-func (sns *SimpleNetworkService) prefixContainsIP(prefix string, ip string) (bool, error) {
-	prefixAddr, err := netlink.ParseAddr(prefix)
-	if err != nil {
-		return false, err
-	}
-	ipAddr, err := netlink.ParseAddr(ip)
-	if err != nil {
-		return false, err
-	}
-	return prefixAddr.Contains(ipAddr.IP), nil
-}
-
-func (sns *SimpleNetworkService) serviceBlocked() bool {
-	sns.mu.Lock()
-	defer sns.mu.Unlock()
-	return sns.simpleNetworkServiceBlocked
-}
-
-func (sns *SimpleNetworkService) GetServiceControlChannel() interface{} {
-	return (chan<- bool)(sns.serviceCtrCh)
-}
-
-func (sns *SimpleNetworkService) evictLoadBalancerTargets() {
-	logrus.Infof("SimpleNetworkService: Evict Targets")
-	for _, stream := range sns.streams {
-		for _, lbTarget := range stream.GetTargets() {
-			logrus.Debugf("SimpleNetworkService: Evict Target %v", lbTarget)
-			err := stream.RemoveTarget(lbTarget.GetIdentifier())
-			if err != nil {
-				logrus.Warnf("SimpleNetworkService: err EvictTarget (%v): %v", lbTarget, err)
-			}
-		}
-	}
-}
-
-// disableInterfaces -
-// Set interfaces down, so that they won't interface with future "Add Target"
-// operation. Meaning old interfaces not yet removed by NSM must not get associated
-// with routes inserted for Targets after the block is lifted.
-func (sns *SimpleNetworkService) disableInterfaces() {
-	logrus.Infof("SimpleNetworkService: Disable Interfaces")
-	sns.interfaces.Range(func(key interface{}, value interface{}) bool {
-		sns.disableInterface(value.(networking.Iface))
-		sns.interfaces.Delete(key)
-		return true
-	})
-}
-
-// disableInterface -
-// Set interface state down
-func (sns *SimpleNetworkService) disableInterface(intf networking.Iface) {
-	logrus.Debugf("SimpleNetworkService: Disable Intf %v", intf)
-	la := netlink.NewLinkAttrs()
-	la.Index = intf.GetIndex()
-	err := netlink.LinkSetDown(&netlink.Dummy{LinkAttrs: la})
-	if err != nil {
-		logrus.Warnf("SimpleNetworkService: err Disable Intf (%v): %v", la.Index, err)
-	}
-}
-
-/* // Request checks if allowed to serve the request
-// A non-nil error is returned if serving the request was rejected, or if a next element in the chain returns a non-nil error
-// It implements NetworkServiceServer for SimpleNetworkService
-//
-// TODO: Is this feature even needed? Currently, SimpleNetworkServiceClient will keep trying to establish an NSM connection
-// forever, during which it also blocks NSE event processing. So it won't notice if the NSE has disappeared in the meantime.
-// Although this is a valid problem, irrespective of the fact whether SimpleNetworkService blocks Requests or not...
-// Moreover generally NSM is really pushing to establish a connection on Requests, thus letting the Request through, could lead
-// to a better outcome...
-func (sns *SimpleNetworkService) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if sns.serviceBlocked() {
-		return nil, errors.New("SimpleNetworkService blocked")
-	}
-
-	logrus.Infof("SimpleNetworkService: Request")
-	return next.Server(ctx).Request(ctx, request)
-}
-
-// Close it does nothing except calling the next Close in the chain
-// A non-nil error if a next element in the chain returns a non-nil error
-// It implements NetworkServiceServer for SimpleNetworkService
-func (sns *SimpleNetworkService) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	logrus.Infof("SimpleNetworkService: Close")
-	return next.Server(ctx).Close(ctx, conn)
-} */
-
-// NewSimpleNetworkService -
-func NewSimpleNetworkService(ctx context.Context, networkServicePlateformClient *nsp.NetworkServicePlateformClient, configurationManagerClient nspAPI.ConfigurationManagerClient, conduit *nspAPI.Conduit, netUtils networking.Utils) *SimpleNetworkService {
-	simpleNetworkService := &SimpleNetworkService{
-		Conduit:                       conduit,
-		networkServicePlateformClient: networkServicePlateformClient,
-		ConfigurationManagerClient:    configurationManagerClient,
-		serviceCtrCh:                  make(chan bool),
-		simpleNetworkServiceBlocked:   true,
-		ctx:                           ctx,
-		netUtils:                      netUtils,
-		nfqueueIndex:                  1,
-		streams:                       make(map[string]types.Stream),
-	}
-	return simpleNetworkService
+	sns.interfaces.Delete(intf.GetIndex())
 }
 
 func (sns *SimpleNetworkService) watchStreams(ctx context.Context) error {
@@ -544,7 +357,7 @@ func (sns *SimpleNetworkService) addStream(strm *nspAPI.Stream) error {
 	if exists {
 		return errors.New("this stream already exists")
 	}
-	s, err := stream.New(strm, sns.ConfigurationManagerClient, M, N, sns.nfqueueIndex, sns.netUtils)
+	s, err := stream.New(strm, sns.targetRegistryClient, sns.ConfigurationManagerClient, M, N, sns.nfqueueIndex, sns.netUtils)
 	if err != nil {
 		return err
 	}
@@ -571,4 +384,50 @@ func (sns *SimpleNetworkService) deleteStream(streamName string) error {
 	}
 	delete(sns.streams, streamName)
 	return nil
+}
+
+func (sns *SimpleNetworkService) serviceBlocked() bool {
+	sns.mu.Lock()
+	defer sns.mu.Unlock()
+	return sns.simpleNetworkServiceBlocked
+}
+
+func (sns *SimpleNetworkService) GetServiceControlChannel() interface{} {
+	return (chan<- bool)(sns.serviceCtrCh)
+}
+
+func (sns *SimpleNetworkService) evictStreams() {
+	logrus.Infof("SimpleNetworkService: Evict Streams")
+	for _, stream := range sns.streams {
+		err := stream.Delete()
+		if err != nil {
+			logrus.Errorf("stream delete err: %v", err)
+		}
+	}
+	sns.streams = make(map[string]types.Stream)
+}
+
+// disableInterfaces -
+// Set interfaces down, so that they won't interface with future "Add Target"
+// operation. Meaning old interfaces not yet removed by NSM must not get associated
+// with routes inserted for Targets after the block is lifted.
+func (sns *SimpleNetworkService) disableInterfaces() {
+	logrus.Infof("SimpleNetworkService: Disable Interfaces")
+	sns.interfaces.Range(func(key interface{}, value interface{}) bool {
+		sns.disableInterface(value.(networking.Iface))
+		sns.interfaces.Delete(key)
+		return true
+	})
+}
+
+// disableInterface -
+// Set interface state down
+func (sns *SimpleNetworkService) disableInterface(intf networking.Iface) {
+	logrus.Debugf("SimpleNetworkService: Disable Intf %v", intf)
+	la := netlink.NewLinkAttrs()
+	la.Index = intf.GetIndex()
+	err := netlink.LinkSetDown(&netlink.Dummy{LinkAttrs: la})
+	if err != nil {
+		logrus.Warnf("SimpleNetworkService: err Disable Intf (%v): %v", la.Index, err)
+	}
 }

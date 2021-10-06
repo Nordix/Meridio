@@ -25,8 +25,8 @@ import (
 
 	nested "github.com/antonfisher/nested-logrus-formatter"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/cmd/frontend/internal/env"
@@ -131,12 +131,15 @@ func watchConfig(ctx context.Context, cancel context.CancelFunc, c *env.Config, 
 		logrus.Errorf("Wait start: %v", err)
 		cancel()
 	}
-	nspClient, err := nsp.NewNetworkServicePlateformClient(c.NSPService)
+	conn, err := grpc.Dial(c.NSPService, grpc.WithInsecure(),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+		))
 	if err != nil {
-		logrus.Errorf("NewNetworkServicePlateformClient: %v", err)
+		logrus.Errorf("grpc.Dial err: %v", err)
 		cancel()
 	}
-	configurationManagerClient := nspAPI.NewConfigurationManagerClient(nspClient.Conn)
+	configurationManagerClient := nspAPI.NewConfigurationManagerClient(conn)
 	attractorToWatch := &nspAPI.Attractor{
 		Name: c.AttractorName,
 		Trench: &nspAPI.Trench{

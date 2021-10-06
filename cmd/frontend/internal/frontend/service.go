@@ -35,11 +35,21 @@ import (
 	"github.com/nordix/meridio/cmd/frontend/internal/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"google.golang.org/grpc"
 )
 
 // FrontEndService -
 func NewFrontEndService(c *env.Config) *FrontEndService {
 	logrus.Infof("NewFrontEndService")
+
+	conn, err := grpc.Dial(c.NSPService, grpc.WithInsecure(),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+		))
+	if err != nil {
+		logrus.Errorf("grpc.Dial err: %v", err)
+	}
+	targetRegistryClient := nspAPI.NewTargetRegistryClient(conn)
 
 	frontEndService := &FrontEndService{
 		vips:     []string{},
@@ -62,7 +72,7 @@ func NewFrontEndService(c *env.Config) *FrontEndService {
 		dropIfNoPeer:         c.DropIfNoPeer,
 		logBird:              c.LogBird,
 		reconfCh:             make(chan struct{}),
-		nspService:           c.NSPService,
+		targetRegistryClient: targetRegistryClient,
 		advertiseVIP:         false,
 		logNextMonitorStatus: true,
 	}
@@ -97,9 +107,9 @@ type FrontEndService struct {
 	dropIfNoPeer         bool
 	logBird              bool
 	reconfCh             chan struct{}
-	nspService           string
 	advertiseVIP         bool
 	logNextMonitorStatus bool
+	targetRegistryClient nspAPI.TargetRegistryClient
 }
 
 // CleanUp -
@@ -254,7 +264,7 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 				//linkCh <- "Failed to fetch protocol status"
 			} else if strings.Contains(protocolOut, bird.NoProtocolsLog) {
 				if !noConnectivity || init {
-					_ = denounceFrontend(fes.nspService)
+					_ = denounceFrontend(fes.targetRegistryClient)
 					noConnectivity = true
 					connectivityMap = map[string]bool{}
 					logrus.Warnf("Monitor: %v", protocolOut)
@@ -280,7 +290,7 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 					// Note: deanounce FE even if just started (init); container might have crashed
 					if !noConnectivity || init {
 						noConnectivity = true
-						if err := denounceFrontend(fes.nspService); err != nil {
+						if err := denounceFrontend(fes.targetRegistryClient); err != nil {
 							logrus.Infof("FrontEndService: failed to denounce frontend connectivity (err: %v)", err)
 						}
 						fes.denounceVIP()
@@ -288,7 +298,7 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 				} else {
 					if noConnectivity {
 						noConnectivity = false
-						if err := announceFrontend(fes.nspService); err != nil {
+						if err := announceFrontend(fes.targetRegistryClient); err != nil {
 							logrus.Infof("FrontEndService: failed to announce frontend connectivity (err: %v)", err)
 						}
 						fes.announceVIP()

@@ -27,14 +27,13 @@ import (
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	nspMock "github.com/nordix/meridio/api/nsp/v1/mocks"
 	targetAPI "github.com/nordix/meridio/api/target"
+	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/target/stream"
 	"github.com/nordix/meridio/pkg/target/types/mocks"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
-
-const identifierKey = "identifier"
 
 func Test_GetName(t *testing.T) {
 	name := "test-stream"
@@ -56,16 +55,14 @@ func Test_Request(t *testing.T) {
 	identifierSelected := "0"
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	cndt, _, nspClient := getConduitTrenchNSP(ctrl, trenchName, conduitName, ips)
-	firstGetCall := nspClient.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return(getTargetsResponse([]string{"1"}), nil)
-	nspClient.EXPECT().GetTargets(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, in *nspAPI.TargetType, opts ...grpc.CallOption) (*nspAPI.GetTargetsResponse, error) {
-		return getTargetsResponse([]string{"1", identifierSelected}), nil
-	}).After(firstGetCall)
+	cndt, _, nspClient, targetRegistryWatchClient := getConduitTrenchNSP(ctrl, trenchName, conduitName, ips)
+	firstGetCall := targetRegistryWatchClient.EXPECT().Recv().Return(getTargetsResponse([]string{"1"}), nil)
+	targetRegistryWatchClient.EXPECT().Recv().Return(getTargetsResponse([]string{"1", identifierSelected}), nil).After(firstGetCall)
 	nspClient.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target, _ ...grpc.CallOption) (*empty.Empty, error) {
 		assert.NotNil(t, target)
 		assert.Equal(t, target.Ips, ips)
-		assert.Equal(t, target.Status, nspAPI.Target_Disabled)
-		identifier, exists := target.Context[identifierKey]
+		assert.Equal(t, target.Status, nspAPI.Target_DISABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
 		assert.True(t, exists)
 		assert.NotEqual(t, identifier, "1")
 		identifierInt, err := strconv.Atoi(identifier)
@@ -78,8 +75,8 @@ func Test_Request(t *testing.T) {
 	nspClient.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target, _ ...grpc.CallOption) (*empty.Empty, error) {
 		assert.NotNil(t, target)
 		assert.Equal(t, target.Ips, ips)
-		assert.Equal(t, target.Status, nspAPI.Target_Enabled)
-		identifier, exists := target.Context[identifierKey]
+		assert.Equal(t, target.Status, nspAPI.Target_ENABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
 		assert.True(t, exists)
 		assert.Equal(t, identifier, identifierSelected)
 		return &emptypb.Empty{}, nil
@@ -117,8 +114,8 @@ func Test_Request_NoIdentifierAvailable(t *testing.T) {
 	maxNumberOfTargets := 2
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	cndt, _, nspClient := getConduitTrenchNSP(ctrl, trenchName, conduitName, ips)
-	nspClient.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return(getTargetsResponse([]string{"1", "2"}), nil)
+	cndt, _, _, targetRegistryWatchClient := getConduitTrenchNSP(ctrl, trenchName, conduitName, ips)
+	targetRegistryWatchClient.EXPECT().Recv().Return(getTargetsResponse([]string{"1", "2"}), nil)
 
 	streamWatcher := make(chan *targetAPI.StreamEvent, 10)
 	s := &stream.Stream{
@@ -144,8 +141,9 @@ func Test_Request_NoNSPConnection(t *testing.T) {
 	ips := []string{"172.16.0.1/24", "fd00::1/64"}
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	cndt, _, nspClient := getConduitTrenchNSP(ctrl, trenchName, conduitName, ips)
-	nspClient.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return(nil, errors.New(""))
+	cndt, _, _, targetRegistryWatchClient := getConduitTrenchNSP(ctrl, trenchName, conduitName, ips)
+	// nspClient.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return(nil, errors.New(""))
+	targetRegistryWatchClient.EXPECT().Recv().Return(nil, errors.New(""))
 
 	streamWatcher := make(chan *targetAPI.StreamEvent, 10)
 	s := &stream.Stream{
@@ -177,20 +175,18 @@ func Test_Request_Concurrent(t *testing.T) {
 	identifierSelected := "0"
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	cndt, _, nspClient := getConduitTrenchNSP(ctrl, trenchName, conduitName, ips)
-	firstGet := nspClient.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return(getTargetsResponse([]string{"1"}), nil)
-	secondGet := nspClient.EXPECT().GetTargets(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, in *nspAPI.TargetType, opts ...grpc.CallOption) (*nspAPI.GetTargetsResponse, error) {
+	cndt, _, nspClient, targetRegistryWatchClient := getConduitTrenchNSP(ctrl, trenchName, conduitName, ips)
+	firstGet := targetRegistryWatchClient.EXPECT().Recv().Return(getTargetsResponse([]string{"1"}), nil)
+	secondGet := targetRegistryWatchClient.EXPECT().Recv().DoAndReturn(func() (*nspAPI.TargetResponse, error) {
 		concurrentIdentifier = identifierSelected
 		return getTargetsResponse([]string{"1", concurrentIdentifier, identifierSelected}), nil
 	}).After(firstGet)
-	nspClient.EXPECT().GetTargets(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, in *nspAPI.TargetType, opts ...grpc.CallOption) (*nspAPI.GetTargetsResponse, error) {
-		return getTargetsResponse([]string{"1", concurrentIdentifier, identifierSelected}), nil
-	}).After(secondGet)
+	targetRegistryWatchClient.EXPECT().Recv().Return(getTargetsResponse([]string{"1", concurrentIdentifier, identifierSelected}), nil).After(secondGet)
 	nspClient.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target, _ ...grpc.CallOption) (*empty.Empty, error) {
 		assert.NotNil(t, target)
 		assert.Equal(t, target.Ips, ips)
-		assert.Equal(t, target.Status, nspAPI.Target_Disabled)
-		identifier, exists := target.Context[identifierKey]
+		assert.Equal(t, target.Status, nspAPI.Target_DISABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
 		assert.True(t, exists)
 		assert.NotEqual(t, identifier, "1")
 		identifierInt, err := strconv.Atoi(identifier)
@@ -203,8 +199,8 @@ func Test_Request_Concurrent(t *testing.T) {
 	firstUpdate := nspClient.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target, _ ...grpc.CallOption) (*empty.Empty, error) {
 		assert.NotNil(t, target)
 		assert.Equal(t, target.Ips, ips)
-		assert.Equal(t, target.Status, nspAPI.Target_Disabled)
-		identifier, exists := target.Context[identifierKey]
+		assert.Equal(t, target.Status, nspAPI.Target_DISABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
 		assert.True(t, exists)
 		assert.NotEqual(t, identifier, "1")
 		assert.NotEqual(t, identifier, concurrentIdentifier)
@@ -218,8 +214,8 @@ func Test_Request_Concurrent(t *testing.T) {
 	nspClient.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target, _ ...grpc.CallOption) (*empty.Empty, error) {
 		assert.NotNil(t, target)
 		assert.Equal(t, target.Ips, ips)
-		assert.Equal(t, target.Status, nspAPI.Target_Enabled)
-		identifier, exists := target.Context[identifierKey]
+		assert.Equal(t, target.Status, nspAPI.Target_ENABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
 		assert.True(t, exists)
 		assert.Equal(t, identifier, identifierSelected)
 		return &emptypb.Empty{}, nil
@@ -262,17 +258,17 @@ func Test_Request_Concurrent_NoIdentifierAvailable(t *testing.T) {
 	identifierSelected := "0"
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	cndt, _, nspClient := getConduitTrenchNSP(ctrl, trenchName, conduitName, ips)
-	firstGet := nspClient.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return(getTargetsResponse([]string{"1"}), nil)
-	nspClient.EXPECT().GetTargets(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, in *nspAPI.TargetType, opts ...grpc.CallOption) (*nspAPI.GetTargetsResponse, error) {
+	cndt, _, nspClient, targetRegistryWatchClient := getConduitTrenchNSP(ctrl, trenchName, conduitName, ips)
+	firstGet := targetRegistryWatchClient.EXPECT().Recv().Return(getTargetsResponse([]string{"1"}), nil)
+	targetRegistryWatchClient.EXPECT().Recv().DoAndReturn(func() (*nspAPI.TargetResponse, error) {
 		concurrentIdentifier = identifierSelected
 		return getTargetsResponse([]string{"1", concurrentIdentifier, identifierSelected}), nil
 	}).After(firstGet)
 	nspClient.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target, _ ...grpc.CallOption) (*empty.Empty, error) {
 		assert.NotNil(t, target)
 		assert.Equal(t, target.Ips, ips)
-		assert.Equal(t, target.Status, nspAPI.Target_Disabled)
-		identifier, exists := target.Context[identifierKey]
+		assert.Equal(t, target.Status, nspAPI.Target_DISABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
 		assert.True(t, exists)
 		assert.NotEqual(t, identifier, "1")
 		identifierInt, err := strconv.Atoi(identifier)
@@ -320,17 +316,17 @@ func Test_Request_Concurrent_NoIdentifierAvailable_NoNSPConnection(t *testing.T)
 	identifierSelected := "0"
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	cndt, _, nspClient := getConduitTrenchNSP(ctrl, trenchName, conduitName, ips)
-	firstGet := nspClient.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return(getTargetsResponse([]string{"1"}), nil)
-	nspClient.EXPECT().GetTargets(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, in *nspAPI.TargetType, opts ...grpc.CallOption) (*nspAPI.GetTargetsResponse, error) {
+	cndt, _, nspClient, targetRegistryWatchClient := getConduitTrenchNSP(ctrl, trenchName, conduitName, ips)
+	firstGet := targetRegistryWatchClient.EXPECT().Recv().Return(getTargetsResponse([]string{"1"}), nil)
+	targetRegistryWatchClient.EXPECT().Recv().DoAndReturn(func() (*nspAPI.TargetResponse, error) {
 		concurrentIdentifier = identifierSelected
 		return getTargetsResponse([]string{"1", concurrentIdentifier, identifierSelected}), nil
 	}).After(firstGet)
 	nspClient.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target, _ ...grpc.CallOption) (*empty.Empty, error) {
 		assert.NotNil(t, target)
 		assert.Equal(t, target.Ips, ips)
-		assert.Equal(t, target.Status, nspAPI.Target_Disabled)
-		identifier, exists := target.Context[identifierKey]
+		assert.Equal(t, target.Status, nspAPI.Target_DISABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
 		assert.True(t, exists)
 		assert.NotEqual(t, identifier, "1")
 		identifierInt, err := strconv.Atoi(identifier)
@@ -366,7 +362,7 @@ func Test_Close(t *testing.T) {
 	ips := []string{"172.16.0.1/24", "fd00::1/64"}
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	cndt, _, nspClient := getConduitTrenchNSP(ctrl, trenchName, conduitName, ips)
+	cndt, _, nspClient, _ := getConduitTrenchNSP(ctrl, trenchName, conduitName, ips)
 	nspClient.EXPECT().Unregister(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target, _ ...grpc.CallOption) (*empty.Empty, error) {
 		assert.NotNil(t, target)
 		assert.NotNil(t, target)
@@ -403,7 +399,7 @@ func Test_Close_NoNSPConnection(t *testing.T) {
 	ips := []string{"172.16.0.1/24", "fd00::1/64"}
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	cndt, _, nspClient := getConduitTrenchNSP(ctrl, trenchName, conduitName, ips)
+	cndt, _, nspClient, _ := getConduitTrenchNSP(ctrl, trenchName, conduitName, ips)
 	nspClient.EXPECT().Unregister(gomock.Any(), gomock.Any()).Return(nil, errors.New(""))
 
 	streamWatcher := make(chan *targetAPI.StreamEvent, 10)
@@ -431,13 +427,13 @@ func Test_GetConduit(t *testing.T) {
 	assert.NotNil(t, s.GetConduit())
 }
 
-func getTargetsResponse(identifiers []string) *nspAPI.GetTargetsResponse {
-	getTargetsResponse := &nspAPI.GetTargetsResponse{
+func getTargetsResponse(identifiers []string) *nspAPI.TargetResponse {
+	getTargetsResponse := &nspAPI.TargetResponse{
 		Targets: []*nspAPI.Target{},
 	}
 	for _, identifier := range identifiers {
 		newTarget := &nspAPI.Target{
-			Context: map[string]string{identifierKey: identifier},
+			Context: map[string]string{types.IdentifierKey: identifier},
 		}
 		getTargetsResponse.Targets = append(getTargetsResponse.Targets, newTarget)
 	}
@@ -448,14 +444,16 @@ func getConduitTrenchNSP(
 	ctrl *gomock.Controller,
 	trenchName string,
 	conduitName string,
-	ips []string) (*mocks.MockConduit, *mocks.MockTrench, *nspMock.MockNetworkServicePlateformServiceClient) {
+	ips []string) (*mocks.MockConduit, *mocks.MockTrench, *nspMock.MockTargetRegistryClient, *nspMock.MockTargetRegistry_WatchClient) {
 	cndt := mocks.NewMockConduit(ctrl)
-	nspClient := nspMock.NewMockNetworkServicePlateformServiceClient(ctrl)
+	targetRegistryClient := nspMock.NewMockTargetRegistryClient(ctrl)
+	targetRegistryWatchClient := nspMock.NewMockTargetRegistry_WatchClient(ctrl)
 	trnch := mocks.NewMockTrench(ctrl)
 	cndt.EXPECT().GetName().Return(conduitName).AnyTimes()
 	cndt.EXPECT().GetTrench().Return(trnch).AnyTimes()
 	cndt.EXPECT().GetIPs().Return(ips).AnyTimes()
 	trnch.EXPECT().GetName().Return(trenchName).AnyTimes()
-	trnch.EXPECT().GetNSPClient().Return(nspClient).AnyTimes()
-	return cndt, trnch, nspClient
+	trnch.EXPECT().GetTargetRegistryClient().Return(targetRegistryClient).AnyTimes()
+	targetRegistryClient.EXPECT().Watch(gomock.Any(), gomock.Any()).Return(targetRegistryWatchClient, nil).AnyTimes()
+	return cndt, trnch, targetRegistryClient, targetRegistryWatchClient
 }

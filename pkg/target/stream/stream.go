@@ -26,6 +26,7 @@ import (
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	targetAPI "github.com/nordix/meridio/api/target"
+	lbTypes "github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/target/types"
 )
 
@@ -56,7 +57,7 @@ func New(
 		identifier:         0,
 		Conduit:            conduit,
 		StreamWatcher:      streamWatcher,
-		status:             nspAPI.Target_Disabled,
+		status:             nspAPI.Target_DISABLED,
 		MaxNumberOfTargets: maxNumberOfTargets,
 	}
 	err := conduit.AddStream(ctx, stream)
@@ -79,7 +80,7 @@ func (s *Stream) Request(ctx context.Context) error {
 		return errors.New("no identifier available to register the target")
 	}
 	s.setIdentifier(identifiersInUse)
-	s.status = nspAPI.Target_Disabled
+	s.status = nspAPI.Target_DISABLED
 	err = s.register(ctx) // register the target as disabled status
 	if err != nil {
 		return err
@@ -109,7 +110,7 @@ func (s *Stream) Request(ctx context.Context) error {
 			return err
 		}
 	}
-	s.status = nspAPI.Target_Enabled
+	s.status = nspAPI.Target_ENABLED
 	err = s.update(ctx) // Update the target as enabled status
 	if err != nil {
 		return err
@@ -126,7 +127,7 @@ func (s *Stream) Close(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	s.status = nspAPI.Target_Disabled
+	s.status = nspAPI.Target_DISABLED
 	s.notifyWatcher(targetAPI.StreamEventStatus_Close)
 	return nil
 }
@@ -162,20 +163,12 @@ func (s *Stream) register(ctx context.Context) error {
 	target := &nspAPI.Target{
 		Ips: s.Conduit.GetIPs(),
 		Context: map[string]string{
-			identifierKey: strconv.Itoa(s.identifier),
+			lbTypes.IdentifierKey: strconv.Itoa(s.identifier),
 		},
 		Status: s.status,
-		Stream: &nspAPI.Stream{
-			Name: s.Name,
-			Conduit: &nspAPI.Conduit{
-				Name: s.Conduit.GetName(),
-				Trench: &nspAPI.Trench{
-					Name: s.Conduit.GetTrench().GetName(),
-				},
-			},
-		},
+		Stream: s.getNSPStream(),
 	}
-	_, err := s.getNSPClient().Register(ctx, target)
+	_, err := s.getTargetRegistryClient().Register(ctx, target)
 	return err
 }
 
@@ -183,20 +176,12 @@ func (s *Stream) update(ctx context.Context) error {
 	target := &nspAPI.Target{
 		Ips: s.Conduit.GetIPs(),
 		Context: map[string]string{
-			identifierKey: strconv.Itoa(s.identifier),
+			lbTypes.IdentifierKey: strconv.Itoa(s.identifier),
 		},
 		Status: s.status,
-		Stream: &nspAPI.Stream{
-			Name: s.Name,
-			Conduit: &nspAPI.Conduit{
-				Name: s.Conduit.GetName(),
-				Trench: &nspAPI.Trench{
-					Name: s.Conduit.GetTrench().GetName(),
-				},
-			},
-		},
+		Stream: s.getNSPStream(),
 	}
-	_, err := s.getNSPClient().Update(ctx, target)
+	_, err := s.getTargetRegistryClient().Update(ctx, target)
 	return err
 }
 
@@ -204,7 +189,7 @@ func (s *Stream) unregister(ctx context.Context) error {
 	target := &nspAPI.Target{
 		Ips: s.Conduit.GetIPs(),
 	}
-	_, err := s.getNSPClient().Unregister(ctx, target)
+	_, err := s.getTargetRegistryClient().Unregister(ctx, target)
 	return err
 }
 
@@ -236,18 +221,38 @@ func (s *Stream) checkIdentifierCollision(identifiersInUse []string) bool {
 
 func (s *Stream) getIdentifiersInUse(ctx context.Context) ([]string, error) {
 	identifiers := []string{}
-	responseTargets, err := s.getNSPClient().GetTargets(ctx, &nspAPI.TargetType{
-		Type: nspAPI.Target_DEFAULT,
+	context, cancel := context.WithCancel(ctx)
+	defer cancel()
+	watchClient, err := s.getTargetRegistryClient().Watch(context, &nspAPI.Target{
+		Status: s.status,
+		Type:   nspAPI.Target_DEFAULT,
+		Stream: s.getNSPStream(),
 	})
 	if err != nil {
 		return identifiers, err
 	}
+	responseTargets, err := watchClient.Recv()
+	if err != nil {
+		return identifiers, err
+	}
 	for _, target := range responseTargets.Targets {
-		identifiers = append(identifiers, target.Context[identifierKey])
+		identifiers = append(identifiers, target.Context[lbTypes.IdentifierKey])
 	}
 	return identifiers, nil
 }
 
-func (s *Stream) getNSPClient() nspAPI.NetworkServicePlateformServiceClient {
-	return s.GetConduit().GetTrench().GetNSPClient()
+func (s *Stream) getTargetRegistryClient() nspAPI.TargetRegistryClient {
+	return s.GetConduit().GetTrench().GetTargetRegistryClient()
+}
+
+func (s *Stream) getNSPStream() *nspAPI.Stream {
+	return &nspAPI.Stream{
+		Name: s.Name,
+		Conduit: &nspAPI.Conduit{
+			Name: s.Conduit.GetName(),
+			Trench: &nspAPI.Trench{
+				Name: s.Conduit.GetTrench().GetName(),
+			},
+		},
+	}
 }
