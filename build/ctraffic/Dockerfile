@@ -26,4 +26,4 @@ RUN chmod u+x ctraffic
 
 COPY --from=build /app/target-client .
 
-CMD ./target-client connect -ns load-balancer ; ./target-client request -ns load-balancer ; ./ctraffic -server -address [::]:5000
+CMD ./ctraffic -server -address [::]:5000

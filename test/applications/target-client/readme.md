@@ -16,12 +16,12 @@ Disconnect from a conduit
 
 Request a stream
 ```
-./target-client request -ns load-balancer -t trench-a
+./target-client request -ns load-balancer -t trench-a -s stream-a
 ```
 
 Close a stream
 ```
-./target-client close -ns load-balancer -t trench-a
+./target-client close -ns load-balancer -t trench-a -s stream-a
 ```
 
 Watch conduit connection/disconnect events and stream request/close events

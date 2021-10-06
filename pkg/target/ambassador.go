@@ -118,7 +118,7 @@ func (a *Ambassador) Disconnect(ctx context.Context, c *targetAPI.Conduit) (*emp
 }
 
 func (a *Ambassador) Request(ctx context.Context, s *targetAPI.Stream) (*empty.Empty, error) {
-	logrus.Infof("Request stream: %v ; trench %v (%v)", s.GetConduit().GetNetworkServiceName(), s.GetConduit().GetTrench().GetName(), a.trenchNamespace)
+	logrus.Infof("Request stream: %v ; conduit: %v ; trench %v (%v)", s.GetName(), s.GetConduit().GetNetworkServiceName(), s.GetConduit().GetTrench().GetName(), a.trenchNamespace)
 	trench := a.getTrench(s.GetConduit().GetTrench().GetName(), a.trenchNamespace)
 	if trench == nil {
 		return &empty.Empty{}, errors.New("not connected to the trench")
@@ -127,12 +127,12 @@ func (a *Ambassador) Request(ctx context.Context, s *targetAPI.Stream) (*empty.E
 	if conduit == nil {
 		return &empty.Empty{}, errors.New("not connected to the conduit")
 	}
-	_, err := stream.New(ctx, "stream", conduit, a.streamWatcher) // todo: api
+	_, err := stream.New(ctx, s.Name, conduit, a.streamWatcher) // todo: api
 	return &empty.Empty{}, err
 }
 
 func (a *Ambassador) Close(ctx context.Context, s *targetAPI.Stream) (*empty.Empty, error) {
-	logrus.Infof("Close stream: %v ; trench %v (%v)", s.GetConduit().GetNetworkServiceName(), s.GetConduit().GetTrench().GetName(), a.trenchNamespace)
+	logrus.Infof("Close stream: %v ; conduit: %v ; trench %v (%v)", s.GetName(), s.GetConduit().GetNetworkServiceName(), s.GetConduit().GetTrench().GetName(), a.trenchNamespace)
 	trench := a.getTrench(s.GetConduit().GetTrench().GetName(), a.trenchNamespace)
 	if trench == nil {
 		return &empty.Empty{}, nil
@@ -141,7 +141,7 @@ func (a *Ambassador) Close(ctx context.Context, s *targetAPI.Stream) (*empty.Emp
 	if conduit == nil {
 		return &empty.Empty{}, nil
 	}
-	stream := conduit.GetStream("stream")
+	stream := conduit.GetStream(s.Name)
 	if conduit == nil {
 		return &empty.Empty{}, nil
 	}

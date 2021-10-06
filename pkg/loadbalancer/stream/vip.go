@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package loadbalancer
+package stream
 
 import (
 	"github.com/nordix/meridio/pkg/networking"
@@ -31,9 +31,9 @@ func (vip *virtualIP) Delete() error {
 	return vip.nfqueue.Delete()
 }
 
-func (vip *virtualIP) createNFQueue() error {
+func (vip *virtualIP) createNFQueue(nfqueue int) error {
 	var err error
-	vip.nfqueue, err = vip.netUtils.NewNFQueue(vip.prefix, 2)
+	vip.nfqueue, err = vip.netUtils.NewNFQueue(vip.prefix, nfqueue)
 	if err != nil {
 		logrus.Errorf("Load Balancer: error configuring nfqueue (iptables): %v", err)
 		return err
@@ -41,12 +41,12 @@ func (vip *virtualIP) createNFQueue() error {
 	return nil
 }
 
-func newVirtualIP(prefix string, netUtils networking.Utils) (*virtualIP, error) {
+func newVirtualIP(prefix string, nfqueue int, netUtils networking.Utils) (*virtualIP, error) {
 	vip := &virtualIP{
 		prefix:   prefix,
 		netUtils: netUtils,
 	}
-	err := vip.createNFQueue()
+	err := vip.createNFQueue(nfqueue)
 	if err != nil {
 		return nil, err
 	}

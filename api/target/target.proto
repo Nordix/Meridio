@@ -67,8 +67,9 @@ message Conduit {
 }
 
 message Stream {
+    string Name = 1;
     // Conduit the stream belongs to
-    Conduit conduit = 1;
+    Conduit conduit = 2;
 }
 
 enum ConduitEventStatus {

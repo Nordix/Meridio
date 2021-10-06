@@ -9,11 +9,13 @@ applicationName: target-a
 
 configMapName: meridio-configuration
 
-networkService: load-balancer
-
 default:
-  trench: 
+  trench:
     name: trench-a
+  conduit:
+    name: load-balancer
+  stream:
+    name: stream-a
 
 target:
   image: target

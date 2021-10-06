@@ -24,7 +24,7 @@ import (
 )
 
 type NetworkServicePlateformClient struct {
-	conn                          *grpc.ClientConn
+	Conn                          *grpc.ClientConn
 	networkServicePlateformClient nspAPI.NetworkServicePlateformServiceClient
 }
 
@@ -115,7 +115,7 @@ func (nspc *NetworkServicePlateformClient) GetTargetsWithType(t nspAPI.Target_Ty
 
 func (nspc *NetworkServicePlateformClient) connect(ipamServiceIPPort string) error {
 	var err error
-	nspc.conn, err = grpc.Dial(ipamServiceIPPort, grpc.WithInsecure(),
+	nspc.Conn, err = grpc.Dial(ipamServiceIPPort, grpc.WithInsecure(),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
 		))
@@ -123,15 +123,15 @@ func (nspc *NetworkServicePlateformClient) connect(ipamServiceIPPort string) err
 		return nil
 	}
 
-	nspc.networkServicePlateformClient = nspAPI.NewNetworkServicePlateformServiceClient(nspc.conn)
+	nspc.networkServicePlateformClient = nspAPI.NewNetworkServicePlateformServiceClient(nspc.Conn)
 	return nil
 }
 
 func (nspc *NetworkServicePlateformClient) Delete() error {
-	if nspc.conn == nil {
+	if nspc.Conn == nil {
 		return nil
 	}
-	return nspc.conn.Close()
+	return nspc.Conn.Close()
 }
 
 func NewNetworkServicePlateformClient(serviceIPPort string) (*NetworkServicePlateformClient, error) {

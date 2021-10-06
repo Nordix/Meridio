@@ -21,7 +21,7 @@ spec:
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ctraffic.image }}:{{ .Values.ctraffic.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           args:
-            - ./target-client connect -ns {{ .Values.networkService }} -t {{ .Values.default.trench.name }} ; ./target-client request -ns {{ .Values.networkService }} -t {{ .Values.default.trench.name  }} ; ./ctraffic -server -address [::]:5000
+            - ./target-client connect -ns {{ .Values.default.conduit.name }} -t {{ .Values.default.trench.name }} ; ./target-client request -ns {{ .Values.default.conduit.name }} -t {{ .Values.default.trench.name }} -s {{ .Values.default.stream.name }} ; ./ctraffic -server -address [::]:5000
           command:
             - /bin/bash
             - -c

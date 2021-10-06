@@ -19,6 +19,7 @@ syntax = "proto3";
 package nsp.v1;
 option go_package = "github.com/nordix/meridio/api/nsp/v1";
 import "google/protobuf/empty.proto";
+import "api/nsp/v1/model.proto";
 
 service NetworkServicePlateformService {
     rpc Register(Target) returns (google.protobuf.Empty) {}
@@ -43,9 +44,10 @@ message Target {
     }
 
     repeated string ips = 1;
+    Type type = 2;
     map<string, string> context = 3;
     Status status = 4;
-    Type type = 2;
+    Stream stream = 5;
 }
 
 message TargetType {

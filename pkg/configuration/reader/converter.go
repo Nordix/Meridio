@@ -123,8 +123,9 @@ func ConvertVips(vips []*Vip, trench *nspAPI.Trench) []*nspAPI.Vip {
 			continue
 		}
 		resVips = append(resVips, &nspAPI.Vip{
-			Name:   vip.Name,
-			Trench: trench,
+			Name:    vip.Name,
+			Address: vip.Address,
+			Trench:  trench,
 		})
 	}
 	return resVips

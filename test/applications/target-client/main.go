@@ -58,9 +58,11 @@ func main() {
 	networkServiceDisconnect := disconnectCommand.String("ns", "load-balancer", "Network Service to disconnect conduit")
 	trenchDisconnect := disconnectCommand.String("t", "", "Trench of the network Service to disconnect conduit")
 
+	streamRequest := requestCommand.String("s", "", "Name of the stream to request")
 	networkServiceRequest := requestCommand.String("ns", "", "Network Service of the stream to request")
 	trenchRequest := requestCommand.String("t", "", "Trench of the network Service of the stream to request")
 
+	streamClose := closeCommand.String("s", "", "Name of the stream to close")
 	networkServiceClose := closeCommand.String("ns", "load-balancer", "Network Service of the stream to close")
 	trenchClose := closeCommand.String("t", "", "Trench of the network Service of the stream to close")
 
@@ -103,7 +105,7 @@ func main() {
 			fmt.Printf("Error request Parse: %v", err.Error())
 			os.Exit(1)
 		}
-		err = request(*networkServiceRequest, *trenchRequest)
+		err = request(*streamRequest, *networkServiceRequest, *trenchRequest)
 		if err != nil {
 			fmt.Printf("Error request: %v", err.Error())
 		}
@@ -113,7 +115,7 @@ func main() {
 			fmt.Printf("Error close Parse: %v", err.Error())
 			os.Exit(1)
 		}
-		err = close(*networkServiceClose, *trenchClose)
+		err = close(*streamClose, *networkServiceClose, *trenchClose)
 		if err != nil {
 			fmt.Printf("Error close: %v", err.Error())
 		}
@@ -162,12 +164,13 @@ func disconnect(networkService string, trench string) error {
 	return err
 }
 
-func request(networkService string, trench string) error {
+func request(stream string, networkService string, trench string) error {
 	client, err := getClient()
 	if err != nil {
 		return err
 	}
 	_, err = client.Request(context.Background(), &targetAPI.Stream{
+		Name: stream,
 		Conduit: &targetAPI.Conduit{
 			NetworkServiceName: networkService,
 			Trench: &targetAPI.Trench{
@@ -178,12 +181,13 @@ func request(networkService string, trench string) error {
 	return err
 }
 
-func close(networkService string, trench string) error {
+func close(stream string, networkService string, trench string) error {
 	client, err := getClient()
 	if err != nil {
 		return err
 	}
 	_, err = client.Close(context.Background(), &targetAPI.Stream{
+		Name: stream,
 		Conduit: &targetAPI.Conduit{
 			NetworkServiceName: networkService,
 			Trench: &targetAPI.Trench{
