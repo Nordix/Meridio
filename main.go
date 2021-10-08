@@ -33,8 +33,12 @@ import (
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	attactorcontroller "github.com/nordix/meridio-operator/controllers/attractor"
+	conduitcontroller "github.com/nordix/meridio-operator/controllers/conduit"
+	flowcontroller "github.com/nordix/meridio-operator/controllers/flow"
 	gatewaycontroller "github.com/nordix/meridio-operator/controllers/gateway"
+	streamcontroller "github.com/nordix/meridio-operator/controllers/stream"
 	trenchcontroller "github.com/nordix/meridio-operator/controllers/trench"
+
 	"github.com/nordix/meridio-operator/controllers/version"
 	vipcontroller "github.com/nordix/meridio-operator/controllers/vip"
 	//+kubebuilder:scaffold:imports
@@ -117,6 +121,7 @@ func main() {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Vip")
 		os.Exit(1)
 	}
+
 	if err = (&attactorcontroller.AttractorReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("Attractor"),
@@ -140,6 +145,45 @@ func main() {
 	}
 	if err = (&meridiov1alpha1.Gateway{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Gateway")
+		os.Exit(1)
+	}
+
+	if err = (&conduitcontroller.ConduitReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Conduit"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Conduit")
+		os.Exit(1)
+	}
+	if err = (&meridiov1alpha1.Conduit{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Conduit")
+		os.Exit(1)
+	}
+
+	if err = (&streamcontroller.StreamReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Stream"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Stream")
+		os.Exit(1)
+	}
+	if err = (&meridiov1alpha1.Stream{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Stream")
+		os.Exit(1)
+	}
+
+	if err = (&flowcontroller.FlowReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("Flow"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Flow")
+		os.Exit(1)
+	}
+	if err = (&meridiov1alpha1.Flow{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Flow")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder

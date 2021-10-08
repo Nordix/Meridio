@@ -9,6 +9,7 @@ import (
 	"time"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	"github.com/nordix/meridio-operator/controllers/common"
 	meridioe2eutils "github.com/nordix/meridio/test/e2e/utils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -69,13 +70,63 @@ func init() {
 
 var fw = NewFramework()
 
-var replicas = int32pointer(1)
-
 func int32pointer(i int32) *int32 {
 	var ret = new(int32)
 	*ret = i
 	return ret
 }
+
+// default trench used in all tests
+func trench(namespace string) *meridiov1alpha1.Trench {
+	return &meridiov1alpha1.Trench{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      trenchName,
+			Namespace: namespace,
+		},
+		Spec: meridiov1alpha1.TrenchSpec{
+			IPFamily: "DualStack",
+		},
+	}
+}
+
+// default attractor used in all tests
+func attractor(namespace string) *meridiov1alpha1.Attractor {
+	return &meridiov1alpha1.Attractor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      attractorName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"trench": trenchName,
+			},
+		},
+		Spec: meridiov1alpha1.AttractorSpec{
+			VlanID:         100,
+			VlanInterface:  "eth0",
+			Gateways:       []string{"gateway-a", "gateway-b"},
+			Vips:           []string{"vip-a", "vip-b"},
+			VlanPrefixIPv4: "169.254.100.0/24",
+			VlanPrefixIPv6: "100:100::/64",
+		},
+	}
+}
+
+func conduit(namespace string) *meridiov1alpha1.Conduit {
+	return &meridiov1alpha1.Conduit{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "conduit-a",
+			Namespace: namespace,
+			Labels: map[string]string{
+				"trench": trenchName,
+			},
+		},
+		Spec: meridiov1alpha1.ConduitSpec{
+			Replicas: int32pointer(1), // replica of lb-fe
+		},
+	}
+}
+
+// configmap name for the default trench
+var configmapName = fmt.Sprintf("%s-%s", common.CMName, trenchName)
 
 func TestE2E(t *testing.T) {
 	if testing.Short() {
@@ -89,6 +140,7 @@ func TestE2E(t *testing.T) {
 var _ = BeforeSuite(func() {
 	deployment := fw.GetOperator()
 	Expect(deployment).ToNot(BeNil())
+	fw.tryCreateTrench()
 })
 
 var _ = AfterSuite(func() {
@@ -120,6 +172,23 @@ func NewFramework() *Framework {
 		Clientset: clientset,
 		GinkgoT:   t,
 	}
+}
+
+func (fw *Framework) tryCreateTrench() {
+	// test webhook connectivity by creating a trench
+	trench := &meridiov1alpha1.Trench{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      trenchName,
+			Namespace: namespace,
+		},
+	}
+
+	Eventually(func(g Gomega) {
+		fw.CleanUpTrenches()
+		g.Expect(fw.CreateResource(trench)).Should(Succeed())
+	}, timeout, interval).Should(Succeed())
+
+	fw.CleanUpTrenches()
 }
 
 func (fw *Framework) GetOperator() *Operator {
@@ -179,18 +248,6 @@ func (fw *Framework) GetOperator() *Operator {
 	// should have the VIP CRD available in the cluster
 	crd = &apiextensionsv1.CustomResourceDefinition{}
 	Expect(fw.GetResource(client.ObjectKey{Name: VIPCRDName}, crd)).To(Succeed())
-
-	// test webhook connectivity by creating a trench
-	trench := &meridiov1alpha1.Trench{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      trenchName,
-			Namespace: namespace,
-		},
-	}
-	Eventually(func(g Gomega) {
-		fw.CleanUpTrenches()
-		g.Expect(fw.CreateResource(trench)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
 
 	return &Operator{
 		Namespeace:                n,
@@ -275,7 +332,34 @@ func (fw *Framework) CleanUpGateways() {
 	}, 5*time.Second, interval).Should(BeTrue())
 }
 
-func (fw *Framework) AssertTrenchReady(trench *meridiov1alpha1.Trench) {
+func (fw *Framework) CleanUpConduits() {
+	Expect(fw.DeleteAllOfResource(&meridiov1alpha1.Conduit{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: namespace}})).To(Succeed())
+	Eventually(func() bool {
+		lst := &meridiov1alpha1.ConduitList{}
+		err := fw.ListResources(lst, &client.ListOptions{Namespace: namespace})
+		return err == nil && len(lst.Items) == 0
+	}, 5*time.Second, interval).Should(BeTrue())
+}
+
+func (fw *Framework) CleanUpStreams() {
+	Expect(fw.DeleteAllOfResource(&meridiov1alpha1.Stream{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: namespace}})).To(Succeed())
+	Eventually(func() bool {
+		lst := &meridiov1alpha1.StreamList{}
+		err := fw.ListResources(lst, &client.ListOptions{Namespace: namespace})
+		return err == nil && len(lst.Items) == 0
+	}, 5*time.Second, interval).Should(BeTrue())
+}
+
+func (fw *Framework) CleanUpFlows() {
+	Expect(fw.DeleteAllOfResource(&meridiov1alpha1.Flow{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: namespace}})).To(Succeed())
+	Eventually(func() bool {
+		lst := &meridiov1alpha1.FlowList{}
+		err := fw.ListResources(lst, &client.ListOptions{Namespace: namespace})
+		return err == nil && len(lst.Items) == 0
+	}, 5*time.Second, interval).Should(BeTrue())
+}
+
+func AssertTrenchReady(trench *meridiov1alpha1.Trench) {
 	ns := trench.ObjectMeta.Namespace
 	name := trench.ObjectMeta.Name
 	By("checking ipam deployment")
@@ -294,19 +378,31 @@ func (fw *Framework) AssertTrenchReady(trench *meridiov1alpha1.Trench) {
 	}, timeout, interval).Should(Succeed())
 }
 
-func (fw *Framework) AssertAttractorReady(trench *meridiov1alpha1.Trench, attractor *meridiov1alpha1.Attractor) {
-	ns := trench.ObjectMeta.Namespace
-	name := trench.ObjectMeta.Name
+func AssertAttractorReady(attractor *meridiov1alpha1.Attractor) {
+	ns := attractor.ObjectMeta.Namespace
 
 	By("checking nse vlan deployment")
 	Eventually(func(g Gomega) {
 		assertDeploymentReady(g, strings.Join([]string{"nse-vlan", attractor.ObjectMeta.Name}, "-"), ns)
 	}, timeout, interval).Should(Succeed())
+}
+
+func AssertConduitReady(conduit *meridiov1alpha1.Conduit) {
+	name := conduit.ObjectMeta.Name
+	ns := conduit.ObjectMeta.Namespace
 
 	By("checking lb-fe deployment")
 	Eventually(func(g Gomega) {
 		assertDeploymentReady(g, strings.Join([]string{"lb-fe", name}, "-"), ns)
 	}, timeout, interval).Should(Succeed())
+}
+
+func AssertMeridioDeploymentsReady(trench *meridiov1alpha1.Trench,
+	attractor *meridiov1alpha1.Attractor,
+	conduit *meridiov1alpha1.Conduit) {
+	AssertTrenchReady(trench)
+	AssertAttractorReady(attractor)
+	AssertConduitReady(conduit)
 }
 
 func assertDeploymentReady(g Gomega, name, ns string) {

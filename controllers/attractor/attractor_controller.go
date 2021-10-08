@@ -18,11 +18,10 @@ package attractor
 
 import (
 	"context"
+	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -62,99 +61,43 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	currentAttr := attr.DeepCopy()
 	attr.Status = meridiov1alpha1.AttractorStatus{}
 
-	trench, err := validateAttractor(executor, attr)
-	if err != nil {
-		return ctrl.Result{}, err
+	selector := client.ObjectKey{
+		Namespace: attr.ObjectMeta.Namespace,
+		Name:      attr.ObjectMeta.Labels["trench"],
 	}
+	trench, _ := common.GetTrenchBySelector(executor, selector)
 
-	// if attractor is engaged, update lb-fe & nse-vlan deployment
-	if attr.Status.LbFe == meridiov1alpha1.Engaged {
+	if trench != nil {
 		// update attractor
 		executor.SetOwnerReference(attr, trench)
 		// create/update lb-fe & nse-vlan deployment
 		executor.SetOwner(attr)
-		lb, err := NewLoadBalancer(executor, attr, trench)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
+
 		nse, err := NewNSE(executor, attr, trench)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 
-		alb, err := lb.getAction()
+		err = nse.getAction()
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		anse, err := nse.getAction()
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		allAc := common.AppendActions(alb, anse)
-		err = executor.RunAll(allAc)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
+	} else {
+		return ctrl.Result{}, fmt.Errorf("unable to get trench for attractor %s", req.NamespacedName)
 	}
-	actions := getAttractorActions(executor, attr, currentAttr)
-	err = executor.RunAll(actions)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-	return ctrl.Result{}, nil
+
+	getAttractorActions(executor, attr, currentAttr)
+	err = executor.RunActions()
+	return ctrl.Result{}, err
 }
 
-func validateAttractor(e *common.Executor, attr *meridiov1alpha1.Attractor) (*meridiov1alpha1.Trench, error) {
-	// get the trench by attractor label
-	selector := client.ObjectKey{
-		Namespace: attr.ObjectMeta.Namespace,
-		Name:      attr.ObjectMeta.Labels["trench"],
-	}
-	trench, err := common.GetTrenchbySelector(e, selector)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			msg := "labeled trench not found"
-			attr.Status.LbFe = meridiov1alpha1.Disengaged
-			attr.Status.Message = msg
-			return nil, nil
-		} else {
-			return nil, err
-		}
-	}
-	// validation: get the all attractors with same trench, verdict the number should not be greater than 1
-	al := &meridiov1alpha1.AttractorList{}
-	sel := labels.Set{"trench": trench.ObjectMeta.Name}
-	err = e.ListObject(al, &client.ListOptions{
-		LabelSelector: sel.AsSelector(),
-		Namespace:     attr.ObjectMeta.Namespace,
-	})
-	if err != nil {
-		msg := "at least one attractor should be found"
-		attr.Status.LbFe = meridiov1alpha1.Error
-		attr.Status.Message = msg
-		return trench, nil
-	}
-	if len(al.Items) > 1 {
-		msg := "only one attractor is supported per trench"
-		attr.Status.LbFe = meridiov1alpha1.Error
-		attr.Status.Message = msg
-		return trench, nil
-	}
-	if attr.Status.LbFe == meridiov1alpha1.NoPhase {
-		attr.Status.LbFe = meridiov1alpha1.Engaged
-	}
-	return trench, nil
-}
-
-func getAttractorActions(e *common.Executor, new, old *meridiov1alpha1.Attractor) []common.Action {
-	var actions []common.Action
+func getAttractorActions(e *common.Executor, new, old *meridiov1alpha1.Attractor) {
 	if !equality.Semantic.DeepEqual(new.Status, old.Status) {
-		actions = append(actions, e.NewUpdateStatusAction(new))
+		e.AddUpdateStatusAction(new)
 	}
 	if !equality.Semantic.DeepEqual(new.ObjectMeta, old.ObjectMeta) {
-		actions = append(actions, e.NewUpdateAction(new))
+		e.AddUpdateAction(new)
 	}
-	return actions
 }
 
 // SetupWithManager sets up the controller with the Manager.

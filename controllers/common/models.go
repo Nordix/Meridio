@@ -172,7 +172,7 @@ func GetServiceAccountModel(f string) (*corev1.ServiceAccount, error) {
 	return rb, nil
 }
 
-func GetTrenchbySelector(e *Executor, selector client.ObjectKey) (*meridiov1alpha1.Trench, error) {
+func GetTrenchBySelector(e *Executor, selector client.ObjectKey) (*meridiov1alpha1.Trench, error) {
 	trench := &meridiov1alpha1.Trench{}
 	err := e.GetObject(selector, trench)
 	return trench, err

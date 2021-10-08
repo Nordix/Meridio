@@ -18,6 +18,7 @@ package vip
 
 import (
 	"context"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -66,14 +67,16 @@ func (r *VipReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		}
 		return ctrl.Result{}, err
 	}
-	// clear vip status
-	currentVip := vip.DeepCopy()
-	vip = setVipStatus(vip, meridiov1alpha1.NoPhase, "")
 
-	trench, err := validateVip(executor, vip)
-	if err != nil {
-		return ctrl.Result{}, err
+	// save the current vip status
+	currentVip := vip.DeepCopy()
+
+	// Get the trench by the label in vip
+	selector := client.ObjectKey{
+		Namespace: vip.ObjectMeta.Namespace,
+		Name:      vip.ObjectMeta.Labels["trench"],
 	}
+	trench, _ := common.GetTrenchBySelector(executor, selector)
 
 	// actions to update vip
 	if trench != nil {
@@ -81,53 +84,20 @@ func (r *VipReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+	} else {
+		return ctrl.Result{}, fmt.Errorf("unable to get trench for vip %s", req.NamespacedName)
 	}
 
-	actions := getVipActions(executor, vip, currentVip)
-	err = executor.RunAll(actions)
+	getVipActions(executor, vip, currentVip)
+	err = executor.RunActions()
 
 	return ctrl.Result{}, err
 }
 
-func validateVip(e *common.Executor, vip *meridiov1alpha1.Vip) (*meridiov1alpha1.Trench, error) {
-	// Get the trench by the label in vip
-	selector := client.ObjectKey{
-		Namespace: vip.ObjectMeta.Namespace,
-		Name:      vip.ObjectMeta.Labels["trench"],
-	}
-	trench, err := common.GetTrenchbySelector(e, selector)
-	if err != nil {
-		// set vip status to rejected if trench is not found
-		if apierrors.IsNotFound(err) {
-			setVipStatus(vip,
-				meridiov1alpha1.Disengaged,
-				"labeled trench not found")
-			return nil, nil
-		} else {
-			return nil, err
-		}
-	}
-
-	setVipStatus(vip, meridiov1alpha1.Engaged, "")
-	return trench, nil
-}
-
-func setVipStatus(vip *meridiov1alpha1.Vip, status meridiov1alpha1.ConfigStatus, msg string) *meridiov1alpha1.Vip {
-	vip.Status.Status = status
-	vip.Status.Message = msg
-	return vip
-}
-
-func getVipActions(executor *common.Executor, new, old *meridiov1alpha1.Vip) []common.Action {
-	var actions []common.Action
-	// set the status for the vip
-	if !equality.Semantic.DeepEqual(new.Status, old.Status) {
-		actions = append(actions, executor.NewUpdateStatusAction(new))
-	}
+func getVipActions(executor *common.Executor, new, old *meridiov1alpha1.Vip) {
 	if !equality.Semantic.DeepEqual(new.ObjectMeta, old.ObjectMeta) {
-		actions = append(actions, executor.NewUpdateAction(new))
+		executor.AddUpdateAction(new)
 	}
-	return actions
 }
 
 // SetupWithManager sets up the controller with the Manager.

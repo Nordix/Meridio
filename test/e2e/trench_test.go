@@ -31,7 +31,7 @@ var _ = Describe("Trench", func() {
 		})
 
 		It("should have the trench pods in running state and the resources created", func() {
-			fw.AssertTrenchReady(trench)
+			AssertTrenchReady(trench)
 
 			By("checking if nsp service has been created")
 			nspServiceName := fmt.Sprintf("%s-%s", common.NspSvcName, trench.ObjectMeta.Name)

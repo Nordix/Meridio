@@ -22,7 +22,6 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -38,8 +37,6 @@ func (r *Trench) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-
 //+kubebuilder:webhook:path=/mutate-meridio-nordix-org-v1alpha1-trench,mutating=true,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=trenches,verbs=create;update,versions=v1alpha1,name=mtrench.kb.io,admissionReviewVersions={v1alpha1,v1beta1}
 
 var _ webhook.Defaulter = &Trench{}
@@ -54,7 +51,6 @@ func (r *Trench) Default() {
 	}
 }
 
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1alpha1-trench,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=trenches,verbs=create;update,versions=v1alpha1,name=vtrench.kb.io,admissionReviewVersions={v1alpha1,v1beta1}
 
 var _ webhook.Validator = &Trench{}
@@ -92,9 +88,7 @@ func (r *Trench) validateTrench() error {
 		return nil
 	}
 
-	return apierrors.NewInvalid(
-		schema.GroupKind{Group: "meridio.nordix.org", Kind: "Trench"},
-		r.Name, allErrs)
+	return apierrors.NewInvalid(r.GroupKind(), r.Name, allErrs)
 }
 
 func (r *Trench) validateSpec() field.ErrorList {
@@ -111,7 +105,7 @@ func (r *Trench) validateSpec() field.ErrorList {
 func (r *Trench) validateUpdate(old runtime.Object) error {
 	typedOld, ok := old.(*Trench)
 	if !ok {
-		return apierrors.NewBadRequest(fmt.Sprintf("expected a trench got got a %T", typedOld))
+		return apierrors.NewBadRequest(fmt.Sprintf("expected a %s got a %T", r.GroupVersionKind().Kind, typedOld))
 	}
 
 	if r.Spec.IPFamily != typedOld.Spec.IPFamily {

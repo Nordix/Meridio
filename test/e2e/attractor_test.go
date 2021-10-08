@@ -11,7 +11,7 @@ import (
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"github.com/nordix/meridio-operator/controllers/common"
-	configutils "github.com/nordix/meridio-operator/controllers/config"
+	"github.com/nordix/meridio-operator/test/utils"
 	"github.com/nordix/meridio/pkg/configuration/reader"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -20,34 +20,8 @@ import (
 )
 
 var _ = Describe("Attractor", func() {
-	trench := &meridiov1alpha1.Trench{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      trenchName,
-			Namespace: namespace,
-		},
-		Spec: meridiov1alpha1.TrenchSpec{
-			IPFamily: "DualStack",
-		},
-	}
-	attractor := &meridiov1alpha1.Attractor{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      attractorName,
-			Namespace: namespace,
-			Labels: map[string]string{
-				"trench": trenchName,
-			},
-		},
-		Spec: meridiov1alpha1.AttractorSpec{
-			VlanID:         100,
-			VlanInterface:  "eth0",
-			Replicas:       replicas, // replica of lb-fe
-			Gateways:       []string{"gateway-a", "gateway-b"},
-			Vips:           []string{"vip-a", "vip-b"},
-			VlanPrefixIPv4: "169.254.100.0/24",
-			VlanPrefixIPv6: "100:100::/64",
-		},
-	}
-	configmapName := fmt.Sprintf("%s-%s", common.CMName, trench.ObjectMeta.Name)
+	trench := trench(namespace)
+	attractor := attractor(namespace)
 
 	Context("When creating an attractor", func() {
 		BeforeEach(func() {
@@ -76,64 +50,26 @@ var _ = Describe("Attractor", func() {
 				fw.CleanUpTrenches()
 			})
 
-			It("will not have any updates", func() {
+			It("will be created but create no child resources", func() {
 				attr := attractor.DeepCopy()
 				attr.Namespace = another
 				Expect(fw.CreateResource(attr)).Should(Succeed())
 
-				By("checking the status is empty")
-				assertAttractorStatus(attractor, meridiov1alpha1.NoPhase)
-
 				By("checking no attractor resources are created")
-				assertAttractorResourcesNotExist()
+				assertAttractorResourcesNotExist(attr)
 			})
 		})
 		// attractor controller behavior
 		Context("without a trench", func() {
+			It("will fail in creation", func() {
+				Expect(fw.CreateResource(attractor.DeepCopy())).ToNot(Succeed())
 
-			BeforeEach(func() {
-				// Deep copy to avoid original variables to be overwritten
-				Expect(fw.CreateResource(attractor.DeepCopy())).To(Succeed())
-			})
-
-			It("will create a disengaged attractor", func() {
 				By("checking the existence of attactor")
-				attr := &meridiov1alpha1.Attractor{}
-				err := fw.GetResource(client.ObjectKeyFromObject(attractor), attr)
-				Expect(err).Should(BeNil())
-				Expect(attr).ShouldNot(BeNil())
-
-				By("checking status being disengaged")
-				assertAttractorStatus(attractor, meridiov1alpha1.Disengaged)
+				err := fw.GetResource(client.ObjectKeyFromObject(attractor), &meridiov1alpha1.Attractor{})
+				Expect(apierrors.IsNotFound(err)).To(BeTrue())
 
 				By("checking no child resources are created")
-				assertAttractorResourcesNotExist()
-
-				By("checking this attractor not in configmap after the trench is created")
-				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
-				assertAttractorItemInConfigMap(attractor, configmapName, false)
-
-				// uncomment this block when multi attractor is supported
-				// attractorB := &meridiov1alpha1.Attractor{
-				// 	ObjectMeta: metav1.ObjectMeta{
-				// 		Name:      "attractor-b",
-				// 		Namespace: namespace,
-				// 		Labels: map[string]string{
-				// 			"trench": trenchName,
-				// 		},
-				// 	},
-				// 	Spec: meridiov1alpha1.AttractorSpec{
-				// 		VlanID:         100,
-				// 		VlanInterface:  "eth0",
-				// 		Replicas:       replicas, // replica of lb-fe
-				// 		VlanPrefixIPv4: "169.254.100.0/24",
-				// 		VlanPrefixIPv6: "100:100::/64",
-				// 	},
-				// }
-
-				// By("checking another attractor created after trench is in configmap")
-				// Expect(fw.CreateResource(attractorB)).To(Succeed())
-				// assertAttractorItemInConfigMap(attractorB, configmapName, true)
+				assertAttractorResourcesNotExist(attractor)
 			})
 		})
 
@@ -141,6 +77,8 @@ var _ = Describe("Attractor", func() {
 			BeforeEach(func() {
 				// Deep copy to avoid original variables to be overwritten
 				Expect(fw.CreateResource(trench.DeepCopy())).Should(Succeed())
+			})
+			JustBeforeEach(func() {
 				Expect(fw.CreateResource(attractor.DeepCopy())).Should(Succeed())
 			})
 
@@ -156,11 +94,38 @@ var _ = Describe("Attractor", func() {
 				Expect(err).Should(BeNil())
 				Expect(attr).ShouldNot(BeNil())
 
-				By("checking status being engaged")
-				assertAttractorStatus(attractor, meridiov1alpha1.Engaged)
+				By("checking configmap has this item")
+				assertAttractorItemInConfigMap(attr, configmapName, true)
 
 				By("checking if attractor's child resources are in running state")
-				fw.AssertAttractorReady(trench, attr)
+				AssertAttractorReady(attr)
+			})
+
+			It("will fail creating the second attractor", func() {
+				attractorB := &meridiov1alpha1.Attractor{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "attractor-b",
+						Namespace: namespace,
+						Labels: map[string]string{
+							"trench": trenchName,
+						},
+					},
+					Spec: meridiov1alpha1.AttractorSpec{
+						VlanID:         100,
+						VlanInterface:  "eth0",
+						VlanPrefixIPv4: "169.254.100.0/24",
+						VlanPrefixIPv6: "100:100::/64",
+					},
+				}
+
+				Expect(fw.CreateResource(attractorB)).ToNot(Succeed())
+
+				By("checking configmap has this item")
+				assertAttractorItemInConfigMap(attractorB, configmapName, false)
+
+				By("checking the existence of attactor")
+				err := fw.GetResource(client.ObjectKeyFromObject(attractorB), &meridiov1alpha1.Attractor{})
+				Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			})
 		})
 
@@ -169,35 +134,28 @@ var _ = Describe("Attractor", func() {
 				// Deep copy to avoid original variables to be overwritten
 				Expect(fw.CreateResource(trench.DeepCopy())).Should(Succeed())
 				Expect(fw.CreateResource(attractor.DeepCopy())).Should(Succeed())
-				assertAttractorStatus(attractor, meridiov1alpha1.Engaged)
-				fw.AssertAttractorReady(trench, attractor)
+				AssertAttractorReady(attractor)
 			})
 
 			AfterEach(func() {
 				fw.CleanUpAttractors()
 			})
 
-			It("can update the replicas of the lb-fe", func() {
+			It("can update the gateways and vips of lb-fe", func() {
 				attr := &meridiov1alpha1.Attractor{}
 
-				By("updating attractor spec.replicas")
+				By("updating attractor spec.gateways and spec.vips")
 				Eventually(func(g Gomega) {
 					err := fw.GetResource(client.ObjectKeyFromObject(attractor), attr)
 					g.Expect(err).ToNot(HaveOccurred())
-					*attr.Spec.Replicas = 4
+					attr.Spec.Gateways = []string{"gateway1"}
+					attr.Spec.Vips = []string{"vip1"}
 					g.Expect(fw.UpdateResource(attr)).To(Succeed())
 				}, timeout, interval).Should(Succeed())
 
-				By("checking status still being engaged")
-				assertAttractorStatus(attractor, meridiov1alpha1.Engaged)
-
-				By("checking the lb-fe replicas")
-				Eventually(func() int32 {
-					deployment := &appsv1.Deployment{}
-					loadBalancerName := fmt.Sprintf("%s-%s", common.LBName, trench.ObjectMeta.Name)
-					Expect(fw.GetResource(client.ObjectKey{Name: loadBalancerName, Namespace: namespace}, deployment)).To(Succeed())
-					return deployment.Status.Replicas
-				}, timeout, interval).Should(Equal(*attr.Spec.Replicas))
+				By("checking the configmap")
+				assertAttractorItemInConfigMap(attractor, configmapName, false)
+				assertAttractorItemInConfigMap(attr, configmapName, true)
 			})
 		})
 	})
@@ -211,13 +169,19 @@ var _ = Describe("Attractor", func() {
 			Expect(fw.CreateResource(attractor.DeepCopy())).Should(Succeed())
 		})
 
+		AfterEach(func() {
+			fw.CleanUpTrenches()
+			fw.CleanUpAttractors()
+		})
+
 		It("deletes attractor resources by deleting itself", func() {
 			attr := &meridiov1alpha1.Attractor{}
 			Expect(fw.GetResource(client.ObjectKeyFromObject(attractor), attr)).To(Succeed())
 			Expect(fw.DeleteResource(attr)).Should(Succeed())
 
 			By("checking attractor resources")
-			assertAttractorResourcesNotExist()
+			assertAttractorResourcesNotExist(attractor)
+			assertAttractorItemInConfigMap(attr, configmapName, false)
 		})
 
 		It("deletes attractor resources by deleting trench", func() {
@@ -227,12 +191,36 @@ var _ = Describe("Attractor", func() {
 			Expect(fw.DeleteResource(tr)).Should(Succeed())
 
 			By("checking attractor resources")
-			assertAttractorResourcesNotExist()
+			assertAttractorResourcesNotExist(attractor)
+		})
+	})
+
+	Context("checking meridio pods", func() {
+		conduit := conduit(namespace)
+
+		BeforeEach(func() {
+			Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
+			AssertTrenchReady(trench)
+		})
+
+		AfterEach(func() {
+			fw.CleanUpTrenches()
+			fw.CleanUpAttractors()
+			fw.CleanUpConduits()
+		})
+
+		It("will not trigger restarts in any of the meridio pods", func() {
+			Expect(fw.CreateResource(attractor.DeepCopy())).To(Succeed())
+			Expect(fw.CreateResource(conduit.DeepCopy())).To(Succeed())
+
+			By("Checking the restarts of meridio pods")
+			AssertMeridioDeploymentsReady(trench, attractor, conduit)
 		})
 	})
 })
 
-func assertAttractorResourcesNotExist() {
+func assertAttractorResourcesNotExist(attr *meridiov1alpha1.Attractor) {
+	namespace := attr.ObjectMeta.Namespace
 	By("checking there is no load balancer deployments")
 	loadBalancerName := fmt.Sprintf("%s-%s", common.LBName, trenchName)
 	Eventually(func() bool {
@@ -246,14 +234,6 @@ func assertAttractorResourcesNotExist() {
 		err := fw.GetResource(client.ObjectKey{Name: nseVLANName, Namespace: namespace}, &appsv1.Deployment{})
 		return err != nil && apierrors.IsNotFound(err)
 	}, 5*time.Second).Should(BeTrue())
-}
-
-func assertAttractorStatus(attractor *meridiov1alpha1.Attractor, status meridiov1alpha1.ConfigStatus) {
-	attr := &meridiov1alpha1.Attractor{}
-	Eventually(func() meridiov1alpha1.ConfigStatus {
-		fw.GetResource(client.ObjectKeyFromObject(attractor), attr)
-		return attr.Status.LbFe
-	}, 5*time.Second, interval).Should(Equal(status))
 }
 
 func assertAttractorItemInConfigMap(attr *meridiov1alpha1.Attractor, configmapName string, in bool) {
@@ -270,7 +250,7 @@ func assertAttractorItemInConfigMap(attr *meridiov1alpha1.Attractor, configmapNa
 		lst, err := reader.UnmarshalAttractors(configmap.Data[reader.AttractorsConfigKey])
 		g.Expect(err).To(BeNil())
 
-		mp := configutils.MakeMapFromAttractorList(lst)
+		mp := utils.MakeMapFromAttractorList(lst)
 		a, ok := mp[attr.ObjectMeta.Name]
 
 		// then checking in configmap data, vip key has an item same as vip resource

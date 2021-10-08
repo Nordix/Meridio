@@ -91,20 +91,19 @@ func (i *NspService) getModel() error {
 	return nil
 }
 
-func (i *NspService) getAction() ([]common.Action, error) {
-	var action []common.Action
+func (i *NspService) getAction() error {
 	cs, err := i.getCurrentStatus()
 	if err != nil {
-		return action, err
+		return err
 	}
 	if cs == nil {
 		ds := i.getDesiredStatus()
-		action = append(action, i.exec.NewCreateAction(ds))
+		i.exec.AddCreateAction(ds)
 	} else {
 		ds := i.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			action = append(action, i.exec.NewUpdateAction(ds))
+			i.exec.AddUpdateAction(ds)
 		}
 	}
-	return action, nil
+	return nil
 }

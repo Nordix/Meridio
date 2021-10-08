@@ -21,33 +21,21 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // VipSpec defines the desired state of Vip
 type VipSpec struct {
 	// vip address
-	Address string `json:"address"`
+	// +optional
+	Address string `json:"address,omitempty"`
 }
 
 // VipStatus defines the observed state of Vip
 type VipStatus struct {
-	// Describes if this vips is ready to be used
-	// possible values:
-	// - engaged: the vip is ready to be used
-	// - disengaged: the vip cannot be used
-	// - : vip is not processed by the controller yet
-	Status ConfigStatus `json:"status,omitempty"`
-
-	// Describes why Status is not "engaged"
-	Message string `json:"message,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Address",type=string,JSONPath=`.spec.address`
 //+kubebuilder:printcolumn:name="Trench",type=string,JSONPath=`.metadata.labels.trench`
-//+kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.status`
 
 // Vip is the Schema for the vips API
 type Vip struct {
@@ -71,6 +59,13 @@ func (r *Vip) GroupResource() schema.GroupResource {
 	return schema.GroupResource{
 		Group:    r.GroupVersionKind().Group,
 		Resource: r.GroupVersionKind().Kind,
+	}
+}
+
+func (r *Vip) GroupKind() schema.GroupKind {
+	return schema.GroupKind{
+		Group: r.GroupVersionKind().Group,
+		Kind:  r.GroupVersionKind().Kind,
 	}
 }
 

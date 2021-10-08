@@ -18,6 +18,7 @@ package gateway
 
 import (
 	"context"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -66,51 +67,30 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 	cgw := gw.DeepCopy()
 	gw.Status = meridiov1alpha1.GatewayStatus{}
-	trch, err := validateGateway(executor, gw)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
 
-	if trch != nil {
-		err = executor.SetOwnerReference(gw, trch)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-	}
-
-	actions := getActions(executor, gw, cgw)
-	err = executor.RunAll(actions)
-	return ctrl.Result{}, err
-}
-
-func validateGateway(e *common.Executor, gw *meridiov1alpha1.Gateway) (*meridiov1alpha1.Trench, error) {
-	// get the trench by gateway label
 	selector := client.ObjectKey{
 		Namespace: gw.ObjectMeta.Namespace,
 		Name:      gw.ObjectMeta.Labels["trench"],
 	}
-	trch := &meridiov1alpha1.Trench{}
-	if err := e.GetObject(selector, trch); err != nil {
-		if apierrors.IsNotFound(err) {
-			msg := "labeled trench not found"
-			gw.Status.Status = meridiov1alpha1.Disengaged
-			gw.Status.Message = msg
-			return nil, nil
+	trench, _ := common.GetTrenchBySelector(executor, selector)
+	if trench != nil {
+		err = executor.SetOwnerReference(gw, trench)
+		if err != nil {
+			return ctrl.Result{}, err
 		}
-		return nil, err
+	} else {
+		return ctrl.Result{}, fmt.Errorf("unable to get trench for gateway %s", req.NamespacedName)
 	}
-	gw.Status.Status = meridiov1alpha1.Engaged
-	return trch, nil
+
+	getActions(executor, gw, cgw)
+	err = executor.RunActions()
+	return ctrl.Result{}, err
 }
 
 func getActions(executor *common.Executor, new, old *meridiov1alpha1.Gateway) []common.Action {
 	var actions []common.Action
-	// set the status for the vip
-	if !equality.Semantic.DeepEqual(new.Status, old.Status) {
-		actions = append(actions, executor.NewUpdateStatusAction(new))
-	}
 	if !equality.Semantic.DeepEqual(new.ObjectMeta, old.ObjectMeta) {
-		actions = append(actions, executor.NewUpdateAction(new))
+		executor.AddUpdateAction(new)
 	}
 	return actions
 }

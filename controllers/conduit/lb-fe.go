@@ -1,4 +1,4 @@
-package attractor
+package conduidt
 
 import (
 	"fmt"
@@ -9,25 +9,20 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
-	lbImage      = "load-balancer"
-	feImage      = "frontend"
-	lbEnvConfig  = "NSM_CONFIG_MAP_NAME"
-	lbEnvService = "NSM_SERVICE_NAME"
-	lbEnvNsp     = "NSM_NSP_SERVICE"
-	nscEnvNwSvc  = "NSM_NETWORK_SERVICES"
-	feEnvConfig  = "NFE_CONFIG_MAP_NAME"
-	feEnvNsp     = "NFE_NSP_SERVICE"
+	lbImage = "load-balancer"
+	feImage = "frontend"
 )
 
 type LoadBalancer struct {
-	model     *appsv1.Deployment
-	trench    *meridiov1alpha1.Trench
-	attractor *meridiov1alpha1.Attractor
-	exec      *common.Executor
+	model   *appsv1.Deployment
+	trench  *meridiov1alpha1.Trench
+	conduit *meridiov1alpha1.Conduit
+	exec    *common.Executor
 }
 
 func (l *LoadBalancer) getModel() error {
@@ -39,11 +34,11 @@ func (l *LoadBalancer) getModel() error {
 	return nil
 }
 
-func NewLoadBalancer(e *common.Executor, attr *meridiov1alpha1.Attractor, t *meridiov1alpha1.Trench) (*LoadBalancer, error) {
+func NewLoadBalancer(e *common.Executor, con *meridiov1alpha1.Conduit, t *meridiov1alpha1.Trench) (*LoadBalancer, error) {
 	l := &LoadBalancer{
-		exec:      e,
-		attractor: attr,
-		trench:    t.DeepCopy(),
+		exec:    e,
+		conduit: con.DeepCopy(),
+		trench:  t.DeepCopy(),
 	}
 
 	// get model of load balancer
@@ -56,15 +51,19 @@ func NewLoadBalancer(e *common.Executor, attr *meridiov1alpha1.Attractor, t *mer
 func (l *LoadBalancer) getLbEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	env := []corev1.EnvVar{
 		{
-			Name:  lbEnvConfig,
-			Value: common.ConfigMapName(l.trench),
-		},
-		{
-			Name:  lbEnvService,
+			Name:  "NSM_SERVICE_NAME",
 			Value: common.LoadBalancerNsName(l.trench),
 		},
 		{
-			Name:  lbEnvNsp,
+			Name:  "NSM_CONDUIT_NAME",
+			Value: l.conduit.ObjectMeta.Name,
+		},
+		{
+			Name:  "NSM_TRENCH_NAME",
+			Value: l.trench.ObjectMeta.Name,
+		},
+		{
+			Name:  "NSM_NSP_SERVICE",
 			Value: common.NSPServiceWithPort(l.trench),
 		},
 	}
@@ -72,9 +71,7 @@ func (l *LoadBalancer) getLbEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	for _, e := range allEnv {
 		// append all hard coded envVars
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
-			e.Name == "NSM_NAME" ||
-			e.Name == "NSM_NAMESPACE" ||
-			e.Name == "NSM_CONNECT_TO" {
+			e.Name == "NSM_NAME" {
 			env = append(env, e)
 		}
 	}
@@ -84,7 +81,7 @@ func (l *LoadBalancer) getLbEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 func (l *LoadBalancer) getNscEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	env := []corev1.EnvVar{
 		{
-			Name:  nscEnvNwSvc,
+			Name:  "NSM_NETWORK_SERVICES",
 			Value: fmt.Sprintf("vlan://%s/ext-vlan?forwarder=forwarder-vlan", common.VlanNtwkSvcName(l.trench)),
 		},
 	}
@@ -102,14 +99,30 @@ func (l *LoadBalancer) getNscEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 }
 
 func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
+	// workaround for lb and fe are in the same deployment, the env vars come from both conduit and attractor
+	al := &meridiov1alpha1.AttractorList{}
+	sel := labels.Set{"trench": l.trench.ObjectMeta.Name}
+	l.exec.ListObject(al, &client.ListOptions{
+		LabelSelector: sel.AsSelector(),
+		Namespace:     l.conduit.ObjectMeta.Namespace,
+	})
+
 	env := []corev1.EnvVar{
 		{
-			Name:  feEnvConfig,
+			Name:  "NFE_CONFIG_MAP_NAME",
 			Value: common.ConfigMapName(l.trench),
 		},
 		{
-			Name:  feEnvNsp,
+			Name:  "NFE_NSP_SERVICE",
 			Value: common.NSPServiceWithPort(l.trench),
+		},
+		{
+			Name:  "NFE_TRENCH_NAME",
+			Value: l.trench.ObjectMeta.Name,
+		},
+		{
+			Name:  "NFE_ATTRACTOR_NAME",
+			Value: al.Items[0].ObjectMeta.Name,
 		},
 	}
 
@@ -127,14 +140,14 @@ func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployment {
 	// if status lb-fe deployment parameters are specified in the cr, use those
 	// else use the default parameters
-	loadBalancerDeploymentName := common.LoadBalancerDeploymentName(l.trench)
+	loadBalancerDeploymentName := common.LoadBalancerDeploymentName(l.conduit)
 	ret := dep.DeepCopy()
 	ret.ObjectMeta.Name = loadBalancerDeploymentName
 	ret.ObjectMeta.Namespace = l.trench.ObjectMeta.Namespace
 	ret.ObjectMeta.Labels["app"] = loadBalancerDeploymentName
 	ret.Spec.Selector.MatchLabels["app"] = loadBalancerDeploymentName
 	ret.Spec.Template.ObjectMeta.Labels["app"] = loadBalancerDeploymentName
-	ret.Spec.Replicas = l.attractor.Spec.Replicas
+	ret.Spec.Replicas = l.conduit.Spec.Replicas
 	ret.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchExpressions[0].Values[0] = loadBalancerDeploymentName
 	ret.Spec.Template.Spec.ServiceAccountName = common.ServiceAccountName(l.trench)
 
@@ -177,7 +190,7 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 func (l *LoadBalancer) getSelector() client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: l.trench.ObjectMeta.Namespace,
-		Name:      common.LoadBalancerDeploymentName(l.trench),
+		Name:      common.LoadBalancerDeploymentName(l.conduit),
 	}
 }
 
@@ -203,23 +216,22 @@ func (i *LoadBalancer) getReconciledDesiredStatus(lb *appsv1.Deployment) *appsv1
 	return i.insertParameters(lb)
 }
 
-func (l *LoadBalancer) getAction() (common.Action, error) {
-	var action common.Action
+func (l *LoadBalancer) getAction() error {
 	cs, err := l.getCurrentStatus()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if cs == nil {
 		ds := l.getDesiredStatus()
 		if err != nil {
-			return nil, err
+			return err
 		}
-		action = l.exec.NewCreateAction(ds)
+		l.exec.AddCreateAction(ds)
 	} else {
 		ds := l.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			action = l.exec.NewUpdateAction(ds)
+			l.exec.AddUpdateAction(ds)
 		}
 	}
-	return action, nil
+	return nil
 }

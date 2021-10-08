@@ -72,20 +72,19 @@ func (r *Role) getReconciledDesiredStatus(current *rbacv1.Role) *rbacv1.Role {
 	return r.insertParameters(current)
 }
 
-func (r *Role) getAction() ([]common.Action, error) {
-	var action []common.Action
+func (r *Role) getAction() error {
 	cs, err := r.getCurrentStatus()
 	if err != nil {
-		return action, err
+		return err
 	}
 	if cs == nil {
 		ds := r.getDesiredStatus()
-		action = append(action, r.exec.NewCreateAction(ds))
+		r.exec.AddCreateAction(ds)
 	} else {
 		ds := r.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			action = append(action, r.exec.NewUpdateAction(ds))
+			r.exec.AddUpdateAction(ds)
 		}
 	}
-	return action, nil
+	return nil
 }

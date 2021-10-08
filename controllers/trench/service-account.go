@@ -1,8 +1,6 @@
 package trench
 
 import (
-	"fmt"
-
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	common "github.com/nordix/meridio-operator/controllers/common"
 	corev1 "k8s.io/api/core/v1"
@@ -80,23 +78,19 @@ func (sa *ServiceAccount) getReconciledDesiredStatus(current *corev1.ServiceAcco
 	return sa.insertParameters(current)
 }
 
-func (sa *ServiceAccount) getAction() ([]common.Action, error) {
-	elem := common.ServiceAccountName(sa.trench)
-	var action []common.Action
+func (sa *ServiceAccount) getAction() error {
 	cs, err := sa.getCurrentStatus()
 	if err != nil {
-		return action, err
+		return err
 	}
 	if cs == nil {
 		ds := sa.getDesiredStatus()
-		sa.exec.LogInfo(fmt.Sprintf("add action: create %s", elem))
-		action = append(action, sa.exec.NewCreateAction(ds))
+		sa.exec.AddCreateAction(ds)
 	} else {
 		ds := sa.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			sa.exec.LogInfo(fmt.Sprintf("add action: update %s", elem))
-			action = append(action, sa.exec.NewUpdateAction(ds))
+			sa.exec.AddUpdateAction(ds)
 		}
 	}
-	return action, nil
+	return nil
 }

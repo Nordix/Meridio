@@ -8,7 +8,7 @@ import (
 )
 
 type Resources interface {
-	getAction() ([]common.Action, error)
+	getAction() error
 }
 
 type Meridio struct {
@@ -70,8 +70,7 @@ func NewMeridio(e *common.Executor, trench *meridiov1alpha1.Trench) (*Meridio, e
 	}, nil
 }
 
-func (m Meridio) ReconcileAll() ([]common.Action, error) {
-	var actions []common.Action
+func (m Meridio) ReconcileAll() error {
 	resources := []Resources{
 		m.serviceAccount,
 		m.role,
@@ -85,13 +84,10 @@ func (m Meridio) ReconcileAll() ([]common.Action, error) {
 	}
 
 	for _, r := range resources {
-		action, err := r.getAction()
+		err := r.getAction()
 		if err != nil {
-			return nil, fmt.Errorf("get %t action error: %s", r, err)
-		}
-		if action != nil {
-			actions = append(actions, action...)
+			return fmt.Errorf("get %t action error: %s", r, err)
 		}
 	}
-	return actions, nil
+	return nil
 }

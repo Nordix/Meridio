@@ -67,6 +67,13 @@ func (r *Trench) GroupResource() schema.GroupResource {
 	}
 }
 
+func (r *Trench) GroupKind() schema.GroupKind {
+	return schema.GroupKind{
+		Group: r.GroupVersionKind().Group,
+		Kind:  r.GroupVersionKind().Kind,
+	}
+}
+
 func init() {
 	SchemeBuilder.Register(&Trench{}, &TrenchList{})
 }

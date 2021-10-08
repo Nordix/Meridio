@@ -5,7 +5,7 @@ import (
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"github.com/nordix/meridio-operator/controllers/common"
-	configutils "github.com/nordix/meridio-operator/controllers/config"
+	"github.com/nordix/meridio-operator/test/utils"
 	config "github.com/nordix/meridio/pkg/configuration/reader"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -17,16 +17,7 @@ import (
 )
 
 var _ = Describe("Vip", func() {
-	trench := &meridiov1alpha1.Trench{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      trenchName,
-			Namespace: namespace,
-		},
-		Spec: meridiov1alpha1.TrenchSpec{
-			IPFamily: "DualStack",
-		},
-	}
-
+	trench := trench(namespace)
 	vipA := &meridiov1alpha1.Vip{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "vip-a",
@@ -60,39 +51,12 @@ var _ = Describe("Vip", func() {
 			fw.CleanUpVips()
 		})
 		Context("without a trench", func() {
-			JustBeforeEach(func() {
-				Expect(fw.CreateResource(vipA.DeepCopy())).To(Succeed())
-			})
+			It("will fail in creation", func() {
+				Expect(fw.CreateResource(vipA.DeepCopy())).ToNot(Succeed())
 
-			It("will be created with disengaged status", func() {
 				By("checking the existence")
-				vp := &meridiov1alpha1.Vip{}
-				fw.GetResource(client.ObjectKeyFromObject(vipA), vp)
-				Expect(vp).NotTo(BeNil())
-
-				By("checking the status to be disengaged")
-				assertVipStatus(vipA, meridiov1alpha1.Disengaged)
-
-				By("checking this vip is not in configmap after a trench is created")
-				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
-				assertVipItemInConfigMap(vipA, configmapName, false)
-
-				vipB := &meridiov1alpha1.Vip{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "vip-b",
-						Namespace: namespace,
-						Labels: map[string]string{
-							"trench": trenchName,
-						},
-					},
-					Spec: meridiov1alpha1.VipSpec{
-						Address: "20.0.0.0/28",
-					},
-				}
-
-				By("checking another vip created after trench is in configmap")
-				Expect(fw.CreateResource(vipB.DeepCopy())).To(Succeed())
-				assertVipItemInConfigMap(vipB, configmapName, true)
+				err := fw.GetResource(client.ObjectKeyFromObject(vipA), &meridiov1alpha1.Vip{})
+				Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			})
 		})
 
@@ -109,17 +73,34 @@ var _ = Describe("Vip", func() {
 				fw.CleanUpVips()
 			})
 
-			It("will be created with engaged status", func() {
+			It("will be created successfully", func() {
 				By("checking if the vip exists")
 				vp := &meridiov1alpha1.Vip{}
-				fw.GetResource(client.ObjectKeyFromObject(vipA), vp)
+				err := fw.GetResource(client.ObjectKeyFromObject(vipA), vp)
+				Expect(err).To(BeNil())
 				Expect(vp).NotTo(BeNil())
-
-				By("checking the status to be engaged")
-				assertVipStatus(vipA, meridiov1alpha1.Engaged)
 
 				By("checking vip is in configmap data")
 				assertVipItemInConfigMap(vipA, configmapName, true)
+			})
+
+			It("will update the configmap if another vip is added", func() {
+				vipB := &meridiov1alpha1.Vip{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "vip-b",
+						Namespace: namespace,
+						Labels: map[string]string{
+							"trench": trenchName,
+						},
+					},
+					Spec: meridiov1alpha1.VipSpec{
+						Address: "20.0.0.0/28",
+					},
+				}
+
+				By("checking another vip created after trench is in configmap")
+				Expect(fw.CreateResource(vipB.DeepCopy())).To(Succeed())
+				assertVipItemInConfigMap(vipB, configmapName, true)
 			})
 		})
 	})
@@ -158,27 +139,48 @@ var _ = Describe("Vip", func() {
 			By("checking new item is in the configmap")
 			assertVipItemInConfigMap(vp, configmapName, true)
 
-			By("checking old item is in the configmap")
+			By("checking old item is not in the configmap")
 			assertVipItemInConfigMap(vipA, configmapName, false)
 		})
 	})
 
 	Context("When deleting a trench", func() {
-		vp := vipA.DeepCopy()
-		tr := trench.DeepCopy()
 		BeforeEach(func() {
-			Expect(fw.CreateResource(tr)).To(Succeed())
-			Expect(fw.CreateResource(vp)).To(Succeed())
-			assertVipStatus(vipA, meridiov1alpha1.Engaged)
+			Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
+			Expect(fw.CreateResource(vipA.DeepCopy())).To(Succeed())
 		})
-		It("will be deleted", func() {
+		AfterEach(func() {
+			fw.CleanUpTrenches()
+			fw.CleanUpVips()
+		})
+
+		It("will be deleted by deleting the trench", func() {
+			tr := &meridiov1alpha1.Trench{}
+			Expect(fw.GetResource(client.ObjectKeyFromObject(trench), tr)).To(Succeed())
 			Expect(fw.DeleteResource(tr)).To(Succeed())
+
 			By("checking if vip exists")
 			Eventually(func() bool {
-				vp := &meridiov1alpha1.Vip{}
-				err := fw.GetResource(client.ObjectKeyFromObject(vipA), vp)
+				v := &meridiov1alpha1.Vip{}
+				err := fw.GetResource(client.ObjectKeyFromObject(vipA), v)
 				return err != nil && apierrors.IsNotFound(err)
 			}, timeout).Should(BeTrue())
+		})
+
+		It("will be deleted by deleting itself", func() {
+			v := &meridiov1alpha1.Vip{}
+			Expect(fw.GetResource(client.ObjectKeyFromObject(vipA), v)).To(Succeed())
+			Expect(fw.DeleteResource(v)).To(Succeed())
+
+			By("checking if vip exists")
+			Eventually(func() bool {
+				v := &meridiov1alpha1.Vip{}
+				err := fw.GetResource(client.ObjectKeyFromObject(vipA), v)
+				return err != nil && apierrors.IsNotFound(err)
+			}, timeout).Should(BeTrue())
+
+			By("checking the gateway is deleted from configmap")
+			assertVipItemInConfigMap(vipA, configmapName, false)
 		})
 	})
 
@@ -188,7 +190,6 @@ var _ = Describe("Vip", func() {
 		BeforeEach(func() {
 			Expect(fw.CreateResource(tr)).To(Succeed())
 			Expect(fw.CreateResource(vp)).To(Succeed())
-			assertVipStatus(vipA, meridiov1alpha1.Engaged)
 			assertVipItemInConfigMap(vp, configmapName, true)
 		})
 		It("will be reverted according to the current vip", func() {
@@ -213,36 +214,27 @@ var _ = Describe("Vip", func() {
 	})
 
 	Context("checking meridio pods", func() {
-		attractor := &meridiov1alpha1.Attractor{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      attractorName,
-				Namespace: namespace,
-				Labels: map[string]string{
-					"trench": trenchName,
-				},
-			},
-			Spec: meridiov1alpha1.AttractorSpec{
-				VlanID:         100,
-				VlanInterface:  "eth0",
-				Replicas:       replicas, // replica of lb-fe
-				Gateways:       []string{"gateway-a", "gateway-b"},
-				Vips:           []string{"vip-a", "vip-b"},
-				VlanPrefixIPv4: "169.254.100.0/24",
-				VlanPrefixIPv6: "100:100::/64",
-			},
-		}
+		conduit := conduit(namespace)
+		attractor := attractor(namespace)
+
 		BeforeEach(func() {
 			Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 			Expect(fw.CreateResource(attractor.DeepCopy())).To(Succeed())
-			fw.AssertTrenchReady(trench)
-			fw.AssertAttractorReady(trench, attractor)
+			Expect(fw.CreateResource(conduit.DeepCopy())).To(Succeed())
+			AssertMeridioDeploymentsReady(trench, attractor, conduit)
 		})
+
+		AfterEach(func() {
+			fw.CleanUpTrenches()
+			fw.CleanUpAttractors()
+			fw.CleanUpConduits()
+		})
+
 		It("will not trigger restarts in any of the meridio pods", func() {
 			Expect(fw.CreateResource(vipA.DeepCopy())).To(Succeed())
 
 			By("Checking the restarts of meridio pods")
-			fw.AssertTrenchReady(trench)
-			fw.AssertAttractorReady(trench, attractor)
+			AssertMeridioDeploymentsReady(trench, attractor, conduit)
 		})
 	})
 })
@@ -261,7 +253,7 @@ func assertVipItemInConfigMap(vip *meridiov1alpha1.Vip, configmapName string, in
 		vipsconfig, err := config.UnmarshalVips(configmap.Data[config.VipsConfigKey])
 		g.Expect(err).To(BeNil())
 
-		vipmap := configutils.MakeMapFromVipList(vipsconfig)
+		vipmap := utils.MakeMapFromVipList(vipsconfig)
 		vipInConfig, ok := vipmap[vip.ObjectMeta.Name]
 
 		// then checking in configmap data, vip key has an item same as vip resource
@@ -271,12 +263,4 @@ func assertVipItemInConfigMap(vip *meridiov1alpha1.Vip, configmapName string, in
 			Trench:  vip.ObjectMeta.Labels["trench"]})
 		return ok && equal
 	}, timeout).Should(matcher)
-}
-
-func assertVipStatus(vip *meridiov1alpha1.Vip, status meridiov1alpha1.ConfigStatus) {
-	vp := &meridiov1alpha1.Vip{}
-	Eventually(func() meridiov1alpha1.ConfigStatus {
-		fw.GetResource(client.ObjectKeyFromObject(vip), vp)
-		return vp.Status.Status
-	}).Should(Equal(status))
 }

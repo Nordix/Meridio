@@ -7,7 +7,7 @@ import (
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"github.com/nordix/meridio-operator/controllers/common"
-	configutils "github.com/nordix/meridio-operator/controllers/config"
+	"github.com/nordix/meridio-operator/test/utils"
 	"github.com/nordix/meridio/pkg/configuration/reader"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -31,15 +31,7 @@ func uint16pointer(i int) *uint16 {
 }
 
 var _ = Describe("Gateway", func() {
-	trench := &meridiov1alpha1.Trench{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      trenchName,
-			Namespace: namespace,
-		},
-		Spec: meridiov1alpha1.TrenchSpec{
-			IPFamily: "DualStack",
-		},
-	}
+	trench := trench(namespace)
 	gateway := &meridiov1alpha1.Gateway{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "gateway-a",
@@ -77,45 +69,12 @@ var _ = Describe("Gateway", func() {
 			fw.CleanUpGateways()
 		})
 		Context("without trench", func() {
-			It("will be created with disengaged status", func() {
-				Expect(fw.CreateResource(gateway.DeepCopy())).To(Succeed())
+			It("will fail in creation", func() {
+				Expect(fw.CreateResource(gateway.DeepCopy())).ToNot(Succeed())
 
 				By("checking the existence")
-				gw := &meridiov1alpha1.Gateway{}
-				Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
-				Expect(gw).NotTo(BeNil())
-
-				By("checking the status to be disengaged")
-				assertGatewayStatus(gateway, meridiov1alpha1.Disengaged)
-
-				By("checking this gateway is not in the configmap")
-				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
-				assertGatewayItemInConfigMap(gateway, configmapName, false)
-
-				gatewayB := &meridiov1alpha1.Gateway{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "gateway-b",
-						Namespace: namespace,
-						Labels: map[string]string{
-							"trench": trenchName,
-						},
-					},
-					Spec: meridiov1alpha1.GatewaySpec{
-						Address:  "1000::",
-						Protocol: "bgp",
-						Bgp: meridiov1alpha1.BgpSpec{
-							RemoteASN:  uint32pointer(1234),
-							LocalASN:   uint32pointer(4321),
-							HoldTime:   "30s",
-							RemotePort: uint16pointer(10179),
-							LocalPort:  uint16pointer(10179),
-						},
-					},
-				}
-
-				By("checking another gateway created after trench is in configmap")
-				Expect(fw.CreateResource(gatewayB.DeepCopy())).To(Succeed())
-				assertGatewayItemInConfigMap(gatewayB, configmapName, true)
+				err := fw.GetResource(client.ObjectKeyFromObject(gateway), &meridiov1alpha1.Gateway{})
+				Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			})
 		})
 
@@ -131,17 +90,12 @@ var _ = Describe("Gateway", func() {
 				fw.CleanUpTrenches()
 			})
 
-			It("will be created with engaged status", func() {
+			It("will be created successfully", func() {
 				By("checking if the gateway exists")
 				gw := &meridiov1alpha1.Gateway{}
 				Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
 				Expect(gw).NotTo(BeNil())
 
-				By("checking the status to be engaged")
-				assertGatewayStatus(gateway, meridiov1alpha1.Engaged)
-			})
-
-			It("will be collected into the configmap", func() {
 				By("checking gateway is in configmap data")
 				assertGatewayItemInConfigMap(gateway, configmapName, true)
 			})
@@ -190,27 +144,38 @@ var _ = Describe("Gateway", func() {
 		BeforeEach(func() {
 			Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 			Expect(fw.CreateResource(gateway.DeepCopy())).To(Succeed())
-			assertGatewayStatus(gateway, meridiov1alpha1.Engaged)
+		})
+
+		AfterEach(func() {
+			fw.CleanUpTrenches()
+			fw.CleanUpGateways()
 		})
 
 		It("will be deleted by deleting the trench", func() {
-			Expect(fw.DeleteResource(trench)).To(Succeed())
+			tr := &meridiov1alpha1.Trench{}
+			Expect(fw.GetResource(client.ObjectKeyFromObject(trench), tr)).To(Succeed())
+			Expect(fw.DeleteResource(tr)).To(Succeed())
 			By("checking if gateway exists")
 			Eventually(func() bool {
-				gw := &meridiov1alpha1.Gateway{}
-				err := fw.GetResource(client.ObjectKeyFromObject(gateway), gw)
+				g := &meridiov1alpha1.Gateway{}
+				err := fw.GetResource(client.ObjectKeyFromObject(gateway), g)
 				return err != nil && apierrors.IsNotFound(err)
 			}, timeout).Should(BeTrue())
 		})
 
 		It("will be deleted by deleting itself", func() {
-			Expect(fw.DeleteResource(gateway)).To(Succeed())
+			gw := &meridiov1alpha1.Gateway{}
+			Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
+			Expect(fw.DeleteResource(gw)).To(Succeed())
 			By("checking if gateway exists")
 			Eventually(func() bool {
-				gw := &meridiov1alpha1.Gateway{}
-				err := fw.GetResource(client.ObjectKeyFromObject(gateway), gw)
+				g := &meridiov1alpha1.Gateway{}
+				err := fw.GetResource(client.ObjectKeyFromObject(gateway), g)
 				return err != nil && apierrors.IsNotFound(err)
 			}, timeout).Should(BeTrue())
+
+			By("checking the gateway is deleted from configmap")
+			assertGatewayItemInConfigMap(gateway, configmapName, false)
 		})
 	})
 
@@ -220,7 +185,6 @@ var _ = Describe("Gateway", func() {
 		BeforeEach(func() {
 			Expect(fw.CreateResource(tr)).To(Succeed())
 			Expect(fw.CreateResource(gw)).To(Succeed())
-			assertGatewayStatus(gateway, meridiov1alpha1.Engaged)
 			assertGatewayItemInConfigMap(gw, configmapName, true)
 		})
 		It("will be reverted according to the current vip", func() {
@@ -245,37 +209,20 @@ var _ = Describe("Gateway", func() {
 	})
 
 	Context("checking meridio pods", func() {
-		attractor := &meridiov1alpha1.Attractor{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      attractorName,
-				Namespace: namespace,
-				Labels: map[string]string{
-					"trench": trenchName,
-				},
-			},
-			Spec: meridiov1alpha1.AttractorSpec{
-				VlanID:         100,
-				VlanInterface:  "eth0",
-				Replicas:       replicas, // replica of lb-fe
-				Gateways:       []string{"gateway-a", "gateway-b"},
-				Vips:           []string{"vip-a", "vip-b"},
-				VlanPrefixIPv4: "169.254.100.0/24",
-				VlanPrefixIPv6: "100:100::/64",
-			},
-		}
+		conduit := conduit(namespace)
+		attractor := attractor(namespace)
 
 		BeforeEach(func() {
 			Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 			Expect(fw.CreateResource(attractor.DeepCopy())).To(Succeed())
-			fw.AssertTrenchReady(trench)
-			fw.AssertAttractorReady(trench, attractor)
+			Expect(fw.CreateResource(conduit.DeepCopy())).To(Succeed())
+			AssertMeridioDeploymentsReady(trench, attractor, conduit)
 		})
 		It("will not trigger restarts in any of the meridio pods", func() {
 			Expect(fw.CreateResource(gateway.DeepCopy())).To(Succeed())
 
 			By("Checking the restarts of meridio pods")
-			fw.AssertTrenchReady(trench)
-			fw.AssertAttractorReady(trench, attractor)
+			AssertMeridioDeploymentsReady(trench, attractor, conduit)
 		})
 	})
 })
@@ -294,7 +241,7 @@ func assertGatewayItemInConfigMap(gateway *meridiov1alpha1.Gateway, configmapNam
 		gatewaysconfig, err := reader.UnmarshalGateways(configmap.Data[reader.GatewaysConfigKey])
 		g.Expect(err).To(BeNil())
 
-		gatewaymap := configutils.MakeMapFromGWList(gatewaysconfig)
+		gatewaymap := utils.MakeMapFromGWList(gatewaysconfig)
 		gatewayInConfig, ok := gatewaymap[gateway.ObjectMeta.Name]
 
 		// checking in configmap data, gateway key has an item same as gateway resource
@@ -320,12 +267,4 @@ func assertGatewayItemInConfigMap(gateway *meridiov1alpha1.Gateway, configmapNam
 		return ok && equal
 	}, timeout).Should(matcher)
 
-}
-
-func assertGatewayStatus(gateway *meridiov1alpha1.Gateway, status meridiov1alpha1.ConfigStatus) {
-	Eventually(func(g Gomega) {
-		gw := &meridiov1alpha1.Gateway{}
-		g.Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
-		g.Expect(gw.Status.Status).To(Equal(status))
-	}).Should(Succeed())
 }
