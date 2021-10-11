@@ -14,22 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package utils
 
 import (
 	"net"
 	"strings"
 )
 
-func isIPv4(ip string) bool {
+func IsIPv4(ip string) bool {
 	return strings.Count(ip, ":") == 0
 }
 
-func isIPv6(ip string) bool {
+func IsIPv6(ip string) bool {
 	return strings.Count(ip, ":") >= 2
 }
 
-func strToIPNet(in string) *net.IPNet {
+func StrToIPNet(in string) *net.IPNet {
 	if in == "" {
 		return nil
 	}
@@ -43,7 +43,7 @@ func strToIPNet(in string) *net.IPNet {
 
 // compare two lists
 // return values: (b - a), (a - b)
-func difference(a, b []string) ([]string, []string) {
+func Difference(a, b []string) ([]string, []string) {
 	m := make(map[string]bool)
 	uniqueB := []string{}
 	uniqueA := []string{}
