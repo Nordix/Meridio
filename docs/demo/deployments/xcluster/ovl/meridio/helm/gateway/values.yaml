@@ -17,8 +17,10 @@ gatewayImage: test-gw
 gatewayImageVer: latest
 gw1IPv4: 169.254.100.254/24
 gw1IPv6: fe80::beef/64
+gw1IPv6_2: 100:100::254/64
 gw2IPv4: 169.254.100.253/24
 gw2IPv6: fe80::beee/64
+gw2IPv6_2: 100:100::253/64
 gwVRRPIP4: 169.254.100.252/24
 gwVRRPIP6: fe80::beed/64
 masterItf: eth0

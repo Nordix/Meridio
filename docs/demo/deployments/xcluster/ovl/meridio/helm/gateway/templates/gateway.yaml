@@ -275,7 +275,7 @@ spec:
       annotations:
         k8s.v1.cni.cncf.io/networks: '[
           { "name": "{{ template "gw.vlanConf" . }}",
-            "ips": [ "{{ .Values.gw1IPv4 }}", "{{ .Values.gw1IPv6 }}", "{{ .Values.gwVRRPIP4 }}", "{{ .Values.gwVRRPIP6 }}" ],
+            "ips": [ "{{ .Values.gw1IPv4 }}", "{{ .Values.gw1IPv6 }}", "{{ .Values.gw1IPv6_2 }}", "{{ .Values.gwVRRPIP4 }}", "{{ .Values.gwVRRPIP6 }}" ],
            "interface": "vlan0"
           },
          { "name": "{{ template "gw.gwtgConf" . }}",
@@ -335,7 +335,7 @@ spec:
       annotations:
         k8s.v1.cni.cncf.io/networks: '[
           { "name": "{{ template "gw.vlanConf" . }}",
-            "ips": [ "{{ .Values.gw2IPv4 }}", "{{ .Values.gw2IPv6 }}" ],
+            "ips": [ "{{ .Values.gw2IPv4 }}", "{{ .Values.gw2IPv6 }}", "{{ .Values.gw2IPv6_2 }}" ],
             "interface": "vlan0"
           },
          { "name": "{{ template "gw.gwtgConf" . }}",
