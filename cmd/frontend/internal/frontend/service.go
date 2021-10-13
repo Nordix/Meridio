@@ -19,6 +19,7 @@ package frontend
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"reflect"
 	"strconv"
@@ -27,15 +28,13 @@ import (
 	"syscall"
 	"time"
 
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/cmd/frontend/internal/bird"
 	"github.com/nordix/meridio/cmd/frontend/internal/connectivity"
 	"github.com/nordix/meridio/cmd/frontend/internal/env"
 	"github.com/nordix/meridio/cmd/frontend/internal/utils"
-	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
-
-	"github.com/nordix/meridio-operator/controllers/config"
 )
 
 // FrontEndService -
@@ -44,7 +43,7 @@ func NewFrontEndService(c *env.Config) *FrontEndService {
 
 	frontEndService := &FrontEndService{
 		vips:     []string{},
-		gateways: &config.GatewayConfig{},
+		gateways: []*utils.Gateway{},
 		gatewayNamesByFamily: map[int]map[string]string{
 			syscall.AF_INET:  {},
 			syscall.AF_INET6: {},
@@ -79,7 +78,7 @@ func NewFrontEndService(c *env.Config) *FrontEndService {
 // FrontEndService -
 type FrontEndService struct {
 	vips                 []string
-	gateways             *config.GatewayConfig
+	gateways             []*utils.Gateway
 	gatewayNamesByFamily map[int]map[string]string
 	gwMu                 sync.Mutex
 	cfgMu                sync.Mutex
@@ -130,6 +129,36 @@ func (fes *FrontEndService) Start(ctx context.Context) <-chan error {
 	return errCh
 }
 
+// WaitStart -
+// Wait until BIRD started by checking birdc availability
+func (fes *FrontEndService) WaitStart(ctx context.Context) error {
+	lp, err := bird.LookupCli()
+	if err != nil {
+		return fmt.Errorf("WaitStart: birdc not found! (%v)", err)
+	}
+	var timeoutScale time.Duration = 1000000 // 1 ms
+	i := 1
+	for {
+		select {
+		case <-ctx.Done():
+			logrus.Infof("WaitStart: Shutting down")
+			return nil
+		case <-time.After(timeoutScale * time.Nanosecond): //timeout
+		}
+
+		err := bird.CheckCli(ctx, lp)
+		if err != nil {
+			if i <= 10 {
+				timeoutScale += 10000000 // 10 ms
+			}
+			logrus.Debugf("WaitStart: not ready yet...\n%v", err)
+		} else {
+			break
+		}
+	}
+	return nil
+}
+
 // AddVipRules -
 // Add src based routing rules for VIP addresses (pointing to the routing table BIRD shall sync to)
 func (fes *FrontEndService) AddVIPRules() error {
@@ -146,27 +175,23 @@ func (fes *FrontEndService) RemoveVIPRules() error {
 // Adjust BIRD config on the fly
 func (fes *FrontEndService) SetNewConfig(c interface{}) error {
 	configChange := false
-	logrus.Infof("SetNewConfig")
+	logrus.Debugf("SetNewConfig")
 
 	fes.cfgMu.Lock()
 	defer fes.cfgMu.Unlock()
 
 	switch c := c.(type) {
-	case *configuration.OperatorConfig:
-		if err := fes.setVIPs(c.VIPs, &configChange); err != nil {
-			return err
-		}
-		// TODO: it could make sense to increase the bird monitor interval,
-		// or to start some timer etc. that while not expired would make
-		// the BIRD monitoring results to be ignored -> it would allow on
-		// the fly added gateways to connect without the risk of disturbing
-		// the "general availability" of the particular FE (the other option
-		// is to be strict, and upon a new gateway for a new ipfamily denounce
-		// FE availablity)
-		// XXX: should we even bother? The NSM mesh between proxies and lbs
-		// is either ipv4,ipv6 or dualstack.
-		if err := fes.setGateways(c.GWs, &configChange); err != nil {
-			return err
+	case []*nspAPI.Attractor:
+		// FE watches 1 Attractor that it is associated with
+		if len(c) == 1 {
+			logrus.Debugf("SetNewConfig: Attractor: %v", c)
+			c := c[0]
+			if err := fes.setVIPs(c.Vips, &configChange); err != nil {
+				return err
+			}
+			if err := fes.setGateways(c.Gateways, &configChange); err != nil {
+				return err
+			}
 		}
 	default:
 		logrus.Infof("SetNewConfig: config format not known")
@@ -211,6 +236,7 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 		init, noConnectivity := true, true
 		connectivityMap := map[string]bool{}
 		delay := 3 * time.Second // when started grant more time to write the whole config (minimize intial link flapping)
+		_ = fes.WaitStart(ctx)
 		for {
 			select {
 			case <-ctx.Done():
@@ -517,7 +543,7 @@ func (fes *FrontEndService) writeConfigGW(conf *string) {
 	fes.gatewayNamesByFamily[syscall.AF_INET] = map[string]string{}
 	fes.gatewayNamesByFamily[syscall.AF_INET6] = map[string]string{}
 
-	for _, gw := range fes.gateways.Gateways {
+	for _, gw := range fes.gateways {
 		if utils.IsIPv6(gw.Address) || utils.IsIPv4(gw.Address) {
 			if gw.Protocol != "bgp" && gw.Protocol != "static" {
 				logrus.Infof("writeConfigGW: Unkown gateway protocol %v", gw.Protocol)
@@ -799,27 +825,12 @@ func (fes *FrontEndService) start(ctx context.Context, errCh chan<- error) {
 func (fes *FrontEndService) reconfigurationAgent(ctx context.Context, reconfCh <-chan struct{}, errCh chan<- error) {
 	lp, err := bird.LookupCli()
 	if err != nil {
-		logrus.Fatalf("reconfigurationAgent: birdc not found! (%v)", err)
+		err := fmt.Errorf("reconfigurationAgent: birdc not found! (%v)", err)
+		logrus.Errorf("%v", err)
+		errCh <- err
 	} else {
-		var timeoutScale time.Duration = 1000000 // 1 ms
-		i := 1
-		// wait until BIRD has started
-		for {
-			select {
-			case <-ctx.Done():
-				logrus.Infof("reconfigurationAgent: Shutting down")
-				return
-			case <-time.After(timeoutScale * time.Nanosecond): //timeout
-			}
-			err := bird.CheckCli(ctx, lp)
-			if err != nil {
-				if i <= 10 {
-					timeoutScale += 10000000 // 10 ms
-				}
-				logrus.Debugf("reconfigurationAgent: not ready yet...\n%v", err)
-			} else {
-				break
-			}
+		if err := fes.WaitStart(ctx); err != nil {
+			errCh <- err
 		}
 
 		// listen for reconf signals
@@ -868,13 +879,14 @@ func (fes *FrontEndService) reconfigure(ctx context.Context, path string) error 
 func (fes *FrontEndService) setVIPs(vips interface{}, change *bool) error {
 	var added, removed []string
 	switch vips := vips.(type) {
-	case *config.VipConfig:
-		if vips != nil {
-			list := configuration.AddrListFromVipConfig(vips)
-			added, removed = utils.Difference(fes.vips, list)
-			logrus.Debugf("SetVIPs: got: %v, (added: %v, removed: %v)", vips.Vips, added, removed)
-			fes.vips = list
+	case []*nspAPI.Vip:
+		list := []string{}
+		for _, vip := range vips {
+			list = append(list, vip.GetAddress())
 		}
+		added, removed = utils.Difference(fes.vips, list)
+		logrus.Debugf("SetVIPs: got: %+v, (added: %v, removed: %v)", vips, added, removed)
+		fes.vips = list
 	default:
 		logrus.Debugf("setVIPs: vips format not supported")
 	}
@@ -894,13 +906,13 @@ func (fes *FrontEndService) setVIPs(vips interface{}, change *bool) error {
 // Adjust config to changes affecting external gateway addresses
 func (fes *FrontEndService) setGateways(gateways interface{}, change *bool) error {
 	switch gateways := gateways.(type) {
-	case *config.GatewayConfig:
-		if gateways != nil {
-			logrus.Debugf("SetGateways: \ngot: %v \nhave: %v", gateways.Gateways, fes.gateways.Gateways)
-			if configuration.DiffGatewayConfig(gateways, fes.gateways) {
-				fes.gateways.Gateways = gateways.Gateways
-				*change = true
-			}
+	case []*nspAPI.Gateway:
+		list := utils.ConvertGateways(gateways)
+		logrus.Debugf("SetGateways: \ngot: %+v \nhave: %+v", list, fes.gateways)
+		if utils.DiffGateways(list, fes.gateways) {
+			logrus.Debugf("SetGateways: config changed")
+			fes.gateways = list
+			*change = true
 		}
 	default:
 		logrus.Debugf("SetGateways: gateways format not supported")

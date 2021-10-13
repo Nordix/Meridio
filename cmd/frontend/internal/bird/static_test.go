@@ -59,13 +59,13 @@ func TestParseProtocolsStaticWithBfd(t *testing.T) {
 		`NBR-gateway4 Static     master6    up     21:10:21.886 bfd: 100:100::253              ext-vlan   Up         21:10:21.886    0.100    0.500` + "\n"
 
 	assert.NotNil(t, cs)
-	assert.Equal(t, "", cs.Log())
+	assert.Empty(t, cs.Log())
 
 	check(staticOutput, bfdOutput, cs, &log)
 
 	t.Logf("cs: %v\n", cs)
-	assert.Equal(t, false, cs.NoConnectivity())
-	assert.Equal(t, false, cs.AnyGatewayDown())
+	assert.False(t, cs.NoConnectivity())
+	assert.False(t, cs.AnyGatewayDown())
 	t.Logf("log:\n%v\n", log)
 	assert.Equal(t, expectedLog, log)
 }
@@ -104,13 +104,13 @@ func TestParseProtocolsStaticWithIPv4BfdDown(t *testing.T) {
 		`NBR-gateway4 Static     master6    up     21:10:21.886 bfd: 100:100::253              ext-vlan   Up         21:10:21.886    0.100    0.500` + "\n"
 
 	assert.NotNil(t, cs)
-	assert.Equal(t, "", cs.Log())
+	assert.Empty(t, cs.Log())
 
 	check(staticOutput, bfdOutput, cs, &log)
 
 	t.Logf("cs: %v\n", cs)
-	assert.Equal(t, true, cs.NoConnectivity())
-	assert.Equal(t, true, cs.AnyGatewayDown())
+	assert.True(t, cs.NoConnectivity())
+	assert.True(t, cs.AnyGatewayDown())
 	t.Logf("log:\n%v\n", log)
 	assert.Equal(t, expectedLog, log)
 }
@@ -148,13 +148,13 @@ func TestParseProtocolsStaticWithIPv6BfdDown(t *testing.T) {
 		`NBR-gateway4 Static     master6    up     21:10:21.886` + "\n"
 
 	assert.NotNil(t, cs)
-	assert.Equal(t, "", cs.Log())
+	assert.Empty(t, cs.Log())
 
 	check(staticOutput, bfdOutput, cs, &log)
 
 	t.Logf("cs: %v\n", cs)
-	assert.Equal(t, false, cs.NoConnectivity())
-	assert.Equal(t, true, cs.AnyGatewayDown())
+	assert.False(t, cs.NoConnectivity())
+	assert.True(t, cs.AnyGatewayDown())
 	t.Logf("log:\n%v\n", log)
 	assert.Equal(t, expectedLog, log)
 }

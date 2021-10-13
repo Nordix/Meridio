@@ -18,15 +18,17 @@ package main
 
 import (
 	"context"
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
 
 	nested "github.com/antonfisher/nested-logrus-formatter"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/nordix/meridio/pkg/configuration"
+	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/sirupsen/logrus"
 
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/cmd/frontend/internal/env"
 	"github.com/nordix/meridio/cmd/frontend/internal/frontend"
 )
@@ -100,24 +102,10 @@ func main() {
 		logrus.Fatalf("Failed to start monitor: %v", err)
 	}
 
-	configWatcher := make(chan *configuration.OperatorConfig)
-	configurationWatcher := configuration.NewOperatorWatcher(config.ConfigMapName, config.Namespace, configWatcher)
-	go configurationWatcher.Start()
+	go watchConfig(ctx, cancel, config, fe)
 
-	for {
-		select {
-		case c, ok := <-configWatcher:
-			if ok {
-				logrus.Infof("FE config change event")
-				if err := fe.SetNewConfig(c); err != nil {
-					cancel()
-				}
-			}
-		case <-ctx.Done():
-			logrus.Warnf("FE shutting down")
-			return
-		}
-	}
+	<-ctx.Done()
+	logrus.Warnf("FE shutting down")
 }
 
 func exitOnErrCh(ctx context.Context, cancel context.CancelFunc, errCh <-chan error) {
@@ -136,4 +124,49 @@ func exitOnErrCh(ctx context.Context, cancel context.CancelFunc, errCh <-chan er
 		}
 		cancel()
 	}(ctx, errCh)
+}
+
+func watchConfig(ctx context.Context, cancel context.CancelFunc, c *env.Config, fe *frontend.FrontEndService) {
+	if err := fe.WaitStart(ctx); err != nil {
+		logrus.Errorf("Wait start: %v", err)
+		cancel()
+	}
+	nspClient, err := nsp.NewNetworkServicePlateformClient(c.NSPService)
+	if err != nil {
+		logrus.Errorf("NewNetworkServicePlateformClient: %v", err)
+		cancel()
+	}
+	configurationManagerClient := nspAPI.NewConfigurationManagerClient(nspClient.Conn)
+	attractorToWatch := &nspAPI.Attractor{
+		Name: c.AttractorName,
+		Trench: &nspAPI.Trench{
+			Name: c.TrenchName,
+		},
+	}
+	if err := watchAttractor(ctx, configurationManagerClient, attractorToWatch, fe); err != nil {
+		logrus.Errorf("Attractor watcher: %v", err)
+		cancel()
+	}
+}
+
+func watchAttractor(ctx context.Context, cli nspAPI.ConfigurationManagerClient, toWatch *nspAPI.Attractor, fe *frontend.FrontEndService) error {
+	watchAttractor, err := cli.WatchAttractor(ctx, toWatch)
+	if err != nil {
+		return err
+	}
+	for {
+		attractorResponse, err := watchAttractor.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			logrus.Infof("Attractor watcher closing down")
+			return err
+		}
+		logrus.Infof("Attractor config change event")
+		if err := fe.SetNewConfig(attractorResponse.Attractors); err != nil {
+			return err
+		}
+	}
+	return nil
 }

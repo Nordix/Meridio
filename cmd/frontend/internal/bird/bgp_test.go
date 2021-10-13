@@ -104,8 +104,8 @@ func TestParseProtocols(t *testing.T) {
 	check(bgpOutput, "", cs, cs.Logp())
 
 	t.Logf("cs: %v\n", cs)
-	assert.Equal(t, false, cs.NoConnectivity())
-	assert.Equal(t, false, cs.AnyGatewayDown())
+	assert.False(t, cs.NoConnectivity())
+	assert.False(t, cs.AnyGatewayDown())
 	assert.Equal(t, expectedLog, cs.Log())
 }
 
@@ -136,13 +136,13 @@ func TestParseProtocolsWithBfd(t *testing.T) {
 	`
 
 	assert.NotNil(t, cs)
-	assert.Equal(t, "", cs.Log())
+	assert.Empty(t, cs.Log())
 
 	check(bgpLinkLocalOutput, bfdOutput, cs, nil)
 
 	t.Logf("cs: %v\n", cs)
-	assert.Equal(t, false, cs.NoConnectivity())
-	assert.Equal(t, false, cs.AnyGatewayDown())
+	assert.False(t, cs.NoConnectivity())
+	assert.False(t, cs.AnyGatewayDown())
 }
 
 var bgpLinkLocalOutput string = `

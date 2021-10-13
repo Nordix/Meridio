@@ -32,4 +32,6 @@ type Config struct {
 	Namespace         string   `default:"default" desc:"Namespace the pod is running on" split_words:"true"`
 	ConfigMapName     string   `default:"meridio-configuration" desc:"Name of the ConfigMap containing the configuration" split_words:"true"`
 	NSPService        string   `default:"nsp-service-trench-a:7778" desc:"IP (or domain) and port of the NSP Service" split_words:"true"`
+	TrenchName        string   `default:"default" desc:"Name of the Trench the frontend is associated with" split_words:"true"`
+	AttractorName     string   `default:"default" desc:"Name of the Attractor the frontend is associated with" split_words:"true"`
 }

@@ -21,140 +21,149 @@ import (
 	"testing"
 
 	"github.com/nordix/meridio/cmd/frontend/internal/connectivity"
+	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
-	"gotest.tools/assert"
 )
 
 func TestStatusNoConfig(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+	assert := assert.New(t)
 	cs := connectivity.NewConnectivityStatus()
-	assert.Assert(t, cs.StatusMap() != nil)
-	assert.Assert(t, cs.Logp() != nil)
+	assert.NotNil(cs.StatusMap())
+	assert.NotNil(cs.Logp())
 	cs.SetNoConfig(syscall.AF_INET)
 	cs.SetNoConfig(syscall.AF_INET6)
 
 	t.Logf("cs: %v\n", cs.String())
-	assert.Equal(t, connectivity.NoConfig, cs.Status())
-	assert.Equal(t, false, cs.AnyGatewayDown())
-	assert.Equal(t, true, cs.NoConnectivity())
-	assert.Equal(t, "", cs.Log())
-	assert.Equal(t, 0, len(cs.StatusMap()))
+	assert.Equal(connectivity.NoConfig, cs.Status())
+	assert.False(cs.AnyGatewayDown())
+	assert.True(cs.NoConnectivity())
+	assert.Empty(cs.Log())
+	assert.Empty(cs.StatusMap())
 }
 
 func TestStatusNoIPv4Config(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+	assert := assert.New(t)
 	cs := connectivity.NewConnectivityStatus()
-	assert.Assert(t, cs.StatusMap() != nil)
-	assert.Assert(t, cs.Logp() != nil)
+	assert.NotNil(cs.StatusMap())
+	assert.NotNil(cs.Logp())
 
 	cs.SetNoConfig(syscall.AF_INET)
 	cs.SetGatewayUp("gateway-3", syscall.AF_INET6)
 	cs.SetGatewayDown("gateway-4")
 
-	assert.Equal(t, true, cs.AnyGatewayDown())
-	assert.Equal(t, false, cs.NoConnectivity())
-	assert.Equal(t, 2, len(cs.StatusMap()))
+	assert.True(cs.AnyGatewayDown())
+	assert.False(cs.NoConnectivity())
+	assert.Len(cs.StatusMap(), 2)
 }
 
 func TestStatusNoIPv6Config(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+	assert := assert.New(t)
 	cs := connectivity.NewConnectivityStatus()
-	assert.Assert(t, cs.StatusMap() != nil)
-	assert.Assert(t, cs.Logp() != nil)
+	assert.NotNil(cs.StatusMap())
+	assert.NotNil(cs.Logp())
 
 	cs.SetNoConfig(syscall.AF_INET6)
 	cs.SetGatewayUp("gateway-1", syscall.AF_INET)
 	cs.SetGatewayUp("gateway-2", syscall.AF_INET)
 
-	assert.Equal(t, false, cs.AnyGatewayDown())
-	assert.Equal(t, false, cs.NoConnectivity())
-	assert.Equal(t, 2, len(cs.StatusMap()))
+	assert.False(cs.AnyGatewayDown())
+	assert.False(cs.NoConnectivity())
+	assert.Len(cs.StatusMap(), 2)
 }
 
 func TestStatusNoIPv4Conn(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+	assert := assert.New(t)
 	cs := connectivity.NewConnectivityStatus()
-	assert.Assert(t, cs.StatusMap() != nil)
-	assert.Assert(t, cs.Logp() != nil)
+	assert.NotNil(cs.StatusMap())
+	assert.NotNil(cs.Logp())
 
 	cs.SetGatewayUp("gateway-3", syscall.AF_INET6)
 
-	assert.Equal(t, false, cs.AnyGatewayDown())
-	assert.Equal(t, true, cs.NoConnectivity())
-	assert.Equal(t, 1, len(cs.StatusMap()))
+	assert.False(cs.AnyGatewayDown())
+	assert.True(cs.NoConnectivity())
+	assert.Len(cs.StatusMap(), 1)
 }
 
 func TestStatusNoIPv4ConnWithGatewayDown(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+	assert := assert.New(t)
 	cs := connectivity.NewConnectivityStatus()
-	assert.Assert(t, cs.StatusMap() != nil)
-	assert.Assert(t, cs.Logp() != nil)
+	assert.NotNil(cs.StatusMap())
+	assert.NotNil(cs.Logp())
 
 	cs.SetGatewayDown("gateway-1")
 	cs.SetGatewayUp("gateway-3", syscall.AF_INET6)
 
-	assert.Equal(t, true, cs.AnyGatewayDown())
-	assert.Equal(t, true, cs.NoConnectivity())
-	assert.Equal(t, 2, len(cs.StatusMap()))
+	assert.True(cs.AnyGatewayDown())
+	assert.True(cs.NoConnectivity())
+	assert.Len(cs.StatusMap(), 2)
 }
 
 func TestStatusNoIPv6Conn(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+	assert := assert.New(t)
 	cs := connectivity.NewConnectivityStatus()
-	assert.Assert(t, cs.StatusMap() != nil)
-	assert.Assert(t, cs.Logp() != nil)
+	assert.NotNil(cs.StatusMap())
+	assert.NotNil(cs.Logp())
 
 	cs.SetGatewayUp("gateway-1", syscall.AF_INET)
 	cs.SetGatewayUp("gateway-2", syscall.AF_INET)
 
-	assert.Equal(t, false, cs.AnyGatewayDown())
-	assert.Equal(t, true, cs.NoConnectivity())
-	assert.Equal(t, 2, len(cs.StatusMap()))
+	assert.False(cs.AnyGatewayDown())
+	assert.True(cs.NoConnectivity())
+	assert.Len(cs.StatusMap(), 2)
 }
 
 func TestStatusNoIPv6ConnWithGatewayDown(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+	assert := assert.New(t)
 	cs := connectivity.NewConnectivityStatus()
-	assert.Assert(t, cs.StatusMap() != nil)
-	assert.Assert(t, cs.Logp() != nil)
+	assert.NotNil(cs.StatusMap())
+	assert.NotNil(cs.Logp())
 
 	cs.SetGatewayUp("gateway-1", syscall.AF_INET)
 	cs.SetGatewayUp("gateway-2", syscall.AF_INET)
 	cs.SetGatewayDown("gateway-3")
 
-	assert.Equal(t, true, cs.AnyGatewayDown())
-	assert.Equal(t, true, cs.NoConnectivity())
-	assert.Equal(t, 3, len(cs.StatusMap()))
+	assert.True(cs.AnyGatewayDown())
+	assert.True(cs.NoConnectivity())
+	assert.Len(cs.StatusMap(), 3)
 }
 
 func TestStatusDualStack(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+	assert := assert.New(t)
 	cs := connectivity.NewConnectivityStatus()
-	assert.Assert(t, cs.StatusMap() != nil)
-	assert.Assert(t, cs.Logp() != nil)
+	assert.NotNil(cs.StatusMap())
+	assert.NotNil(cs.Logp())
 
 	cs.SetGatewayUp("gateway-1", syscall.AF_INET)
 	cs.SetGatewayUp("gateway-2", syscall.AF_INET)
 	cs.SetGatewayUp("gateway-3", syscall.AF_INET6)
 	cs.SetGatewayUp("gateway-4", syscall.AF_INET6)
 
-	assert.Equal(t, false, cs.AnyGatewayDown())
-	assert.Equal(t, false, cs.NoConnectivity())
-	assert.Equal(t, 4, len(cs.StatusMap()))
+	assert.False(cs.AnyGatewayDown())
+	assert.False(cs.NoConnectivity())
+	assert.Len(cs.StatusMap(), 4)
 }
 
 func TestStatusDualStackWithGatewayDown(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+	assert := assert.New(t)
 	cs := connectivity.NewConnectivityStatus()
-	assert.Assert(t, cs.StatusMap() != nil)
-	assert.Assert(t, cs.Logp() != nil)
+	assert.NotNil(cs.StatusMap())
+	assert.NotNil(cs.Logp())
 
 	cs.SetGatewayUp("gateway-1", syscall.AF_INET)
 	cs.SetGatewayDown("gateway-2")
 	cs.SetGatewayUp("gateway-3", syscall.AF_INET6)
 	cs.SetGatewayDown("gateway-4")
 
-	assert.Equal(t, true, cs.AnyGatewayDown())
-	assert.Equal(t, false, cs.NoConnectivity())
-	assert.Equal(t, 4, len(cs.StatusMap()))
+	assert.True(cs.AnyGatewayDown())
+	assert.False(cs.NoConnectivity())
+	assert.Len(cs.StatusMap(), 4)
 }

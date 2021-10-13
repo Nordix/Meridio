@@ -20,27 +20,28 @@ import (
 	"testing"
 
 	"github.com/nordix/meridio/cmd/frontend/internal/utils"
-	"gotest.tools/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test(t *testing.T) {
-	assert.Assert(t, utils.IsIPv4("10.0.0.1"))
-	assert.Assert(t, utils.IsIPv4("192.168.0.1"))
+	assert := assert.New(t)
+	assert.True(utils.IsIPv4("10.0.0.1"))
+	assert.True(utils.IsIPv4("192.168.0.1"))
 
-	assert.Assert(t, utils.IsIPv6("1000::1"))
-	assert.Assert(t, utils.IsIPv6("fe80::1234"))
+	assert.True(utils.IsIPv6("1000::1"))
+	assert.True(utils.IsIPv6("fe80::1234"))
 
-	assert.Assert(t, !utils.IsIPv4("1000::1"))
-	assert.Assert(t, !utils.IsIPv6("192.168.0.1"))
+	assert.False(utils.IsIPv4("1000::1"))
+	assert.False(utils.IsIPv6("192.168.0.1"))
 
-	assert.Assert(t, !utils.IsIPv4("::FFFF:1.2.3.4"))
-	assert.Assert(t, utils.IsIPv6("::FFFF:127.0.0.1"))
+	assert.False(utils.IsIPv4("::FFFF:1.2.3.4"))
+	assert.True(utils.IsIPv6("::FFFF:127.0.0.1"))
 
 	ip1 := utils.StrToIPNet("10.0.0.1/20")
-	assert.Assert(t, ip1 != nil)
-	assert.Equal(t, "10.0.0.1/20", ip1.String())
+	assert.NotNil(ip1)
+	assert.Equal("10.0.0.1/20", ip1.String())
 
 	ip2 := utils.StrToIPNet("100:0:1::1/64")
-	assert.Assert(t, ip2 != nil)
-	assert.Equal(t, "100:0:1::1/64", ip2.String())
+	assert.NotNil(ip2)
+	assert.Equal("100:0:1::1/64", ip2.String())
 }
