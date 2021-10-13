@@ -110,6 +110,10 @@ spec:
               value: {{ template "meridio.nsp.serviceName" . }}:{{ .Values.nsp.targetPort }}
             - name: NFE_CONFIG_MAP_NAME
               value: {{ template "meridio.configuration" . }}
+            - name: NFE_TRENCH_NAME
+              value: {{ .Values.trench.name }}
+            - name: NFE_ATTRACTOR_NAME
+              value: "attractor-a"
           securityContext:
             privileged: true
       volumes:

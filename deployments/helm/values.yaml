@@ -8,6 +8,9 @@ pullPolicy: IfNotPresent
 trench:
   name: trench-a
 
+attractor:
+  name: attractor-a
+
 configuration:
   configmap: meridio-configuration
 
