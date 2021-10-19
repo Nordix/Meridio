@@ -25,6 +25,7 @@ import (
 	"time"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/loadbalancer/flow"
 	"github.com/nordix/meridio/pkg/loadbalancer/nfqlb"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/networking"
@@ -37,7 +38,7 @@ type LoadBalancer struct {
 	TargetRegistryClient       nspAPI.TargetRegistryClient
 	ConfigurationManagerClient nspAPI.ConfigurationManagerClient
 	nfqlb                      types.NFQueueLoadBalancer
-	vips                       []*virtualIP
+	flows                      map[string]types.Flow
 	targets                    map[int]types.Target // key: Identifier
 	netUtils                   networking.Utils
 	nfqueue                    int
@@ -55,7 +56,7 @@ func New(stream *nspAPI.Stream, targetRegistryClient nspAPI.TargetRegistryClient
 		Stream:                     stream,
 		TargetRegistryClient:       targetRegistryClient,
 		ConfigurationManagerClient: configurationManagerClient,
-		vips:                       []*virtualIP{},
+		flows:                      make(map[string]types.Flow),
 		nfqlb:                      nfqlb,
 		targets:                    make(map[int]types.Target),
 		netUtils:                   netUtils,
@@ -98,10 +99,10 @@ func (lb *LoadBalancer) Delete() error {
 			errFinal = fmt.Errorf("%w; target: %v", errFinal, err)
 		}
 	}
-	for _, vip := range lb.vips {
-		err := vip.Delete()
+	for _, flow := range lb.flows {
+		err := flow.Delete()
 		if err != nil {
-			errFinal = fmt.Errorf("%w; vip: %v", errFinal, err)
+			errFinal = fmt.Errorf("%w; flow: %v", errFinal, err)
 		}
 	}
 	err := lb.nfqlb.Delete()
@@ -184,37 +185,6 @@ func (lb *LoadBalancer) GetTargets() []types.Target {
 	return targets
 }
 
-func (lb *LoadBalancer) SetVIPs(vips []string) error {
-	currentVIPs := make(map[string]*virtualIP)
-	for _, vip := range lb.vips {
-		currentVIPs[vip.prefix] = vip
-	}
-	for _, vip := range vips {
-		if _, ok := currentVIPs[vip]; !ok {
-			newVIP, err := newVirtualIP(vip, lb.nfqueue, lb.netUtils)
-			if err != nil {
-				logrus.Errorf("Error adding VIP: %v", err)
-				continue
-			}
-			lb.vips = append(lb.vips, newVIP)
-		}
-		delete(currentVIPs, vip)
-	}
-	// delete remaining vips
-	for index := 0; index < len(lb.vips); index++ {
-		vip := lb.vips[index]
-		if _, ok := currentVIPs[vip.prefix]; ok {
-			lb.vips = append(lb.vips[:index], lb.vips[index+1:]...)
-			index--
-			err := vip.Delete()
-			if err != nil {
-				logrus.Errorf("Error deleting vip: %v", err)
-			}
-		}
-	}
-	return nil
-}
-
 func (lb *LoadBalancer) targetExists(identifier int) bool {
 	return lb.getTarget(identifier) != nil
 }
@@ -240,18 +210,51 @@ func (lb *LoadBalancer) watchFlows(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		vips := []string{}
-		for _, flow := range flowResponse.Flows {
-			for _, vip := range flow.Vips {
-				vips = append(vips, vip.Address)
-			}
-		}
-		err = lb.SetVIPs(vips)
+		err = lb.setFlows(flowResponse.Flows)
 		if err != nil {
-			return err
+			logrus.Warnf("err set flows: %v", err) // todo
 		}
 	}
 	return nil
+}
+
+func (lb *LoadBalancer) setFlows(flows []*nspAPI.Flow) error {
+	var errFinal error
+	remainingFlows := make(map[string]struct{})
+	for name := range lb.flows {
+		remainingFlows[name] = struct{}{}
+	}
+	for _, f := range flows {
+		fl, exists := lb.flows[f.GetName()]
+		if !exists { // create
+			newFlow, err := flow.New(f, lb.nfqueue, lb.netUtils)
+			if err != nil {
+				errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+				continue
+			}
+			lb.flows[f.GetName()] = newFlow
+		} else { // update
+			err := fl.Update(f)
+			if err != nil {
+				errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+				continue
+			}
+		}
+		delete(remainingFlows, f.GetName())
+	}
+	// delete remaining flows
+	for name := range remainingFlows {
+		flow, exists := lb.flows[name]
+		if !exists {
+			continue
+		}
+		err := flow.Delete()
+		if err != nil {
+			errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+		}
+		delete(lb.flows, name)
+	}
+	return errFinal
 }
 
 // todo
