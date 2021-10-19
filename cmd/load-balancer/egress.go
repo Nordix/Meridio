@@ -17,13 +17,14 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"io"
 	"os"
 	"sync"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/endpoint"
-	"github.com/nordix/meridio/pkg/nsp"
+	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -40,17 +41,20 @@ import (
 // thus controlling egress traffic from proxies. While also informs SimpleNetworkService through
 // serviceControlDispatcher to secure ingress LB functionality in case FE recovers.
 type FrontendNetworkService struct {
-	loadBalancerEndpoint                 *endpoint.Endpoint
-	networkServicePlateformClient        *nsp.NetworkServicePlateformClient
-	networkServicePlateformServiceStream nspAPI.NetworkServicePlateformService_MonitorClient
-	myHostName                           string
-	serviceControlDispatcher             *serviceControlDispatcher
+	loadBalancerEndpoint     *endpoint.Endpoint
+	targetRegistryClient     nspAPI.TargetRegistryClient
+	targetRegistryStream     nspAPI.TargetRegistry_WatchClient
+	myHostName               string
+	serviceControlDispatcher *serviceControlDispatcher
 }
 
 // Start -
 func (fns *FrontendNetworkService) Start() {
 	var err error
-	fns.networkServicePlateformServiceStream, err = fns.networkServicePlateformClient.MonitorType(nspAPI.Target_FRONTEND)
+	fns.targetRegistryStream, err = fns.targetRegistryClient.Watch(context.Background(), &nspAPI.Target{
+		Status: nspAPI.Target_ANY,
+		Type:   nspAPI.Target_FRONTEND,
+	})
 	if err != nil {
 		logrus.Errorf("FrontendNetworkService: err MonitorType(%v): %v", nspAPI.Target_FRONTEND, err)
 	}
@@ -59,7 +63,7 @@ func (fns *FrontendNetworkService) Start() {
 
 func (fns *FrontendNetworkService) recv() {
 	for {
-		targetEvent, err := fns.networkServicePlateformServiceStream.Recv()
+		targetResponse, err := fns.targetRegistryStream.Recv()
 		if err == io.EOF {
 			break
 		}
@@ -67,66 +71,65 @@ func (fns *FrontendNetworkService) recv() {
 			logrus.Errorf("SimpleNetworkService: event err: %v", err)
 			break
 		}
-		target := targetEvent.GetTarget()
+
+		target := fns.getLocal(targetResponse.GetTargets())
 
 		logrus.Debugf("FrontendNetworkService: event: %v", target)
 
-		if fns.isLocal(target) {
-			if targetEvent.Status == nspAPI.TargetEvent_Register {
-				logrus.Infof("FrontendNetworkService: (local) FE available: %v", target.GetContext()[nsp.Identifier.String()])
-				// inform controlled services they are allowed to operate:
-				// SimpleNetworkService is allowed to accept new Targets.
-				if fns.serviceControlDispatcher != nil {
-					fns.serviceControlDispatcher.Dispatch(true)
-				}
-				// announce the southbound NSE (to the proxies, so that they could
-				// establish NSM connection, and forward egress traffic to this LB)
-				err := fns.loadBalancerEndpoint.Announce()
-				if err != nil {
-					logrus.Errorf("FrontendNetworkService: endpoint announce err: %v", err)
-					continue
-				}
-			} else if targetEvent.Status == nspAPI.TargetEvent_Unregister {
-				logrus.Warnf("FrontendNetworkService: (local) FE unavailable: %v", target.GetContext()[nsp.Identifier.String()])
-				// inform controlled services they must pause operation:
-				// SimpleNetworkService must not accept new Targets, and must
-				// clean-up known Targets. (The nsm interfaces in ingress routes become unusable
-				// once SimpleNetworkServiceClient learns the southbound NSE is removed, as it
-				// closes repective NSM connection.)
-				if fns.serviceControlDispatcher != nil {
-					fns.serviceControlDispatcher.Dispatch(false)
-				}
-
-				// denounce southbound NSE (to the proxies, in order to block egress
-				// traffic; proxies monitor the LB NSE endpoints via registry)
-				err := fns.loadBalancerEndpoint.Denounce()
-				if err != nil {
-					logrus.Errorf("FrontendNetworkService: endpoint denounce err: %v", err)
-					continue
-				}
+		if target != nil {
+			logrus.Infof("FrontendNetworkService: (local) FE available: %v", target.GetContext()[types.IdentifierKey])
+			// inform controlled services they are allowed to operate:
+			// SimpleNetworkService is allowed to accept new Targets.
+			if fns.serviceControlDispatcher != nil {
+				fns.serviceControlDispatcher.Dispatch(true)
+			}
+			// announce the southbound NSE (to the proxies, so that they could
+			// establish NSM connection, and forward egress traffic to this LB)
+			err := fns.loadBalancerEndpoint.Announce()
+			if err != nil {
+				logrus.Errorf("FrontendNetworkService: endpoint announce err: %v", err)
+				continue
+			}
+		} else {
+			logrus.Warnf("FrontendNetworkService: (local) FE unavailable: %v", target.GetContext()[types.IdentifierKey])
+			// inform controlled services they must pause operation:
+			// SimpleNetworkService must not accept new Targets, and must
+			// clean-up known Targets. (The nsm interfaces in ingress routes become unusable
+			// once SimpleNetworkServiceClient learns the southbound NSE is removed, as it
+			// closes repective NSM connection.)
+			if fns.serviceControlDispatcher != nil {
+				fns.serviceControlDispatcher.Dispatch(false)
+			}
+			// denounce southbound NSE (to the proxies, in order to block egress
+			// traffic; proxies monitor the LB NSE endpoints via registry)
+			err := fns.loadBalancerEndpoint.Denounce()
+			if err != nil {
+				logrus.Errorf("FrontendNetworkService: endpoint denounce err: %v", err)
+				continue
 			}
 		}
 	}
 }
 
-// isLocal -
-// Check if target is running in the same POD as the loadbalancer.
-// (Targets of type FRONTEND are supposed to have their hostname as identifier.)
-func (fns *FrontendNetworkService) isLocal(target *nspAPI.Target) bool {
-	identifierStr, exists := target.GetContext()[nsp.Identifier.String()]
-	if !exists {
-		logrus.Errorf("FrontendNetworkService: identifier does not exist: %v", target.Context)
-		return false
+func (fns *FrontendNetworkService) getLocal(targets []*nspAPI.Target) *nspAPI.Target {
+	for _, target := range targets {
+		identifierStr, exists := target.GetContext()[types.IdentifierKey]
+		if !exists {
+			continue
+		}
+		if identifierStr == fns.myHostName {
+			return target
+		}
 	}
-	return identifierStr == fns.myHostName
+	return nil
 }
 
 // NewFrontendNetworkService -
-func NewFrontendNetworkService(networkServicePlateformClient *nsp.NetworkServicePlateformClient, loadBalancerEndpoint *endpoint.Endpoint, serviceControlDispatcher *serviceControlDispatcher) *FrontendNetworkService {
+func NewFrontendNetworkService(targetRegistryClient nspAPI.TargetRegistryClient, loadBalancerEndpoint *endpoint.Endpoint, serviceControlDispatcher *serviceControlDispatcher) *FrontendNetworkService {
 	frontendNetworkService := &FrontendNetworkService{
-		loadBalancerEndpoint:          loadBalancerEndpoint,
-		networkServicePlateformClient: networkServicePlateformClient,
-		serviceControlDispatcher:      serviceControlDispatcher,
+		loadBalancerEndpoint:     loadBalancerEndpoint,
+		targetRegistryClient:     targetRegistryClient,
+		serviceControlDispatcher: serviceControlDispatcher,
 	}
 	frontendNetworkService.myHostName, _ = os.Hostname()
 	return frontendNetworkService

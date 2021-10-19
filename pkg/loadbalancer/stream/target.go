@@ -26,8 +26,6 @@ import (
 	"github.com/nordix/meridio/pkg/networking"
 )
 
-const IdentifierKey = "identifier"
-
 type Target struct {
 	fwMarks   []networking.FWMarkRoute
 	nspTarget *nspAPI.Target
@@ -59,13 +57,15 @@ func (t *Target) Configure() error {
 	if t.fwMarks == nil {
 		t.fwMarks = []networking.FWMarkRoute{}
 	}
-	var err error
 	for _, ip := range t.GetIps() {
 		var fwMark networking.FWMarkRoute
-		fwMark, err = t.netUtils.NewFWMarkRoute(ip, t.GetIdentifier(), t.GetIdentifier())
+		fwMark, err := t.netUtils.NewFWMarkRoute(ip, t.GetIdentifier(), t.GetIdentifier())
+		if err != nil {
+			return err
+		}
 		t.fwMarks = append(t.fwMarks, fwMark)
 	}
-	return err
+	return nil
 }
 
 func (t *Target) Delete() error {
@@ -85,6 +85,9 @@ func (t *Target) Delete() error {
 }
 
 func (t *Target) isValid() error {
+	if t.nspTarget.GetStatus() != nspAPI.Target_ENABLED {
+		return errors.New("the target is not enabled")
+	}
 	if t.getIdentifier() < 0 {
 		return errors.New("identifier is not a number")
 	}
@@ -92,7 +95,7 @@ func (t *Target) isValid() error {
 }
 
 func (t *Target) getIdentifier() int {
-	identifierStr, exists := t.nspTarget.GetContext()[IdentifierKey]
+	identifierStr, exists := t.nspTarget.GetContext()[types.IdentifierKey]
 	if !exists {
 		return -1
 	}

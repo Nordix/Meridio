@@ -18,139 +18,78 @@ package nsp
 
 import (
 	"context"
-	"sync"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/nsp/types"
 	"github.com/sirupsen/logrus"
 )
 
+const (
+	channelBufferSize = 10
+)
+
+type WatcherRegistry interface {
+	RegisterWatcher(toWatch *nspAPI.Target, ch chan<- []*nspAPI.Target) error
+	UnregisterWatcher(ch chan<- []*nspAPI.Target)
+}
+
 type Server struct {
-	targets        *targetList
-	monitorStreams sync.Map // map[nspAPI.Target_Type]map[nspAPI.NetworkServicePlateformService_MonitorServer]bool
+	TargetRegistry  types.TargetRegistry
+	WatcherRegistry WatcherRegistry
 }
 
 // NewServer -
-func NewServer() nspAPI.NetworkServicePlateformServiceServer {
+func NewServer(targetRegistry types.TargetRegistry, watcherRegistry WatcherRegistry) nspAPI.TargetRegistryServer {
 	networkServicePlateformService := &Server{
-		targets: &targetList{
-			targets: map[nspAPI.Target_Type][]*nspAPI.Target{},
-		},
+		TargetRegistry:  targetRegistry,
+		WatcherRegistry: watcherRegistry,
 	}
 
 	return networkServicePlateformService
 }
 
 func (s *Server) Register(ctx context.Context, target *nspAPI.Target) (*empty.Empty, error) {
-	err := s.addTarget(target)
-	return &empty.Empty{}, err
+	logrus.Infof("Register: %v", target)
+	s.TargetRegistry.Set(target)
+	return &empty.Empty{}, nil
 }
 
 func (s *Server) Unregister(ctx context.Context, target *nspAPI.Target) (*empty.Empty, error) {
-	err := s.removeTarget(target)
-	return &empty.Empty{}, err
+	logrus.Infof("Unregister: %v", target)
+	s.TargetRegistry.Remove(target)
+	return &empty.Empty{}, nil
 }
 
 func (s *Server) Update(ctx context.Context, target *nspAPI.Target) (*empty.Empty, error) {
-	err := s.updateTarget(target)
-	return &empty.Empty{}, err
+	logrus.Infof("Update: %v", target)
+	s.TargetRegistry.Set(target)
+	return &empty.Empty{}, nil
 }
 
-// todo
-func (s *Server) Monitor(tt *nspAPI.TargetType, stream nspAPI.NetworkServicePlateformService_MonitorServer) error {
-	targetType := tt.GetType()
-	streams, err := s.getStreams(targetType)
-	if err != nil {
-		logrus.Infof("Monitor: err: %v", err)
-		return err
-	}
-
-	logrus.Debugf("Monitor: targetType: %v, stream: %v", targetType, stream)
-	streams.Store(stream, true)
-	for _, target := range s.targets.Get(targetType) {
-		s.notifyMonitorStream(stream, target, nspAPI.TargetEvent_Register)
-	}
-	<-stream.Context().Done()
-	streams.Delete(stream)
-	return nil
-}
-
-func (s *Server) GetTargets(ctx context.Context, tt *nspAPI.TargetType) (*nspAPI.GetTargetsResponse, error) {
-	response := &nspAPI.GetTargetsResponse{
-		Targets: s.targets.Get(tt.GetType()),
-	}
-	return response, nil
-}
-
-func (s *Server) streamAlive(stream nspAPI.NetworkServicePlateformService_MonitorServer, streams *sync.Map) bool {
-	value, ok := streams.Load(stream)
-	return ok && value.(bool)
-}
-
-func (s *Server) addTarget(target *nspAPI.Target) error {
-	logrus.Infof("Add Target: %v", target)
-	err := s.targets.Add(target)
+func (s *Server) Watch(t *nspAPI.Target, watcher nspAPI.TargetRegistry_WatchServer) error {
+	ch := make(chan []*nspAPI.Target, channelBufferSize)
+	err := s.WatcherRegistry.RegisterWatcher(t, ch)
 	if err != nil {
 		return err
 	}
-	s.notifyMonitorStreams(target, nspAPI.TargetEvent_Register)
+	s.watcher(watcher, ch)
+	s.WatcherRegistry.UnregisterWatcher(ch)
 	return nil
 }
 
-func (s *Server) removeTarget(target *nspAPI.Target) error {
-	t, err := s.targets.Remove(target)
-	if err != nil {
-		return err
-	}
-	logrus.Infof("Remove Target: %v", target)
-	s.notifyMonitorStreams(t, nspAPI.TargetEvent_Unregister)
-	return nil
-}
-
-func (s *Server) updateTarget(target *nspAPI.Target) error {
-	err := s.targets.Update(target)
-	if err != nil {
-		return err
-	}
-	logrus.Infof("Update Target: %v", target)
-	s.notifyMonitorStreams(target, nspAPI.TargetEvent_Updated)
-	return nil
-}
-
-func (s *Server) getStreams(targetType nspAPI.Target_Type) (*sync.Map, error) {
-	value, _ := s.monitorStreams.LoadOrStore(targetType, &sync.Map{})
-	return value.(*sync.Map), nil
-}
-
-func (s *Server) notifyMonitorStreams(target *nspAPI.Target, eventStatus nspAPI.TargetEvent_Status) {
-	logrus.Debugf("notifyMonitorStreams: target: %v,", target)
-	streams, err := s.getStreams(target.GetType())
-	if err != nil {
-		logrus.Infof("notifyMonitorStreams: err: %v", err)
-		return
-	}
-	streams.Range(func(key interface{}, value interface{}) bool {
-		s.notifyMonitorStream(key.(nspAPI.NetworkServicePlateformService_MonitorServer), target, eventStatus)
-		return true
-	})
-}
-
-func (s *Server) notifyMonitorStream(stream nspAPI.NetworkServicePlateformService_MonitorServer, target *nspAPI.Target, eventStatus nspAPI.TargetEvent_Status) {
-	streams, err := s.getStreams(target.GetType())
-	if err != nil {
-		logrus.Infof("notifyMonitorStream: err: %v", err)
-		return
-	}
-	if !s.streamAlive(stream, streams) {
-		return
-	}
-	targetEvent := &nspAPI.TargetEvent{
-		Target: target,
-		Status: eventStatus,
-	}
-	err = stream.Send(targetEvent)
-	if err != nil {
-		logrus.Infof("notifyMonitorStream: send err: %v", err)
-		s.monitorStreams.Store(stream, false)
+func (s *Server) watcher(watcher nspAPI.TargetRegistry_WatchServer, ch <-chan []*nspAPI.Target) {
+	for {
+		select {
+		case event := <-ch:
+			err := watcher.Send(&nspAPI.TargetResponse{
+				Targets: event,
+			})
+			if err != nil {
+				logrus.Errorf("err sending TrenchResponse: %v", err)
+			}
+		case <-watcher.Context().Done():
+			return
+		}
 	}
 }

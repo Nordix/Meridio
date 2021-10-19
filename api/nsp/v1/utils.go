@@ -88,3 +88,18 @@ func (g *Gateway) Equals(g2 *Gateway) bool {
 	}
 	return names && g.GetTrench().Equals(g2.GetTrench())
 }
+
+func (t *Target) Equals(t2 *Target) bool {
+	if t == nil || t2 == nil {
+		return false
+	}
+	status := t.GetStatus() == t2.GetStatus()
+	if t.GetStatus() == Target_ANY || t2.GetStatus() == Target_ANY {
+		status = true
+	}
+	stream := t.GetStream().Equals(t2.GetStream())
+	if t.GetStream() == nil && t2.GetStream() == nil {
+		stream = true
+	}
+	return status && t.GetType() == t2.GetType() && stream
+}

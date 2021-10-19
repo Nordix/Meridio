@@ -30,5 +30,5 @@ type Trench interface {
 	RemoveConduit(context.Context, Conduit) error
 	GetConduit(conduitName string) Conduit
 	GetConduits() []Conduit
-	GetNSPClient() nspAPI.NetworkServicePlateformServiceClient
+	GetTargetRegistryClient() nspAPI.TargetRegistryClient
 }

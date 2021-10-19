@@ -21,22 +21,22 @@ option go_package = "github.com/nordix/meridio/api/nsp/v1";
 import "google/protobuf/empty.proto";
 import "api/nsp/v1/model.proto";
 
-service NetworkServicePlateformService {
+service TargetRegistry {
     rpc Register(Target) returns (google.protobuf.Empty) {}
     rpc Unregister(Target) returns (google.protobuf.Empty) {}
-    rpc Monitor(TargetType) returns (stream TargetEvent) {}
-    rpc GetTargets(TargetType) returns (GetTargetsResponse) {}
     rpc Update(Target) returns (google.protobuf.Empty) {}
+    rpc Watch(Target) returns (stream TargetResponse) {}
 }
 
-message GetTargetsResponse {
+message TargetResponse {
     repeated Target targets = 1;
 }
 
 message Target {
     enum Status {
-        Enabled = 0;
-        Disabled = 1;
+        ENABLED = 0;
+        DISABLED = 1;
+        ANY = 2;
     }
     enum Type {
         DEFAULT = 0;
@@ -44,23 +44,8 @@ message Target {
     }
 
     repeated string ips = 1;
-    Type type = 2;
-    map<string, string> context = 3;
-    Status status = 4;
+    map<string, string> context = 2;
+    Status status = 3;
+    Type type = 4;
     Stream stream = 5;
-}
-
-message TargetType {
-    Target.Type type = 1;
-}
-
-message TargetEvent {
-    enum Status {
-        Register = 0;
-        Unregister = 1;
-        Updated = 2;
-    }
-
-    Target target = 1;
-    Status status = 2;
 }

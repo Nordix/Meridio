@@ -31,6 +31,7 @@ import (
 	"github.com/nordix/meridio/pkg/configuration/registry"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/nsp"
+	targetRegistry "github.com/nordix/meridio/pkg/nsp/registry"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
@@ -65,6 +66,7 @@ func main() {
 		}
 	}()
 
+	// configuration
 	configurationEventChan := make(chan *registry.ConfigurationEvent, 10)
 	configurationRegistry := registry.New(configurationEventChan)
 	configurationMonitor, err := monitor.New(config.ConfigMapName, config.Namespace, configurationRegistry)
@@ -74,12 +76,17 @@ func main() {
 	go configurationMonitor.Start(context.Background())
 	watcherNotifier := manager.NewWatcherNotifier(configurationRegistry, configurationEventChan)
 	go watcherNotifier.Start(context.Background())
-
-	networkServicePlateformServer := nsp.NewServer()
 	configurationManagerServer := manager.NewServer(watcherNotifier)
 
+	// target registry
+	targetRegistryEventChan := make(chan struct{}, 10)
+	tr := targetRegistry.New(targetRegistryEventChan)
+	watcherNotifierTargetRegistry := nsp.NewWatcherNotifier(tr, targetRegistryEventChan)
+	go watcherNotifierTargetRegistry.Start(context.Background())
+	targetRegistryServer := nsp.NewServer(tr, watcherNotifierTargetRegistry)
+
 	server := grpc.NewServer()
-	nspAPI.RegisterNetworkServicePlateformServiceServer(server, networkServicePlateformServer)
+	nspAPI.RegisterTargetRegistryServer(server, targetRegistryServer)
 	nspAPI.RegisterConfigurationManagerServer(server, configurationManagerServer)
 
 	listener, err := net.Listen("tcp", fmt.Sprintf("[::]:%s", config.Port))
