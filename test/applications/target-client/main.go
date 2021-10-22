@@ -248,7 +248,7 @@ func watch() error {
 }
 
 func getClient() (targetAPI.AmbassadorClient, error) {
-	conn, err := grpc.Dial("localhost:7779", grpc.WithInsecure(),
+	conn, err := grpc.Dial(os.Getenv("MERIDIO_AMBASSADOR_SOCKET"), grpc.WithInsecure(),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
 		))

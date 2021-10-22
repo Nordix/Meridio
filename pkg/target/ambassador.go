@@ -20,8 +20,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net"
-	"strconv"
+	"os"
 	"sync"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -39,7 +40,7 @@ type Ambassador struct {
 	context                  context.Context
 	listener                 net.Listener
 	server                   *grpc.Server
-	port                     int
+	socket                   string
 	vips                     []string
 	trenches                 []types.Trench
 	trenchNamespace          string
@@ -51,8 +52,11 @@ type Ambassador struct {
 	mu                       sync.Mutex
 }
 
-func NewAmbassador(port int, trenchNamespace string, config *Config) (*Ambassador, error) {
-	lis, err := net.Listen("tcp", fmt.Sprintf("[::]:%s", strconv.Itoa(port)))
+func NewAmbassador(socket string, trenchNamespace string, config *Config) (*Ambassador, error) {
+	if err := os.RemoveAll(socket); err != nil {
+		log.Fatal(err)
+	}
+	lis, err := net.Listen("unix", socket)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +65,7 @@ func NewAmbassador(port int, trenchNamespace string, config *Config) (*Ambassado
 	ambassador := &Ambassador{
 		listener:        lis,
 		server:          s,
-		port:            port,
+		socket:          socket,
 		vips:            []string{},
 		trenches:        []types.Trench{},
 		trenchNamespace: trenchNamespace,

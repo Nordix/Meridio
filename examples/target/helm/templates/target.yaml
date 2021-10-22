@@ -27,6 +27,13 @@ spec:
             - -c
           securityContext:
             privileged: true
+          env:
+            - name: MERIDIO_AMBASSADOR_SOCKET
+              value: unix:///var/lib/meridio/ambassador.sock
+          volumeMounts:
+            - name: meridio-socket
+              mountPath: /var/lib/meridio
+              readOnly: true
         - name: target
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.target.image }}:{{ .Values.target.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
@@ -53,6 +60,8 @@ spec:
               value: {{ .Values.nsp.serviceName }}
             - name: NSM_NSP_SERVICE_PORT
               value: "{{ .Values.nsp.targetPort }}"
+            - name: NSM_SOCKET
+              value: "/var/lib/meridio/ambassador.sock"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
@@ -60,6 +69,9 @@ spec:
             - name: nsm-socket
               mountPath: /var/lib/networkservicemesh
               readOnly: true
+            - name: meridio-socket
+              mountPath: /var/lib/meridio
+              readOnly: false
           securityContext:
             privileged: true
       volumes:
@@ -71,3 +83,5 @@ spec:
           hostPath:
             path: /var/lib/networkservicemesh
             type: DirectoryOrCreate
+        - name: meridio-socket
+          emptyDir: {}
