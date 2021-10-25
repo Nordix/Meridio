@@ -38,7 +38,7 @@ const (
 // IsValid returns true if the receiver is a valid ipFamily type
 func (p Protocol) IsValid() bool {
 	switch p {
-	case BGP:
+	case BGP, Static:
 		return true
 	default:
 		return false

@@ -641,8 +641,8 @@ github.com/networkservicemesh/sdk-kernel v1.0.1/go.mod h1:EiVrGipqU2Y6n7FcBZuBcR
 github.com/networkservicemesh/sdk-sriov v1.0.0/go.mod h1:udmRPb0Bepel/ftsjQ1RMeWgTUh7KecmrrDHIjezM+Y=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
-github.com/nordix/meridio v0.0.0-20211004081507-8c41387e453a h1:pQKYfVO9mrkc/pIUWk15UvXb+hCK98sRNPLMRqbZ17g=
-github.com/nordix/meridio v0.0.0-20211004081507-8c41387e453a/go.mod h1:NcVGr/cKwu+hXlnW9a9Rbyqdc6EH2i1QUgGNRgeUZ3w=
+github.com/nordix/meridio v0.0.0-20211028145815-94ce51771d12 h1:U7lvGZ4PHlV9iCFR0CUYTQV6nxnHMWRLi0uEkbWqmoU=
+github.com/nordix/meridio v0.0.0-20211028145815-94ce51771d12/go.mod h1:QK94OIG8RtixGWED9Tv3Uy9/CZnVT4eixdghKvkP7mE=
 github.com/nordix/meridio-operator v0.0.0-20210823114908-9c4d92ddee94/go.mod h1:+6ONpt/tecB7DiyMpBTd1Xc3D7fOPdmAG2IyXxLYOF4=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=

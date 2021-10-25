@@ -56,24 +56,40 @@ spec:
                   and LocalASN.
                 properties:
                   bfd:
-                    default: false
-                    description: 'BFD monitoring of BGP session. Valid values are:
-                      - false (default): no BFD monitoring - true: turns on the BFD
-                      monitoring. (Currently not supported)'
-                    type: boolean
+                    description: BFD monitoring of BGP session.
+                    properties:
+                      min-rx:
+                        description: min-rx timer of bfd session. Please refere to
+                          BFD material to understand what this implies. The value
+                          must be a valid duration format. For example, 300ms, 90s,
+                          1m, 1h. The duration will be rounded by millisecond
+                        type: string
+                      min-tx:
+                        description: min-tx timer of bfd session. Please refere to
+                          BFD material to understand what this implies. The value
+                          must be a valid duration format. For example, 300ms, 90s,
+                          1m, 1h. The duration will be rounded by millisecond
+                        type: string
+                      multiplier:
+                        description: multiplier of bfd session when this number of
+                          bfd packets failed to receive, bfd session will go down
+                        type: integer
+                      switch:
+                        description: 'BFD monitoring. Valid values are: - false (default):
+                          no BFD monitoring - true: turns on the BFD monitoring'
+                        type: boolean
+                    type: object
                   hold-time:
-                    default: 240s
                     description: 'Hold timer of the BGP session. Please refere to
                       BGP material to understand what this implies. The value must
-                      be a valid duration format. For example, 90s, 1m, 1h Minimum
-                      duration is 3s. Default: 240s'
+                      be a valid duration format. For example, 90s, 1m, 1h. The duration
+                      will be rounded by second Minimum duration is 3s. Default: 240s'
                     type: string
                   local-asn:
                     description: The ASN number of the system where the FrontEnd locates
                     format: int32
                     type: integer
                   local-port:
-                    default: 179
                     description: BGP listening port of the frontend. Default 179
                     type: integer
                   remote-asn:
@@ -81,12 +97,8 @@ spec:
                     format: int32
                     type: integer
                   remote-port:
-                    default: 179
                     description: BGP listening port of the gateway. Default 179
                     type: integer
-                required:
-                - local-asn
-                - remote-asn
                 type: object
               protocol:
                 default: bgp
@@ -96,6 +108,31 @@ spec:
                 description: Parameters to work with the static routing configured
                   on the Edge Router with specified Address If the Protocol is bgp,
                   this property must be empty.
+                properties:
+                  bfd:
+                    description: BFD monitoring of Static session.
+                    properties:
+                      min-rx:
+                        description: min-rx timer of bfd session. Please refere to
+                          BFD material to understand what this implies. The value
+                          must be a valid duration format. For example, 300ms, 90s,
+                          1m, 1h. The duration will be rounded by millisecond
+                        type: string
+                      min-tx:
+                        description: min-tx timer of bfd session. Please refere to
+                          BFD material to understand what this implies. The value
+                          must be a valid duration format. For example, 300ms, 90s,
+                          1m, 1h. The duration will be rounded by millisecond
+                        type: string
+                      multiplier:
+                        description: multiplier of bfd session when this number of
+                          bfd packets failed to receive, bfd session will go down
+                        type: integer
+                      switch:
+                        description: 'BFD monitoring. Valid values are: - false (default):
+                          no BFD monitoring - true: turns on the BFD monitoring'
+                        type: boolean
+                    type: object
                 type: object
             required:
             - address
