@@ -23,11 +23,12 @@ type Action interface {
 }
 
 type Executor struct {
-	scheme *runtime.Scheme
-	client client.Client
-	ctx    context.Context
-	owner  client.Object
-	log    logr.Logger
+	scheme  *runtime.Scheme
+	client  client.Client
+	ctx     context.Context
+	owner   client.Object
+	log     logr.Logger
+	actions []Action
 }
 
 func NewExecutor(s *runtime.Scheme, c client.Client, ct context.Context, cr client.Object, l logr.Logger) *Executor {
@@ -65,8 +66,8 @@ func (e *Executor) ListObject(obj client.ObjectList, opts ...client.ListOption) 
 	return e.client.List(e.ctx, obj, opts...)
 }
 
-func (e *Executor) RunAll(actions []Action) error {
-	for _, action := range actions {
+func (e *Executor) RunActions() error {
+	for _, action := range e.actions {
 		action, name, err := action.Run(e)
 		if err != nil {
 			e.log.Error(err, "execute action", "action", action, "object", name, "result", "failure")
@@ -85,6 +86,14 @@ func AppendActions(actions ...Action) []Action {
 		}
 	}
 	return ret
+}
+
+func (e *Executor) appendActions(actions ...Action) {
+	for _, action := range actions {
+		if action != nil {
+			e.actions = append(e.actions, action)
+		}
+	}
 }
 
 type createAction struct {
@@ -168,20 +177,20 @@ func (e *Executor) SetOwnerReference(obj client.Object, owners ...client.Object)
 	return nil
 }
 
-func (e *Executor) NewCreateAction(obj client.Object) Action {
+func (e *Executor) AddCreateAction(obj client.Object) {
 	name := obj.GetName()
-	e.log.Info("add action", "action", "create", "object", name)
-	return createAction{obj: obj, action: "create"}
+	e.log.Info("add action", "action", "create", "object", name, "kind", obj.GetObjectKind().GroupVersionKind())
+	e.appendActions(createAction{obj: obj, action: "create"})
 }
 
-func (e *Executor) NewUpdateAction(obj client.Object) Action {
+func (e *Executor) AddUpdateAction(obj client.Object) {
 	name := obj.GetName()
-	e.log.Info("add action", "action", "update", "object", name)
-	return updateAction{obj: obj, action: "update"}
+	e.log.Info("add action", "action", "update", "object", name, "kind", obj.GetObjectKind().GroupVersionKind())
+	e.appendActions(updateAction{obj: obj, action: "update"})
 }
 
-func (e *Executor) NewUpdateStatusAction(obj client.Object) Action {
+func (e *Executor) AddUpdateStatusAction(obj client.Object) {
 	name := obj.GetName()
-	e.log.Info("add action", "action", "update status", "object", name)
-	return updateStatusAction{obj: obj, action: "update status"}
+	e.log.Info("add action", "action", "update status", "object", name, "kind", obj.GetObjectKind().GroupVersionKind())
+	e.appendActions(updateStatusAction{obj: obj, action: "update status"})
 }

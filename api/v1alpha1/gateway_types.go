@@ -21,9 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // GatewaySpec defines the desired state of Gateway
 type GatewaySpec struct {
 	// Address of the Edge Router
@@ -91,15 +88,6 @@ type StaticSpec struct {
 
 // GatewayStatus defines the observed state of Gateway
 type GatewayStatus struct {
-	// If the gateway is ready to be used by the labeled trench
-	// Possible values:
-	// - disengaged: gateway is not ready to be used by any trench
-	// - engaged: gateway is ready to be used by the labeled trench
-	// - : gateway is not processed by the controller yet
-	Status ConfigStatus `json:"status,omitempty"`
-
-	// Describes why Status is not "engaged"
-	Message string `json:"message,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -107,8 +95,6 @@ type GatewayStatus struct {
 //+kubebuilder:printcolumn:name="address",type=string,JSONPath=`.spec.address`
 //+kubebuilder:printcolumn:name="protocol",type=string,JSONPath=`.spec.protocol`
 //+kubebuilder:printcolumn:name="trench",type=string,JSONPath=`.metadata.labels.trench`
-//+kubebuilder:printcolumn:name="status",type=string,JSONPath=`.status.status`
-//+kubebuilder:printcolumn:name="message",type=string,JSONPath=`.status.message`
 
 // Gateway is the Schema for the gateways API
 type Gateway struct {

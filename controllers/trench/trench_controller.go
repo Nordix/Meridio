@@ -18,7 +18,6 @@ package trench
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-logr/logr"
 
@@ -81,17 +80,13 @@ func (r *TrenchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, err
 	}
 
-	actions, err := meridio.ReconcileAll()
+	err = meridio.ReconcileAll()
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	err = executor.RunAll(common.AppendActions(actions...))
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("running action error: %s", err)
-	}
-
-	return ctrl.Result{}, nil
+	err = executor.RunActions()
+	return ctrl.Result{}, err
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -116,6 +111,18 @@ func (r *TrenchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&source.Kind{Type: &meridiov1alpha1.Gateway{}},
 			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},
 		). // Trenches are not the controllers of gateways, so here uses Watches with IsController: false
+		Watches(
+			&source.Kind{Type: &meridiov1alpha1.Conduit{}},
+			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},
+		). // Trenches are not the controllers of Conduits, so here uses Watches with IsController: false
+		Watches(
+			&source.Kind{Type: &meridiov1alpha1.Stream{}},
+			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},
+		). // Trenches are not the controllers of Streams, so here uses Watches with IsController: false
+		Watches(
+			&source.Kind{Type: &meridiov1alpha1.Flow{}},
+			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},
+		). // Trenches are not the controllers of Flow, so here uses Watches with IsController: false
 		Watches(
 			&source.Kind{Type: &corev1.ConfigMap{}},
 			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},

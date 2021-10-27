@@ -23,9 +23,6 @@ spec:
     - jsonPath: .metadata.labels.trench
       name: Trench
       type: string
-    - jsonPath: .status.status
-      name: Status
-      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -49,20 +46,9 @@ spec:
               address:
                 description: vip address
                 type: string
-            required:
-            - address
             type: object
           status:
             description: VipStatus defines the observed state of Vip
-            properties:
-              message:
-                description: Describes why Status is not "engaged"
-                type: string
-              status:
-                description: 'Describes if this vips is ready to be used possible
-                  values: - engaged: the vip is ready to be used - disengaged: the
-                  vip cannot be used - : vip is not processed by the controller yet'
-                type: string
             type: object
         type: object
     served: true

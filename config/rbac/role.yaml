@@ -94,6 +94,54 @@ rules:
 - apiGroups:
   - meridio.nordix.org
   resources:
+  - conduits
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - conduits/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - conduits/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - flows
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - flows/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - flows/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - meridio.nordix.org
+  resources:
   - gateways
   verbs:
   - get
@@ -111,6 +159,30 @@ rules:
   - meridio.nordix.org
   resources:
   - gateways/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - streams
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - streams/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - streams/status
   verbs:
   - get
   - patch

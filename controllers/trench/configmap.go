@@ -1,7 +1,6 @@
 package trench
 
 import (
-	"fmt"
 	"net"
 	"time"
 
@@ -78,109 +77,139 @@ func (c *ConfigMap) listAttractorsByLabel() (*meridiov1alpha1.AttractorList, err
 	return lst, nil
 }
 
+func (c *ConfigMap) listConduitsByLabel() (*meridiov1alpha1.ConduitList, error) {
+	lst := &meridiov1alpha1.ConduitList{}
+
+	err := c.exec.ListObject(lst, client.InNamespace(c.trench.ObjectMeta.Namespace), client.MatchingLabels{"trench": c.trench.ObjectMeta.Name})
+	if err != nil {
+		return nil, client.IgnoreNotFound(err)
+	}
+	return lst, nil
+}
+
+func (c *ConfigMap) listStreamsByLabel() (*meridiov1alpha1.StreamList, error) {
+	lst := &meridiov1alpha1.StreamList{}
+
+	err := c.exec.ListObject(lst, client.InNamespace(c.trench.ObjectMeta.Namespace), client.MatchingLabels{"trench": c.trench.ObjectMeta.Name})
+	if err != nil {
+		return nil, client.IgnoreNotFound(err)
+	}
+	return lst, nil
+}
+
+func (c *ConfigMap) listFlowsByLabel() (*meridiov1alpha1.FlowList, error) {
+	lst := &meridiov1alpha1.FlowList{}
+
+	err := c.exec.ListObject(lst, client.InNamespace(c.trench.ObjectMeta.Namespace), client.MatchingLabels{"trench": c.trench.ObjectMeta.Name})
+	if err != nil {
+		return nil, client.IgnoreNotFound(err)
+	}
+	return lst, nil
+}
+
 func (c *ConfigMap) getDesiredStatus() (*corev1.ConfigMap, error) {
 	configmap := &corev1.ConfigMap{}
 	configmap.ObjectMeta.Name = common.ConfigMapName(c.trench)
 	configmap.ObjectMeta.Namespace = c.trench.ObjectMeta.Namespace
 
-	tdata, err := c.getTrenchData()
+	data, err := c.getAllData()
 	if err != nil {
 		return nil, err
 	}
-	vdata, err := c.getVipData()
-	if err != nil {
-		return nil, err
-	}
-	gdata, err := c.getGatewayData()
-	if err != nil {
-		return nil, err
-	}
-	attractor, err := c.getAttractorData()
-	if err != nil {
-		return nil, err
-	}
-	configmap.Data = map[string]string{
-		reader.TrenchConfigKey:     tdata,
-		reader.GatewaysConfigKey:   gdata,
-		reader.VipsConfigKey:       vdata,
-		reader.AttractorsConfigKey: attractor,
-	}
+	configmap.Data = data
 	return configmap, nil
 }
 
 func (c *ConfigMap) getReconciledDesiredStatus(cm *corev1.ConfigMap) (*corev1.ConfigMap, error) {
 	ret := cm.DeepCopy()
+	data, err := c.getAllData()
+	if err != nil {
+		return nil, err
+	}
+	ret.Data = data
+	return ret, nil
+}
+
+func (c *ConfigMap) getAllData() (map[string]string, error) {
 	tdata, err := c.getTrenchData()
 	if err != nil {
 		return nil, err
 	}
-	ret.Data[reader.TrenchConfigKey] = tdata
 
-	gdata, err := c.getGatewayData()
+	gdata, err := c.getGatewaysData()
 	if err != nil {
 		return nil, err
 	}
-	ret.Data[reader.GatewaysConfigKey] = gdata
 
-	vdata, err := c.getVipData()
+	vdata, err := c.getVipsData()
 	if err != nil {
 		return nil, err
 	}
-	ret.Data[reader.VipsConfigKey] = vdata
 
-	attractor, err := c.getAttractorData()
+	attractor, err := c.getAttractorsData()
 	if err != nil {
 		return nil, err
 	}
-	ret.Data[reader.AttractorsConfigKey] = attractor
-	return ret, nil
+
+	conduit, err := c.getConduitsData()
+	if err != nil {
+		return nil, err
+	}
+
+	stream, err := c.getStreamsData()
+	if err != nil {
+		return nil, err
+	}
+
+	flow, err := c.getFlowsData()
+	if err != nil {
+		return nil, err
+	}
+	return map[string]string{
+		reader.TrenchConfigKey:     string(tdata),
+		reader.GatewaysConfigKey:   string(gdata),
+		reader.VipsConfigKey:       string(vdata),
+		reader.AttractorsConfigKey: string(attractor),
+		reader.ConduitsConfigKey:   string(conduit),
+		reader.StreamsConfigKey:    string(stream),
+		reader.FlowsConfigKey:      string(flow),
+	}, nil
 }
 
-func (c *ConfigMap) getTrenchData() (string, error) {
-	configYAML, err := yaml.Marshal(&reader.Trench{
+func (c *ConfigMap) getTrenchData() ([]byte, error) {
+	return yaml.Marshal(&reader.Trench{
 		Name: c.trench.ObjectMeta.Name,
 	})
-	if err != nil {
-		return "", fmt.Errorf("error yaml.Marshal: %s", err)
-	}
-	return string(configYAML), nil
 }
 
-func (c *ConfigMap) getVipData() (string, error) {
+func (c *ConfigMap) getVipsData() ([]byte, error) {
 	// get vips with trench label
 	vips, err := c.listVipsByLabel()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	config := &reader.VipList{}
 	for _, vp := range vips.Items {
-		if vp.Status.Status != meridiov1alpha1.Engaged {
-			continue
+		if vp.Spec.Address != "" {
+			config.Vips = append(config.Vips, &reader.Vip{
+				Name:    vp.ObjectMeta.Name,
+				Address: vp.Spec.Address,
+				Trench:  c.trench.ObjectMeta.Name,
+			})
 		}
-		config.Vips = append(config.Vips, &reader.Vip{
-			Name:    vp.ObjectMeta.Name,
-			Address: vp.Spec.Address,
-			Trench:  c.trench.ObjectMeta.Name,
-		})
 	}
-	configYAML, err := yaml.Marshal(config)
-	if err != nil {
-		return "", fmt.Errorf("error yaml.Marshal: %s", err)
-	}
-	return string(configYAML), nil
+
+	return yaml.Marshal(config)
 }
 
-func (c *ConfigMap) getGatewayData() (string, error) {
+func (c *ConfigMap) getGatewaysData() ([]byte, error) {
 	// get gateways with trench label
 	gateways, err := c.listGatewaysByLabel()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	config := &reader.GatewayList{}
 	for _, gw := range gateways.Items {
-		if gw.Status.Status != meridiov1alpha1.Engaged {
-			continue
-		}
 		ipFamily := "ipv4"
 		if net.ParseIP(gw.Spec.Address).To4() == nil {
 			ipFamily = "ipv6"
@@ -200,24 +229,17 @@ func (c *ConfigMap) getGatewayData() (string, error) {
 			Trench:     c.trench.ObjectMeta.Name,
 		})
 	}
-	configYAML, err := yaml.Marshal(config)
-	if err != nil {
-		return "", fmt.Errorf("error yaml.Marshal: %s", err)
-	}
-	return string(configYAML), nil
+	return yaml.Marshal(config)
 }
 
-func (c *ConfigMap) getAttractorData() (string, error) {
+func (c *ConfigMap) getAttractorsData() ([]byte, error) {
 	// get attractors with trench label
 	attrs, err := c.listAttractorsByLabel()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	lst := reader.AttractorList{}
 	for _, attr := range attrs.Items {
-		if attr.Status.LbFe != meridiov1alpha1.Engaged {
-			continue
-		}
 		lst.Attractors = append(lst.Attractors, &reader.Attractor{
 			Name:     attr.ObjectMeta.Name,
 			Gateways: attr.Spec.Gateways,
@@ -225,11 +247,68 @@ func (c *ConfigMap) getAttractorData() (string, error) {
 			Trench:   c.trench.ObjectMeta.Name,
 		})
 	}
-	configYAML, err := yaml.Marshal(lst)
+	return yaml.Marshal(lst)
+}
+
+func (c *ConfigMap) getConduitsData() ([]byte, error) {
+	// get attractors with trench label
+	crs, err := c.listConduitsByLabel()
 	if err != nil {
-		return "", fmt.Errorf("error yaml.Marshal: %s", err)
+		return nil, err
 	}
-	return string(configYAML), nil
+	lst := reader.ConduitList{}
+	for _, cr := range crs.Items {
+		lst.Conduits = append(lst.Conduits, &reader.Conduit{
+			Name:   cr.ObjectMeta.Name,
+			Trench: c.trench.ObjectMeta.Name,
+		})
+	}
+	return yaml.Marshal(lst)
+}
+
+func (c *ConfigMap) getStreamsData() ([]byte, error) {
+	// get attractors with trench label
+	crs, err := c.listStreamsByLabel()
+	if err != nil {
+		return nil, err
+	}
+	lst := reader.StreamList{}
+	for _, cr := range crs.Items {
+		// if disengaged or there is not a conduit to sign up yet then skip
+		if cr.Spec.Conduit == "" {
+			continue
+		}
+		lst.Streams = append(lst.Streams, &reader.Stream{
+			Name:    cr.ObjectMeta.Name,
+			Conduit: cr.Spec.Conduit,
+		})
+	}
+	return yaml.Marshal(lst)
+}
+
+func (c *ConfigMap) getFlowsData() ([]byte, error) {
+	// get attractors with trench label
+	crs, err := c.listFlowsByLabel()
+	if err != nil {
+		return nil, err
+	}
+	lst := reader.FlowList{}
+	for _, cr := range crs.Items {
+		// if disengaged or there is not a stream to sign up yet then skip
+		if cr.Spec.Stream == "" {
+			continue
+		}
+		lst.Flows = append(lst.Flows, &reader.Flow{
+			Name:                  cr.ObjectMeta.Name,
+			Stream:                cr.Spec.Stream,
+			SourceSubnets:         cr.Spec.SourceSubnets,
+			SourcePortRanges:      cr.Spec.SourcePorts,
+			DestinationPortRanges: cr.Spec.DestinationPorts,
+			Vips:                  cr.Spec.Vips,
+			Protocols:             cr.Spec.Protocols,
+		})
+	}
+	return yaml.Marshal(lst)
 }
 
 func parseHoldTime(ht string) uint {
@@ -238,30 +317,29 @@ func parseHoldTime(ht string) uint {
 	return uint(d.Seconds())
 }
 
-func (c *ConfigMap) getAction() ([]common.Action, error) {
-	var actions []common.Action
+func (c *ConfigMap) getAction() error {
 	// get action to update/create the configmap
 	cs, err := c.getCurrentStatus()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// create configmap if not exist, or update configmap
 	if cs == nil {
 		ds, err := c.getDesiredStatus()
 		if err != nil {
-			return nil, err
+			return err
 		}
-		actions = append(actions, c.exec.NewCreateAction(ds))
+		c.exec.AddCreateAction(ds)
 	} else {
 		ds, err := c.getReconciledDesiredStatus(cs)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if !equality.Semantic.DeepEqual(ds.Data, cs.Data) {
-			actions = append(actions, c.exec.NewUpdateAction(ds))
+			c.exec.AddUpdateAction(ds)
 		}
 	}
 
-	return actions, nil
+	return nil
 }

@@ -23,12 +23,6 @@ import (
 
 // AttractorSpec defines the desired state of Attractor
 type AttractorSpec struct {
-	// +kubebuilder:default=1
-
-	// replicas of the lb-fe deployment
-	// +optional
-	Replicas *int32 `json:"replicas,omitempty"`
-
 	// (immutable) master interface of the vlan interface to be used for external connectivity
 	VlanInterface string `json:"vlan-interface"`
 
@@ -52,16 +46,6 @@ type AttractorSpec struct {
 
 // AttractorStatus defines the observed state of Attractor
 type AttractorStatus struct {
-	// Load balancer and front-end status.
-	// Possible values:
-	// - engaged: the attractor can be used for creating resources
-	// - disengaged: the attractor cannot be used for creating resources
-	// - error: there is validation error in controller
-	// - : attractor is not processed by the controller yet
-	LbFe ConfigStatus `json:"lb-fe,omitempty"`
-
-	// Describes why LbFe is disengaged
-	Message string `json:"message,omitempty"`
 }
 
 //+kubebuilder:object:root=true
@@ -71,7 +55,6 @@ type AttractorStatus struct {
 //+kubebuilder:printcolumn:name="Gateways",type=string,JSONPath=`.spec.gateways`
 //+kubebuilder:printcolumn:name="Vips",type=string,JSONPath=`.spec.vips`
 //+kubebuilder:printcolumn:name="Trench",type=string,JSONPath=`.metadata.labels.trench`
-//+kubebuilder:printcolumn:name="LB-FE",type=string,JSONPath=`.status.lb-fe`
 
 // Attractor is the Schema for the attractors API
 type Attractor struct {
@@ -91,6 +74,10 @@ type AttractorList struct {
 	Items           []Attractor `json:"items"`
 }
 
+func init() {
+	SchemeBuilder.Register(&Attractor{}, &AttractorList{})
+}
+
 func (r *Attractor) GroupResource() schema.GroupResource {
 	return schema.GroupResource{
 		Group:    r.GroupVersionKind().Group,
@@ -98,6 +85,9 @@ func (r *Attractor) GroupResource() schema.GroupResource {
 	}
 }
 
-func init() {
-	SchemeBuilder.Register(&Attractor{}, &AttractorList{})
+func (r *Attractor) GroupKind() schema.GroupKind {
+	return schema.GroupKind{
+		Group: r.GroupVersionKind().Group,
+		Kind:  r.GroupVersionKind().Kind,
+	}
 }

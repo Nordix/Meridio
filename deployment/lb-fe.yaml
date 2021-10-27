@@ -66,16 +66,12 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: NSM_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: NSM_CONFIG_MAP_NAME
-              value:  # to be filled by operator
-            - name: NSM_CONNECT_TO
-              value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
               value:  # to be filled by operator
+            - name: NSM_CONDUIT_NAME
+              value: # to be filled by operator
+            - name: NSM_TRENCH_NAME
+              value: # to be filled by operator
             - name: NSM_NSP_SERVICE
               value:  # to be filled by operator
           volumeMounts:
@@ -98,7 +94,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: NSM_NETWORK_SERVICES
-              value: vlan://external-vlan.default/ext-vlan?forwarder=forwarder-vlan
+              value: # to be filled by operator
             - name: NSM_DIAL_TIMEOUT
               value: "30s"
             - name: NSM_REQUEST_TIMEOUT
@@ -122,7 +118,13 @@ spec:
               value: "true"
             - name: NFE_ECMP
               value: "true"
+            - name: NFE_NSP_SERVICE
+              value: # to be filled by operator
             - name: NFE_CONFIG_MAP_NAME
+              value: # to be filled by operator
+            - name: NFE_TRENCH_NAME
+              value: # to be filled by operator
+            - name: NFE_ATTRACTOR_NAME
               value: # to be filled by operator
           securityContext:
             privileged: true

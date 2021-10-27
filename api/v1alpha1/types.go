@@ -1,5 +1,12 @@
 package v1alpha1
 
+import (
+	"fmt"
+	"net"
+	"strconv"
+	"strings"
+)
+
 // ConfigStatus describes the status of a meridio operator resource to indicate if the resource is ready to use or not
 type ConfigStatus string
 
@@ -61,4 +68,94 @@ func (f IPFamily) IsValid() bool {
 	default:
 		return false
 	}
+}
+
+type TransportProtocol string
+
+const (
+	TCP TransportProtocol = "tcp"
+	UDP TransportProtocol = "udp"
+)
+
+// IsValid returns true if the receiver is a valid TransportProtocol type
+func (p TransportProtocol) IsValid() bool {
+	switch p {
+	case TCP, UDP:
+		return true
+	default:
+		return false
+	}
+}
+
+type NetworkServiceType string
+
+const (
+	StatelessLB = "stateless-lb"
+)
+
+// IsValid returns true if the receiver is a valid network service type
+func (t NetworkServiceType) IsValid() bool {
+	switch t {
+	case StatelessLB:
+		return true
+	default:
+		return false
+	}
+}
+
+func validatePrefix(p string) (*net.IPNet, error) {
+	_, n, err := net.ParseCIDR(p)
+	if err != nil {
+		return nil, err
+	}
+	if n.String() != p {
+		return nil, fmt.Errorf("%s is not a valid prefix, probably %v should be used", p, n)
+	}
+	return n, nil
+}
+
+func subnetsOverlap(a, b *net.IPNet) bool {
+	return subnetContainsSubnet(a, b) || subnetContainsSubnet(b, a)
+}
+
+func subnetContainsSubnet(outer, inner *net.IPNet) bool {
+	ol, _ := outer.Mask.Size()
+	il, _ := inner.Mask.Size()
+	if ol == il && outer.IP.Equal(inner.IP) {
+		return true
+	}
+	if ol < il && outer.Contains(inner.IP) {
+		return true
+	}
+	return false
+}
+
+type Ports struct {
+	Start uint64
+	End   uint64
+}
+
+func validPortsFormat(p string) (Ports, error) {
+	formaterr := fmt.Errorf("port %s is invalid, valid format should be either a port range or a single port, example:35000-35500 or 40000", p)
+	var ports []string
+	if strings.Contains(p, "-") {
+		ports = strings.Split(p, "-")
+		if len(ports) != 2 {
+			return Ports{}, formaterr
+		}
+	} else {
+		ports = []string{p, p}
+	}
+	var portsUint []uint64
+	for _, p := range ports {
+		s, err := strconv.ParseUint(p, 10, 16)
+		if err != nil {
+			return Ports{}, formaterr
+		}
+		portsUint = append(portsUint, s)
+	}
+	if portsUint[0] > portsUint[1] {
+		return Ports{}, formaterr
+	}
+	return Ports{portsUint[0], portsUint[1]}, nil
 }

@@ -60,8 +60,8 @@ func NSPServiceName(trench *meridiov1alpha1.Trench) string {
 	return getTrenchSuffixedName(NspSvcName, trench)
 }
 
-func LoadBalancerDeploymentName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(LBName, trench)
+func LoadBalancerDeploymentName(conduit *meridiov1alpha1.Conduit) string {
+	return getConduitSuffixedName(LBName, conduit)
 }
 
 func ProxyDeploymentName(trench *meridiov1alpha1.Trench) string {
@@ -105,6 +105,10 @@ func getTrenchSuffixedName(resourceName string, cr *meridiov1alpha1.Trench) stri
 }
 
 func getAttractorSuffixedName(resourceName string, cr *meridiov1alpha1.Attractor) string {
+	return fmt.Sprintf("%s%s-%s", getResourceNamePrefix(), resourceName, cr.ObjectMeta.Name)
+}
+
+func getConduitSuffixedName(resourceName string, cr *meridiov1alpha1.Conduit) string {
 	return fmt.Sprintf("%s%s-%s", getResourceNamePrefix(), resourceName, cr.ObjectMeta.Name)
 }
 

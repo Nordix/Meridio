@@ -137,23 +137,22 @@ func (i *NseDeployment) getCurrentStatus() (*appsv1.Deployment, error) {
 	return currentStatus, nil
 }
 
-func (i *NseDeployment) getAction() (common.Action, error) {
-	var action common.Action
+func (i *NseDeployment) getAction() error {
 	cs, err := i.getCurrentStatus()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if cs == nil {
 		ds := i.getDesiredStatus()
 		if err != nil {
-			return nil, err
+			return err
 		}
-		action = i.exec.NewCreateAction(ds)
+		i.exec.AddCreateAction(ds)
 	} else {
 		ds := i.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds, cs) {
-			action = i.exec.NewUpdateAction(ds)
+			i.exec.AddUpdateAction(ds)
 		}
 	}
-	return action, nil
+	return nil
 }

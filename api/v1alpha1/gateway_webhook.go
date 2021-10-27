@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strings"
@@ -26,20 +27,21 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
 // log is for logging in this package.
 var gatewaylog = logf.Log.WithName("gateway-resource")
+var gatewayClient client.Client
 
 func (r *Gateway) SetupWebhookWithManager(mgr ctrl.Manager) error {
+	gatewayClient = mgr.GetClient()
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
 }
-
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 
 //+kubebuilder:webhook:path=/mutate-meridio-nordix-org-v1alpha1-gateway,mutating=true,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=gateways,verbs=create;update,versions=v1alpha1,name=mgateway.kb.io,admissionReviewVersions={v1,v1beta1}
 
@@ -74,7 +76,6 @@ func (r *Gateway) Default() {
 
 }
 
-// TODO(user): change verbs to "verbs=create;update;delete" if you want to enable deletion validation.
 //+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1alpha1-gateway,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=gateways,verbs=create;update,versions=v1alpha1,name=vgateway.kb.io,admissionReviewVersions={v1,v1beta1}
 
 var _ webhook.Validator = &Gateway{}
@@ -82,7 +83,16 @@ var _ webhook.Validator = &Gateway{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Gateway) ValidateCreate() error {
 	gatewaylog.Info("validate create", "name", r.Name)
-
+	// Get the trench by the label in stream
+	selector := client.ObjectKey{
+		Namespace: r.ObjectMeta.Namespace,
+		Name:      r.ObjectMeta.Labels["trench"],
+	}
+	trench := &Trench{}
+	err := gatewayClient.Get(context.TODO(), selector, trench)
+	if err != nil || trench == nil {
+		return fmt.Errorf("unable to find the trench in label, %s cannot be created", r.GroupVersionKind().Kind)
+	}
 	return r.validateGateway()
 }
 
@@ -101,14 +111,13 @@ func (r *Gateway) ValidateUpdate(old runtime.Object) error {
 func (r *Gateway) ValidateDelete() error {
 	gatewaylog.Info("validate delete", "name", r.Name)
 
-	// TODO(user): fill in your validation logic upon object deletion.
 	return nil
 }
 
 func (r *Gateway) validateLabels() field.ErrorList {
 	var allErrs field.ErrorList
 	if value, ok := r.ObjectMeta.Labels["trench"]; !ok {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("labels").Child("trench"), value, "gateway must have a trench label"))
+		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("labels").Child("trench"), value, fmt.Sprintf("%s must have a trench label", r.GroupVersionKind().Kind)))
 	}
 	if len(allErrs) == 0 {
 		return nil
@@ -179,7 +188,7 @@ func (r *Gateway) validateGateway() error {
 func (r *Gateway) validateUpdate(oldObj runtime.Object) error {
 	old, ok := oldObj.(*Gateway)
 	if !ok {
-		return apierrors.NewBadRequest(fmt.Sprintf("expected a gateway got got a %T", old))
+		return apierrors.NewBadRequest(fmt.Sprintf("expected a %s got a %T", r.GroupVersionKind().Kind, old))
 	}
 	attrNew := r.ObjectMeta.Labels["trench"]
 	attrOld := old.ObjectMeta.Labels["trench"]

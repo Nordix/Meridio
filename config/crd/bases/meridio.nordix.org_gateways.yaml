@@ -26,12 +26,6 @@ spec:
     - jsonPath: .metadata.labels.trench
       name: trench
       type: string
-    - jsonPath: .status.status
-      name: status
-      type: string
-    - jsonPath: .status.message
-      name: message
-      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -108,16 +102,6 @@ spec:
             type: object
           status:
             description: GatewayStatus defines the observed state of Gateway
-            properties:
-              message:
-                description: Describes why Status is not "engaged"
-                type: string
-              status:
-                description: 'If the gateway is ready to be used by the labeled trench
-                  Possible values: - disengaged: gateway is not ready to be used by
-                  any trench - engaged: gateway is ready to be used by the labeled
-                  trench - : gateway is not processed by the controller yet'
-                type: string
             type: object
         type: object
     served: true

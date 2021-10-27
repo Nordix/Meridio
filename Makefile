@@ -144,13 +144,16 @@ deploy: manifests kustomize namespace## Deploy controller to the K8s cluster spe
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
 undeploy: namespace ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | kubectl delete -f -
+	$(KUSTOMIZE) build config/default | kubectl delete -f - --ignore-not-found=true
 
 apply-samples: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	kubectl apply -f config/samples/meridio_v1alpha1_trench.yaml -n ${NAMESPACE}
 	kubectl apply -f config/samples/meridio_v1alpha1_attractor.yaml -n ${NAMESPACE}
 	kubectl apply -f config/samples/meridio_v1alpha1_vip.yaml -n ${NAMESPACE}
 	kubectl apply -f config/samples/meridio_v1alpha1_gateway.yaml -n ${NAMESPACE}
+	kubectl apply -f config/samples/meridio_v1alpha1_conduit.yaml -n ${NAMESPACE}
+	kubectl apply -f config/samples/meridio_v1alpha1_stream.yaml -n ${NAMESPACE}
+	kubectl apply -f config/samples/meridio_v1alpha1_flow.yaml -n ${NAMESPACE}
 
 print-manifests: manifests kustomize namespace ## Generate manifests to be deployed in the cluster
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}

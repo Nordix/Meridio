@@ -4,4 +4,7 @@ resources:
 - meridio_v1alpha1_vip.yaml
 - meridio_v1alpha1_attractor.yaml
 - meridio_v1alpha1_gateway.yaml
+- meridio_v1alpha1_conduit.yaml
+- meridio_v1alpha1_stream.yaml
+- meridio_v1alpha1_flow.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples
