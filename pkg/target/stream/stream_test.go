@@ -19,6 +19,7 @@ package stream_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"testing"
 
@@ -26,7 +27,6 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	nspMock "github.com/nordix/meridio/api/nsp/v1/mocks"
-	targetAPI "github.com/nordix/meridio/api/target"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/target/stream"
 	"github.com/nordix/meridio/pkg/target/types/mocks"
@@ -82,26 +82,20 @@ func Test_Request(t *testing.T) {
 		return &emptypb.Empty{}, nil
 	})
 
-	streamWatcher := make(chan *targetAPI.StreamEvent, 10)
+	eventChan := make(chan struct{}, 10)
 	s := &stream.Stream{
 		Conduit:            cndt,
-		StreamWatcher:      streamWatcher,
+		EventChan:          eventChan,
 		MaxNumberOfTargets: maxNumberOfTargets,
 	}
-	err := s.Request(context.Background())
+	err := s.Open(context.Background())
 	assert.Nil(t, err)
-	var streamEvent *targetAPI.StreamEvent
+	var streamEvent interface{}
 	select {
-	case streamEvent = <-streamWatcher:
+	case streamEvent = <-eventChan:
 	default:
 	}
 	assert.NotNil(t, streamEvent)
-	assert.Equal(t, streamEvent.GetStreamEventStatus(), targetAPI.StreamEventStatus_Request)
-	assert.NotNil(t, streamEvent.GetStream())
-	assert.NotNil(t, streamEvent.GetStream().GetConduit())
-	assert.Equal(t, streamEvent.GetStream().GetConduit().GetNetworkServiceName(), conduitName)
-	assert.NotNil(t, streamEvent.GetStream().GetConduit().GetTrench())
-	assert.NotNil(t, streamEvent.GetStream().GetConduit().GetTrench().GetName(), trenchName)
 }
 
 func Test_Request_NoIdentifierAvailable(t *testing.T) {
@@ -117,19 +111,20 @@ func Test_Request_NoIdentifierAvailable(t *testing.T) {
 	cndt, _, _, targetRegistryWatchClient := getConduitTrenchNSP(ctrl, trenchName, conduitName, ips)
 	targetRegistryWatchClient.EXPECT().Recv().Return(getTargetsResponse([]string{"1", "2"}), nil)
 
-	streamWatcher := make(chan *targetAPI.StreamEvent, 10)
+	eventChan := make(chan struct{}, 10)
 	s := &stream.Stream{
 		Conduit:            cndt,
-		StreamWatcher:      streamWatcher,
+		EventChan:          eventChan,
 		MaxNumberOfTargets: maxNumberOfTargets,
 	}
-	err := s.Request(context.Background())
+	err := s.Open(context.Background())
 	assert.NotNil(t, err)
-	var streamEvent *targetAPI.StreamEvent
+	var streamEvent interface{}
 	select {
-	case streamEvent = <-streamWatcher:
+	case streamEvent = <-eventChan:
 	default:
 	}
+	fmt.Println(streamEvent)
 	assert.Nil(t, streamEvent)
 }
 
@@ -145,16 +140,16 @@ func Test_Request_NoNSPConnection(t *testing.T) {
 	// nspClient.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return(nil, errors.New(""))
 	targetRegistryWatchClient.EXPECT().Recv().Return(nil, errors.New(""))
 
-	streamWatcher := make(chan *targetAPI.StreamEvent, 10)
+	eventChan := make(chan struct{}, 10)
 	s := &stream.Stream{
-		Conduit:       cndt,
-		StreamWatcher: streamWatcher,
+		Conduit:   cndt,
+		EventChan: eventChan,
 	}
-	err := s.Request(context.Background())
+	err := s.Open(context.Background())
 	assert.NotNil(t, err)
-	var streamEvent *targetAPI.StreamEvent
+	var streamEvent interface{}
 	select {
-	case streamEvent = <-streamWatcher:
+	case streamEvent = <-eventChan:
 	default:
 	}
 	assert.Nil(t, streamEvent)
@@ -221,26 +216,20 @@ func Test_Request_Concurrent(t *testing.T) {
 		return &emptypb.Empty{}, nil
 	}).After(firstUpdate)
 
-	streamWatcher := make(chan *targetAPI.StreamEvent, 10)
+	eventChan := make(chan struct{}, 10)
 	s := &stream.Stream{
 		Conduit:            cndt,
-		StreamWatcher:      streamWatcher,
+		EventChan:          eventChan,
 		MaxNumberOfTargets: maxNumberOfTargets,
 	}
-	err := s.Request(context.Background())
+	err := s.Open(context.Background())
 	assert.Nil(t, err)
-	var streamEvent *targetAPI.StreamEvent
+	var streamEvent interface{}
 	select {
-	case streamEvent = <-streamWatcher:
+	case streamEvent = <-eventChan:
 	default:
 	}
 	assert.NotNil(t, streamEvent)
-	assert.Equal(t, streamEvent.GetStreamEventStatus(), targetAPI.StreamEventStatus_Request)
-	assert.NotNil(t, streamEvent.GetStream())
-	assert.NotNil(t, streamEvent.GetStream().GetConduit())
-	assert.Equal(t, streamEvent.GetStream().GetConduit().GetNetworkServiceName(), conduitName)
-	assert.NotNil(t, streamEvent.GetStream().GetConduit().GetTrench())
-	assert.NotNil(t, streamEvent.GetStream().GetConduit().GetTrench().GetName(), trenchName)
 }
 
 func Test_Request_Concurrent_NoIdentifierAvailable(t *testing.T) {
@@ -285,17 +274,17 @@ func Test_Request_Concurrent_NoIdentifierAvailable(t *testing.T) {
 		return &emptypb.Empty{}, nil
 	})
 
-	streamWatcher := make(chan *targetAPI.StreamEvent, 10)
+	eventChan := make(chan struct{}, 10)
 	s := &stream.Stream{
 		Conduit:            cndt,
-		StreamWatcher:      streamWatcher,
+		EventChan:          eventChan,
 		MaxNumberOfTargets: maxNumberOfTargets,
 	}
-	err := s.Request(context.Background())
+	err := s.Open(context.Background())
 	assert.NotNil(t, err)
-	var streamEvent *targetAPI.StreamEvent
+	var streamEvent interface{}
 	select {
-	case streamEvent = <-streamWatcher:
+	case streamEvent = <-eventChan:
 	default:
 	}
 	assert.Nil(t, streamEvent)
@@ -338,17 +327,17 @@ func Test_Request_Concurrent_NoIdentifierAvailable_NoNSPConnection(t *testing.T)
 	})
 	nspClient.EXPECT().Unregister(gomock.Any(), gomock.Any()).Return(&emptypb.Empty{}, errors.New(""))
 
-	streamWatcher := make(chan *targetAPI.StreamEvent, 10)
+	eventChan := make(chan struct{}, 10)
 	s := &stream.Stream{
 		Conduit:            cndt,
-		StreamWatcher:      streamWatcher,
+		EventChan:          eventChan,
 		MaxNumberOfTargets: maxNumberOfTargets,
 	}
-	err := s.Request(context.Background())
+	err := s.Open(context.Background())
 	assert.NotNil(t, err)
-	var streamEvent *targetAPI.StreamEvent
+	var streamEvent interface{}
 	select {
-	case streamEvent = <-streamWatcher:
+	case streamEvent = <-eventChan:
 	default:
 	}
 	assert.Nil(t, streamEvent)
@@ -370,25 +359,19 @@ func Test_Close(t *testing.T) {
 		return &emptypb.Empty{}, nil
 	})
 
-	streamWatcher := make(chan *targetAPI.StreamEvent, 10)
+	eventChan := make(chan struct{}, 10)
 	s := &stream.Stream{
-		Conduit:       cndt,
-		StreamWatcher: streamWatcher,
+		Conduit:   cndt,
+		EventChan: eventChan,
 	}
 	err := s.Close(context.Background())
 	assert.Nil(t, err)
-	var streamEvent *targetAPI.StreamEvent
+	var streamEvent interface{}
 	select {
-	case streamEvent = <-streamWatcher:
+	case streamEvent = <-eventChan:
 	default:
 	}
 	assert.NotNil(t, streamEvent)
-	assert.Equal(t, streamEvent.GetStreamEventStatus(), targetAPI.StreamEventStatus_Close)
-	assert.NotNil(t, streamEvent.GetStream())
-	assert.NotNil(t, streamEvent.GetStream().GetConduit())
-	assert.Equal(t, streamEvent.GetStream().GetConduit().GetNetworkServiceName(), conduitName)
-	assert.NotNil(t, streamEvent.GetStream().GetConduit().GetTrench())
-	assert.NotNil(t, streamEvent.GetStream().GetConduit().GetTrench().GetName(), trenchName)
 }
 
 func Test_Close_NoNSPConnection(t *testing.T) {
@@ -402,16 +385,16 @@ func Test_Close_NoNSPConnection(t *testing.T) {
 	cndt, _, nspClient, _ := getConduitTrenchNSP(ctrl, trenchName, conduitName, ips)
 	nspClient.EXPECT().Unregister(gomock.Any(), gomock.Any()).Return(nil, errors.New(""))
 
-	streamWatcher := make(chan *targetAPI.StreamEvent, 10)
+	eventChan := make(chan struct{}, 10)
 	s := &stream.Stream{
-		Conduit:       cndt,
-		StreamWatcher: streamWatcher,
+		Conduit:   cndt,
+		EventChan: eventChan,
 	}
 	err := s.Close(context.Background())
 	assert.NotNil(t, err)
-	var streamEvent *targetAPI.StreamEvent
+	var streamEvent interface{}
 	select {
-	case streamEvent = <-streamWatcher:
+	case streamEvent = <-eventChan:
 	default:
 	}
 	assert.Nil(t, streamEvent)

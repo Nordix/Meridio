@@ -16,17 +16,31 @@ limitations under the License.
 
 package types
 
-import "context"
+import (
+	"context"
+
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+)
+
+const (
+	Opened = 0
+	Closed = 1
+)
+
+type StreamStatus int
 
 // Stream is an interface that rate limits items being added to the queue.
 type Stream interface {
 	// GetName returns the name of the stream
 	GetName() string
-	// Request the stream in the conduit by generating a identifier and registering
+	// Open the stream in the conduit by generating a identifier and registering
 	// the target to the NSP service while avoiding the identifier collisions.
-	Request(ctx context.Context) error
+	Open(ctx context.Context) error
 	// Close the stream in the conduit by unregistering target from the NSP service.
 	Close(ctx context.Context) error
 	// GetConduit returns the conduit the stream belongs to.
 	GetConduit() Conduit
+	//
+	Equals(*nspAPI.Stream) bool
+	GetStatus() StreamStatus
 }

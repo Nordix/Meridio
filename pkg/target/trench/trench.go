@@ -137,22 +137,35 @@ func (t *Trench) RemoveConduit(ctx context.Context, conduit types.Conduit) error
 	return nil
 }
 
-func (t *Trench) GetConduit(conduitName string) types.Conduit {
+func (t *Trench) GetConduits(conduit *nspAPI.Conduit) []types.Conduit {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	index := t.getIndex(conduitName)
-	if index < 0 {
-		return nil
+	if conduit == nil {
+		return t.conduits
 	}
-	return t.conduits[index]
-}
-
-func (t *Trench) GetConduits() []types.Conduit {
-	return t.conduits
+	conduits := []types.Conduit{}
+	for _, c := range t.conduits {
+		if c.GetStatus() == types.Disconnected || !c.Equals(conduit) {
+			continue
+		}
+		conduits = append(conduits, c)
+	}
+	return conduits
 }
 
 func (t *Trench) GetTargetRegistryClient() nspAPI.TargetRegistryClient {
 	return t.NSPClient
+}
+
+func (t *Trench) Equals(trench *nspAPI.Trench) bool {
+	if trench == nil {
+		return true
+	}
+	name := true
+	if trench.GetName() != "" {
+		name = t.GetName() == trench.GetName()
+	}
+	return name
 }
 
 func (t *Trench) getIndex(conduitName string) int {

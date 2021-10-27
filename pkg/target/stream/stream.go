@@ -25,7 +25,6 @@ import (
 	"time"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
-	targetAPI "github.com/nordix/meridio/api/target"
 	lbTypes "github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/target/types"
 )
@@ -38,7 +37,7 @@ type Stream struct {
 	// This should not be nil
 	Conduit types.Conduit
 	// Channel returning events when the stream is opened/closed
-	StreamWatcher chan<- *targetAPI.StreamEvent
+	EventChan chan<- struct{}
 	// Maximum number of targets registered in this stream
 	MaxNumberOfTargets int
 	identifier         int
@@ -51,12 +50,12 @@ func New(
 	ctx context.Context,
 	name string,
 	conduit types.Conduit,
-	streamWatcher chan<- *targetAPI.StreamEvent) (types.Stream, error) {
+	eventChan chan<- struct{}) (types.Stream, error) {
 	stream := &Stream{
 		Name:               name,
 		identifier:         0,
 		Conduit:            conduit,
-		StreamWatcher:      streamWatcher,
+		EventChan:          eventChan,
 		status:             nspAPI.Target_DISABLED,
 		MaxNumberOfTargets: maxNumberOfTargets,
 	}
@@ -67,11 +66,11 @@ func New(
 	return stream, nil
 }
 
-// Request the stream in the conduit by generating a identifier and registering
+// Open the stream in the conduit by generating a identifier and registering
 // the target to the NSP service while avoiding the identifier collisions.
 // If success, no error will be returned and an event will be send via the streamWatcher.
 // If not, an error will be returned.
-func (s *Stream) Request(ctx context.Context) error {
+func (s *Stream) Open(ctx context.Context) error {
 	identifiersInUse, err := s.getIdentifiersInUse(ctx)
 	if err != nil {
 		return err
@@ -115,7 +114,7 @@ func (s *Stream) Request(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	s.notifyWatcher(targetAPI.StreamEventStatus_Request)
+	s.notifyWatcher()
 	return nil
 }
 
@@ -128,7 +127,7 @@ func (s *Stream) Close(ctx context.Context) error {
 		return err
 	}
 	s.status = nspAPI.Target_DISABLED
-	s.notifyWatcher(targetAPI.StreamEventStatus_Close)
+	s.notifyWatcher()
 	return nil
 }
 
@@ -142,21 +141,29 @@ func (s *Stream) GetConduit() types.Conduit {
 	return s.Conduit
 }
 
-func (s *Stream) notifyWatcher(status targetAPI.StreamEventStatus) {
-	if s.StreamWatcher == nil {
+func (s *Stream) Equals(stream *nspAPI.Stream) bool {
+	if stream == nil {
+		return true
+	}
+	name := true
+	if stream.GetName() != "" {
+		name = s.GetName() == stream.GetName()
+	}
+	return name && s.GetConduit().Equals(stream.GetConduit())
+}
+
+func (s *Stream) GetStatus() types.StreamStatus {
+	if s.status == nspAPI.Target_ENABLED {
+		return types.Opened
+	}
+	return types.Closed
+}
+
+func (s *Stream) notifyWatcher() {
+	if s.EventChan == nil {
 		return
 	}
-	s.StreamWatcher <- &targetAPI.StreamEvent{
-		Stream: &targetAPI.Stream{
-			Conduit: &targetAPI.Conduit{
-				NetworkServiceName: s.GetConduit().GetName(),
-				Trench: &targetAPI.Trench{
-					Name: s.GetConduit().GetTrench().GetName(),
-				},
-			},
-		},
-		StreamEventStatus: status,
-	}
+	s.EventChan <- struct{}{}
 }
 
 func (s *Stream) register(ctx context.Context) error {
