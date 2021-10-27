@@ -6,6 +6,7 @@ metadata:
     trench: trench-a
 spec:
   stream: stream-1
+  priority: 1
   vips:
   - vip1
   source-subnets:
@@ -25,6 +26,7 @@ metadata:
     trench: trench-a
 spec:
   stream: stream-1
+  priority: 1
   vips:
   - vip2
   source-subnets:

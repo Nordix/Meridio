@@ -140,6 +140,7 @@ func TestE2E(t *testing.T) {
 var _ = BeforeSuite(func() {
 	deployment := fw.GetOperator()
 	Expect(deployment).ToNot(BeNil())
+	Expect(fw.OperatorPodRestarts()).To(Equal(int32(0)))
 	fw.tryCreateTrench()
 })
 

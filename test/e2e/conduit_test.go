@@ -141,7 +141,7 @@ var _ = Describe("Conduit", func() {
 			By("checking the lb-fe replicas to be 4")
 			Eventually(func() int32 {
 				Expect(fw.GetResource(client.ObjectKey{Name: loadBalancerName, Namespace: namespace}, deployment)).To(Succeed())
-				By(fmt.Sprintf("checking replicas %v", *deployment.Spec.Replicas))
+				By(fmt.Sprintf("current replicas: %v", *deployment.Spec.Replicas))
 				return *deployment.Spec.Replicas
 			}, timeout, interval).Should(Equal(int32(4)))
 		})

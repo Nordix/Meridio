@@ -3,7 +3,7 @@ package e2e
 import (
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"github.com/nordix/meridio-operator/test/utils"
-	config "github.com/nordix/meridio/pkg/configuration/reader"
+	"github.com/nordix/meridio/pkg/configuration/reader"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -31,7 +31,19 @@ var _ = Describe("Flow", func() {
 			SourcePorts:      []string{"3000"},
 			DestinationPorts: []string{"2000"},
 			Vips:             []string{"vip1"},
+			Priority:         1,
 		},
+	}
+
+	defaultFlowinCm := reader.Flow{
+		Name:                  flowA.ObjectMeta.Name,
+		SourceSubnets:         flowA.Spec.SourceSubnets,
+		SourcePortRanges:      flowA.Spec.SourcePorts,
+		DestinationPortRanges: flowA.Spec.DestinationPorts,
+		Protocols:             flowA.Spec.Protocols,
+		Vips:                  flowA.Spec.Vips,
+		Stream:                flowA.Spec.Stream,
+		Priority:              1,
 	}
 
 	BeforeEach(func() {
@@ -80,7 +92,7 @@ var _ = Describe("Flow", func() {
 				Expect(flow).NotTo(BeNil())
 
 				By("checking flow is in configmap data")
-				assertFlowItemInConfigMap(flowA, configmapName, true)
+				assertFlowItemInConfigMap(defaultFlowinCm, configmapName, true)
 
 				By("adding another flow")
 				flowB := &meridiov1alpha1.Flow{
@@ -95,11 +107,13 @@ var _ = Describe("Flow", func() {
 						Stream:           "stream-b",
 						Protocols:        []string{"tcp"},
 						SourceSubnets:    []string{"10.0.0.0/28"},
-						SourcePorts:      []string{"3000"},
+						SourcePorts:      []string{"any"},
 						DestinationPorts: []string{"2000"},
 						Vips:             []string{"vip1"},
+						Priority:         1000,
 					},
 				}
+
 				Expect(fw.CreateResource(flowB.DeepCopy())).To(Succeed())
 
 				By("checking if the flow exists")
@@ -109,7 +123,17 @@ var _ = Describe("Flow", func() {
 				Expect(flow).NotTo(BeNil())
 
 				By("checking flow is in configmap data")
-				assertFlowItemInConfigMap(flowB, configmapName, true)
+				newFlowInCm := reader.Flow{
+					Stream:                flowB.Spec.Stream,
+					Name:                  flowB.ObjectMeta.Name,
+					Protocols:             flowB.Spec.Protocols,
+					SourcePortRanges:      []string{"0-65535"},
+					SourceSubnets:         flowB.Spec.SourceSubnets,
+					DestinationPortRanges: flowB.Spec.DestinationPorts,
+					Vips:                  flowB.Spec.Vips,
+					Priority:              float64(flowB.Spec.Priority),
+				}
+				assertFlowItemInConfigMap(newFlowInCm, configmapName, true)
 			})
 		})
 	})
@@ -128,14 +152,25 @@ var _ = Describe("Flow", func() {
 				s.Spec.SourcePorts = []string{"50000"}
 				s.Spec.SourceSubnets = []string{"1000::/128"}
 				s.Spec.Protocols = []string{"udp"}
+				s.Spec.Priority = 10
 				g.Expect(fw.UpdateResource(s)).To(Succeed())
 			}).Should(Succeed())
 
 			By("checking new item is in the configmap")
-			assertFlowItemInConfigMap(s, configmapName, true)
+			newFlowInCm := reader.Flow{
+				Name:                  s.ObjectMeta.Name,
+				SourceSubnets:         s.Spec.SourceSubnets,
+				SourcePortRanges:      s.Spec.SourcePorts,
+				DestinationPortRanges: s.Spec.DestinationPorts,
+				Protocols:             s.Spec.Protocols,
+				Vips:                  s.Spec.Vips,
+				Priority:              float64(s.Spec.Priority),
+				Stream:                s.Spec.Stream,
+			}
+			assertFlowItemInConfigMap(newFlowInCm, configmapName, true)
 
 			By("checking old item is not in the configmap")
-			assertFlowItemInConfigMap(flowA, configmapName, false)
+			assertFlowItemInConfigMap(defaultFlowinCm, configmapName, false)
 		})
 
 		It("will be deleted from the configmap if stream is empty", func() {
@@ -147,8 +182,18 @@ var _ = Describe("Flow", func() {
 			}).Should(Succeed())
 
 			By("checking new item is not in the configmap")
-			assertFlowItemInConfigMap(f, configmapName, false)
-			assertFlowItemInConfigMap(flowA, configmapName, false)
+			fInCm := reader.Flow{
+				Name:                  f.ObjectMeta.Name,
+				SourceSubnets:         f.Spec.SourceSubnets,
+				SourcePortRanges:      f.Spec.SourcePorts,
+				DestinationPortRanges: f.Spec.DestinationPorts,
+				Protocols:             f.Spec.Protocols,
+				Vips:                  f.Spec.Vips,
+				Priority:              float64(f.Spec.Priority),
+				Stream:                f.Spec.Stream,
+			}
+			assertFlowItemInConfigMap(fInCm, configmapName, false)
+			assertFlowItemInConfigMap(defaultFlowinCm, configmapName, false)
 
 			By("adding the conduit back, this item will be added again")
 			Eventually(func(g Gomega) {
@@ -157,8 +202,9 @@ var _ = Describe("Flow", func() {
 				g.Expect(fw.UpdateResource(f)).To(Succeed())
 			}).Should(Succeed())
 
+			fInCm.Stream = "stream"
 			By("checking new item is in the configmap")
-			assertFlowItemInConfigMap(f, configmapName, true)
+			assertFlowItemInConfigMap(fInCm, configmapName, true)
 		})
 	})
 
@@ -166,7 +212,7 @@ var _ = Describe("Flow", func() {
 		BeforeEach(func() {
 			Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 			Expect(fw.CreateResource(flowA.DeepCopy())).To(Succeed())
-			assertFlowItemInConfigMap(flowA, configmapName, true)
+			assertFlowItemInConfigMap(defaultFlowinCm, configmapName, true)
 		})
 
 		AfterEach(func() {
@@ -200,7 +246,7 @@ var _ = Describe("Flow", func() {
 			}, timeout).Should(BeTrue())
 
 			By("checking the flow is deleted from configmap")
-			assertFlowItemInConfigMap(flowA, configmapName, false)
+			assertFlowItemInConfigMap(defaultFlowinCm, configmapName, false)
 		})
 	})
 
@@ -210,7 +256,7 @@ var _ = Describe("Flow", func() {
 		BeforeEach(func() {
 			Expect(fw.CreateResource(tr)).To(Succeed())
 			Expect(fw.CreateResource(flow)).To(Succeed())
-			assertFlowItemInConfigMap(flow, configmapName, true)
+			assertFlowItemInConfigMap(defaultFlowinCm, configmapName, true)
 		})
 		It("will be reverted according to the current flow", func() {
 			By("deleting the configmap")
@@ -219,17 +265,17 @@ var _ = Describe("Flow", func() {
 			Expect(fw.DeleteResource(configmap)).To(Succeed())
 
 			By("checking flow item still in the configmap")
-			assertFlowItemInConfigMap(flow, configmapName, true)
+			assertFlowItemInConfigMap(defaultFlowinCm, configmapName, true)
 
 			By("updating the configmap")
 			Expect(fw.GetResource(client.ObjectKey{Name: configmapName, Namespace: flow.ObjectMeta.Namespace}, configmap)).To(Succeed())
-			configmap.Data[config.FlowsConfigKey] = ""
+			configmap.Data[reader.FlowsConfigKey] = ""
 			Eventually(func(g Gomega) {
 				g.Expect(fw.UpdateResource(configmap)).To(Succeed())
 			}).Should(Succeed())
 
 			By("checking flow item still in the configmap")
-			assertFlowItemInConfigMap(flow, configmapName, true)
+			assertFlowItemInConfigMap(defaultFlowinCm, configmapName, true)
 		})
 	})
 
@@ -252,7 +298,7 @@ var _ = Describe("Flow", func() {
 	})
 })
 
-func assertFlowItemInConfigMap(flow *meridiov1alpha1.Flow, configmapName string, in bool) {
+func assertFlowItemInConfigMap(flow reader.Flow, configmapName string, in bool) {
 	matcher := BeFalse()
 	if in {
 		matcher = BeTrue()
@@ -260,25 +306,17 @@ func assertFlowItemInConfigMap(flow *meridiov1alpha1.Flow, configmapName string,
 	configmap := &corev1.ConfigMap{}
 	Eventually(func(g Gomega) bool {
 		// checking in configmap data, flow key has an item same as flow resource
-		g.Expect(fw.GetResource(client.ObjectKey{Name: configmapName, Namespace: flow.ObjectMeta.Namespace}, configmap)).To(Succeed())
+		g.Expect(fw.GetResource(client.ObjectKey{Name: configmapName, Namespace: namespace}, configmap)).To(Succeed())
 		g.Expect(configmap).ToNot(BeNil())
 
-		flowsconfig, err := config.UnmarshalFlows(configmap.Data[config.FlowsConfigKey])
+		flowsconfig, err := reader.UnmarshalFlows(configmap.Data[reader.FlowsConfigKey])
 		g.Expect(err).To(BeNil())
 
 		flowmap := utils.MakeMapFromFlowList(flowsconfig)
-		flowInConfig, ok := flowmap[flow.ObjectMeta.Name]
+		flowInConfig, ok := flowmap[flow.Name]
 
 		// then checking in configmap data, flow key has an item same as flow resource
-		equal := equality.Semantic.DeepEqual(flowInConfig, config.Flow{
-			Name:                  flow.ObjectMeta.Name,
-			SourceSubnets:         flow.Spec.SourceSubnets,
-			SourcePortRanges:      flow.Spec.SourcePorts,
-			DestinationPortRanges: flow.Spec.DestinationPorts,
-			Protocols:             flow.Spec.Protocols,
-			Vips:                  flow.Spec.Vips,
-			Stream:                flow.Spec.Stream,
-		})
+		equal := equality.Semantic.DeepEqual(flowInConfig, flow)
 		return ok && equal
 	}, timeout).Should(matcher)
 }
