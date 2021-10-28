@@ -49,6 +49,7 @@ type Flow struct {
 	SourcePortRanges      []string `yaml:"source-port-ranges"`
 	Protocols             []string `yaml:"protocols"`
 	Vips                  []string `yaml:"vips"`
+	Priority              float64  `yaml:"priority"`
 	Stream                string   `yaml:"stream"`
 }
 
@@ -88,5 +89,8 @@ type Gateway struct {
 	BFD        bool   `yaml:"bfd"`
 	Protocol   string `yaml:"protocol"`
 	HoldTime   uint   `yaml:"hold-time"`
+	MinTx      uint   `yaml:"min-tx"`
+	MinRx      uint   `yaml:"min-rx"`
+	Multiplier uint   `yaml:"multiplier"`
 	Trench     string `yaml:"trench"`
 }

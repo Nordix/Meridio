@@ -124,6 +124,7 @@ items:
   source-port-ranges: ["35000-35500", "40000"]
   protocols: ["tcp", "udp"]
   vips: ["vip-1"]
+  priority: 0
   stream: "stream-a"`,
 			valueExpected: []*reader.Flow{
 				{
@@ -133,6 +134,7 @@ items:
 					SourcePortRanges:      []string{"35000-35500", "40000"},
 					Protocols:             []string{"tcp", "udp"},
 					Vips:                  []string{"vip-1"},
+					Priority:              0,
 					Stream:                "stream-a",
 				},
 			},
@@ -250,6 +252,71 @@ items:
 					BFD:        false,
 					Protocol:   "bgp",
 					HoldTime:   3,
+					Trench:     "trench-a",
+				},
+			},
+			errExpected: false,
+		},
+		{
+			yaml: `
+items:
+- name: "attractor-a"
+  address: "169.254.100.150"
+  remote-asn: 4248829953
+  local-asn: 8103
+  remote-port: 10179
+  local-port: 10179
+  ip-family: "ipv4"
+  bfd: true
+  protocol: "bgp"
+  hold-time: 3
+  min-tx: 300
+  min-rx: 300
+  multiplier: 3
+  trench: "trench-a"`,
+			valueExpected: []*reader.Gateway{
+				{
+					Name:       "attractor-a",
+					Address:    "169.254.100.150",
+					RemoteASN:  4248829953,
+					LocalASN:   8103,
+					RemotePort: 10179,
+					LocalPort:  10179,
+					IPFamily:   "ipv4",
+					BFD:        true,
+					Protocol:   "bgp",
+					HoldTime:   3,
+					MinTx:      300,
+					MinRx:      300,
+					Multiplier: 3,
+					Trench:     "trench-a",
+				},
+			},
+			errExpected: false,
+		},
+
+		{
+			yaml: `
+items:
+- name: "attractor-a"
+  address: "169.254.100.150"
+  ip-family: "ipv4"
+  bfd: true
+  protocol: "static"
+  min-tx: 300
+  min-rx: 300
+  multiplier: 3
+  trench: "trench-a"`,
+			valueExpected: []*reader.Gateway{
+				{
+					Name:       "attractor-a",
+					Address:    "169.254.100.150",
+					IPFamily:   "ipv4",
+					BFD:        true,
+					Protocol:   "static",
+					MinTx:      300,
+					MinRx:      300,
+					Multiplier: 3,
 					Trench:     "trench-a",
 				},
 			},
