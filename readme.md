@@ -11,6 +11,7 @@ List of projects:
 4. nsp
 5. proxy
 6. target
+7. frontend
 
 * Default version: latest
 * Default container registry: localhost:5000/meridio
