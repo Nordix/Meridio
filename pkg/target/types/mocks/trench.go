@@ -64,32 +64,32 @@ func (mr *MockTrenchMockRecorder) Delete(ctx interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockTrench)(nil).Delete), ctx)
 }
 
-// GetConduit mocks base method.
-func (m *MockTrench) GetConduit(conduitName string) types.Conduit {
+// Equals mocks base method.
+func (m *MockTrench) Equals(arg0 *v1.Trench) bool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetConduit", conduitName)
-	ret0, _ := ret[0].(types.Conduit)
+	ret := m.ctrl.Call(m, "Equals", arg0)
+	ret0, _ := ret[0].(bool)
 	return ret0
 }
 
-// GetConduit indicates an expected call of GetConduit.
-func (mr *MockTrenchMockRecorder) GetConduit(conduitName interface{}) *gomock.Call {
+// Equals indicates an expected call of Equals.
+func (mr *MockTrenchMockRecorder) Equals(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConduit", reflect.TypeOf((*MockTrench)(nil).GetConduit), conduitName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Equals", reflect.TypeOf((*MockTrench)(nil).Equals), arg0)
 }
 
 // GetConduits mocks base method.
-func (m *MockTrench) GetConduits() []types.Conduit {
+func (m *MockTrench) GetConduits(conduit *v1.Conduit) []types.Conduit {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetConduits")
+	ret := m.ctrl.Call(m, "GetConduits", conduit)
 	ret0, _ := ret[0].([]types.Conduit)
 	return ret0
 }
 
 // GetConduits indicates an expected call of GetConduits.
-func (mr *MockTrenchMockRecorder) GetConduits() *gomock.Call {
+func (mr *MockTrenchMockRecorder) GetConduits(conduit interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConduits", reflect.TypeOf((*MockTrench)(nil).GetConduits))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConduits", reflect.TypeOf((*MockTrench)(nil).GetConduits), conduit)
 }
 
 // GetName mocks base method.

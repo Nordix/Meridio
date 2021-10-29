@@ -28,7 +28,7 @@ type Trench interface {
 	Delete(ctx context.Context) error
 	AddConduit(context.Context, Conduit) error
 	RemoveConduit(context.Context, Conduit) error
-	GetConduit(conduitName string) Conduit
-	GetConduits() []Conduit
+	GetConduits(conduit *nspAPI.Conduit) []Conduit
 	GetTargetRegistryClient() nspAPI.TargetRegistryClient
+	Equals(*nspAPI.Trench) bool
 }

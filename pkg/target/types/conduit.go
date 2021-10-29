@@ -18,7 +18,16 @@ package types
 
 import (
 	"context"
+
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 )
+
+const (
+	Connected    = 0
+	Disconnected = 1
+)
+
+type ConduitStatus int
 
 type Conduit interface {
 	GetName() string
@@ -26,9 +35,10 @@ type Conduit interface {
 	Disconnect(ctx context.Context) error
 	AddStream(context.Context, Stream) error
 	RemoveStream(context.Context, Stream) error
-	GetStream(streamName string) Stream
-	GetStreams() []Stream
+	GetStreams(stream *nspAPI.Stream) []Stream
 	GetTrench() Trench
 	GetIPs() []string
 	SetVIPs(vips []string) error
+	Equals(*nspAPI.Conduit) bool
+	GetStatus() ConduitStatus
 }

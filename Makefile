@@ -63,7 +63,7 @@ nsp-proto:
 
 .PHONY: target-proto
 target-proto:
-	protoc --go_out=plugins=grpc:. --go_opt=paths=source_relative api/target/target.proto
+	protoc --go_out=plugins=grpc:. --go_opt=paths=source_relative api/target/**/*.proto
 
 .PHONY: proto
 proto: ipam-proto nsp-proto target-proto

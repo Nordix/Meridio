@@ -34,6 +34,7 @@ type Config struct {
 	NSPServiceName   string        `default:"nsp-service" desc:"IP (or domain) of the NSP Service" split_words:"true"`
 	NSPServicePort   int           `default:"7778" desc:"port of the NSP Service" split_words:"true"`
 	Namespace        string        `default:"default" desc:"Namespace the pod is running on" split_words:"true"`
+	Socket           string        `default:"/ambassador.sock" desc:"Namespace the pod is running on" split_words:"true"`
 }
 
 // IsValid checks if the configuration is valid

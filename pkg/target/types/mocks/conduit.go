@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	v1 "github.com/nordix/meridio/api/nsp/v1"
 	types "github.com/nordix/meridio/pkg/target/types"
 )
 
@@ -77,6 +78,20 @@ func (mr *MockConduitMockRecorder) Disconnect(ctx interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Disconnect", reflect.TypeOf((*MockConduit)(nil).Disconnect), ctx)
 }
 
+// Equals mocks base method.
+func (m *MockConduit) Equals(arg0 *v1.Conduit) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Equals", arg0)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// Equals indicates an expected call of Equals.
+func (mr *MockConduitMockRecorder) Equals(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Equals", reflect.TypeOf((*MockConduit)(nil).Equals), arg0)
+}
+
 // GetIPs mocks base method.
 func (m *MockConduit) GetIPs() []string {
 	m.ctrl.T.Helper()
@@ -105,32 +120,32 @@ func (mr *MockConduitMockRecorder) GetName() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetName", reflect.TypeOf((*MockConduit)(nil).GetName))
 }
 
-// GetStream mocks base method.
-func (m *MockConduit) GetStream(streamName string) types.Stream {
+// GetStatus mocks base method.
+func (m *MockConduit) GetStatus() types.ConduitStatus {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetStream", streamName)
-	ret0, _ := ret[0].(types.Stream)
+	ret := m.ctrl.Call(m, "GetStatus")
+	ret0, _ := ret[0].(types.ConduitStatus)
 	return ret0
 }
 
-// GetStream indicates an expected call of GetStream.
-func (mr *MockConduitMockRecorder) GetStream(streamName interface{}) *gomock.Call {
+// GetStatus indicates an expected call of GetStatus.
+func (mr *MockConduitMockRecorder) GetStatus() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStream", reflect.TypeOf((*MockConduit)(nil).GetStream), streamName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatus", reflect.TypeOf((*MockConduit)(nil).GetStatus))
 }
 
 // GetStreams mocks base method.
-func (m *MockConduit) GetStreams() []types.Stream {
+func (m *MockConduit) GetStreams(stream *v1.Stream) []types.Stream {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetStreams")
+	ret := m.ctrl.Call(m, "GetStreams", stream)
 	ret0, _ := ret[0].([]types.Stream)
 	return ret0
 }
 
 // GetStreams indicates an expected call of GetStreams.
-func (mr *MockConduitMockRecorder) GetStreams() *gomock.Call {
+func (mr *MockConduitMockRecorder) GetStreams(stream interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStreams", reflect.TypeOf((*MockConduit)(nil).GetStreams))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStreams", reflect.TypeOf((*MockConduit)(nil).GetStreams), stream)
 }
 
 // GetTrench mocks base method.

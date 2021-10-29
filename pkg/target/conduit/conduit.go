@@ -38,7 +38,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
-	targetAPI "github.com/nordix/meridio/api/target"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/client"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
@@ -52,7 +52,7 @@ type Conduit struct {
 	Name                 string
 	Trench               types.Trench
 	networkServiceClient client.NetworkServiceClient
-	ConduitWatcher       chan<- *targetAPI.ConduitEvent
+	EventChan            chan<- struct{}
 	NetUtils             networking.Utils
 	apiClient            *nsm.APIClient
 	nsmConfig            *nsm.Config
@@ -62,6 +62,7 @@ type Conduit struct {
 	tableID              int
 	streams              []types.Stream
 	mu                   sync.Mutex
+	status               types.ConduitStatus
 }
 
 func New(
@@ -70,19 +71,20 @@ func New(
 	trench types.Trench,
 	apiClient *nsm.APIClient,
 	nsmConfig *nsm.Config,
-	conduitWatcher chan<- *targetAPI.ConduitEvent,
+	eventChan chan<- struct{},
 	netUtils networking.Utils) (types.Conduit, error) {
 	conduit := &Conduit{
-		Name:           name,
-		Trench:         trench,
-		apiClient:      apiClient,
-		nsmConfig:      nsmConfig,
-		vips:           []*virtualIP{},
-		nexthops:       []string{},
-		ips:            []string{},
-		tableID:        1,
-		ConduitWatcher: conduitWatcher,
-		NetUtils:       netUtils,
+		Name:      name,
+		Trench:    trench,
+		apiClient: apiClient,
+		nsmConfig: nsmConfig,
+		vips:      []*virtualIP{},
+		nexthops:  []string{},
+		ips:       []string{},
+		tableID:   1,
+		EventChan: eventChan,
+		NetUtils:  netUtils,
+		status:    types.Disconnected,
 	}
 	return conduit, trench.AddConduit(ctx, conduit)
 }
@@ -118,7 +120,8 @@ func (c *Conduit) Connect(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	c.notifyWatcher(targetAPI.ConduitEventStatus_Connect)
+	c.status = types.Connected
+	c.notifyWatcher()
 	return nil
 }
 
@@ -135,7 +138,8 @@ func (c *Conduit) Disconnect(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	c.notifyWatcher(targetAPI.ConduitEventStatus_Disconnect)
+	c.status = types.Disconnected
+	c.notifyWatcher()
 	c.deleteVIPs(c.vips)
 	c.nexthops = []string{}
 	c.tableID = 1
@@ -149,7 +153,7 @@ func (c *Conduit) AddStream(ctx context.Context, stream types.Stream) error {
 	if index >= 0 {
 		return errors.New("this stream is already opened")
 	}
-	err := stream.Request(ctx)
+	err := stream.Open(ctx)
 	if err != nil {
 		return nil
 	}
@@ -172,18 +176,20 @@ func (c *Conduit) RemoveStream(ctx context.Context, stream types.Stream) error {
 	return nil
 }
 
-func (c *Conduit) GetStream(streamName string) types.Stream {
+func (c *Conduit) GetStreams(stream *nspAPI.Stream) []types.Stream {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	index := c.getIndex(streamName)
-	if index < 0 {
-		return nil
+	if stream == nil {
+		return c.streams
 	}
-	return c.streams[index]
-}
-
-func (c *Conduit) GetStreams() []types.Stream {
-	return c.streams
+	streams := []types.Stream{}
+	for _, s := range c.streams {
+		if s.GetStatus() == types.Closed || !s.Equals(stream) {
+			continue
+		}
+		streams = append(streams, s)
+	}
+	return streams
 }
 
 func (c *Conduit) GetTrench() types.Trench {
@@ -226,6 +232,21 @@ func (c *Conduit) SetVIPs(vips []string) error {
 	return nil
 }
 
+func (c *Conduit) Equals(conduit *nspAPI.Conduit) bool {
+	if conduit == nil {
+		return true
+	}
+	name := true
+	if conduit.GetName() != "" {
+		name = c.GetName() == conduit.GetName()
+	}
+	return name && c.GetTrench().Equals(conduit.GetTrench())
+}
+
+func (c *Conduit) GetStatus() types.ConduitStatus {
+	return c.status
+}
+
 func (c *Conduit) deleteVIPs(vips []*virtualIP) {
 	vipsMap := make(map[string]*virtualIP)
 	for _, vip := range vips {
@@ -253,19 +274,11 @@ func (c *Conduit) getIndex(streamName string) int {
 	return -1
 }
 
-func (c *Conduit) notifyWatcher(status targetAPI.ConduitEventStatus) {
-	if c.ConduitWatcher == nil {
+func (c *Conduit) notifyWatcher() {
+	if c.EventChan == nil {
 		return
 	}
-	c.ConduitWatcher <- &targetAPI.ConduitEvent{
-		Conduit: &targetAPI.Conduit{
-			NetworkServiceName: c.GetName(),
-			Trench: &targetAPI.Trench{
-				Name: c.GetTrench().GetName(),
-			},
-		},
-		ConduitEventStatus: status,
-	}
+	c.EventChan <- struct{}{}
 }
 
 func (c *Conduit) getNetworkServiceName() string {
