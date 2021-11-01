@@ -10,6 +10,9 @@ spec:
     remote-asn: 2000
     local-asn: 2001
     hold-time: 24s
+    bfd:
+      switch: true
+      min-rx: 400ms
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Gateway
@@ -22,6 +25,9 @@ spec:
   bgp:
     local-asn: 2001
     remote-asn: 1000
+    bfd:
+      switch: true
+      multiplier: 5
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Gateway
@@ -35,3 +41,13 @@ spec:
     remote-asn: 3000
     local-asn: 2001
     hold-time: 1m
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Gateway
+metadata:
+  labels:
+    trench: trench-b
+  name: gateway4
+spec:
+  protocol: static
+  address: 1.2.3.4

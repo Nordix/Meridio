@@ -214,22 +214,47 @@ func (c *ConfigMap) getGatewaysData() ([]byte, error) {
 		if net.ParseIP(gw.Spec.Address).To4() == nil {
 			ipFamily = "ipv6"
 		}
-		ht := parseHoldTime(gw.Spec.Bgp.HoldTime)
-		config.Gateways = append(config.Gateways, &reader.Gateway{
-			Name:       gw.ObjectMeta.Name,
-			Address:    gw.Spec.Address,
-			BFD:        *gw.Spec.Bgp.BFD,
-			Protocol:   string(gw.Spec.Protocol),
-			RemoteASN:  *gw.Spec.Bgp.RemoteASN,
-			LocalASN:   *gw.Spec.Bgp.LocalASN,
-			RemotePort: *gw.Spec.Bgp.RemotePort,
-			LocalPort:  *gw.Spec.Bgp.LocalPort,
-			HoldTime:   ht,
-			IPFamily:   ipFamily,
-			Trench:     c.trench.ObjectMeta.Name,
-		})
+
+		item := &reader.Gateway{
+			Name:     gw.ObjectMeta.Name,
+			Address:  gw.Spec.Address,
+			Protocol: string(gw.Spec.Protocol),
+			IPFamily: ipFamily,
+			Trench:   c.trench.ObjectMeta.Name,
+		}
+		switch gw.Spec.Protocol {
+		case "bgp":
+			{
+				ht := parseHoldTime(gw.Spec.Bgp.HoldTime, time.Second)
+
+				item.RemoteASN = *gw.Spec.Bgp.RemoteASN
+				item.LocalASN = *gw.Spec.Bgp.LocalASN
+				item.RemotePort = *gw.Spec.Bgp.RemotePort
+				item.LocalPort = *gw.Spec.Bgp.LocalPort
+				item.HoldTime = ht
+
+				writBfdInGateway(item, gw.Spec.Bgp.BFD)
+			}
+		case "static":
+			{
+				writBfdInGateway(item, gw.Spec.Static.BFD)
+			}
+		}
+		config.Gateways = append(config.Gateways, item)
 	}
 	return yaml.Marshal(config)
+}
+
+func writBfdInGateway(item *reader.Gateway, bfd meridiov1alpha1.BfdSpec) {
+	item.BFD = *bfd.Switch
+	if item.BFD {
+		rx := parseHoldTime(bfd.MinRx, time.Millisecond)
+		tx := parseHoldTime(bfd.MinTx, time.Millisecond)
+
+		item.MinRx = uint(rx)
+		item.MinTx = uint(tx)
+		item.Multiplier = uint(*bfd.Multiplier)
+	}
 }
 
 func (c *ConfigMap) getAttractorsData() ([]byte, error) {
@@ -311,10 +336,11 @@ func (c *ConfigMap) getFlowsData() ([]byte, error) {
 	return yaml.Marshal(lst)
 }
 
-func parseHoldTime(ht string) uint {
+func parseHoldTime(ht string, unit time.Duration) uint {
 	// validation is done in gateway webhook
 	d, _ := time.ParseDuration(ht)
-	return uint(d.Seconds())
+	// duration have the number counted by nanoseconds if no units is specified
+	return uint(d.Round(unit).Nanoseconds() / unit.Nanoseconds())
 }
 
 func (c *ConfigMap) getAction() error {

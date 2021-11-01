@@ -47,35 +47,25 @@ type GatewaySpec struct {
 // BgpSpec defines the parameters to set up a BGP session
 type BgpSpec struct {
 	// The ASN number of the Gateway
-	RemoteASN *uint32 `json:"remote-asn"`
+	RemoteASN *uint32 `json:"remote-asn,omitempty"`
 
 	// The ASN number of the system where the FrontEnd locates
-	LocalASN *uint32 `json:"local-asn"`
-
-	// +kubebuilder:default=false
+	LocalASN *uint32 `json:"local-asn,omitempty"`
 
 	// BFD monitoring of BGP session.
-	// Valid values are:
-	// - false (default): no BFD monitoring
-	// - true: turns on the BFD monitoring. (Currently not supported)
 	// +optional
-	BFD *bool `json:"bfd,omitempty"`
-
-	// +kubebuilder:default="240s"
+	BFD BfdSpec `json:"bfd,omitempty"`
 
 	// Hold timer of the BGP session. Please refere to BGP material to understand what this implies.
-	// The value must be a valid duration format. For example, 90s, 1m, 1h
+	// The value must be a valid duration format. For example, 90s, 1m, 1h.
+	// The duration will be rounded by second
 	// Minimum duration is 3s. Default: 240s
 	// +optional
 	HoldTime string `json:"hold-time,omitempty"`
 
-	// +kubebuilder:default=179
-
 	// BGP listening port of the gateway. Default 179
 	// +optional
 	RemotePort *uint16 `json:"remote-port,omitempty"`
-
-	// +kubebuilder:default=179
 
 	// BGP listening port of the frontend. Default 179
 	// +optional
@@ -84,6 +74,34 @@ type BgpSpec struct {
 
 // StaticSpec defines the parameters to set up static routes
 type StaticSpec struct {
+	// BFD monitoring of Static session.
+	// +optional
+	BFD BfdSpec `json:"bfd,omitempty"`
+}
+
+// Bfd defines the parameters to configure the BFD session
+// The static gateways shares the same interface shall define the same bfd configuration
+type BfdSpec struct {
+	// BFD monitoring.
+	// Valid values are:
+	// - false (default): no BFD monitoring
+	// - true: turns on the BFD monitoring
+	// +optional
+	Switch *bool `json:"switch,omitempty"`
+
+	// min-tx timer of bfd session. Please refere to BFD material to understand what this implies.
+	// The value must be a valid duration format. For example, 300ms, 90s, 1m, 1h.
+	// The duration will be rounded by millisecond
+	MinTx string `json:"min-tx,omitempty"`
+
+	// min-rx timer of bfd session. Please refere to BFD material to understand what this implies.
+	// The value must be a valid duration format. For example, 300ms, 90s, 1m, 1h.
+	// The duration will be rounded by millisecond
+	MinRx string `json:"min-rx,omitempty"`
+
+	// multiplier of bfd session
+	// when this number of bfd packets failed to receive, bfd session will go down
+	Multiplier *uint16 `json:"multiplier,omitempty"`
 }
 
 // GatewayStatus defines the observed state of Gateway

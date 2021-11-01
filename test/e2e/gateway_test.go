@@ -2,8 +2,6 @@ package e2e
 
 import (
 	"fmt"
-	"net"
-	"time"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"github.com/nordix/meridio-operator/controllers/common"
@@ -52,6 +50,21 @@ var _ = Describe("Gateway", func() {
 			},
 		},
 	}
+	// gateway item in configmap if default gateway is used
+	defaultGwInCm := reader.Gateway{
+		Name:       gateway.ObjectMeta.Name,
+		Address:    "1.2.3.4",
+		Protocol:   "bgp",
+		RemoteASN:  1234,
+		LocalASN:   4321,
+		RemotePort: 10179,
+		LocalPort:  10179,
+		HoldTime:   30,
+		BFD:        false,
+		IPFamily:   "ipv4",
+		Trench:     trenchName,
+	}
+
 	configmapName := fmt.Sprintf("%s-%s", common.CMName, trench.ObjectMeta.Name)
 
 	BeforeEach(func() {
@@ -97,7 +110,8 @@ var _ = Describe("Gateway", func() {
 				Expect(gw).NotTo(BeNil())
 
 				By("checking gateway is in configmap data")
-				assertGatewayItemInConfigMap(gateway, configmapName, true)
+
+				assertGatewayItemInConfigMap(defaultGwInCm, configmapName, true)
 			})
 		})
 	})
@@ -108,14 +122,17 @@ var _ = Describe("Gateway", func() {
 		BeforeEach(func() {
 			Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 			Expect(fw.CreateResource(gw)).To(Succeed())
-			assertGatewayItemInConfigMap(gw, configmapName, true)
+			assertGatewayItemInConfigMap(defaultGwInCm, configmapName, true)
 		})
 		JustBeforeEach(func() {
 			Expect(fw.DeleteResource(gw)).To(Succeed())
 		})
 		It("will update configmap", func() {
 			By("checking the gateway is deleted from the configmap")
-			assertGatewayItemInConfigMap(gw, configmapName, false)
+			defaultGwInCm := reader.Gateway{
+				Name: gateway.ObjectMeta.Name,
+			}
+			assertGatewayItemInConfigMap(defaultGwInCm, configmapName, false)
 		})
 	})
 
@@ -123,8 +140,14 @@ var _ = Describe("Gateway", func() {
 		BeforeEach(func() {
 			Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 			Expect(fw.CreateResource(gateway.DeepCopy())).To(Succeed())
+			assertGatewayItemInConfigMap(defaultGwInCm, configmapName, true)
 		})
-		It("updates the configmap", func() {
+
+		AfterEach(func() {
+			fw.CleanUpGateways()
+		})
+
+		It("updates the configmap when gateway address is updated", func() {
 			var gw = &meridiov1alpha1.Gateway{}
 			Eventually(func(g Gomega) {
 				g.Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
@@ -133,10 +156,65 @@ var _ = Describe("Gateway", func() {
 			}).Should(Succeed())
 
 			By("checking new item is in configmap")
-			assertGatewayItemInConfigMap(gw, configmapName, true)
+			newItem := defaultGwInCm
+			newItem.Address = "20.0.0.0"
+			assertGatewayItemInConfigMap(newItem, configmapName, true)
 
 			By("checking old item is not in configmap")
-			assertGatewayItemInConfigMap(gateway, configmapName, false)
+			assertGatewayItemInConfigMap(defaultGwInCm, configmapName, false)
+		})
+
+		It("updates the configmap when gateway address is updated", func() {
+			var gw = &meridiov1alpha1.Gateway{}
+			Eventually(func(g Gomega) {
+				g.Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
+				*gw.Spec.Bgp.BFD.Switch = true
+				g.Expect(fw.UpdateResource(gw)).To(Succeed())
+			}).Should(Succeed())
+
+			By("checking new item is in configmap")
+			newItem := defaultGwInCm
+			newItem.BFD = true
+			newItem.MinRx = 300
+			newItem.MinTx = 300
+			newItem.Multiplier = 3
+			assertGatewayItemInConfigMap(newItem, configmapName, true)
+
+			By("checking old item is not in configmap")
+			assertGatewayItemInConfigMap(defaultGwInCm, configmapName, false)
+		})
+
+		It("when gateway protocol is updated", func() {
+			var gw = &meridiov1alpha1.Gateway{}
+			By("checking update fail when protocol is static but bgp section exist")
+			Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
+			gw.Spec.Protocol = string(meridiov1alpha1.Static)
+			Expect(fw.UpdateResource(gw)).ToNot(Succeed())
+
+			By("checking update succeed when protocol is static and bgp section is removed")
+			Eventually(func(g Gomega) {
+				g.Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
+				gw.Spec.Protocol = string(meridiov1alpha1.Static)
+				gw.Spec.Bgp = meridiov1alpha1.BgpSpec{}
+				g.Expect(fw.UpdateResource(gw)).To(Succeed())
+			}).Should(Succeed())
+
+			By("checking new item is in configmap")
+			newItem := reader.Gateway{
+				Name:       gw.ObjectMeta.Name,
+				Address:    "1.2.3.4",
+				IPFamily:   "ipv4",
+				Protocol:   "static",
+				BFD:        true,
+				MinTx:      200,
+				MinRx:      200,
+				Multiplier: 3,
+				Trench:     trenchName,
+			}
+			assertGatewayItemInConfigMap(newItem, configmapName, true)
+
+			By("checking old item is not in configmap")
+			assertGatewayItemInConfigMap(defaultGwInCm, configmapName, false)
 		})
 	})
 
@@ -144,6 +222,7 @@ var _ = Describe("Gateway", func() {
 		BeforeEach(func() {
 			Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 			Expect(fw.CreateResource(gateway.DeepCopy())).To(Succeed())
+			assertGatewayItemInConfigMap(defaultGwInCm, configmapName, true)
 		})
 
 		AfterEach(func() {
@@ -175,7 +254,10 @@ var _ = Describe("Gateway", func() {
 			}, timeout).Should(BeTrue())
 
 			By("checking the gateway is deleted from configmap")
-			assertGatewayItemInConfigMap(gateway, configmapName, false)
+			defaultGwInCm := reader.Gateway{
+				Name: gateway.ObjectMeta.Name,
+			}
+			assertGatewayItemInConfigMap(defaultGwInCm, configmapName, false)
 		})
 	})
 
@@ -185,16 +267,16 @@ var _ = Describe("Gateway", func() {
 		BeforeEach(func() {
 			Expect(fw.CreateResource(tr)).To(Succeed())
 			Expect(fw.CreateResource(gw)).To(Succeed())
-			assertGatewayItemInConfigMap(gw, configmapName, true)
+			assertGatewayItemInConfigMap(defaultGwInCm, configmapName, true)
 		})
-		It("will be reverted according to the current vip", func() {
+		It("will be reverted according to the current gateway", func() {
 			By("deleting the configmap")
 			configmap := &corev1.ConfigMap{}
 			Expect(fw.GetResource(client.ObjectKey{Name: configmapName, Namespace: gw.ObjectMeta.Namespace}, configmap)).To(Succeed())
 			Expect(fw.DeleteResource(configmap)).To(Succeed())
 
 			By("checking gateway item still in the configmap")
-			assertGatewayItemInConfigMap(gw, configmapName, true)
+			assertGatewayItemInConfigMap(defaultGwInCm, configmapName, true)
 
 			By("updating the configmap")
 			Expect(fw.GetResource(client.ObjectKey{Name: configmapName, Namespace: gw.ObjectMeta.Namespace}, configmap)).To(Succeed())
@@ -204,7 +286,7 @@ var _ = Describe("Gateway", func() {
 			}).Should(Succeed())
 
 			By("checking gateway item still in the configmap")
-			assertGatewayItemInConfigMap(gw, configmapName, true)
+			assertGatewayItemInConfigMap(defaultGwInCm, configmapName, true)
 		})
 	})
 
@@ -227,7 +309,7 @@ var _ = Describe("Gateway", func() {
 	})
 })
 
-func assertGatewayItemInConfigMap(gateway *meridiov1alpha1.Gateway, configmapName string, in bool) {
+func assertGatewayItemInConfigMap(gateway reader.Gateway, configmapName string, in bool) {
 	configmap := &corev1.ConfigMap{}
 
 	matcher := BeFalse()
@@ -236,35 +318,15 @@ func assertGatewayItemInConfigMap(gateway *meridiov1alpha1.Gateway, configmapNam
 	}
 	Eventually(func(g Gomega) bool {
 		// checking in configmap data, gateway key has an item same as gateway resource
-		g.Expect(fw.GetResource(client.ObjectKey{Name: configmapName, Namespace: gateway.ObjectMeta.Namespace}, configmap)).To(Succeed())
+		g.Expect(fw.GetResource(client.ObjectKey{Name: configmapName, Namespace: namespace}, configmap)).To(Succeed())
 		g.Expect(configmap).ToNot(BeNil())
 		gatewaysconfig, err := reader.UnmarshalGateways(configmap.Data[reader.GatewaysConfigKey])
 		g.Expect(err).To(BeNil())
 
 		gatewaymap := utils.MakeMapFromGWList(gatewaysconfig)
-		gatewayInConfig, ok := gatewaymap[gateway.ObjectMeta.Name]
+		gatewayInConfig, ok := gatewaymap[gateway.Name]
 
-		// checking in configmap data, gateway key has an item same as gateway resource
-		t, _ := time.ParseDuration(gateway.Spec.Bgp.HoldTime)
-		ts := t.Seconds()
-		ipf := "ipv4"
-		if net.ParseIP(gateway.Spec.Address).To4() == nil {
-			ipf = "ipv6"
-		}
-		equal := equality.Semantic.DeepEqual(gatewayInConfig, reader.Gateway{
-			Name:       gateway.ObjectMeta.Name,
-			Address:    gateway.Spec.Address,
-			Protocol:   "bgp",
-			RemoteASN:  *gateway.Spec.Bgp.RemoteASN,
-			LocalASN:   *gateway.Spec.Bgp.LocalASN,
-			RemotePort: *gateway.Spec.Bgp.RemotePort,
-			LocalPort:  *gateway.Spec.Bgp.LocalPort,
-			IPFamily:   ipf,
-			BFD:        false,
-			HoldTime:   uint(ts),
-			Trench:     gateway.ObjectMeta.Labels["trench"],
-		})
+		equal := equality.Semantic.DeepEqual(gatewayInConfig, gateway)
 		return ok && equal
 	}, timeout).Should(matcher)
-
 }

@@ -22,3 +22,16 @@ spec:
   bgp:
     remote-asn: 3000
     local-asn: 2001
+    bfd:
+      switch: true
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Gateway
+metadata:
+  labels:
+    trench: trench-a
+  name: gateway3
+spec:
+  address: 1.2.3.4
+  protocol: static
+
