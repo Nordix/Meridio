@@ -33,6 +33,7 @@ func New(flow *nspAPI.Flow, nfqueueNumber int, nfqueueFactory networking.NFQueue
 		Flow: flow,
 	}
 	nfqueue, err := nfqueueFactory.NewNFQueue(
+		flow.Name,
 		nfqueueNumber,
 		f.GetProtocols(),
 		f.GetSourceSubnets(),

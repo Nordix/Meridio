@@ -36,8 +36,8 @@ func (ku *KernelUtils) NewFWMarkRoute(ip string, fwmark int, tableID int) (netwo
 	return NewFWMarkRoute(ip, fwmark, tableID)
 }
 
-func (ku *KernelUtils) NewNFQueue(nfqueueNumber int, protocols []string, sourceIPs []string, destinationIPs []string, sourcePorts []string, destinationPorts []string) (networking.NFQueue, error) {
-	return NewNFQueue(nfqueueNumber, protocols, sourceIPs, destinationIPs, sourcePorts, destinationPorts)
+func (ku *KernelUtils) NewNFQueue(name string, nfqueueNumber int, protocols []string, sourceIPs []string, destinationIPs []string, sourcePorts []string, destinationPorts []string) (networking.NFQueue, error) {
+	return NewNFQueue(name, nfqueueNumber, protocols, sourceIPs, destinationIPs, sourcePorts, destinationPorts)
 }
 
 func (ku *KernelUtils) NewSourceBasedRoute(tableID int, prefix string) (networking.SourceBasedRoute, error) {
