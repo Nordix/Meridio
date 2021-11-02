@@ -73,6 +73,7 @@ func main() {
 	if err != nil {
 		logrus.Fatalf("%v", err)
 	}
+	logrus.Infof("rootConf: %+v", config)
 
 	netUtils := &linuxKernel.KernelUtils{}
 

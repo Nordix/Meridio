@@ -109,11 +109,11 @@ func (n *nfqlb) Start() error {
 }
 
 func (n *nfqlb) Stop() error {
-	return nil
+	return nil // todo
 }
 
 func (n *nfqlb) Delete() error {
-	return nil
+	return nil // todo
 }
 
 // https://github.com/Nordix/nfqueue-loadbalancer/blob/master/src/nfqlb/cmdShm.c#L31

@@ -31,7 +31,7 @@ type Config struct {
 	RequestTimeout   time.Duration `default:"15s" desc:"timeout to request NSE" split_words:"true"`
 	MaxTokenLifetime time.Duration `default:"24h" desc:"maximum lifetime of tokens" split_words:"true"`
 	NSPService       string        `default:"nsp-service:7778" desc:"IP (or domain) and port of the NSP Service" split_words:"true"`
-	ConduitName      string        `default:"load-balancer" desc:"Name of the conduit"`
+	ConduitName      string        `default:"load-balancer" desc:"Name of the conduit" split_words:"true"`
 	TrenchName       string        `default:"default" desc:"Trench the pod is running on" split_words:"true"`
 }
 

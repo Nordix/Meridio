@@ -74,7 +74,7 @@ type NFQueue interface {
 }
 
 type NFQueueFactory interface {
-	NewNFQueue(name string, nfqueueNumber int, protocols []string, sourceIPs []string, destinationIPs []string, sourcePorts []string, destinationPorts []string) (NFQueue, error)
+	NewNFQueue(name string, nfqueueNumber uint16, protocols []string, sourceIPs []string, destinationIPs []string, sourcePorts []string, destinationPorts []string, priority int32) (NFQueue, error)
 }
 
 type SourceBasedRoute interface {

@@ -9,6 +9,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
+	github.com/google/nftables v0.0.0-20210916140115-16a134723a96
 	github.com/googleapis/gnostic v0.5.5 // indirect
 	github.com/jmoiron/sqlx v1.3.4 // indirect
 	github.com/json-iterator/go v1.1.11 // indirect
@@ -31,7 +32,7 @@ require (
 	github.com/uber/jaeger-client-go v2.29.1+incompatible // indirect
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect
 	github.com/vishvananda/netlink v1.1.0
-	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f // indirect
+	github.com/vishvananda/netns v0.0.0-20210104183010-2eb08e3e575f
 	go.uber.org/atomic v1.8.0 // indirect
 	go.uber.org/goleak v1.1.10
 	golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e // indirect
