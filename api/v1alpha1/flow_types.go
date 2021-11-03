@@ -28,24 +28,35 @@ type FlowSpec struct {
 	Stream string `json:"stream,omitempty"`
 
 	// Vips that this flow will send traffic to
-	// The vips shouldn't have overlapping
+	// The vips should not have overlapping
 	Vips []string `json:"vips"`
 
 	// Source subnets allowed in the flow
-	// The subnets shouldn't have overlapping
+	// The subnets should not have overlapping
 	SourceSubnets []string `json:"source-subnets"`
 
 	// Source port ranges allowed in the flow
-	// The ports shouldn't have overlapping
+	// The ports should not have overlapping
+	// Ports can be defined by:
+	//  - a single port, such as 3000
+	//  - a port range, such as 3000-4000
+	//  - "any", which is equivalent to port range 0-65535
 	SourcePorts []string `json:"source-ports"`
 
 	// Destination port ranges allowed in the flow
-	// The ports shouldn't have overlapping
+	// The ports should not have overlapping
+	// Ports can be defined by:
+	//  - a single port, such as 3000
+	//  - a port range, such as 3000-4000
+	//  - "any", which is equivalent to port range 0-65535
 	DestinationPorts []string `json:"destination-ports"`
 
 	// Protocols allowed in this flow
-	// The protocols shouldn't have overlapping
+	// The protocols should not have overlapping
 	Protocols []string `json:"protocols"`
+
+	// Priority of the flow
+	Priority int64 `json:"priority"`
 }
 
 // FlowStatus defines the observed state of Flow

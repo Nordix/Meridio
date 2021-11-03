@@ -136,26 +136,35 @@ type Ports struct {
 }
 
 func validPortsFormat(p string) (Ports, error) {
-	formaterr := fmt.Errorf("port %s is invalid, valid format should be either a port range or a single port, example:35000-35500 or 40000", p)
 	var ports []string
 	if strings.Contains(p, "-") {
 		ports = strings.Split(p, "-")
 		if len(ports) != 2 {
-			return Ports{}, formaterr
+			return Ports{}, fmt.Errorf("wrong format to define port range, <starting port>-<ending port>")
 		}
+		return NewPortFromString(ports[0], ports[1])
+	} else if p == "any" {
+		return NewPort(0, 65535)
 	} else {
-		ports = []string{p, p}
+		return NewPortFromString(p, p)
 	}
-	var portsUint []uint64
-	for _, p := range ports {
-		s, err := strconv.ParseUint(p, 10, 16)
-		if err != nil {
-			return Ports{}, formaterr
-		}
-		portsUint = append(portsUint, s)
+}
+
+func NewPortFromString(start, end string) (Ports, error) {
+	startInt, err := strconv.ParseUint(start, 10, 16)
+	if err != nil {
+		return Ports{}, fmt.Errorf("starting port %s is not a valid port number, an integer between 0 and 65535", start)
 	}
-	if portsUint[0] > portsUint[1] {
-		return Ports{}, formaterr
+	endInt, err := strconv.ParseUint(end, 10, 16)
+	if err != nil {
+		return Ports{}, fmt.Errorf("ending port %s is not a valid port number, an integer between 0 and 65535", end)
 	}
-	return Ports{portsUint[0], portsUint[1]}, nil
+	return NewPort(startInt, endInt)
+}
+
+func NewPort(start, end uint64) (Ports, error) {
+	if start > end {
+		return Ports{}, fmt.Errorf("starting port cannot be larger than ending port in the ports range")
+	}
+	return Ports{start, end}, nil
 }

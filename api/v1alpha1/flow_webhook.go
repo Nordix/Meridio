@@ -126,6 +126,11 @@ func (r *Flow) validateFlow() error {
 			fmt.Sprintf("destination port%s", err.Error())))
 	}
 
+	if r.Spec.Priority < 0 {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("spec").Child("priority"), r.Spec.Priority,
+			"priority must be larger than 0"))
+	}
+
 	if len(allErrs) == 0 {
 		return nil
 	}

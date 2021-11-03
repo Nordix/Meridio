@@ -91,6 +91,24 @@ func (r *Conduit) ValidateCreate() error {
 		return fmt.Errorf("conduit must be created when there is one and only one attractor in the same trench")
 	}
 
+	// validation: get all attractors with same trench, verdict the number should not be greater than 1
+	cl := &ConduitList{}
+	sel = labels.Set{"trench": trench.ObjectMeta.Name}
+	err = attractorClient.List(context.TODO(), cl, &client.ListOptions{
+		LabelSelector: sel.AsSelector(),
+		Namespace:     r.ObjectMeta.Namespace,
+	})
+
+	if err != nil {
+		return fmt.Errorf("unable to get %s", r.GroupKind().Kind)
+	} else if len(cl.Items) >= 1 {
+		var names []string
+		for _, a := range cl.Items {
+			names = append(names, a.ObjectMeta.Name)
+		}
+		return fmt.Errorf("only one conduit is allowed in a trench, but also found %s", strings.Join(names, ", "))
+	}
+
 	return r.validateConduit()
 }
 

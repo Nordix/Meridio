@@ -36,6 +36,14 @@ func TestValidatePort(t *testing.T) {
 			valid: false,
 		},
 		{
+			desc: "overlapping ports 4",
+			ports: []string{
+				"any",
+				"1000-2000",
+			},
+			valid: false,
+		},
+		{
 			desc: "wrong port format 1",
 			ports: []string{
 				"2000-3000",

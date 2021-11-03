@@ -323,14 +323,33 @@ func (c *ConfigMap) getFlowsData() ([]byte, error) {
 		if cr.Spec.Stream == "" {
 			continue
 		}
+
+		var srcPorts []string
+		var dstPorts []string
+		for _, p := range cr.Spec.SourcePorts {
+			if p == "any" {
+				srcPorts = append(srcPorts, "0-65535")
+			} else {
+				srcPorts = append(srcPorts, p)
+			}
+		}
+
+		for _, p := range cr.Spec.DestinationPorts {
+			if p == "any" {
+				dstPorts = append(dstPorts, "0-65535")
+			} else {
+				dstPorts = append(dstPorts, p)
+			}
+		}
 		lst.Flows = append(lst.Flows, &reader.Flow{
 			Name:                  cr.ObjectMeta.Name,
 			Stream:                cr.Spec.Stream,
 			SourceSubnets:         cr.Spec.SourceSubnets,
-			SourcePortRanges:      cr.Spec.SourcePorts,
-			DestinationPortRanges: cr.Spec.DestinationPorts,
+			SourcePortRanges:      srcPorts,
+			DestinationPortRanges: dstPorts,
 			Vips:                  cr.Spec.Vips,
 			Protocols:             cr.Spec.Protocols,
+			Priority:              float64(cr.Spec.Priority),
 		})
 	}
 	return yaml.Marshal(lst)

@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.4.1
+    controller-gen.kubebuilder.io/version: v0.7.0
   creationTimestamp: null
   name: flows.meridio.nordix.org
 spec:
@@ -59,26 +59,34 @@ spec:
             description: FlowSpec defines the desired state of Flow
             properties:
               destination-ports:
-                description: Destination port ranges allowed in the flow The ports
-                  shouldn't have overlapping
+                description: 'Destination port ranges allowed in the flow The ports
+                  should not have overlapping Ports can be defined by:  - a single
+                  port, such as 3000  - a port range, such as 3000-4000  - "any",
+                  which is equivalent to port range 0-65535'
                 items:
                   type: string
                 type: array
+              priority:
+                description: Priority of the flow
+                format: int64
+                type: integer
               protocols:
-                description: Protocols allowed in this flow The protocols shouldn't
+                description: Protocols allowed in this flow The protocols should not
                   have overlapping
                 items:
                   type: string
                 type: array
               source-ports:
-                description: Source port ranges allowed in the flow The ports shouldn't
-                  have overlapping
+                description: 'Source port ranges allowed in the flow The ports should
+                  not have overlapping Ports can be defined by:  - a single port,
+                  such as 3000  - a port range, such as 3000-4000  - "any", which
+                  is equivalent to port range 0-65535'
                 items:
                   type: string
                 type: array
               source-subnets:
-                description: Source subnets allowed in the flow The subnets shouldn't
-                  have overlapping
+                description: Source subnets allowed in the flow The subnets should
+                  not have overlapping
                 items:
                   type: string
                 type: array
@@ -86,13 +94,14 @@ spec:
                 description: Stream that this flow will sign up
                 type: string
               vips:
-                description: Vips that this flow will send traffic to The vips shouldn't
-                  have overlapping
+                description: Vips that this flow will send traffic to The vips should
+                  not have overlapping
                 items:
                   type: string
                 type: array
             required:
             - destination-ports
+            - priority
             - protocols
             - source-ports
             - source-subnets
