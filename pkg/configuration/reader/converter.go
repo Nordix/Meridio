@@ -106,6 +106,7 @@ func ConvertFlows(flows []*Flow, streams []*nspAPI.Stream, vips []*nspAPI.Vip) [
 			DestinationPortRanges: flow.DestinationPortRanges,
 			SourcePortRanges:      flow.SourcePortRanges,
 			Protocols:             flow.Protocols,
+			Priority:              flow.Priority,
 			Stream:                s,
 			Vips:                  getVips(flow.Vips, vips),
 		})

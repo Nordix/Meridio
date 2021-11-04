@@ -53,9 +53,11 @@ message Flow {
     // Protocols allowed 
     // e.g.: ["tcp", "udp"]
     repeated string protocols = 5;
+    // Priority of the flow
+    int32 priority = 6;
     // Stream the flow belongs to
-    Stream stream = 6;
-    repeated Vip vips = 7;
+    Stream stream = 7;
+    repeated Vip vips = 8;
 }
 
 message Vip {
