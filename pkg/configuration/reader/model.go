@@ -49,7 +49,7 @@ type Flow struct {
 	SourcePortRanges      []string `yaml:"source-port-ranges"`
 	Protocols             []string `yaml:"protocols"`
 	Vips                  []string `yaml:"vips"`
-	Priority              float64  `yaml:"priority"`
+	Priority              int32    `yaml:"priority"`
 	Stream                string   `yaml:"stream"`
 }
 
