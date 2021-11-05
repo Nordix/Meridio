@@ -19,40 +19,96 @@ package utils
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 )
 
+type BfdSpec struct {
+	MinTx      uint32
+	MinRx      uint32
+	Multiplier uint32
+}
+
+func (b *BfdSpec) String() string {
+	return fmt.Sprintf("BfdSpec:{MinTx:%v MinRx:%v Multiplier:%v}",
+		b.MinTx, b.MinRx, b.Multiplier)
+}
+
+func NewBfdSpec(spec *nspAPI.Gateway_BfdSpec) *BfdSpec {
+	if spec == nil {
+		return nil
+	}
+	return &BfdSpec{
+		MinTx:      spec.GetMinTx(),
+		MinRx:      spec.GetMinRx(),
+		Multiplier: spec.GetMultiplier(),
+	}
+}
+
+type neighbor struct {
+	ip string // IP string format without subnet
+	af int    // AF family
+}
+
 type Gateway struct {
 	Name       string
 	Address    string
+	IPFamily   string
+	Protocol   string
 	RemoteASN  uint32
 	LocalASN   uint32
 	RemotePort uint16
 	LocalPort  uint16
-	IPFamily   string
-	BFD        bool
-	Protocol   string
 	HoldTime   uint
+	BFD        bool
+	BfdSpec    *BfdSpec
+	neighbor   *neighbor
 }
 
 func (gw *Gateway) String() string {
-	return fmt.Sprintf("name:\"%v\" address:\"%v\" remoteASN:%v localASN:%v remotePort:%v localPort:%v ipFamily:\"%v\" protocol:\"%v\" bfd:%v holdTime:%v",
-		gw.Name, gw.Address, gw.RemoteASN, gw.LocalASN, gw.RemotePort, gw.LocalPort, gw.IPFamily, gw.Protocol, gw.BFD, gw.HoldTime)
+	return fmt.Sprintf("name:%v address:%v ipFamily:%v protocol:%v "+
+		"remoteASN:%v localASN:%v remotePort:%v localPort:%v holdTime:%v bfd:%v%v",
+		gw.Name, gw.Address, gw.IPFamily, gw.Protocol, gw.RemoteASN, gw.LocalASN,
+		gw.RemotePort, gw.LocalPort, gw.HoldTime, gw.BFD, func() string {
+			if !gw.BFD {
+				return ""
+			} else {
+				return " " + gw.BfdSpec.String()
+			}
+		}())
+}
+
+func (gw *Gateway) GetNeighbor() string {
+	return gw.neighbor.ip
+}
+
+func (gw *Gateway) GetAF() int {
+	return gw.neighbor.af
 }
 
 func NewGateway(gateway *nspAPI.Gateway) *Gateway {
 	return &Gateway{
 		Name:       gateway.GetName(),
 		Address:    gateway.GetAddress(),
+		IPFamily:   gateway.GetIpFamily(),
+		Protocol:   gateway.GetProtocol(),
 		RemoteASN:  gateway.GetRemoteASN(),
 		LocalASN:   gateway.GetLocalASN(),
 		RemotePort: uint16(gateway.GetRemotePort()),
 		LocalPort:  uint16(gateway.GetLocalPort()),
-		IPFamily:   gateway.GetIpFamily(),
-		BFD:        gateway.GetBfd(),
-		Protocol:   gateway.GetProtocol(),
 		HoldTime:   uint(gateway.GetHoldTime()),
+		BFD:        gateway.GetBfd(),
+		BfdSpec: func() *BfdSpec {
+			if !gateway.GetBfd() {
+				return nil
+			}
+			return NewBfdSpec(gateway.GetBfdSpec())
+		}(),
+		neighbor: &neighbor{
+			ip: strings.Split(gateway.GetAddress(), "/")[0],
+			af: GetAF(gateway.GetAddress()),
+		},
 	}
 }
 

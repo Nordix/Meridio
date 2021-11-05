@@ -29,41 +29,37 @@ import (
 
 var extInterface string = `ext-vlan`
 
-var configuredGatewayNamesByFamily map[int]map[string]string = map[int]map[string]string{
-	syscall.AF_INET:  {},
-	syscall.AF_INET6: {},
+type testGateway struct {
+	ip  string
+	af  int
+	bfd bool
 }
 
-func getGatewayIPByName(name string) (string, int, bool) {
-	ok := false
-	addr := ""
-	family := syscall.AF_UNSPEC
+var configuredGatewayNamesByFamily map[string]*testGateway = map[string]*testGateway{}
 
-	if addr, ok = configuredGatewayNamesByFamily[syscall.AF_INET][name]; ok {
-		family = syscall.AF_INET
-	} else if addr, ok = configuredGatewayNamesByFamily[syscall.AF_INET6][name]; ok {
-		family = syscall.AF_INET6
-	}
-
-	return addr, family, ok
+func getGatewayByName(name string) (*testGateway, bool) {
+	gw, ok := configuredGatewayNamesByFamily[name]
+	return gw, ok
 }
 
 // parse protocol outputs to determine connectivity
 func check(protocolOutput, bfdOutput string, cs *connectivity.ConnectivityStatus, logp *string) {
 	bird.ParseProtocols(protocolOutput, logp, func(name string, options ...bird.Option) {
-		ok := false
-		ip := ""
-		var family int
-		if ip, family, ok = getGatewayIPByName(name); !ok {
+		gw, ok := getGatewayByName(name)
+		if !ok {
 			// no configured gateway found for the name
 			return
 		}
+		ip := gw.ip
+		family := gw.af
+		bfd := gw.bfd
 
 		// extend protocol options with external inteface, gateway ip, bfd sessions
 		opts := append([]bird.Option{
 			bird.WithInterface(extInterface),
 			bird.WithNeighbor(ip),
 			bird.WithBfdSessions(bfdOutput),
+			bird.WithBfd(bfd),
 		}, options...)
 
 		p := bird.NewProtocol(opts...)
@@ -87,9 +83,9 @@ func check(protocolOutput, bfdOutput string, cs *connectivity.ConnectivityStatus
 func TestParseProtocols(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	cs := connectivity.NewConnectivityStatus()
-	configuredGatewayNamesByFamily = map[int]map[string]string{
-		syscall.AF_INET:  {`NBR-gateway3`: `169.254.100.253`},
-		syscall.AF_INET6: {`NBR-gateway4`: `100:100::253`},
+	configuredGatewayNamesByFamily = map[string]*testGateway{
+		`NBR-gateway3`: {ip: `169.254.100.253`, af: syscall.AF_INET, bfd: false},
+		`NBR-gateway4`: {ip: `100:100::253`, af: syscall.AF_INET6, bfd: false},
 	}
 	expectedLog := `BIRD 2.0.7 ready.` + "\n" +
 		`Name       Proto      Table      State  Since         Info` + "\n" +
@@ -121,9 +117,9 @@ func TestParseProtocols(t *testing.T) {
 func TestParseProtocolsWithBfd(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	cs := connectivity.NewConnectivityStatus()
-	configuredGatewayNamesByFamily = map[int]map[string]string{
-		syscall.AF_INET:  {`NBR-gateway1`: `169.254.100.254`},
-		syscall.AF_INET6: {`NBR-gateway2`: `fe80::beef`},
+	configuredGatewayNamesByFamily = map[string]*testGateway{
+		`NBR-gateway1`: {ip: `169.254.100.254`, af: syscall.AF_INET, bfd: true},
+		`NBR-gateway2`: {ip: `fe80::beef`, af: syscall.AF_INET6, bfd: true},
 	}
 	bfdOutput := `
 		BIRD 2.0.7 ready.

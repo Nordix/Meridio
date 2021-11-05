@@ -68,6 +68,15 @@ func WithBfdSessions(bfd string) Option {
 	}
 }
 
+// WithBfd sets bfd indicating the protocol uses bfd
+func WithBfd(use bool) Option {
+	return func(o *protoOptions) {
+		if use {
+			o.m[bfd] = ""
+		}
+	}
+}
+
 // WithOutLog sets out log
 func WithOutLog(log *string) Option {
 	return func(o *protoOptions) {

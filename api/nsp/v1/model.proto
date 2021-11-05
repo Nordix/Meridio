@@ -85,16 +85,22 @@ message Gateway {
     // address of the gateway
     // e.g.: 124.0.0.0/24 or 2001::/32
     string address = 2;
-    uint32 remoteASN = 3;
-    uint32 localASN = 4;
-    uint32 remotePort = 5;
-    uint32 localPort = 6;
-    string ipFamily = 7;
-    bool bfd = 8;
-    string protocol = 9;
-    uint32 holdTime = 10;
+    string ipFamily = 3;
+    string protocol = 4;
+    uint32 remoteASN = 5;
+    uint32 localASN = 6;
+    uint32 remotePort = 7;
+    uint32 localPort = 8;
+    uint32 holdTime = 9;
+    bool bfd = 10;
+    message BfdSpec {
+        uint32 MinTx = 1;
+        uint32 MinRx = 2;
+        uint32 Multiplier = 3;
+    }
+    BfdSpec bfdSpec = 11;
     // Trench the gateway belongs to
-    Trench trench = 11;
+    Trench trench = 12;
 }
 
 message TrenchResponse {

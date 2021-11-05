@@ -37,4 +37,5 @@ const (
 	protoItf
 	protoNbr
 	bfdSessions
+	bfd
 )

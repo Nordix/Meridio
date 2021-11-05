@@ -38,9 +38,11 @@ func TestParseProtocolsStaticWithBfd(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	cs := connectivity.NewConnectivityStatus()
 	log := ""
-	configuredGatewayNamesByFamily = map[int]map[string]string{
-		syscall.AF_INET:  {`NBR-gateway1`: `169.254.100.254`, `NBR-gateway3`: `169.254.100.253`},
-		syscall.AF_INET6: {`NBR-gateway2`: `100:100::254`, `NBR-gateway4`: `100:100::253`},
+	configuredGatewayNamesByFamily = map[string]*testGateway{
+		`NBR-gateway1`: {ip: `169.254.100.254`, af: syscall.AF_INET, bfd: true},
+		`NBR-gateway3`: {ip: `169.254.100.253`, af: syscall.AF_INET, bfd: true},
+		`NBR-gateway2`: {ip: `100:100::254`, af: syscall.AF_INET6, bfd: true},
+		`NBR-gateway4`: {ip: `100:100::253`, af: syscall.AF_INET6, bfd: true},
 	}
 	bfdOutput := `
 		BIRD 2.0.7 ready.
@@ -83,9 +85,11 @@ func TestParseProtocolsStaticWithIPv4BfdDown(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	cs := connectivity.NewConnectivityStatus()
 	log := ""
-	configuredGatewayNamesByFamily = map[int]map[string]string{
-		syscall.AF_INET:  {`NBR-gateway1`: `169.254.100.254`, `NBR-gateway3`: `169.254.100.253`},
-		syscall.AF_INET6: {`NBR-gateway2`: `100:100::254`, `NBR-gateway4`: `100:100::253`},
+	configuredGatewayNamesByFamily = map[string]*testGateway{
+		`NBR-gateway1`: {ip: `169.254.100.254`, af: syscall.AF_INET, bfd: true},
+		`NBR-gateway3`: {ip: `169.254.100.253`, af: syscall.AF_INET, bfd: true},
+		`NBR-gateway2`: {ip: `100:100::254`, af: syscall.AF_INET6, bfd: true},
+		`NBR-gateway4`: {ip: `100:100::253`, af: syscall.AF_INET6, bfd: true},
 	}
 	bfdOutput := `
     BIRD 2.0.7 ready.
@@ -128,9 +132,11 @@ func TestParseProtocolsStaticWithIPv6BfdDown(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	cs := connectivity.NewConnectivityStatus()
 	log := ""
-	configuredGatewayNamesByFamily = map[int]map[string]string{
-		syscall.AF_INET:  {`NBR-gateway1`: `169.254.100.254`, `NBR-gateway3`: `169.254.100.253`},
-		syscall.AF_INET6: {`NBR-gateway2`: `100:100::254`, `NBR-gateway4`: `100:100::253`},
+	configuredGatewayNamesByFamily = map[string]*testGateway{
+		`NBR-gateway1`: {ip: `169.254.100.254`, af: syscall.AF_INET, bfd: true},
+		`NBR-gateway3`: {ip: `169.254.100.253`, af: syscall.AF_INET, bfd: true},
+		`NBR-gateway2`: {ip: `100:100::254`, af: syscall.AF_INET6, bfd: true},
+		`NBR-gateway4`: {ip: `100:100::253`, af: syscall.AF_INET6, bfd: false},
 	}
 	bfdOutput := `
 		BIRD 2.0.7 ready.
@@ -154,6 +160,99 @@ func TestParseProtocolsStaticWithIPv6BfdDown(t *testing.T) {
 
 	t.Logf("cs: %v\n", cs)
 	assert.False(t, cs.NoConnectivity())
+	assert.True(t, cs.AnyGatewayDown())
+	t.Logf("log:\n%v\n", log)
+	assert.Equal(t, expectedLog, log)
+}
+
+// TestParseProtocolsStaticWitLingeringBfd -
+// 2 IPv4 and 2 IPv6 Static protocol sessions in the output, all known to the configuration.
+// IPv4 Static protocols have BFD configured, while IPv6 have none. However independent IPv6
+// BFD sessions do exist for each IPv6 gateway IP.
+// All Static sessions are up. The IPv4 BFD sessions are up. The 2 independent IPv6 BFD sessions are down.
+//
+// After parsing:
+// External connectivity must be OK.
+// All configured gateways must be up.
+// Logs collected by the parser must contain all 4 sessions.
+func TestParseProtocolsStaticWithLingeringBfd(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	cs := connectivity.NewConnectivityStatus()
+	log := ""
+	configuredGatewayNamesByFamily = map[string]*testGateway{
+		`NBR-gateway1`: {ip: `169.254.100.254`, af: syscall.AF_INET, bfd: true},
+		`NBR-gateway3`: {ip: `169.254.100.253`, af: syscall.AF_INET, bfd: true},
+		`NBR-gateway2`: {ip: `100:100::254`, af: syscall.AF_INET6, bfd: false},
+		`NBR-gateway4`: {ip: `100:100::253`, af: syscall.AF_INET6, bfd: false},
+	}
+	bfdOutput := `
+		BIRD 2.0.7 ready.
+		NBR-BFD:
+		IP address                Interface  State      Since         Interval  Timeout
+		169.254.100.253           ext-vlan   Up         22:13:19.439    0.100    0.500
+		169.254.100.254           ext-vlan   Up         22:13:19.019    0.100    0.500
+		100:100::253              ext-vlan   Down       22:13:30.771    1.000    0.000
+		100:100::254              ext-vlan   Down       22:13:30.771    1.000    0.000
+	`
+	expectedLog := `BIRD 2.0.7 ready.` + "\n" +
+		`Name       Proto      Table      State  Since         Info` + "\n" +
+		`NBR-gateway1 Static     master4    up     21:10:21.868 bfd: 169.254.100.254           ext-vlan   Up         22:13:19.019    0.100    0.500` + "\n" +
+		`NBR-gateway2 Static     master6    up     21:10:21.868` + "\n" +
+		`NBR-gateway3 Static     master4    up     21:10:21.886 bfd: 169.254.100.253           ext-vlan   Up         22:13:19.439    0.100    0.500` + "\n" +
+		`NBR-gateway4 Static     master6    up     21:10:21.886` + "\n"
+
+	assert.NotNil(t, cs)
+	assert.Empty(t, cs.Log())
+
+	check(staticOutput, bfdOutput, cs, &log)
+
+	t.Logf("cs: %v\n", cs)
+	assert.False(t, cs.NoConnectivity())
+	assert.False(t, cs.AnyGatewayDown())
+	t.Logf("log:\n%v\n", log)
+	assert.Equal(t, expectedLog, log)
+}
+
+// TestParseProtocolsStaticWithMissingBfd -
+// 2 IPv4 and 2 IPv6 Static protocol sessions in the output, all known to the configuration.
+// All have BFD configured.
+// All Static sessions are up. IPv4 BFD sessions are up, however IPv6 BFD sessions are missing.
+//
+// After parsing:
+// External connectivity must be NOT OK.
+// NOT all configured gateways are up.
+// Logs collected by the parser must contain all 4 sessions.
+func TestParseProtocolsStaticWithMissingBfd(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	cs := connectivity.NewConnectivityStatus()
+	log := ""
+	configuredGatewayNamesByFamily = map[string]*testGateway{
+		`NBR-gateway1`: {ip: `169.254.100.254`, af: syscall.AF_INET, bfd: true},
+		`NBR-gateway3`: {ip: `169.254.100.253`, af: syscall.AF_INET, bfd: true},
+		`NBR-gateway2`: {ip: `100:100::254`, af: syscall.AF_INET6, bfd: true},
+		`NBR-gateway4`: {ip: `100:100::253`, af: syscall.AF_INET6, bfd: true},
+	}
+	bfdOutput := `
+		BIRD 2.0.7 ready.
+		NBR-BFD:
+		IP address                Interface  State      Since         Interval  Timeout
+		169.254.100.253           ext-vlan   Up         22:13:19.439    0.100    0.500
+		169.254.100.254           ext-vlan   Up         22:13:19.019    0.100    0.500
+	`
+	expectedLog := `BIRD 2.0.7 ready.` + "\n" +
+		`Name       Proto      Table      State  Since         Info` + "\n" +
+		`NBR-gateway1 Static     master4    up     21:10:21.868 bfd: 169.254.100.254           ext-vlan   Up         22:13:19.019    0.100    0.500` + "\n" +
+		`NBR-gateway2 Static     master6    up     21:10:21.868` + "\n" +
+		`NBR-gateway3 Static     master4    up     21:10:21.886 bfd: 169.254.100.253           ext-vlan   Up         22:13:19.439    0.100    0.500` + "\n" +
+		`NBR-gateway4 Static     master6    up     21:10:21.886` + "\n"
+
+	assert.NotNil(t, cs)
+	assert.Empty(t, cs.Log())
+
+	check(staticOutput, bfdOutput, cs, &log)
+
+	t.Logf("cs: %v\n", cs)
+	assert.True(t, cs.NoConnectivity())
 	assert.True(t, cs.AnyGatewayDown())
 	t.Logf("log:\n%v\n", log)
 	assert.Equal(t, expectedLog, log)

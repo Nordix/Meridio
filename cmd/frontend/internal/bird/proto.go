@@ -89,6 +89,10 @@ func stateDown(p *Protocol) bool {
 // bfdDown -
 // Checks associated bfd session's state if any
 func bfdDown(p *Protocol) bool {
+	if used := p.Bfd(); !used {
+		// bfd not configured for the protocol
+		return false
+	}
 	regexBFD := regexp.MustCompile(p.Neighbor() + `\s+` + p.Interface() + `\s+(\S+).*`)
 	scanner := bufio.NewScanner(strings.NewReader(p.BfdSessions()))
 	for scanner.Scan() {
@@ -97,7 +101,8 @@ func bfdDown(p *Protocol) bool {
 			return bfdMatch[1] != "Up"
 		}
 	}
-	return false
+	// did not find the BFD session
+	return true
 }
 
 //-------------------------------------------------------------------------------
@@ -153,6 +158,11 @@ func (p *Protocol) Neighbor() string {
 
 func (p *Protocol) BfdSessions() string {
 	return p.protoMap[bfdSessions]
+}
+
+func (p *Protocol) Bfd() bool {
+	_, ok := p.protoMap[bfd]
+	return ok
 }
 
 func (p *Protocol) Log(out string) {

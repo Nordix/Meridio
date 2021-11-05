@@ -163,15 +163,25 @@ func ConvertGateways(gateways []*Gateway, trench *nspAPI.Trench) []*nspAPI.Gatew
 		resGateways = append(resGateways, &nspAPI.Gateway{
 			Name:       gateway.Name,
 			Address:    gateway.Address,
+			IpFamily:   gateway.IPFamily,
+			Protocol:   gateway.Protocol,
 			RemoteASN:  gateway.RemoteASN,
 			LocalASN:   gateway.LocalASN,
 			RemotePort: uint32(gateway.RemotePort),
 			LocalPort:  uint32(gateway.LocalPort),
-			IpFamily:   gateway.IPFamily,
-			Bfd:        gateway.BFD,
-			Protocol:   gateway.Protocol,
 			HoldTime:   uint32(gateway.HoldTime),
-			Trench:     trench,
+			Bfd:        gateway.BFD,
+			BfdSpec: func() *nspAPI.Gateway_BfdSpec {
+				if !gateway.BFD {
+					return nil
+				}
+				return &nspAPI.Gateway_BfdSpec{
+					MinTx:      uint32(gateway.MinTx),
+					MinRx:      uint32(gateway.MinRx),
+					Multiplier: uint32(gateway.Multiplier),
+				}
+			}(),
+			Trench: trench,
 		})
 	}
 	return resGateways

@@ -54,7 +54,7 @@ func NewFrontEndService(c *env.Config) *FrontEndService {
 	frontEndService := &FrontEndService{
 		vips:     []string{},
 		gateways: []*utils.Gateway{},
-		gatewayNamesByFamily: map[int]map[string]string{
+		gatewayNamesByFamily: map[int]map[string]*utils.Gateway{
 			syscall.AF_INET:  {},
 			syscall.AF_INET6: {},
 		},
@@ -89,7 +89,7 @@ func NewFrontEndService(c *env.Config) *FrontEndService {
 type FrontEndService struct {
 	vips                 []string
 	gateways             []*utils.Gateway
-	gatewayNamesByFamily map[int]map[string]string
+	gatewayNamesByFamily map[int]map[string]*utils.Gateway
 	gwMu                 sync.Mutex
 	cfgMu                sync.Mutex
 	monitorMu            sync.Mutex
@@ -350,16 +350,18 @@ func (fes *FrontEndService) parseStatusOutput(output string, bfdOutput string) *
 
 	bird.ParseProtocols(output, cs.Logp(), func(name string, options ...bird.Option) {
 		//logrus.Infof("parseStatusOutput: name: %v", name)
-		ip, family, ok := fes.getGatewayIPByName(name)
-		if !ok { // no configured gateway found for the name
+		gw, family := fes.getGatewayByName(name)
+		if gw == nil { // no configured gateway found for the name
 			return
 		}
 
-		// extend protocol options with external inteface, gateway ip, available bfd sessions
+		// extend protocol options with external inteface, gateway ip, available bfd sessions,
+		// and with info whether bfd is configured for the particular gateway
 		opts := append([]bird.Option{
 			bird.WithInterface(fes.extInterface),
-			bird.WithNeighbor(ip),
+			bird.WithNeighbor(gw.GetNeighbor()),
 			bird.WithBfdSessions(bfdOutput),
+			bird.WithBfd(gw.BFD),
 		}, options...)
 		// check if protocol session is down
 		if bird.ProtocolDown(bird.NewProtocol(opts...)) {
@@ -471,11 +473,11 @@ func (fes *FrontEndService) writeConfigBase(conf *string) {
 	*conf += "}\n"
 	*conf += "\n"
 
-	// Have to add BFD protocol so that BGP or STATIC could ask for a BFD session
+	/* // Have to add BFD protocol so that BGP or STATIC could ask for a BFD session
 	*conf += "protocol bfd 'NBR-BFD' {\n"
 	*conf += "\tinterface \"" + fes.extInterface + "\";\n"
 	*conf += "}\n"
-	*conf += "\n"
+	*conf += "\n" */
 
 	// Filter matching default IPv4, IPv6 routes
 	*conf += "filter default_rt {\n"
@@ -550,34 +552,49 @@ func (fes *FrontEndService) writeConfigBase(conf *string) {
 func (fes *FrontEndService) writeConfigGW(conf *string) {
 	fes.gwMu.Lock()
 	defer fes.gwMu.Unlock()
-	fes.gatewayNamesByFamily[syscall.AF_INET] = map[string]string{}
-	fes.gatewayNamesByFamily[syscall.AF_INET6] = map[string]string{}
+	fes.gatewayNamesByFamily[syscall.AF_INET] = map[string]*utils.Gateway{}
+	fes.gatewayNamesByFamily[syscall.AF_INET6] = map[string]*utils.Gateway{}
+	bfdSpec := &utils.BfdSpec{}
+
+	writeBfdSpec := func(conf *string, b *utils.BfdSpec) {
+		prefix := "\t\t"
+		if b != nil {
+			if b.MinRx != 0 {
+				*conf += fmt.Sprintf("%vmin rx interval %vms;\n", prefix, b.MinRx)
+			}
+			if b.MinTx != 0 {
+				*conf += fmt.Sprintf("%vmin tx interval %vms;\n", prefix, b.MinTx)
+			}
+			if b.Multiplier != 0 {
+				*conf += fmt.Sprintf("%vmultiplier %v;\n", prefix, b.Multiplier)
+			}
+		}
+	}
 
 	for _, gw := range fes.gateways {
-		if utils.IsIPv6(gw.Address) || utils.IsIPv4(gw.Address) {
+		//if utils.IsIPv6(gw.Address) || utils.IsIPv4(gw.Address) {
+		if af := gw.GetAF(); af == syscall.AF_INET || af == syscall.AF_INET6 {
 			if gw.Protocol != "bgp" && gw.Protocol != "static" {
 				logrus.Infof("writeConfigGW: Unkown gateway protocol %v", gw.Protocol)
 				continue
 			}
 
-			nbr := strings.Split(gw.Address, "/")[0]
+			nbr := gw.GetNeighbor()
 			name := `NBR-` + gw.Name
 			family := "ipv4"
-			afFamily := syscall.AF_INET
 			allNet := "0.0.0.0/0"
-			if utils.IsIPv6(gw.Address) {
+			if af == syscall.AF_INET6 {
 				family = "ipv6"
-				afFamily = syscall.AF_INET6
 				allNet = "0::/0"
 			}
-			// save neighbor IP to be used by parse functions
-			fes.gatewayNamesByFamily[afFamily][name] = nbr
+			// save gateway to be used by parse functions to lookup neighbor IP and BFD
+			fes.gatewayNamesByFamily[af][name] = gw
 
 			// TODO: const
 			switch gw.Protocol {
 			case "bgp":
 				{
-					ipv := "\t" + family + " {\n"
+					ipv := fmt.Sprintf("\t%v {\n", family)
 					if len(fes.vrrps) > 0 {
 						ipv += "\t\timport none;\n"
 					} else {
@@ -586,8 +603,8 @@ func (fes *FrontEndService) writeConfigGW(conf *string) {
 					ipv += "\t\texport filter cluster_e_static;\n"
 					ipv += "\t};\n"
 
-					*conf += "protocol bgp '" + name + "' from LINK {\n"
-					*conf += "\tinterface \"" + fes.extInterface + "\";\n"
+					*conf += fmt.Sprintf("protocol bgp '%v' from LINK {\n", name)
+					*conf += fmt.Sprintf("\tinterface \"%v\";\n", fes.extInterface)
 					// session specific BGP params
 					localASN := fes.localASN
 					localPort := fes.localPortBGP
@@ -605,13 +622,15 @@ func (fes *FrontEndService) writeConfigGW(conf *string) {
 					if gw.RemotePort != 0 {
 						remotePort = strconv.FormatUint(uint64(gw.RemotePort), 10)
 					}
-					*conf += "\tlocal port " + localPort + " as " + localASN + ";\n"
-					*conf += "\tneighbor " + nbr + " port " + remotePort + " as " + remoteASN + ";\n"
+					*conf += fmt.Sprintf("\tlocal port %v as %v;\n", localPort, localASN)
+					*conf += fmt.Sprintf("\tneighbor %v port %v as %v;\n", nbr, remotePort, remoteASN)
 					if gw.BFD {
-						*conf += "\tbfd on;\n"
+						*conf += "\tbfd {\n"
+						writeBfdSpec(conf, gw.BfdSpec)
+						*conf += "\t};\n"
 					}
 					if gw.HoldTime != 0 {
-						*conf += "\thold time " + strconv.FormatUint(uint64(gw.HoldTime), 10) + ";\n"
+						*conf += fmt.Sprintf("\thold time %v;\n", gw.HoldTime)
 					}
 					*conf += ipv
 					*conf += "}\n"
@@ -621,11 +640,14 @@ func (fes *FrontEndService) writeConfigGW(conf *string) {
 				{
 					bfd := ""
 					if gw.BFD {
+						if gw.BfdSpec != nil {
+							bfdSpec = gw.BfdSpec
+						}
 						bfd = " bfd"
 					}
 					// default route via the gateway through the external interface
-					ro := "\troute " + allNet + " via " + nbr + "%'" + fes.extInterface + "'" + bfd + ";\n"
-					ipv := "\t" + family + " {\n"
+					ro := fmt.Sprintf("\troute %v via %v%%'%v'%v;\n", allNet, nbr, fes.extInterface, bfd)
+					ipv := fmt.Sprintf("\t%v {\n", family)
 					if len(fes.vrrps) > 0 {
 						ipv += "\t\timport none;\n"
 					} else {
@@ -633,7 +655,7 @@ func (fes *FrontEndService) writeConfigGW(conf *string) {
 					}
 					ipv += "\t};\n"
 
-					*conf += "protocol static '" + name + "' {\n"
+					*conf += fmt.Sprintf("protocol static '%v' {\n", name)
 					*conf += ipv
 					*conf += ro
 					*conf += "}\n"
@@ -642,6 +664,15 @@ func (fes *FrontEndService) writeConfigGW(conf *string) {
 			}
 		}
 	}
+
+	// Have to add BFD protocol so that BGP or STATIC could ask for a BFD session
+	// Note: BIRD 2.0.8 does not support per peer BFD attributes for Static protocol,
+	// thus only 1 BFD configuration per interface is possible
+	*conf += "protocol bfd 'NBR-BFD' {\n"
+	*conf += fmt.Sprintf("\tinterface \"%v\" {\n", fes.extInterface)
+	writeBfdSpec(conf, bfdSpec)
+	*conf += "\t};\n"
+	*conf += "}\n"
 }
 
 // writeConfigKernel -
@@ -651,7 +682,7 @@ func (fes *FrontEndService) writeConfigGW(conf *string) {
 // local network stack (to the specified routing table).
 // Note: No need to sync learnt default routes to stack, in case there are
 // no VIPs configured for the particular IP family.
-func (fes *FrontEndService) writeConfigKernel(conf *string, hasVIP4 bool, hasVIP6 bool) {
+func (fes *FrontEndService) writeConfigKernel(conf *string, hasVIP4, hasVIP6 bool) {
 	eFilter := "none"
 	if hasVIP4 {
 		eFilter = "filter default_rt"
@@ -974,32 +1005,17 @@ func (fes *FrontEndService) setVIPRules(vipsAdded, vipsRemoved []string) error {
 	return nil
 }
 
-func (fes *FrontEndService) getGatewayIPByName(name string) (string, int, bool) {
-	ok := false
-	addr := ""
+func (fes *FrontEndService) getGatewayByName(name string) (*utils.Gateway, int) {
 	family := syscall.AF_UNSPEC
-
-	if addr, ok = fes.gatewayNamesByFamily[syscall.AF_INET][name]; ok {
+	gw, ok := fes.gatewayNamesByFamily[syscall.AF_INET][name]
+	if ok {
 		family = syscall.AF_INET
-	} else if addr, ok = fes.gatewayNamesByFamily[syscall.AF_INET6][name]; ok {
+	} else if gw, ok = fes.gatewayNamesByFamily[syscall.AF_INET6][name]; ok {
 		family = syscall.AF_INET6
 	}
 
-	return addr, family, ok
+	return gw, family
 }
-
-/* func (fes *FrontEndService) checkGatewayByName(name string, ipfamily int) (string, bool) {
-	switch ipfamily {
-	case syscall.AF_INET:
-		fallthrough
-	case syscall.AF_INET6:
-		addr, ok := fes.gatewayNamesByFamily[ipfamily][name]
-		return addr, ok
-	default:
-		logrus.Infof("checkGatewayByName: unsupported ipfamily: %v (name: %v)", ipfamily, name)
-		return "", false
-	}
-} */
 
 //-------------------------------------------------------------------------------------------
 

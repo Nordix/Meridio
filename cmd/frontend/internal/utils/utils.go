@@ -19,6 +19,7 @@ package utils
 import (
 	"net"
 	"strings"
+	"syscall"
 )
 
 func IsIPv4(ip string) bool {
@@ -27,6 +28,16 @@ func IsIPv4(ip string) bool {
 
 func IsIPv6(ip string) bool {
 	return strings.Count(ip, ":") >= 2
+}
+
+func GetAF(ip string) int {
+	af := syscall.AF_UNSPEC
+	if IsIPv6(ip) {
+		af = syscall.AF_INET6
+	} else if IsIPv4(ip) {
+		af = syscall.AF_INET
+	}
+	return af
 }
 
 func StrToIPNet(in string) *net.IPNet {
