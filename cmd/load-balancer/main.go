@@ -171,6 +171,7 @@ type SimpleNetworkService struct {
 	simpleNetworkServiceBlocked bool
 	mu                          sync.Mutex
 	cancelStreamWatcher         context.CancelFunc
+	streamWatcherRunning        bool
 }
 
 /* // Request checks if allowed to serve the request
@@ -209,6 +210,7 @@ func NewSimpleNetworkService(ctx context.Context, targetRegistryClient nspAPI.Ta
 		streams:                     make(map[string]types.Stream),
 		serviceCtrCh:                make(chan bool),
 		simpleNetworkServiceBlocked: true,
+		streamWatcherRunning:        false,
 	}
 	return simpleNetworkService
 }
@@ -253,6 +255,7 @@ func (sns *SimpleNetworkService) Start() {
 						sns.disableInterfaces()
 						if sns.cancelStreamWatcher != nil {
 							sns.cancelStreamWatcher()
+							sns.streamWatcherRunning = false
 						}
 					} else {
 						// restart watching the streams
@@ -268,6 +271,10 @@ func (sns *SimpleNetworkService) Start() {
 }
 
 func (sns *SimpleNetworkService) startStreamWatcher() {
+	if sns.streamWatcherRunning {
+		return
+	}
+	sns.streamWatcherRunning = true
 	var ctx context.Context
 	ctx, sns.cancelStreamWatcher = context.WithCancel(sns.ctx)
 	go func() {
