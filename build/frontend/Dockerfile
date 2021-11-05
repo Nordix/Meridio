@@ -12,18 +12,9 @@ COPY . .
 RUN go build -ldflags '-extldflags "-static"' -o frontend ./cmd/frontend
 
 
-FROM debian:bullseye-slim
+FROM alpine:edge
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive \
-	apt-get install --no-install-recommends -y net-tools && \
-	apt-get install --no-install-recommends -y iproute2 && \
-	apt-get install --no-install-recommends -y procps && \
-	apt-get install --no-install-recommends -y vim && \
-	apt-get install --no-install-recommends -y less && \
-	apt-get install --no-install-recommends -y tcpdump && \
-	apt-get install --no-install-recommends -y iputils-ping && \
-	apt-get install --no-install-recommends -y bird2
-
+RUN apk update && apk add bash net-tools iproute2 procps vim less tcpdump iputils bird
 RUN mkdir -p /run/bird && \
 	mkdir -p /etc/bird
 
