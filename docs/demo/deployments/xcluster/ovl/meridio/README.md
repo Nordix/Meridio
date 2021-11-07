@@ -31,3 +31,24 @@ issues, where usually one of the VPP forwarder gets killed by the OS.
 
 Refer to [Meridio description](https://github.com/Nordix/Meridio/blob/master/docs/demo/xcluster.md) for details. 
 
+
+## Private registry and local manifests
+
+Generate local manifests in the "default/" directory and check images
+missing in the `private-reg`;
+
+```
+mdir=$(readlink -f ../../../../../..)
+dst=./default/etc/kubernetes/meridio
+mkdir -p $dst
+for n in spire nsm nsm-vlan; do
+  helm template $mdir/docs/demo/deployments/$n --generate-name > $dst/$n.yaml
+done
+helm template $mdir/deployments/helm --generate-name > $dst/meridio.yaml
+images lreg_missingimages default
+```
+
+Start the cluster and on a vm start nsm+meridio with;
+```
+kubectl apply -f /etc/kubernetes/meridio/
+```
