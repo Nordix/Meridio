@@ -37,7 +37,7 @@ func (r *Trench) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/mutate-meridio-nordix-org-v1alpha1-trench,mutating=true,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=trenches,verbs=create;update,versions=v1alpha1,name=mtrench.kb.io,admissionReviewVersions={v1alpha1,v1beta1}
+//+kubebuilder:webhook:path=/mutate-meridio-nordix-org-v1alpha1-trench,mutating=true,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=trenches,verbs=create;update,versions=v1alpha1,name=mtrench.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Defaulter = &Trench{}
 
@@ -51,7 +51,7 @@ func (r *Trench) Default() {
 	}
 }
 
-//+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1alpha1-trench,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=trenches,verbs=create;update,versions=v1alpha1,name=vtrench.kb.io,admissionReviewVersions={v1alpha1,v1beta1}
+//+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1alpha1-trench,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=trenches,verbs=create;update,versions=v1alpha1,name=vtrench.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &Trench{}
 

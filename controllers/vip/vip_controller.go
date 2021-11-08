@@ -38,7 +38,7 @@ type VipReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=meridio.nordix.org,resources=vips,namespace=system,verbs=get;list;watch;update;patch;delete
+//+kubebuilder:rbac:groups=meridio.nordix.org,resources=vips,namespace=system,verbs=get;list;watch;update;patch
 //+kubebuilder:rbac:groups=meridio.nordix.org,resources=vips/status,namespace=system,verbs=get;update;patch
 //+kubebuilder:rbac:groups=meridio.nordix.org,resources=vips/finalizers,namespace=system,verbs=update
 
