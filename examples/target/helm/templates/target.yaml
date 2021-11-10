@@ -21,9 +21,14 @@ spec:
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ctraffic.image }}:{{ .Values.ctraffic.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           args:
-            - ./target-client connect -ns {{ .Values.default.conduit.name }} -t {{ .Values.default.trench.name }} ; 
-              ./target-client open -ns {{ .Values.default.conduit.name }} -t {{ .Values.default.trench.name }} -s {{ .Values.default.stream.name }} ; 
-              ./ctraffic -server -address [::]:5000
+            - ./target-client connect -ns {{ .Values.default.conduit.name }} -t {{ .Values.default.trench.name }} ;
+              ./target-client open -ns {{ .Values.default.conduit.name }} -t {{ .Values.default.trench.name }} -s {{ .Values.default.stream.name }} ;
+              screen -d -m bash -c "./ctraffic -server -address [::]:5000" ; 
+              screen -d -m bash -c "./ctraffic -server -address [::]:5001" ; 
+              screen -d -m bash -c "./ctraffic -server -address [::]:5002" ; 
+              screen -d -m bash -c "./ctraffic -server -udp -address [::]:5003" ; 
+              screen -d -m bash -c "./ctraffic -server -udp -address [::]:5004" ; 
+              tail -f /dev/null
           command:
             - /bin/bash
             - -c
@@ -75,7 +80,8 @@ spec:
               mountPath: /var/lib/meridio
               readOnly: false
           securityContext:
-            privileged: true
+            capabilities:
+              add: ["NET_ADMIN"]
       volumes:
         - name: spire-agent-socket
           hostPath:

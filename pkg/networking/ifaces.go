@@ -48,7 +48,7 @@ type Utils interface {
 	NewInterface(index int) Iface
 	NewBridge(name string) (Bridge, error)
 	NewFWMarkRoute(ip string, fwmark int, tableID int) (FWMarkRoute, error)
-	NewNFQueue(prefix string, queueNum int) (NFQueue, error)
+	NFQueueFactory
 	NewSourceBasedRoute(tableID int, prefix string) (SourceBasedRoute, error)
 
 	NewInterfaceMonitor() (InterfaceMonitor, error)
@@ -69,7 +69,12 @@ type FWMarkRoute interface {
 }
 
 type NFQueue interface {
+	Update(protocols []string, sourceIPs []string, destinationIPs []string, sourcePorts []string, destinationPorts []string) error
 	Delete() error
+}
+
+type NFQueueFactory interface {
+	NewNFQueue(name string, nfqueueNumber uint16, protocols []string, sourceIPs []string, destinationIPs []string, sourcePorts []string, destinationPorts []string, priority int32) (NFQueue, error)
 }
 
 type SourceBasedRoute interface {

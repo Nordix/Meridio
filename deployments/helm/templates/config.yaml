@@ -22,10 +22,28 @@ data:
       vips:
         - vip1
         - vip2
+      source-subnets:
+        - 0.0.0.0/0
+        - 0:0:0:0:0:0:0:0/0
+      destination-port-ranges:
+        - 5000
+      source-port-ranges:
+        - 1024-65535
+      protocols:
+        - tcp
       stream: stream-a
     - name: flow-b
       vips:
         - vip3
+      source-subnets:
+        - 0.0.0.0/0
+        - 0:0:0:0:0:0:0:0/0
+      destination-port-ranges:
+        - 5000
+      source-port-ranges:
+        - 1024-65535
+      protocols:
+        - tcp
       stream: stream-b
   vips: |
     items:

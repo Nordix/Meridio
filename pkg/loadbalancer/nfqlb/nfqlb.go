@@ -34,6 +34,7 @@ type nfqlb struct {
 	m       int
 	n       int
 	nfqueue int
+	cmd     *exec.Cmd
 }
 
 func New(name string, m int, n int, nfqueue int) (*nfqlb, error) {
@@ -89,7 +90,7 @@ func (n *nfqlb) Deactivate(identifier int) error {
 
 // https://github.com/Nordix/nfqueue-loadbalancer/blob/master/src/nfqlb/cmdLb.c#L162
 func (n *nfqlb) Start() error {
-	cmd := exec.Command(
+	n.cmd = exec.Command(
 		nfqlbCmd,
 		"lb",
 		// "--mtu=",
@@ -105,15 +106,28 @@ func (n *nfqlb) Start() error {
 		// "--ft_frag=",
 		// "--ft_ttl=",
 	)
-	return cmd.Start()
+	return n.cmd.Start()
 }
 
 func (n *nfqlb) Stop() error {
-	return nil
+	err := n.cmd.Process.Kill()
+	if err != nil {
+		return err
+	}
+	return n.cmd.Wait()
 }
 
 func (n *nfqlb) Delete() error {
-	return nil
+	var errFinal error
+	err := n.desactivateAll()
+	if err != nil {
+		errFinal = fmt.Errorf("%w; target: %v", errFinal, err)
+	}
+	err = n.Stop()
+	if err != nil {
+		errFinal = fmt.Errorf("%w; target: %v", errFinal, err)
+	}
+	return errFinal
 }
 
 // https://github.com/Nordix/nfqueue-loadbalancer/blob/master/src/nfqlb/cmdShm.c#L31

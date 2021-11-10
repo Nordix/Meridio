@@ -194,7 +194,9 @@ func (s *Stream) update(ctx context.Context) error {
 
 func (s *Stream) unregister(ctx context.Context) error {
 	target := &nspAPI.Target{
-		Ips: s.Conduit.GetIPs(),
+		Ips:    s.Conduit.GetIPs(),
+		Type:   nspAPI.Target_DEFAULT,
+		Stream: s.getNSPStream(),
 	}
 	_, err := s.getTargetRegistryClient().Unregister(ctx, target)
 	return err
@@ -233,7 +235,10 @@ func (s *Stream) getIdentifiersInUse(ctx context.Context) ([]string, error) {
 	watchClient, err := s.getTargetRegistryClient().Watch(context, &nspAPI.Target{
 		Status: s.status,
 		Type:   nspAPI.Target_DEFAULT,
-		Stream: s.getNSPStream(),
+		// Stream: s.getNSPStream(), // todo
+		Stream: &nspAPI.Stream{
+			Conduit: s.getNSPStream().GetConduit(),
+		},
 	})
 	if err != nil {
 		return identifiers, err
