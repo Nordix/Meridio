@@ -216,7 +216,6 @@ rules:
   resources:
   - vips
   verbs:
-  - delete
   - get
   - list
   - patch

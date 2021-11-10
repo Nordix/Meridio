@@ -40,7 +40,7 @@ func (r *Stream) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/mutate-meridio-nordix-org-v1alpha1-stream,mutating=true,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=streams,verbs=create;update,versions=v1alpha1,name=mstream.kb.io,admissionReviewVersions={v1,v1beta1}
+//+kubebuilder:webhook:path=/mutate-meridio-nordix-org-v1alpha1-stream,mutating=true,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=streams,verbs=create;update,versions=v1alpha1,name=mstream.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Defaulter = &Stream{}
 
@@ -49,7 +49,7 @@ func (r *Stream) Default() {
 	streamlog.Info("default", "name", r.Name)
 }
 
-//+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1alpha1-stream,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=streams,verbs=create;update,versions=v1alpha1,name=vstream.kb.io,admissionReviewVersions={v1,v1beta1}
+//+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1alpha1-stream,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=streams,verbs=create;update,versions=v1alpha1,name=vstream.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &Stream{}
 
