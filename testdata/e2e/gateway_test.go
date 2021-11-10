@@ -5,7 +5,7 @@ import (
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"github.com/nordix/meridio-operator/controllers/common"
-	"github.com/nordix/meridio-operator/test/utils"
+	"github.com/nordix/meridio-operator/testdata/utils"
 	"github.com/nordix/meridio/pkg/configuration/reader"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
