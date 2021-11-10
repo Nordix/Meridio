@@ -387,11 +387,8 @@ func (sns *SimpleNetworkService) deleteStream(streamName string) error {
 		return nil
 	}
 	err := stream.Delete()
-	if err != nil {
-		return err
-	}
 	delete(sns.streams, streamName)
-	return nil
+	return err
 }
 
 func (sns *SimpleNetworkService) serviceBlocked() bool {

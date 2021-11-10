@@ -153,6 +153,7 @@ func (nfq *NFQueue) Delete() error {
 	nfq.mu.Lock()
 	defer nfq.mu.Unlock()
 	conn := &nftables.Conn{}
+	conn.FlushChain(nfq.chain)
 	conn.DelChain(nfq.chain)
 	conn.DelSet(nfq.destinationPortSet)
 	conn.DelSet(nfq.sourcePortSet)
@@ -260,17 +261,6 @@ func (nfq *NFQueue) configureRules() error {
 		Table: nfq.table,
 		Chain: nfq.chain,
 		Exprs: []expr.Any{
-			// [ meta load l4proto => reg 1 ]
-			&expr.Meta{
-				Key:      expr.MetaKeyL4PROTO,
-				Register: 1,
-			},
-			// [ lookup reg 1 set flow-a-protocols ]
-			&expr.Lookup{
-				SourceRegister: 1,
-				SetName:        nfq.protocolSet.Name,
-				SetID:          nfq.protocolSet.ID,
-			},
 			// [ meta load nfproto => reg 1 ]
 			&expr.Meta{
 				Key:      expr.MetaKeyNFPROTO,
@@ -281,6 +271,17 @@ func (nfq *NFQueue) configureRules() error {
 				Op:       expr.CmpOpEq,
 				Register: 1,
 				Data:     []byte{unix.AF_INET},
+			},
+			// [ meta load l4proto => reg 1 ]
+			&expr.Meta{
+				Key:      expr.MetaKeyL4PROTO,
+				Register: 1,
+			},
+			// [ lookup reg 1 set flow-a-protocols ]
+			&expr.Lookup{
+				SourceRegister: 1,
+				SetName:        nfq.protocolSet.Name,
+				SetID:          nfq.protocolSet.ID,
 			},
 			// [ payload load 4b @ network header + 12 => reg 1 ]
 			&expr.Payload{
@@ -351,17 +352,6 @@ func (nfq *NFQueue) configureRules() error {
 		Table: nfq.table,
 		Chain: nfq.chain,
 		Exprs: []expr.Any{
-			// [ meta load l4proto => reg 1 ]
-			&expr.Meta{
-				Key:      expr.MetaKeyL4PROTO,
-				Register: 1,
-			},
-			// [ lookup reg 1 set flow-a-protocols ]
-			&expr.Lookup{
-				SourceRegister: 1,
-				SetName:        nfq.protocolSet.Name,
-				SetID:          nfq.protocolSet.ID,
-			},
 			// [ meta load nfproto => reg 1 ]
 			&expr.Meta{
 				Key:      expr.MetaKeyNFPROTO,
@@ -372,6 +362,17 @@ func (nfq *NFQueue) configureRules() error {
 				Op:       expr.CmpOpEq,
 				Register: 1,
 				Data:     []byte{unix.AF_INET6},
+			},
+			// [ meta load l4proto => reg 1 ]
+			&expr.Meta{
+				Key:      expr.MetaKeyL4PROTO,
+				Register: 1,
+			},
+			// [ lookup reg 1 set flow-a-protocols ]
+			&expr.Lookup{
+				SourceRegister: 1,
+				SetName:        nfq.protocolSet.Name,
+				SetID:          nfq.protocolSet.ID,
 			},
 			// [ payload load 16b @ network header + 8 => reg 1 ]
 			&expr.Payload{
