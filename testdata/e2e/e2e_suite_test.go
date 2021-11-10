@@ -10,7 +10,6 @@ import (
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"github.com/nordix/meridio-operator/controllers/common"
-	meridioe2eutils "github.com/nordix/meridio/test/e2e/utils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -20,10 +19,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
 	scalescheme "k8s.io/client-go/scale/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 const (
@@ -42,7 +41,6 @@ const (
 type Framework struct {
 	Namespace string
 	Client    client.Client
-	Clientset *kubernetes.Clientset
 	GinkgoT   GinkgoTInterface
 }
 
@@ -159,19 +157,13 @@ func NewFramework() *Framework {
 	g.Expect(apiextensionsv1.AddToScheme(myScheme)).To(Succeed())
 	g.Expect(meridiov1alpha1.AddToScheme(myScheme)).To(Succeed())
 
-	config, err := meridioe2eutils.GetConfig()
-	g.Expect(err).To(BeNil())
-	kubeAPIClient, err := client.New(config, client.Options{
-		Scheme: myScheme,
-	})
-	g.Expect(err).To(BeNil())
-	clientset, err := meridioe2eutils.GetClientSet()
+	config := config.GetConfigOrDie()
+	kubeAPIClient, err := client.New(config, client.Options{Scheme: myScheme})
 	g.Expect(err).To(BeNil())
 
 	return &Framework{
-		Client:    kubeAPIClient,
-		Clientset: clientset,
-		GinkgoT:   t,
+		Client:  kubeAPIClient,
+		GinkgoT: t,
 	}
 }
 
