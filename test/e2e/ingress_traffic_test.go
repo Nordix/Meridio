@@ -26,7 +26,7 @@ import (
 
 var _ = Describe("IngressTraffic", func() {
 
-	Context("When trench 'trench-a' is deployed in namespace 'red' with 2 VIP addresses (20.0.0.1:5000, [2000::1]:5000) and 4 target pods running ctraffic", func() {
+	Context("When trench is with 2 VIP addresses (20.0.0.1:5000, [2000::1]:5000) and 4 target pods running ctraffic", func() {
 
 		var (
 			lostConnections    map[string]int

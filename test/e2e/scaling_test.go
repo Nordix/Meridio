@@ -30,7 +30,7 @@ import (
 
 var _ = Describe("Scaling", func() {
 
-	Context("When trench 'trench-a' is deployed in namespace 'red' with 2 VIP addresses (20.0.0.1:5000, [2000::1]:5000) and 4 target pods running ctraffic", func() {
+	Context("When trench is with 2 VIP addresses (20.0.0.1:5000, [2000::1]:5000) and 4 target pods running ctraffic", func() {
 
 		var (
 			replicas int
@@ -90,7 +90,7 @@ var _ = Describe("Scaling", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 
-		When("scaling targets down", func() {
+		When("scaling targets down to 3", func() {
 			BeforeEach(func() {
 				replicas = 3
 			})
@@ -103,7 +103,7 @@ var _ = Describe("Scaling", func() {
 			})
 		})
 
-		When("scaling targets up", func() {
+		When("scaling targets up to 5", func() {
 			BeforeEach(func() {
 				replicas = 5
 			})

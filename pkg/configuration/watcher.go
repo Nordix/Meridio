@@ -21,14 +21,13 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/nordix/meridio/pkg/configuration/reader"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-
-	"github.com/nordix/meridio-operator/controllers/config"
 )
 
 // Watch Meridio-Operator spawned configmap
@@ -44,8 +43,8 @@ type OperatorWatcher struct {
 }
 
 type OperatorConfig struct {
-	GWs  *config.GatewayConfig
-	VIPs *config.VipConfig
+	GWs  *reader.GatewayList
+	VIPs *reader.VipList
 }
 
 func (oc *OperatorConfig) String() string {
@@ -78,7 +77,12 @@ func (w *OperatorWatcher) eventHandler(event *watch.Event) {
 
 	c := &OperatorConfig{}
 	var err error
-	c.GWs, c.VIPs, err = config.UnmarshalConfig(configmap.Data)
+	c.GWs.Gateways, err = reader.UnmarshalGateways(configmap.Data[reader.GatewaysConfigKey])
+	if err != nil {
+		logrus.Errorf("err unmarshal: %v", err)
+		return
+	}
+	c.VIPs.Vips, err = reader.UnmarshalVips(configmap.Data[reader.GatewaysConfigKey])
 	if err != nil {
 		logrus.Errorf("err unmarshal: %v", err)
 		return
@@ -134,16 +138,16 @@ func NewOperatorWatcher(configMap string, namespace string, configEvent chan<- *
 // returns true if different
 func DiffOperatorConfigItem(a, b interface{}) bool {
 	switch a := a.(type) {
-	case *config.GatewayConfig:
-		if b, ok := b.(*config.GatewayConfig); ok {
+	case *reader.GatewayList:
+		if b, ok := b.(*reader.GatewayList); ok {
 			return DiffGatewayConfig(a, b)
 		} else {
 			// not the same type
 			logrus.Warnf("DiffOperatorConfigItem: type mismatch")
 			return true
 		}
-	case *config.VipConfig:
-		if b, ok := b.(*config.VipConfig); ok {
+	case *reader.VipList:
+		if b, ok := b.(*reader.VipList); ok {
 			return DiffVipConfig(a, b)
 		} else {
 			logrus.Warnf("DiffOperatorConfigItem: type mismatch")
@@ -157,14 +161,14 @@ func DiffOperatorConfigItem(a, b interface{}) bool {
 
 // DiffGatewayConfig -
 // returns true if different
-func DiffGatewayConfig(a, b *config.GatewayConfig) bool {
+func DiffGatewayConfig(a, b *reader.GatewayList) bool {
 	if len(a.Gateways) != len(b.Gateways) {
 		// different length
 		return true
 	}
 
-	mapA := config.MakeMapFromGWList(a)
-	mapB := config.MakeMapFromGWList(b)
+	mapA := makeMapFromGWList(a.Gateways)
+	mapB := makeMapFromGWList(b.Gateways)
 	return func() bool {
 		for name := range mapA {
 			if _, ok := mapB[name]; !ok {
@@ -187,14 +191,14 @@ func DiffGatewayConfig(a, b *config.GatewayConfig) bool {
 
 // DiffVipConfig -
 // returns true if different
-func DiffVipConfig(a, b *config.VipConfig) bool {
+func DiffVipConfig(a, b *reader.VipList) bool {
 	if len(a.Vips) != len(b.Vips) {
 		// different length
 		return true
 	}
 
-	mapA := config.MakeMapFromVipList(a)
-	mapB := config.MakeMapFromVipList(b)
+	mapA := makeMapFromVipList(a.Vips)
+	mapB := makeMapFromVipList(b.Vips)
 	return func() bool {
 		for name := range mapA {
 			if _, ok := mapB[name]; !ok {
@@ -217,10 +221,30 @@ func DiffVipConfig(a, b *config.VipConfig) bool {
 
 // AddrListFromVipConfig -
 // Generate string list of VIP addresses based on the config
-func AddrListFromVipConfig(vips *config.VipConfig) []string {
+func AddrListFromVipConfig(vips *reader.VipList) []string {
 	list := []string{}
 	for _, item := range vips.Vips {
 		list = append(list, item.Address)
 	}
 	return list
+}
+
+// Input is a slice of Vips.
+// Return a map with key as vip names.
+func makeMapFromVipList(lst []*reader.Vip) map[string]reader.Vip {
+	ret := make(map[string]reader.Vip)
+	for _, item := range lst {
+		ret[item.Name] = *item
+	}
+	return ret
+}
+
+// Input is a slice of Gateways.
+// Return a map with key as gateway names.
+func makeMapFromGWList(lst []*reader.Gateway) map[string]reader.Gateway {
+	ret := make(map[string]reader.Gateway)
+	for _, item := range lst {
+		ret[item.Name] = *item
+	}
+	return ret
 }
