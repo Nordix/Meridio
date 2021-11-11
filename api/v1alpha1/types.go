@@ -104,11 +104,11 @@ func (t NetworkServiceType) IsValid() bool {
 }
 
 func validatePrefix(p string) (*net.IPNet, error) {
-	_, n, err := net.ParseCIDR(p)
+	ip, n, err := net.ParseCIDR(p)
 	if err != nil {
 		return nil, err
 	}
-	if n.String() != p {
+	if !ip.Equal(n.IP) {
 		return nil, fmt.Errorf("%s is not a valid prefix, probably %v should be used", p, n)
 	}
 	return n, nil
