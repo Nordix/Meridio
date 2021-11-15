@@ -20,7 +20,7 @@ RUN apt-get install -y iproute2 tcpdump iptables net-tools iputils-ping ipvsadm 
 
 WORKDIR /root/
 
-RUN wget https://github.com/Nordix/ctraffic/releases/download/v1.4.0/ctraffic.gz
+RUN wget https://github.com/Nordix/ctraffic/releases/download/v1.6.0/ctraffic.gz
 RUN gunzip ctraffic.gz 
 RUN chmod u+x ctraffic
 
