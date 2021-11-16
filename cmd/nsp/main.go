@@ -32,6 +32,7 @@ import (
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/nsp"
 	targetRegistry "github.com/nordix/meridio/pkg/nsp/registry"
+	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
@@ -86,7 +87,9 @@ func main() {
 	go watcherNotifierTargetRegistry.Start(context.Background())
 	targetRegistryServer := nsp.NewServer(tr, watcherNotifierTargetRegistry)
 
-	server := grpc.NewServer()
+	server := grpc.NewServer(grpc.Creds(
+		credentials.GetServer(context.Background()),
+	))
 	nspAPI.RegisterTargetRegistryServer(server, targetRegistryServer)
 	nspAPI.RegisterConfigurationManagerServer(server, configurationManagerServer)
 

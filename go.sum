@@ -870,8 +870,9 @@ github.com/spf13/pflag v1.0.5/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An
 github.com/spf13/viper v1.4.0/go.mod h1:PTJ7Z/lr49W6bUbkmS1V3by4uWynFiR9p7+dSq/yZzE=
 github.com/spf13/viper v1.7.0/go.mod h1:8WkrPz2fc9jxqZNCJI/76HCieCp4Q8HaLFoCha5qpdg=
 github.com/spiffe/go-spiffe/v2 v2.0.0-alpha.4.0.20200528145730-dc11d0c74e85/go.mod h1:Z6jOEo3L49OpNaK5JTIOig6K9HJhwH6cb78MF5mothQ=
-github.com/spiffe/go-spiffe/v2 v2.0.0-beta.7 h1:PiGBgu/3IKunWDhXOHz9ud4ruAQCEWKiO1mTxGDe5M8=
 github.com/spiffe/go-spiffe/v2 v2.0.0-beta.7/go.mod h1:TEfgrEcyFhuSuvqohJt6IxENUNeHfndWCCV1EX7UaVk=
+github.com/spiffe/go-spiffe/v2 v2.0.0-beta.10 h1:UXfGMp27MlQcYCAVRl21+cZrbKXMLsFmMXam5W3qBIA=
+github.com/spiffe/go-spiffe/v2 v2.0.0-beta.10/go.mod h1:TEfgrEcyFhuSuvqohJt6IxENUNeHfndWCCV1EX7UaVk=
 github.com/stoewer/go-strcase v1.2.0/go.mod h1:IBiWB2sKIp3wVVQ3Y035++gc+knqhUQag1KpM8ahLw8=
 github.com/streadway/amqp v0.0.0-20190404075320-75d898a42a94/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
 github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
@@ -1400,6 +1401,7 @@ google.golang.org/grpc v1.36.0/go.mod h1:qjiiYl8FncCW8feJPdyg3v6XW24KsRHe+dy9BAG
 google.golang.org/grpc v1.38.0/go.mod h1:NREThFqKR1f3iQ6oBuvc5LadQuXVGo9rkm5ZGrQdJfM=
 google.golang.org/grpc v1.39.0 h1:Klz8I9kdtkIN6EpHHUOMLCYhTn/2WAe5a0s1hcBkdTI=
 google.golang.org/grpc v1.39.0/go.mod h1:PImNr+rS9TWYb2O4/emRugxiyHZ5JyHW5F+RPnDzfrE=
+google.golang.org/grpc/examples v0.0.0-20201130180447-c456688b1860 h1:DtMmDAGd9z5SCiq4HyyAM6cmMDNT1Od8qIpUmjVEf8A=
 google.golang.org/grpc/examples v0.0.0-20201130180447-c456688b1860/go.mod h1:Ly7ZA/ARzg8fnPU9TyZIxoz33sEUuWX7txiqs8lPTgE=
 google.golang.org/protobuf v0.0.0-20200109180630-ec00e32a8dfd/go.mod h1:DFci5gLYBciE7Vtevhsrf46CRTquxDuWsQurQQe4oz8=
 google.golang.org/protobuf v0.0.0-20200221191635-4d8936d0db64/go.mod h1:kwYJMbMJ01Woi6D6+Kah6886xMZcty6N08ah7+eCXa0=

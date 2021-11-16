@@ -24,6 +24,7 @@ import (
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/configuration"
+	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/nordix/meridio/pkg/target/types"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -196,7 +197,10 @@ func (t *Trench) watchConfig() {
 
 func (t *Trench) connectNSPService() error {
 	var err error
-	t.nspConn, err = grpc.Dial(t.getNSPService(), grpc.WithInsecure(),
+	t.nspConn, err = grpc.Dial(t.getNSPService(),
+		grpc.WithTransportCredentials(
+			credentials.GetClient(context.Background()),
+		),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
 		))

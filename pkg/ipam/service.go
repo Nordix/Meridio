@@ -23,6 +23,7 @@ import (
 	"strconv"
 
 	ipamAPI "github.com/nordix/meridio/api/ipam"
+	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/vishvananda/netlink"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -81,7 +82,9 @@ func NewIpamService(port int) (*IpamService, error) {
 
 	ipam := NewIpam()
 
-	s := grpc.NewServer()
+	s := grpc.NewServer(grpc.Creds(
+		credentials.GetServer(context.Background()),
+	))
 
 	ipamService := &IpamService{
 		Listener: lis,
