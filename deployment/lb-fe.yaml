@@ -110,6 +110,8 @@ spec:
           image: # to be filled by operator
           imagePullPolicy: # Kubernetes default according to image tag
           env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
             - name: NFE_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -128,6 +130,10 @@ spec:
               value: # to be filled by operator
           securityContext:
             privileged: true
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
       volumes:
         - name: spire-agent-socket
           hostPath:

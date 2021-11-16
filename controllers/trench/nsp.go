@@ -43,7 +43,7 @@ func (i *NspDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			env.Value = fmt.Sprint(common.NspTargetPort)
 		case "NSP_CONFIG_MAP_NAME":
 			env.Value = common.ConfigMapName(i.trench)
-		case "NSP_NAMESPACE":
+		case "NSP_NAMESPACE", "SPIFFE_ENDPOINT_SOCKET":
 		default:
 			i.exec.LogError(fmt.Errorf("env %s not expected", env.Name), "get env var error")
 		}
