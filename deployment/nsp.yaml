@@ -43,6 +43,8 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
           env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
             - name: NSP_PORT
               value: # to be filled by operator
             - name: NSP_NAMESPACE
@@ -51,3 +53,12 @@ spec:
                   fieldPath: metadata.namespace
             - name: NSP_CONFIG_MAP_NAME
               value: # to be filled by operator
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory

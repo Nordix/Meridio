@@ -128,7 +128,8 @@ func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 
 	for _, e := range allEnv {
 		// append all hard coded envVars
-		if e.Name == "NFE_NAMESPACE" ||
+		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
+			e.Name == "NFE_NAMESPACE" ||
 			e.Name == "NFE_LOG_BIRD" ||
 			e.Name == "NFE_ECMP" {
 			env = append(env, e)
