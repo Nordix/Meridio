@@ -121,7 +121,7 @@ func main() {
 			kernelmech.MECHANISM: kernel.NewServer(),
 			noop.MECHANISM:       null.NewServer(),
 		}),
-		interfacename.NewServer("nse", &interfacename.RandomGenerator{}),
+		interfacename.NewServer(types.InterfaceNamePrefix, &interfacename.RandomGenerator{}),
 		interfaceMonitorEndpoint,
 		sendfd.NewServer(),
 	}

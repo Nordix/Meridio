@@ -46,6 +46,7 @@ type LoadBalancer struct {
 	ctx                        context.Context
 	cancel                     context.CancelFunc
 	pendingTargets             map[int]types.Target // key: Identifier
+	defrag                     *Defrag
 }
 
 func New(stream *nspAPI.Stream, targetRegistryClient nspAPI.TargetRegistryClient, configurationManagerClient nspAPI.ConfigurationManagerClient, m int, n int, nfqueue int, netUtils networking.Utils) (types.Stream, error) {
@@ -63,6 +64,13 @@ func New(stream *nspAPI.Stream, targetRegistryClient nspAPI.TargetRegistryClient
 		netUtils:                   netUtils,
 		nfqueue:                    nfqueue,
 		pendingTargets:             make(map[int]types.Target),
+	}
+	// first enable kernel's IP defrag except for the interfaces facing targets
+	// (defrag is needed by Flows to match rules with L4 information)
+	loadBalancer.defrag, err = NewDefrag(types.InterfaceNamePrefix)
+	if err != nil {
+		logrus.Warnf("Stream '%v' Defrag setup err=%v", loadBalancer.GetName(), err)
+		return nil, err
 	}
 	err = nfqlb.Start()
 	if err != nil {
