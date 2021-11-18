@@ -17,5 +17,6 @@ limitations under the License.
 package types
 
 const (
-	IdentifierKey = "identifier"
+	IdentifierKey       = "identifier"
+	InterfaceNamePrefix = "nse"
 )
