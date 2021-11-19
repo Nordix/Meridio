@@ -45,6 +45,7 @@ import (
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
 	"github.com/nordix/meridio/pkg/nsm/interfacename"
+	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"google.golang.org/grpc"
@@ -88,7 +89,10 @@ func main() {
 		}
 	}()
 
-	conn, err := grpc.Dial(config.NSPService, grpc.WithInsecure(),
+	conn, err := grpc.Dial(config.NSPService,
+		grpc.WithTransportCredentials(
+			credentials.GetClient(context.Background()),
+		),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
 		))

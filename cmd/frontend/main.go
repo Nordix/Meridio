@@ -31,6 +31,7 @@ import (
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/cmd/frontend/internal/env"
 	"github.com/nordix/meridio/cmd/frontend/internal/frontend"
+	"github.com/nordix/meridio/pkg/security/credentials"
 )
 
 /* type Config struct {
@@ -131,7 +132,10 @@ func watchConfig(ctx context.Context, cancel context.CancelFunc, c *env.Config, 
 		logrus.Errorf("Wait start: %v", err)
 		cancel()
 	}
-	conn, err := grpc.Dial(c.NSPService, grpc.WithInsecure(),
+	conn, err := grpc.Dial(c.NSPService,
+		grpc.WithTransportCredentials(
+			credentials.GetClient(context.Background()),
+		),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
 		))

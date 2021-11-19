@@ -25,6 +25,8 @@ spec:
           livenessProbe:
 {{ toYaml .Values.livenessProbe | indent 12 }}
           env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
             - name: NSP_PORT
               value: "{{ .Values.nsp.targetPort }}"
             - name: NSP_NAMESPACE
@@ -33,3 +35,12 @@ spec:
                   fieldPath: metadata.namespace
             - name: NSP_CONFIG_MAP_NAME
               value: {{ template "meridio.configuration" . }}
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory

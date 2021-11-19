@@ -18,7 +18,7 @@ require (
 	github.com/onsi/gomega v1.17.0
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
-	github.com/spiffe/go-spiffe/v2 v2.0.0-beta.7
+	github.com/spiffe/go-spiffe/v2 v2.0.0-beta.10
 	github.com/stretchr/testify v1.7.0
 	github.com/vishvananda/netlink v1.1.0
 	go.uber.org/goleak v1.1.10

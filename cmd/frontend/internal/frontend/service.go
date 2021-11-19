@@ -33,6 +33,7 @@ import (
 	"github.com/nordix/meridio/cmd/frontend/internal/connectivity"
 	"github.com/nordix/meridio/cmd/frontend/internal/env"
 	"github.com/nordix/meridio/cmd/frontend/internal/utils"
+	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"google.golang.org/grpc"
@@ -42,7 +43,10 @@ import (
 func NewFrontEndService(c *env.Config) *FrontEndService {
 	logrus.Infof("NewFrontEndService")
 
-	conn, err := grpc.Dial(c.NSPService, grpc.WithInsecure(),
+	conn, err := grpc.Dial(c.NSPService,
+		grpc.WithTransportCredentials(
+			credentials.GetClient(context.Background()),
+		),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
 		))

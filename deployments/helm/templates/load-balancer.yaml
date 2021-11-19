@@ -98,6 +98,8 @@ spec:
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.frontEnd.image }}:{{ .Values.frontEnd.version }}
           imagePullPolicy: IfNotPresent
           env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
             - name: NFE_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -114,6 +116,10 @@ spec:
               value: {{ .Values.trench.name }}
             - name: NFE_ATTRACTOR_NAME
               value: "attractor-a"
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
           securityContext:
             privileged: true
       volumes:

@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	ipamAPI "github.com/nordix/meridio/api/ipam"
+	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/vishvananda/netlink"
 	"google.golang.org/grpc"
 )
@@ -51,7 +52,10 @@ func (ic *IpamClient) AllocateSubnet(subnetPool string, prefixLength int) (strin
 }
 
 func (ic *IpamClient) connect(ipamServiceIPPort string) error {
-	conn, err := grpc.Dial(ipamServiceIPPort, grpc.WithInsecure(),
+	conn, err := grpc.Dial(ipamServiceIPPort,
+		grpc.WithTransportCredentials(
+			credentials.GetClient(context.Background()),
+		),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
 		))
