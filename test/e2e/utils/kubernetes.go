@@ -19,31 +19,18 @@ package utils
 import (
 	"bytes"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
-	"k8s.io/client-go/util/homedir"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
-func GetConfig() (*rest.Config, error) {
-	kubeconfig := filepath.Join(homedir.HomeDir(), ".kube", "config")
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-	if err != nil {
-		return nil, err
-	}
-	return config, nil
-}
-
 func GetClientSet() (*kubernetes.Clientset, error) {
-	config, err := GetConfig()
+	config, err := config.GetConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -54,8 +41,8 @@ func GetClientSet() (*kubernetes.Clientset, error) {
 	return clientset, nil
 }
 
-func PodExec(pod *v1.Pod, container string, command []string) (string, error) {
-	clientCfg, err := GetConfig()
+func PodExec(pod *corev1.Pod, container string, command []string) (string, error) {
+	clientCfg, err := config.GetConfig()
 	if err != nil {
 		logrus.Errorf("Unable to get clientCfg: %v", err)
 	}
@@ -104,7 +91,7 @@ func PodExec(pod *v1.Pod, container string, command []string) (string, error) {
 	return stdout.String(), nil
 }
 
-func PodHasNetworkInterface(pod *v1.Pod, container string, interfaceSubName string) (bool, error) {
+func PodHasNetworkInterface(pod *corev1.Pod, container string, interfaceSubName string) (bool, error) {
 	interfaces, err := PodExec(pod, "ctraffic", []string{"ip", "-o", "link", "show"})
 	if err != nil {
 		return false, err

@@ -78,9 +78,11 @@ default: load-balancer proxy target ipam nsp ctraffic frontend
 lint: 
 	golangci-lint run ./...
 
+NAMESPACE ?= red
+TEST_WITH_OPERATOR ?= false
 .PHONY: e2e
 e2e: 
-	ginkgo --failFast --focus=$(E2E_FOCUS) ./test/e2e/... -- -traffic-generator-cmd=$(TRAFFIC_GENERATOR_CMD)
+	ginkgo -v --focus=$(E2E_FOCUS) ./test/e2e/... -- -traffic-generator-cmd=$(TRAFFIC_GENERATOR_CMD) -namespace=${NAMESPACE} -test-with-operator=${TEST_WITH_OPERATOR}
 
 .PHONY: test
 test: 

@@ -29,7 +29,7 @@ import (
 
 var _ = Describe("Target", func() {
 
-	Context("With one trench (trench-a) deployed in namespace red containing 2 VIP addresses (20.0.0.1:5000, [2000::1]:5000) and 4 target pods running ctraffic", func() {
+	Context("With one trench containing 2 VIP addresses (20.0.0.1:5000, [2000::1]:5000) and 4 target pods running ctraffic", func() {
 
 		var (
 			targetPod *v1.Pod
@@ -55,15 +55,15 @@ var _ = Describe("Target", func() {
 				)
 
 				BeforeEach(func() {
-					_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "close", "-ns", networkServiceName, "-t", trench})
+					_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "disconnect", "-ns", networkServiceName, "-t", trench})
 					Expect(err).NotTo(HaveOccurred())
-					_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "request", "-ns", networkServiceName, "-t", trench})
+					_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "connect", "-ns", networkServiceName, "-t", trench})
+					Expect(err).NotTo(HaveOccurred())
+					_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "open", "-ns", networkServiceName, "-t", trench, "-s", stream})
+					Expect(err).NotTo(HaveOccurred())
 				})
 
 				It("should be able to receive traffic", func() {
-					By("Checking if there is no error")
-					Expect(err).NotTo(HaveOccurred())
-
 					By("Checking if the target is receiving the traffic")
 					lastingConn, lostConn, err := utils.SendTraffic(trafficGeneratorCMD, trench, namespace, ipPort, 400, 100)
 					Expect(err).NotTo(HaveOccurred())
@@ -83,18 +83,16 @@ var _ = Describe("Target", func() {
 				)
 
 				BeforeEach(func() {
-					_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "close", "-ns", networkServiceName, "-t", trench})
+					_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "close", "-ns", networkServiceName, "-t", trench, "-s", stream})
+					Expect(err).NotTo(HaveOccurred())
 				})
 
 				AfterEach(func() {
-					_, err := utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "request", "-ns", networkServiceName, "-t", trench})
+					_, err := utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "open", "-ns", networkServiceName, "-t", trench, "-s", stream})
 					Expect(err).NotTo(HaveOccurred())
 				})
 
 				It("should still be connected to the conduit/trench but should not be able receive traffic", func() {
-					By("Checking if there is no error")
-					Expect(err).NotTo(HaveOccurred())
-
 					By("Checking if the target is not receiving the traffic")
 					lastingConn, lostConn, err := utils.SendTraffic(trafficGeneratorCMD, trench, namespace, ipPort, 400, 100)
 					Expect(err).NotTo(HaveOccurred())
@@ -122,7 +120,7 @@ var _ = Describe("Target", func() {
 				})
 
 				AfterEach(func() {
-					_, err := utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "request", "-ns", networkServiceName, "-t", trench})
+					_, err := utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "open", "-ns", networkServiceName, "-t", trench, "-s", stream})
 					Expect(err).NotTo(HaveOccurred())
 				})
 
@@ -144,19 +142,17 @@ var _ = Describe("Target", func() {
 
 				BeforeEach(func() {
 					_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "disconnect", "-ns", networkServiceName, "-t", trench})
+					Expect(err).NotTo(HaveOccurred())
 				})
 
 				AfterEach(func() {
 					_, err := utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "connect", "-ns", networkServiceName, "-t", trench})
 					Expect(err).NotTo(HaveOccurred())
-					_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "request", "-ns", networkServiceName, "-t", trench})
+					_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "open", "-ns", networkServiceName, "-t", trench, "-s", stream})
 					Expect(err).NotTo(HaveOccurred())
 				})
 
 				It("should no longer have the network interface and should not receive traffic anymore", func() {
-					By("Checking if there is no error")
-					Expect(err).NotTo(HaveOccurred())
-
 					By("Checking if the target is not receiving the traffic")
 					lastingConn, lostConn, err := utils.SendTraffic(trafficGeneratorCMD, trench, namespace, ipPort, 400, 100)
 					Expect(err).NotTo(HaveOccurred())
