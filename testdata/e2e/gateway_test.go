@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"fmt"
+	"time"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"github.com/nordix/meridio-operator/controllers/common"
@@ -70,11 +71,8 @@ var _ = Describe("Gateway", func() {
 	BeforeEach(func() {
 		fw.CleanUpTrenches()
 		fw.CleanUpGateways()
-	})
-
-	AfterEach(func() {
-		fw.CleanUpTrenches()
-		fw.CleanUpGateways()
+		// wait for the old instances to be deleted
+		time.Sleep(2 * time.Second)
 	})
 
 	Context("When creating a gateway", func() {

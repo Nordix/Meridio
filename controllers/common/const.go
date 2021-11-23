@@ -112,13 +112,12 @@ func getConduitSuffixedName(resourceName string, cr *meridiov1alpha1.Conduit) st
 	return fmt.Sprintf("%s%s-%s", getResourceNamePrefix(), resourceName, cr.ObjectMeta.Name)
 }
 
-func ProxyNtwkSvcNsName(cr *meridiov1alpha1.Trench) string {
-	return strings.Join([]string{ProxyName, LBName, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace}, ".")
+func ProxyNtwkSvcNsName(cr *meridiov1alpha1.Conduit) string {
+	return strings.Join([]string{ProxyName, cr.ObjectMeta.Name, cr.ObjectMeta.Labels["trench"], cr.ObjectMeta.Namespace}, ".")
 }
 
-// alpha release: lb-fe instance is affiliated to a trench
-func LoadBalancerNsName(cr *meridiov1alpha1.Trench) string {
-	return strings.Join([]string{LBName, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace}, ".")
+func LoadBalancerNsName(cr *meridiov1alpha1.Conduit) string {
+	return strings.Join([]string{cr.ObjectMeta.Name, cr.ObjectMeta.Labels["trench"], cr.ObjectMeta.Namespace}, ".")
 }
 
 func VlanNtwkSvcName(cr *meridiov1alpha1.Trench) string {

@@ -3,9 +3,9 @@ kind: Role
 metadata:
   name: meridio-configuration-role
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - watch
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - watch

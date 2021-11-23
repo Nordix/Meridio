@@ -1,4 +1,4 @@
-package trench
+package conduit
 
 import (
 	"fmt"
@@ -14,25 +14,20 @@ import (
 
 const (
 	imageProxy = "proxy"
-
-	proxyEnvConfig        = "NSM_CONFIG_MAP_NAME"
-	proxyEnvService       = "NSM_SERVICE_NAME"
-	proxyEnvSubnetPools   = "NSM_SUBNET_POOLS"
-	proxyEnvSubnetLengths = "NSM_SUBNET_PREFIX_LENGTHS"
-	proxyEnvIpam          = "NSM_IPAM_SERVICE"
-	proxyEnvLb            = "NSM_NETWORK_SERVICE_NAME"
 )
 
 type Proxy struct {
-	trench *meridiov1alpha1.Trench
-	model  *appsv1.DaemonSet
-	exec   *common.Executor
+	trench  *meridiov1alpha1.Trench
+	conduit *meridiov1alpha1.Conduit
+	model   *appsv1.DaemonSet
+	exec    *common.Executor
 }
 
-func NewProxy(e *common.Executor, t *meridiov1alpha1.Trench) (*Proxy, error) {
+func NewProxy(e *common.Executor, t *meridiov1alpha1.Trench, c *meridiov1alpha1.Conduit) (*Proxy, error) {
 	l := &Proxy{
-		trench: t.DeepCopy(),
-		exec:   e,
+		trench:  t.DeepCopy(),
+		conduit: c.DeepCopy(),
+		exec:    e,
 	}
 
 	// get model
@@ -47,28 +42,28 @@ func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	// else return default envVars
 	env := []corev1.EnvVar{
 		{
-			Name:  proxyEnvConfig,
+			Name:  "NSM_CONFIG_MAP_NAME",
 			Value: common.ConfigMapName(i.trench),
 		},
 		{
-			Name:  proxyEnvSubnetPools,
+			Name:  "NSM_SUBNET_POOLS",
 			Value: common.GetSubnetPool(i.trench),
 		},
 		{
-			Name:  proxyEnvSubnetLengths,
+			Name:  "NSM_SUBNET_PREFIX_LENGTHS",
 			Value: common.GetPrefixLength(i.trench),
 		},
 		{
-			Name:  proxyEnvService,
-			Value: common.ProxyNtwkSvcNsName(i.trench),
+			Name:  "NSM_SERVICE_NAME",
+			Value: common.ProxyNtwkSvcNsName(i.conduit),
 		},
 		{
-			Name:  proxyEnvIpam,
+			Name:  "NSM_IPAM_SERVICE",
 			Value: common.IPAMServiceWithPort(i.trench),
 		},
 		{
-			Name:  proxyEnvLb,
-			Value: common.LoadBalancerNsName(i.trench),
+			Name:  "NSM_NETWORK_SERVICE_NAME",
+			Value: common.LoadBalancerNsName(i.conduit),
 		},
 	}
 

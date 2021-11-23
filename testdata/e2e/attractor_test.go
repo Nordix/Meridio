@@ -27,12 +27,10 @@ var _ = Describe("Attractor", func() {
 		BeforeEach(func() {
 			fw.CleanUpTrenches()
 			fw.CleanUpAttractors()
+			// wait for the old instances to be deleted
+			time.Sleep(2 * time.Second)
 		})
 
-		AfterEach(func() {
-			fw.CleanUpTrenches()
-			fw.CleanUpAttractors()
-		})
 		// operator scope
 		Context("in another namespace than the trench and operator", func() {
 			another := "another"

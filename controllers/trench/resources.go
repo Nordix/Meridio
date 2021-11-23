@@ -19,7 +19,6 @@ type Meridio struct {
 	roleBinding    *RoleBinding
 	nspDeployment  *NspDeployment
 	nspService     *NspService
-	proxy          *Proxy
 	configmap      *ConfigMap
 }
 
@@ -52,10 +51,6 @@ func NewMeridio(e *common.Executor, trench *meridiov1alpha1.Trench) (*Meridio, e
 	if err != nil {
 		return nil, err
 	}
-	p, err := NewProxy(e, trench)
-	if err != nil {
-		return nil, err
-	}
 	cfg := NewConfigMap(e, trench)
 	return &Meridio{
 		ipamDeployment: ipam,
@@ -65,7 +60,6 @@ func NewMeridio(e *common.Executor, trench *meridiov1alpha1.Trench) (*Meridio, e
 		roleBinding:    rb,
 		nspDeployment:  nspd,
 		nspService:     nsps,
-		proxy:          p,
 		configmap:      cfg,
 	}, nil
 }
@@ -77,7 +71,6 @@ func (m Meridio) ReconcileAll() error {
 		m.roleBinding,
 		m.nspDeployment,
 		m.nspService,
-		m.proxy,
 		m.ipamDeployment,
 		m.ipamService,
 		m.configmap,

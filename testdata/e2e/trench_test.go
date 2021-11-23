@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"fmt"
+	"time"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"github.com/nordix/meridio-operator/controllers/common"
@@ -26,6 +27,8 @@ var _ = Describe("Trench", func() {
 
 		BeforeEach(func() {
 			fw.CleanUpTrenches()
+			// wait for the old instances to be deleted
+			time.Sleep(2 * time.Second)
 			Expect(fw.CreateResource(trench.DeepCopy())).Should(Succeed())
 		})
 
@@ -33,7 +36,7 @@ var _ = Describe("Trench", func() {
 			fw.CleanUpTrenches()
 		})
 
-		FIt("should have the trench pods in running state and the resources created", func() {
+		It("should have the trench pods in running state and the resources created", func() {
 			AssertTrenchReady(trench)
 
 			By("checking if nsp service has been created")

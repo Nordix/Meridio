@@ -1,4 +1,4 @@
-package conduidt
+package conduit
 
 import (
 	"fmt"
@@ -52,7 +52,7 @@ func (l *LoadBalancer) getLbEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	env := []corev1.EnvVar{
 		{
 			Name:  "NSM_SERVICE_NAME",
-			Value: common.LoadBalancerNsName(l.trench),
+			Value: common.LoadBalancerNsName(l.conduit),
 		},
 		{
 			Name:  "NSM_CONDUIT_NAME",

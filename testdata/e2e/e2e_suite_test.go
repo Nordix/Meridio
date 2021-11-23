@@ -364,11 +364,6 @@ func AssertTrenchReady(trench *meridiov1alpha1.Trench) {
 	Eventually(func(g Gomega) {
 		assertDeploymentReady(g, strings.Join([]string{"nsp", name}, "-"), ns)
 	}, timeout, interval).Should(Succeed())
-
-	By("checking proxy deployment")
-	Eventually(func(g Gomega) {
-		assertDaemonsetReady(g, strings.Join([]string{"proxy", name}, "-"), ns)
-	}, timeout, interval).Should(Succeed())
 }
 
 func AssertAttractorReady(attractor *meridiov1alpha1.Attractor) {
@@ -387,6 +382,11 @@ func AssertConduitReady(conduit *meridiov1alpha1.Conduit) {
 	By("checking lb-fe deployment")
 	Eventually(func(g Gomega) {
 		assertDeploymentReady(g, strings.Join([]string{"lb-fe", name}, "-"), ns)
+	}, timeout, interval).Should(Succeed())
+
+	By("checking proxy deployment")
+	Eventually(func(g Gomega) {
+		assertDaemonsetReady(g, strings.Join([]string{"proxy", trenchName}, "-"), ns)
 	}, timeout, interval).Should(Succeed())
 }
 

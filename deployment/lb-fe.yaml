@@ -19,13 +19,13 @@ spec:
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - "lb-fe"
-            topologyKey: kubernetes.io/hostname
+            - labelSelector:
+                matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                      - "lb-fe"
+              topologyKey: kubernetes.io/hostname
       initContainers:
         - name: sysctl-init
           image: registry.nordix.org/cloud-native/meridio/busybox:1.29
@@ -40,10 +40,10 @@ spec:
           readinessProbe:
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -addr=:8000
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -addr=:8000
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             failureThreshold: 5
             initialDelaySeconds: 0
             periodSeconds: 10
@@ -51,10 +51,10 @@ spec:
           livenessProbe:
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -addr=:8000
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -addr=:8000
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             failureThreshold: 5
             initialDelaySeconds: 0
             periodSeconds: 10
@@ -67,13 +67,13 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: NSM_SERVICE_NAME
-              value:  # to be filled by operator
+              value: # to be filled by operator
             - name: NSM_CONDUIT_NAME
               value: # to be filled by operator
             - name: NSM_TRENCH_NAME
               value: # to be filled by operator
             - name: NSM_NSP_SERVICE
-              value:  # to be filled by operator
+              value: # to be filled by operator
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

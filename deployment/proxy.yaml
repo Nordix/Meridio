@@ -30,10 +30,10 @@ spec:
           readinessProbe:
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -addr=:8000
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -addr=:8000
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             failureThreshold: 5
             initialDelaySeconds: 0
             periodSeconds: 10
@@ -41,10 +41,10 @@ spec:
           livenessProbe:
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -addr=:8000
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -addr=:8000
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             failureThreshold: 5
             initialDelaySeconds: 0
             periodSeconds: 10
