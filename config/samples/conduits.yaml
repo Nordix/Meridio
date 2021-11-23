@@ -10,4 +10,4 @@ kind: Conduit
 metadata:
   name: conduit-stateless2
   labels:
-    trench: trench-a
+    trench: trench-b

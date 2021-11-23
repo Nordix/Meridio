@@ -3,8 +3,8 @@ kind: RoleBinding
 metadata:
   name: meridio-configuration-role-binding
 subjects:
-- kind: ServiceAccount
-  name: meridio
+  - kind: ServiceAccount
+    name: meridio
 roleRef:
   kind: Role
   name: meridio-configuration-role

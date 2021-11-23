@@ -1,6 +1,8 @@
 package e2e
 
 import (
+	"time"
+
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"github.com/nordix/meridio-operator/testdata/utils"
 	"github.com/nordix/meridio/pkg/configuration/reader"
@@ -50,12 +52,8 @@ var _ = Describe("Flow", func() {
 		fw.CleanUpTrenches()
 		fw.CleanUpAttractors()
 		fw.CleanUpFlows()
-	})
-
-	AfterEach(func() {
-		fw.CleanUpTrenches()
-		fw.CleanUpAttractors()
-		fw.CleanUpFlows()
+		// wait for the old instances to be deleted
+		time.Sleep(2 * time.Second)
 	})
 
 	Context("When creating a flow", func() {

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package conduidt
+package conduit
 
 import (
 	"context"
@@ -81,7 +81,6 @@ func (r *ConduitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	// actions to update conduit
 	if trench != nil {
-
 		err = executor.SetOwnerReference(conduit, trench)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -93,6 +92,15 @@ func (r *ConduitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			return ctrl.Result{}, err
 		}
 		err = lb.getAction()
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		proxy, err := NewProxy(executor, trench, conduit)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		err = proxy.getAction()
 		if err != nil {
 			return ctrl.Result{}, err
 		}
