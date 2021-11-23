@@ -72,42 +72,42 @@ func UnmarshalConfig(data map[string]string) (
 
 func UnmarshalTrench(c string) (*Trench, error) {
 	config := &Trench{}
-	err := yaml.Unmarshal([]byte(c), &config)
+	err := yaml.UnmarshalStrict([]byte(c), &config)
 	return config, err
 }
 
 func UnmarshalConduits(c string) ([]*Conduit, error) {
 	config := &ConduitList{}
-	err := yaml.Unmarshal([]byte(c), &config)
+	err := yaml.UnmarshalStrict([]byte(c), &config)
 	return config.Conduits, err
 }
 
 func UnmarshalStreams(c string) ([]*Stream, error) {
 	config := &StreamList{}
-	err := yaml.Unmarshal([]byte(c), &config)
+	err := yaml.UnmarshalStrict([]byte(c), &config)
 	return config.Streams, err
 }
 
 func UnmarshalFlows(c string) ([]*Flow, error) {
 	config := &FlowList{}
-	err := yaml.Unmarshal([]byte(c), &config)
+	err := yaml.UnmarshalStrict([]byte(c), &config)
 	return config.Flows, err
 }
 
 func UnmarshalVips(c string) ([]*Vip, error) {
 	config := &VipList{}
-	err := yaml.Unmarshal([]byte(c), &config)
+	err := yaml.UnmarshalStrict([]byte(c), &config)
 	return config.Vips, err
 }
 
 func UnmarshalAttractors(c string) ([]*Attractor, error) {
 	config := &AttractorList{}
-	err := yaml.Unmarshal([]byte(c), &config)
+	err := yaml.UnmarshalStrict([]byte(c), &config)
 	return config.Attractors, err
 }
 
 func UnmarshalGateways(c string) ([]*Gateway, error) {
 	config := &GatewayList{}
-	err := yaml.Unmarshal([]byte(c), &config)
+	err := yaml.UnmarshalStrict([]byte(c), &config)
 	return config.Gateways, err
 }

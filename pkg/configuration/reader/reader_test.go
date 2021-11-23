@@ -228,6 +228,12 @@ func Test_UnmarshalGateways(t *testing.T) {
 	tests := []test{
 		{
 			yaml: `
+items: []`,
+			valueExpected: []*reader.Gateway{},
+			errExpected:   false,
+		},
+		{
+			yaml: `
 items:
 - name: "attractor-a"
   address: "169.254.100.150"
@@ -256,6 +262,15 @@ items:
 				},
 			},
 			errExpected: false,
+		},
+		{
+			yaml: `
+items:
+- name: "attractor-a"
+  gateways: ["gateways-1"]
+  vips: ["vip-1"]
+  trench: "trench-a"`,
+			errExpected: true,
 		},
 		{
 			yaml: `
@@ -329,11 +344,11 @@ items:
 			assert.NotNil(t, err)
 		} else {
 			assert.Nil(t, err)
-		}
-		gatewaysExpected := test.valueExpected.([]*reader.Gateway)
-		assert.Len(t, gateways, len(gatewaysExpected))
-		for _, gateway := range gateways {
-			assert.Contains(t, gatewaysExpected, gateway)
+			gatewaysExpected := test.valueExpected.([]*reader.Gateway)
+			assert.Len(t, gateways, len(gatewaysExpected))
+			for _, gateway := range gateways {
+				assert.Contains(t, gatewaysExpected, gateway)
+			}
 		}
 	}
 }

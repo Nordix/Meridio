@@ -75,14 +75,17 @@ func (w *OperatorWatcher) eventHandler(event *watch.Event) {
 		return
 	}
 
-	c := &OperatorConfig{}
+	c := &OperatorConfig{
+		GWs:  &reader.GatewayList{},
+		VIPs: &reader.VipList{},
+	}
 	var err error
 	c.GWs.Gateways, err = reader.UnmarshalGateways(configmap.Data[reader.GatewaysConfigKey])
 	if err != nil {
 		logrus.Errorf("err unmarshal: %v", err)
 		return
 	}
-	c.VIPs.Vips, err = reader.UnmarshalVips(configmap.Data[reader.GatewaysConfigKey])
+	c.VIPs.Vips, err = reader.UnmarshalVips(configmap.Data[reader.VipsConfigKey])
 	if err != nil {
 		logrus.Errorf("err unmarshal: %v", err)
 		return
