@@ -37,7 +37,7 @@ var _ = Describe("IngressTraffic", func() {
 		JustBeforeEach(func() {
 			var err error
 			ipPort := fmt.Sprintf("%s:%s", vip, port)
-			lastingConnections, lostConnections, err = utils.SendTraffic(trafficGeneratorCMD, trench, namespace, ipPort, 400, 100)
+			lastingConnections, lostConnections, err = utils.SendTraffic(trafficGeneratorCMD, trenchAName, namespace, ipPort, 400, 100)
 			Expect(err).NotTo(HaveOccurred())
 		})
 

@@ -2,23 +2,23 @@
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Trench
 metadata:
-  name: trench-a
+  name: trench-b
   namespace: red
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Attractor
 metadata:
-  name: attractor-a
+  name: attractor-b
   namespace: red
   labels:
-    trench: trench-a
+    trench: trench-b
 spec:
   gateways:
-    - gateway-v4-a
-    - gateway-v6-a
+    - gateway-v4-b
+    - gateway-v6-b
   vips:
-    - vip-v4-a
-    - vip-v6-a
+    - vip-v4-b
+    - vip-v6-b
   interface:
     name: eth0.100
     ipv4-prefix: 169.254.100.0/24
@@ -27,15 +27,14 @@ spec:
     nsm-vlan:
       vlan-id: 100
       base-interface: eth0
-
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Gateway
 metadata:
-  name: gateway-v4-a
+  name: gateway-v4-b
   namespace: red
   labels:
-    trench: trench-a
+    trench: trench-b
 spec:
   address: 169.254.100.150
   bgp:
@@ -48,10 +47,10 @@ spec:
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Gateway
 metadata:
-  name: gateway-v6-a
+  name: gateway-v6-b
   namespace: red
   labels:
-    trench: trench-a
+    trench: trench-b
 spec:
   address: 100:100::150
   bgp:
@@ -64,56 +63,56 @@ spec:
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Vip
 metadata:
-  name: vip-v4-a
+  name: vip-v4-b
   namespace: red
   labels:
-    trench: trench-a
+    trench: trench-b
 spec:
   address: "20.0.0.1/32"
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Vip
 metadata:
-  name: vip-v6-a
+  name: vip-v6-b
   namespace: red
   labels:
-    trench: trench-a
+    trench: trench-b
 spec:
   address: "2000::1/128"
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Conduit
 metadata:
-  name: lb-fe-a
+  name: lb-fe-b
   namespace: red
   labels:
-    trench: trench-a
+    trench: trench-b
 spec:
   replicas: 2
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Stream
 metadata:
-  name: stream-a
+  name: stream-b
   namespace: red
   labels:
-    trench: trench-a
+    trench: trench-b
 spec:
-  conduit: lb-fe-a
+  conduit: lb-fe-b
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Flow
 metadata:
-  name: flow-a
+  name: flow-b
   namespace: red
   labels:
-    trench: trench-a
+    trench: trench-b
 spec:
-  stream: stream-a
+  stream: stream-b
   priority: 1
   vips:
-    - vip-v4-a
-    - vip-v6-a
+    - vip-v4-b
+    - vip-v6-b
   source-subnets:
     - 0.0.0.0/0
     - 0:0:0:0:0:0:0:0/0
