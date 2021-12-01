@@ -233,7 +233,7 @@ func (s *Stream) getIdentifiersInUse(ctx context.Context) ([]string, error) {
 	context, cancel := context.WithCancel(ctx)
 	defer cancel()
 	watchClient, err := s.getTargetRegistryClient().Watch(context, &nspAPI.Target{
-		Status: s.status,
+		Status: nspAPI.Target_ANY,
 		Type:   nspAPI.Target_DEFAULT,
 		// Stream: s.getNSPStream(), // todo
 		Stream: &nspAPI.Stream{

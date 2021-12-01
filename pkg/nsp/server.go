@@ -25,25 +25,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	channelBufferSize = 10
-)
-
-type WatcherRegistry interface {
-	RegisterWatcher(toWatch *nspAPI.Target, ch chan<- []*nspAPI.Target) error
-	UnregisterWatcher(ch chan<- []*nspAPI.Target)
-}
-
 type Server struct {
-	TargetRegistry  types.TargetRegistry
-	WatcherRegistry WatcherRegistry
+	TargetRegistry types.TargetRegistry
 }
 
 // NewServer -
-func NewServer(targetRegistry types.TargetRegistry, watcherRegistry WatcherRegistry) nspAPI.TargetRegistryServer {
+func NewServer(targetRegistry types.TargetRegistry) nspAPI.TargetRegistryServer {
 	networkServicePlateformService := &Server{
-		TargetRegistry:  targetRegistry,
-		WatcherRegistry: watcherRegistry,
+		TargetRegistry: targetRegistry,
 	}
 
 	return networkServicePlateformService
@@ -51,30 +40,26 @@ func NewServer(targetRegistry types.TargetRegistry, watcherRegistry WatcherRegis
 
 func (s *Server) Register(ctx context.Context, target *nspAPI.Target) (*empty.Empty, error) {
 	logrus.Infof("Register: %v", target)
-	s.TargetRegistry.Set(target)
-	return &empty.Empty{}, nil
+	return &empty.Empty{}, s.TargetRegistry.Set(ctx, target)
 }
 
 func (s *Server) Unregister(ctx context.Context, target *nspAPI.Target) (*empty.Empty, error) {
 	logrus.Infof("Unregister: %v", target)
-	s.TargetRegistry.Remove(target)
-	return &empty.Empty{}, nil
+	return &empty.Empty{}, s.TargetRegistry.Remove(ctx, target)
 }
 
 func (s *Server) Update(ctx context.Context, target *nspAPI.Target) (*empty.Empty, error) {
 	logrus.Infof("Update: %v", target)
-	s.TargetRegistry.Set(target)
-	return &empty.Empty{}, nil
+	return &empty.Empty{}, s.TargetRegistry.Set(ctx, target)
 }
 
 func (s *Server) Watch(t *nspAPI.Target, watcher nspAPI.TargetRegistry_WatchServer) error {
-	ch := make(chan []*nspAPI.Target, channelBufferSize)
-	err := s.WatcherRegistry.RegisterWatcher(t, ch)
+	targetWatcher, err := s.TargetRegistry.Watch(context.TODO(), t)
 	if err != nil {
 		return err
 	}
-	s.watcher(watcher, ch)
-	s.WatcherRegistry.UnregisterWatcher(ch)
+	s.watcher(watcher, targetWatcher.ResultChan())
+	targetWatcher.Stop()
 	return nil
 }
 

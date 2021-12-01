@@ -17,9 +17,11 @@ limitations under the License.
 package registry
 
 import (
+	"context"
 	"sync"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/nsp/registry/common"
 	"github.com/nordix/meridio/pkg/nsp/types"
 )
 
@@ -30,58 +32,60 @@ type targetKey struct {
 }
 
 type TargetRegistryMemory struct {
-	targets []*nspAPI.Target
-	Chan    chan<- struct{}
-	mu      sync.Mutex
+	targets  []*nspAPI.Target
+	mu       sync.Mutex
+	watchers map[*common.RegistryWatcher]struct{}
 }
 
-func New(c chan<- struct{}) types.TargetRegistry {
+func New() types.TargetRegistry {
 	targetRegistryMemory := &TargetRegistryMemory{
-		Chan:    c,
 		targets: []*nspAPI.Target{},
 	}
 	return targetRegistryMemory
 }
 
-func (trm *TargetRegistryMemory) Set(target *nspAPI.Target) {
+func (trm *TargetRegistryMemory) Set(ctx context.Context, target *nspAPI.Target) error {
 	trm.mu.Lock()
 	defer trm.mu.Unlock()
 	index := trm.getIndex(target)
 	if index == -1 { // add
 		trm.targets = append(trm.targets, target)
-		trm.notify()
-		return
+		trm.notifyAllWatchers()
+		return nil
 	}
 	//update
 	trm.targets[index].Context = target.GetContext()
 	trm.targets[index].Status = target.GetStatus()
-	trm.notify()
+	trm.notifyAllWatchers()
+	return nil
 }
 
-func (trm *TargetRegistryMemory) Remove(target *nspAPI.Target) {
+func (trm *TargetRegistryMemory) Remove(ctx context.Context, target *nspAPI.Target) error {
 	trm.mu.Lock()
 	defer trm.mu.Unlock()
 	index := trm.getIndex(target)
 	if index == -1 {
-		return
+		return nil
 	}
 	trm.targets = append(trm.targets[:index], trm.targets[index+1:]...)
-	trm.notify()
+	trm.notifyAllWatchers()
+	return nil
 }
 
-func (trm *TargetRegistryMemory) Get(target *nspAPI.Target) []*nspAPI.Target {
+func (trm *TargetRegistryMemory) Watch(ctx context.Context, target *nspAPI.Target) (types.TargetWatcher, error) {
 	trm.mu.Lock()
 	defer trm.mu.Unlock()
-	if target == nil {
-		return trm.targets
-	}
-	targets := []*nspAPI.Target{}
-	for _, t := range trm.targets {
-		if target.Equals(t) {
-			targets = append(targets, t)
-		}
-	}
-	return targets
+	trm.setWatchersIfNil()
+	watcher := common.NewRegistryWatcher(target)
+	trm.watchers[watcher] = struct{}{}
+	watcher.Notify(trm.targets)
+	return watcher, nil
+}
+
+func (trm *TargetRegistryMemory) Get(ctx context.Context, target *nspAPI.Target) ([]*nspAPI.Target, error) {
+	trm.mu.Lock()
+	defer trm.mu.Unlock()
+	return common.Filter(target, trm.targets), nil
 }
 
 func (trm *TargetRegistryMemory) getIndex(target *nspAPI.Target) int {
@@ -132,9 +136,18 @@ func CompareIps(ips1 []string, ips2 []string) bool {
 	return true
 }
 
-func (trm *TargetRegistryMemory) notify() {
-	if trm.Chan == nil {
-		return
+func (trm *TargetRegistryMemory) notifyAllWatchers() {
+	trm.setWatchersIfNil()
+	for watcher := range trm.watchers {
+		if watcher.IsStopped() {
+			delete(trm.watchers, watcher)
+		}
+		watcher.Notify(trm.targets)
 	}
-	trm.Chan <- struct{}{}
+}
+
+func (trm *TargetRegistryMemory) setWatchersIfNil() {
+	if trm.watchers == nil {
+		trm.watchers = make(map[*common.RegistryWatcher]struct{})
+	}
 }
