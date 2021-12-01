@@ -8,6 +8,7 @@ require (
 	github.com/golang/mock v1.4.4
 	github.com/golang/protobuf v1.5.2
 	github.com/google/nftables v0.0.0-20210916140115-16a134723a96
+	github.com/jinzhu/now v1.1.3 // indirect
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/metal-stack/go-ipam v1.8.5
 	github.com/networkservicemesh/api v1.0.0
@@ -26,6 +27,8 @@ require (
 	google.golang.org/grpc v1.39.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/yaml.v2 v2.4.0
+	gorm.io/driver/sqlite v1.2.6
+	gorm.io/gorm v1.22.3
 	k8s.io/api v0.21.3
 	k8s.io/apiextensions-apiserver v0.21.3
 	k8s.io/apimachinery v0.21.3

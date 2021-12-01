@@ -32,7 +32,7 @@ import (
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/nsp"
 
-	memoryRegistry "github.com/nordix/meridio/pkg/nsp/registry/memory"
+	sqliteRegistry "github.com/nordix/meridio/pkg/nsp/registry/sqlite"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -82,8 +82,11 @@ func main() {
 	configurationManagerServer := manager.NewServer(watcherNotifier)
 
 	// target registry
-	mr := memoryRegistry.New()
-	targetRegistryServer := nsp.NewServer(mr)
+	sqlr, err := sqliteRegistry.New(config.Datasource)
+	if err != nil {
+		logrus.Fatalf("Unable create sqlite registry: %v", err)
+	}
+	targetRegistryServer := nsp.NewServer(sqlr)
 
 	server := grpc.NewServer(grpc.Creds(
 		credentials.GetServer(context.Background()),

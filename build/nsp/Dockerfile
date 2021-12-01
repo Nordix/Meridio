@@ -11,7 +11,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"' -o nsp ./cmd/nsp
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags '-extldflags "-static"' -o nsp ./cmd/nsp
 
 FROM ubuntu:20.10 as grpc-health-probe
 
