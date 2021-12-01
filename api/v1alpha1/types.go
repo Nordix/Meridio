@@ -114,6 +114,21 @@ func validatePrefix(p string) (*net.IPNet, error) {
 	return n, nil
 }
 
+type InterfaceType string
+
+const (
+	NSMVlan = "nsm-vlan"
+)
+
+func (i InterfaceType) IsValid() bool {
+	switch i {
+	case NSMVlan:
+		return true
+	default:
+		return false
+	}
+}
+
 func subnetsOverlap(a, b *net.IPNet) bool {
 	return subnetContainsSubnet(a, b) || subnetContainsSubnet(b, a)
 }

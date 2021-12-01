@@ -56,7 +56,7 @@ type FlowSpec struct {
 	Protocols []string `json:"protocols"`
 
 	// Priority of the flow
-	Priority int64 `json:"priority"`
+	Priority int32 `json:"priority"`
 }
 
 // FlowStatus defines the observed state of Flow

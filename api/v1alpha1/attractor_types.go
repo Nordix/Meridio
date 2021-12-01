@@ -23,18 +23,6 @@ import (
 
 // AttractorSpec defines the desired state of Attractor
 type AttractorSpec struct {
-	// (immutable) master interface of the vlan interface to be used for external connectivity
-	VlanInterface string `json:"vlan-interface"`
-
-	// (immutable) vlan ID of the vlan interface to be used for external connectivity
-	VlanID int `json:"vlan-id"`
-
-	// (immutable) ipv4 prefix of the vlan interface, which is used for frontend to set up communication with the ipv4 gateways
-	VlanPrefixIPv4 string `json:"vlan-ipv4-prefix"`
-
-	// (immutable) ipv6 prefix of the vlan interface, which is used for frontend to set up communication with the ipv6 gateways
-	VlanPrefixIPv6 string `json:"vlan-ipv6-prefix"`
-
 	// gateways that attractor expect to use
 	// +optional
 	Gateways []string `json:"gateways,omitempty"`
@@ -42,6 +30,34 @@ type AttractorSpec struct {
 	// vips that attractor expect to use
 	// +optional
 	Vips []string `json:"vips,omitempty"`
+
+	// defines the interface information that attractor use
+	Interface InterfaceSpec `json:"interface"`
+}
+
+type InterfaceSpec struct {
+	// name of the interface
+	Name string `json:"name"`
+
+	// (immutable) ipv4 prefix of the vlan interface, which is used for frontend to set up communication with the ipv4 gateways
+	PrefixIPv4 string `json:"ipv4-prefix"`
+
+	// (immutable) ipv6 prefix of the vlan interface, which is used for frontend to set up communication with the ipv6 gateways
+	PrefixIPv6 string `json:"ipv6-prefix"`
+
+	// interface choice. Supported choice: "nsm-vlan"
+	Type string `json:"type"`
+
+	// if the type is "nsm-vlan", this information must be specified
+	NSMVlan NSMVlanSpec `json:"nsm-vlan,omitempty"`
+}
+
+type NSMVlanSpec struct {
+	// (immutable) master interface of the vlan interface to be used for external connectivity
+	BaseInterface string `json:"base-interface,omitempty"`
+
+	// (immutable) vlan ID of the vlan interface to be used for external connectivity
+	VlanID *int32 `json:"vlan-id,omitempty"`
 }
 
 // AttractorStatus defines the observed state of Attractor
@@ -50,8 +66,8 @@ type AttractorStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
-//+kubebuilder:printcolumn:name="VlanID",type=integer,JSONPath=`.spec.vlan-id`
-//+kubebuilder:printcolumn:name="VlanITF",type=string,JSONPath=`.spec.vlan-interface`
+//+kubebuilder:printcolumn:name="Interface-Name",type=string,JSONPath=`.spec.interface.name`
+//+kubebuilder:printcolumn:name="Interface-Type",type=string,JSONPath=`.spec.interface.type`
 //+kubebuilder:printcolumn:name="Gateways",type=string,JSONPath=`.spec.gateways`
 //+kubebuilder:printcolumn:name="Vips",type=string,JSONPath=`.spec.vips`
 //+kubebuilder:printcolumn:name="Trench",type=string,JSONPath=`.metadata.labels.trench`
