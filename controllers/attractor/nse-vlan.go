@@ -88,7 +88,7 @@ func (i *NseDeployment) insertParameters(dep *appsv1.Deployment) *appsv1.Deploym
 	ret.Spec.Selector.MatchLabels["app"] = nseVLANDeploymentName
 	ret.Spec.Template.ObjectMeta.Labels["app"] = nseVLANDeploymentName
 
-	dep.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
+	ret.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
 
 	if ret.Spec.Template.Spec.Containers[0].Image == "" {
 		ret.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.OrganizationNsm, nseImage, common.Tag)
