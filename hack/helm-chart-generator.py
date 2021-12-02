@@ -8,12 +8,18 @@ The --image arguement should be specified without option, if not specified, it's
 The version arguement should fulfill Semantic Versioning 2.0.0. The default value is 0.0.1
 A helm folder will then be created under Meridio-Operator repo root, which is ready to be used by helm.
 """
-import argparse, subprocess, re, shutil, semver
+import argparse
+import subprocess
+import re
+import shutil
+import semver
 from pathlib import Path
 
 parser = argparse.ArgumentParser(description='Varialbes to build helm chart')
-parser.add_argument('--image', type=str, nargs='?', default='controller', help='operator image full path without version')
-parser.add_argument('--version', type=str, nargs='?', default='0.0.1', help='version of the helm chart, must follow semver 2')
+parser.add_argument('--image', type=str, nargs='?', default='controller',
+                    help='operator image full path without version')
+parser.add_argument('--version', type=str, nargs='?', default='0.0.1',
+                    help='version of the helm chart, must follow semver 2')
 
 args = parser.parse_args()
 print("operator image: " + args.image)
@@ -22,13 +28,14 @@ semver.VersionInfo.parse(args.version)
 print("operator version: " + args.version)
 
 # silent mode to supress the echo of make command
-out=subprocess.run(["make", "-s", "print-manifests", 'IMG=' + args.image + ":" + args.version], capture_output=True).stdout.decode("utf-8")
+out = subprocess.run(["make", "-s", "print-manifests", 'IMG=' + args.image +
+                     ":" + args.version], capture_output=True).stdout.decode("utf-8")
 # split the output
-contents=out.split('---\n')
+contents = out.split('---\n')
 
 # initialize the directories
-helmdir="helm"
-templatedir=helmdir+"/templates"
+helmdir = "helm"
+templatedir = helmdir+"/templates"
 if Path(helmdir).exists():
     # remove all the files
     shutil.rmtree(helmdir)
@@ -40,22 +47,26 @@ Path(templatedir).mkdir(parents=True, exist_ok=True)
 for content in contents:
     # compose file name, using:
     # first "kind" found in the manifest. For example: Namespace
-    kind=re.findall('(?<=kind: )\S+', content)[0]
+    kind = re.findall('(?<=kind: )\S+', content)[0]
     # skip namespace file
     if kind == "Namespace":
         continue
     # first "name" found in the manifest. For example: meridio
-    name=re.findall('(?<=name: )\S+', content)[0]
-    filename=kind + "-" + name + ".yaml"
-    
+    name = re.findall('(?<=name: )\S+', content)[0]
+    filename = kind + "-" + name + ".yaml"
+
     # replace namespace in content
-    content=re.sub("meridio-operator-system", '{{ .Release.Namespace }}', content)
+    content = re.sub("meridio-operator-system",
+                     '{{ .Release.Namespace }}', content)
+    # suffix cluster-scoped resources with namespace
+    if kind == "MutatingWebhookConfiguration" or kind == "ValidatingWebhookConfiguration":
+        content = re.sub(name, name + '-{{ .Release.Namespace }}', content)
     # write contents to the files
     with open(templatedir+"/"+filename, 'w') as f:
         f.write(content)
 
 # copy Chart.yaml to helm chart
-chartfile="hack/Chart.yaml"
+chartfile = "hack/Chart.yaml"
 if Path(chartfile).exists():
     subprocess.run(["cp", chartfile, helmdir])
 else:
