@@ -47,11 +47,11 @@ func (i *NseDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	env := []corev1.EnvVar{
 		{
 			Name:  nseEnvItf,
-			Value: i.attractor.Spec.VlanInterface,
+			Value: i.attractor.Spec.Interface.NSMVlan.BaseInterface,
 		},
 		{
 			Name:  nseEnvID,
-			Value: fmt.Sprint(i.attractor.Spec.VlanID),
+			Value: fmt.Sprint(*i.attractor.Spec.Interface.NSMVlan.VlanID),
 		},
 		{
 			Name:  nseEnvSerive,
@@ -59,11 +59,11 @@ func (i *NseDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 		},
 		{
 			Name:  nseEnvPrefixV4,
-			Value: i.attractor.Spec.VlanPrefixIPv4,
+			Value: i.attractor.Spec.Interface.PrefixIPv4,
 		},
 		{
 			Name:  nseEnvPrefixV6,
-			Value: i.attractor.Spec.VlanPrefixIPv6,
+			Value: i.attractor.Spec.Interface.PrefixIPv6,
 		},
 	}
 

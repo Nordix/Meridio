@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/utils/pointer"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	"github.com/nordix/meridio-operator/controllers/common"
@@ -23,7 +24,7 @@ var _ = Describe("Attractor", func() {
 	trench := trench(namespace)
 	attractor := attractor(namespace)
 
-	Context("When creating an attractor", func() {
+	When("creating an attractor", func() {
 		BeforeEach(func() {
 			fw.CleanUpTrenches()
 			fw.CleanUpAttractors()
@@ -73,61 +74,84 @@ var _ = Describe("Attractor", func() {
 
 		Context("with a trench", func() {
 			BeforeEach(func() {
-				// Deep copy to avoid original variables to be overwritten
-				Expect(fw.CreateResource(trench.DeepCopy())).Should(Succeed())
-			})
-			JustBeforeEach(func() {
-				Expect(fw.CreateResource(attractor.DeepCopy())).Should(Succeed())
+				fw.CreateResource(trench.DeepCopy())
 			})
 
 			AfterEach(func() {
 				fw.CleanUpAttractors()
+				// wait for the old instances to be deleted
+				time.Sleep(2 * time.Second)
 			})
 
-			It("will create a functioning attractor", func() {
-				attr := &meridiov1alpha1.Attractor{}
+			When("missing parameters", func() {
+				It("will not be created ", func() {
+					testAttractor := attractor.DeepCopy()
+					testAttractor.Spec.Interface.NSMVlan = meridiov1alpha1.NSMVlanSpec{}
 
-				By("checking the existence of attractor")
-				err := fw.GetResource(client.ObjectKeyFromObject(attractor), attr)
-				Expect(err).Should(BeNil())
-				Expect(attr).ShouldNot(BeNil())
+					err := fw.CreateResource(testAttractor)
+					Expect(err).ToNot(BeNil())
 
-				By("checking configmap has this item")
-				assertAttractorItemInConfigMap(attr, configmapName, true)
-
-				By("checking if attractor's child resources are in running state")
-				AssertAttractorReady(attr)
+					By("checking no attractor resources are created")
+					assertAttractorResourcesNotExist(testAttractor)
+				})
 			})
 
-			It("will fail creating the second attractor", func() {
-				attractorB := &meridiov1alpha1.Attractor{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "attractor-b",
-						Namespace: namespace,
-						Labels: map[string]string{
-							"trench": trenchName,
+			When("with a valid attractor", func() {
+				It("will create a functioning attractor", func() {
+					testAttractor := attractor.DeepCopy()
+					Expect(fw.CreateResource(testAttractor)).To(Succeed())
+					attr := &meridiov1alpha1.Attractor{}
+
+					By("checking the existence of attractor")
+					err := fw.GetResource(client.ObjectKeyFromObject(attractor), attr)
+					Expect(err).Should(BeNil())
+					Expect(attr).ShouldNot(BeNil())
+
+					By("checking configmap has this item")
+					assertAttractorItemInConfigMap(attr, configmapName, true)
+
+					By("checking if attractor's child resources are in running state")
+					AssertAttractorReady(attr)
+				})
+
+				It("will fail creating the second attractor", func() {
+					testAttractor := attractor.DeepCopy()
+					Expect(fw.CreateResource(testAttractor)).To(Succeed())
+					attractorB := &meridiov1alpha1.Attractor{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "attractor-b",
+							Namespace: namespace,
+							Labels: map[string]string{
+								"trench": trenchName,
+							},
 						},
-					},
-					Spec: meridiov1alpha1.AttractorSpec{
-						VlanID:         100,
-						VlanInterface:  "eth0",
-						VlanPrefixIPv4: "169.254.100.0/24",
-						VlanPrefixIPv6: "100:100::/64",
-					},
-				}
+						Spec: meridiov1alpha1.AttractorSpec{
+							Interface: meridiov1alpha1.InterfaceSpec{
+								Name:       "nsm-vlan1",
+								Type:       "nsm-vlan",
+								PrefixIPv4: "169.254.100.0/24",
+								PrefixIPv6: "100:100::/64",
+								NSMVlan: meridiov1alpha1.NSMVlanSpec{
+									VlanID:        pointer.Int32(100),
+									BaseInterface: "eth0",
+								},
+							},
+						},
+					}
 
-				Expect(fw.CreateResource(attractorB)).ToNot(Succeed())
+					Expect(fw.CreateResource(attractorB)).ToNot(Succeed())
 
-				By("checking configmap has this item")
-				assertAttractorItemInConfigMap(attractorB, configmapName, false)
+					By("checking configmap has this item")
+					assertAttractorItemInConfigMap(attractorB, configmapName, false)
 
-				By("checking the existence of attactor")
-				err := fw.GetResource(client.ObjectKeyFromObject(attractorB), &meridiov1alpha1.Attractor{})
-				Expect(apierrors.IsNotFound(err)).To(BeTrue())
+					By("checking the existence of attactor")
+					err := fw.GetResource(client.ObjectKeyFromObject(attractorB), &meridiov1alpha1.Attractor{})
+					Expect(apierrors.IsNotFound(err)).To(BeTrue())
+				})
 			})
 		})
 
-		Context("When updating", func() {
+		When("updating", func() {
 			BeforeEach(func() {
 				// Deep copy to avoid original variables to be overwritten
 				Expect(fw.CreateResource(trench.DeepCopy())).Should(Succeed())
@@ -158,7 +182,7 @@ var _ = Describe("Attractor", func() {
 		})
 	})
 
-	Context("When deleting an attractor", func() {
+	When("deleting an attractor", func() {
 		BeforeEach(func() {
 			fw.CleanUpTrenches()
 			fw.CleanUpAttractors()
@@ -228,10 +252,9 @@ func assertAttractorResourcesNotExist(attr *meridiov1alpha1.Attractor) {
 
 	By("checking there is no nse-vlan deployments")
 	nseVLANName := fmt.Sprintf("%s-%s", common.NseName, attractorName)
-	Eventually(func() bool {
-		err := fw.GetResource(client.ObjectKey{Name: nseVLANName, Namespace: namespace}, &appsv1.Deployment{})
-		return err != nil && apierrors.IsNotFound(err)
-	}, 5*time.Second).Should(BeTrue())
+	Eventually(func(g Gomega) {
+		g.Expect(fw.GetResource(client.ObjectKey{Name: nseVLANName, Namespace: namespace}, &appsv1.Deployment{})).ToNot(Succeed())
+	}, 5*time.Second).Should(Succeed())
 }
 
 func assertAttractorItemInConfigMap(attr *meridiov1alpha1.Attractor, configmapName string, in bool) {

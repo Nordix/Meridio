@@ -50,6 +50,9 @@ var attractorClient client.Client
 // Default implements webhook.Defaulter so a webhook will be registered for the type
 func (r *Attractor) Default() {
 	attractorlog.Info("default", "name", r.Name)
+
+	// convert interface type to lower case
+	r.Spec.Interface.Type = strings.ToLower(r.Spec.Interface.Type)
 }
 
 //+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1alpha1-attractor,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=attractors,verbs=create;update,versions=v1alpha1,name=vattractor.kb.io,admissionReviewVersions=v1
@@ -113,15 +116,24 @@ func (r *Attractor) validateAttractor() error {
 	if err := r.validateLabels(); err != nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("labels"), r.ObjectMeta.Labels, err.Error()))
 	}
-
-	_, err := validatePrefix(r.Spec.VlanPrefixIPv4)
+	_, err := validatePrefix(r.Spec.Interface.PrefixIPv4)
 	if err != nil {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vlan-ipv4-prefix"), r.Spec.VlanPrefixIPv4, err.Error()))
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("ipv4-prefix"), r.Spec.Interface.PrefixIPv4, err.Error()))
 	}
 
-	_, err = validatePrefix(r.Spec.VlanPrefixIPv6)
+	_, err = validatePrefix(r.Spec.Interface.PrefixIPv6)
 	if err != nil {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vlan-ipv6-prefix"), r.Spec.VlanPrefixIPv6, err.Error()))
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("ipv6-prefix"), r.Spec.Interface.PrefixIPv6, err.Error()))
+	}
+
+	switch r.Spec.Interface.Type {
+	case NSMVlan:
+		if r.Spec.Interface.NSMVlan.BaseInterface == "" || r.Spec.Interface.NSMVlan.VlanID == nil {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("interface").Child("nsm-vlan"),
+				r.Spec.Interface.NSMVlan, "missing mandatory parameter base-interface/vlan-id"))
+		}
+	default:
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("interface").Child("type"), r.Spec.Interface.Type, "not a supported interface"))
 	}
 
 	if len(allErrs) == 0 {
@@ -152,24 +164,32 @@ func (r *Attractor) validateUpdate(old runtime.Object) error {
 			r.Name, field.Forbidden(field.NewPath("metadata", "labels", "trench"), "update on attractor label trench is forbidden"))
 	}
 
-	if r.Spec.VlanID != attrOld.Spec.VlanID {
+	if r.Spec.Interface.Type != strings.ToLower(attrOld.Spec.Interface.Type) {
 		return apierrors.NewForbidden(r.GroupResource(),
-			r.Name, field.Forbidden(field.NewPath("spec", "vlan-id"), "update on vlan id is forbidden"))
+			r.Name, field.Forbidden(field.NewPath("spec", "interface", "type"), "update on interface type is forbidden"))
 	}
 
-	if r.Spec.VlanInterface != attrOld.Spec.VlanInterface {
-		return apierrors.NewForbidden(r.GroupResource(),
-			r.Name, field.Forbidden(field.NewPath("spec", "vlan-interface"), "update on vlan interface is forbidden"))
+	switch r.Spec.Interface.Type {
+	case NSMVlan:
+		if *(r.Spec.Interface.NSMVlan.VlanID) != *(attrOld.Spec.Interface.NSMVlan.VlanID) {
+			return apierrors.NewForbidden(r.GroupResource(),
+				r.Name, field.Forbidden(field.NewPath("spec", "interface", "nsm-vlan", "vlan-id"), "update on vlan id is forbidden"))
+		}
+
+		if r.Spec.Interface.NSMVlan.BaseInterface != attrOld.Spec.Interface.NSMVlan.BaseInterface {
+			return apierrors.NewForbidden(r.GroupResource(),
+				r.Name, field.Forbidden(field.NewPath("spec", "interface", "nsm-vlan", "base-interface"), "update on base interface is forbidden"))
+		}
 	}
 
-	if r.Spec.VlanPrefixIPv4 != attrOld.Spec.VlanPrefixIPv4 {
+	if r.Spec.Interface.PrefixIPv4 != attrOld.Spec.Interface.PrefixIPv4 {
 		return apierrors.NewForbidden(r.GroupResource(),
-			r.Name, field.Forbidden(field.NewPath("spec", "vlan-ipv4-prefix"), "update on vlan prefix is forbidden"))
+			r.Name, field.Forbidden(field.NewPath("spec", "ipv4-prefix"), "update on prefix is forbidden"))
 	}
 
-	if r.Spec.VlanPrefixIPv6 != attrOld.Spec.VlanPrefixIPv6 {
+	if r.Spec.Interface.PrefixIPv6 != attrOld.Spec.Interface.PrefixIPv6 {
 		return apierrors.NewForbidden(r.GroupResource(),
-			r.Name, field.Forbidden(field.NewPath("spec", "vlan-ipv6-prefix"), "update on vlan prefix is forbidden"))
+			r.Name, field.Forbidden(field.NewPath("spec", "ipv6-prefix"), "update on prefix is forbidden"))
 	}
 	return nil
 }

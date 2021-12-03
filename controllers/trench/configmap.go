@@ -349,7 +349,7 @@ func (c *ConfigMap) getFlowsData() ([]byte, error) {
 			DestinationPortRanges: dstPorts,
 			Vips:                  cr.Spec.Vips,
 			Protocols:             cr.Spec.Protocols,
-			Priority:              float64(cr.Spec.Priority),
+			Priority:              cr.Spec.Priority,
 		})
 	}
 	return yaml.Marshal(lst)

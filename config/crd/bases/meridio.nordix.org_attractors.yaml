@@ -17,11 +17,11 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.vlan-id
-      name: VlanID
-      type: integer
-    - jsonPath: .spec.vlan-interface
-      name: VlanITF
+    - jsonPath: .spec.interface.name
+      name: Interface-Name
+      type: string
+    - jsonPath: .spec.interface.type
+      name: Interface-Type
       type: string
     - jsonPath: .spec.gateways
       name: Gateways
@@ -57,32 +57,50 @@ spec:
                 items:
                   type: string
                 type: array
+              interface:
+                description: defines the interface information that attractor use
+                properties:
+                  ipv4-prefix:
+                    description: (immutable) ipv4 prefix of the vlan interface, which
+                      is used for frontend to set up communication with the ipv4 gateways
+                    type: string
+                  ipv6-prefix:
+                    description: (immutable) ipv6 prefix of the vlan interface, which
+                      is used for frontend to set up communication with the ipv6 gateways
+                    type: string
+                  name:
+                    description: name of the interface
+                    type: string
+                  nsm-vlan:
+                    description: if the type is "nsm-vlan", this information must
+                      be specified
+                    properties:
+                      base-interface:
+                        description: (immutable) master interface of the vlan interface
+                          to be used for external connectivity
+                        type: string
+                      vlan-id:
+                        description: (immutable) vlan ID of the vlan interface to
+                          be used for external connectivity
+                        format: int32
+                        type: integer
+                    type: object
+                  type:
+                    description: 'interface choice. Supported choice: "nsm-vlan"'
+                    type: string
+                required:
+                - ipv4-prefix
+                - ipv6-prefix
+                - name
+                - type
+                type: object
               vips:
                 description: vips that attractor expect to use
                 items:
                   type: string
                 type: array
-              vlan-id:
-                description: (immutable) vlan ID of the vlan interface to be used
-                  for external connectivity
-                type: integer
-              vlan-interface:
-                description: (immutable) master interface of the vlan interface to
-                  be used for external connectivity
-                type: string
-              vlan-ipv4-prefix:
-                description: (immutable) ipv4 prefix of the vlan interface, which
-                  is used for frontend to set up communication with the ipv4 gateways
-                type: string
-              vlan-ipv6-prefix:
-                description: (immutable) ipv6 prefix of the vlan interface, which
-                  is used for frontend to set up communication with the ipv6 gateways
-                type: string
             required:
-            - vlan-id
-            - vlan-interface
-            - vlan-ipv4-prefix
-            - vlan-ipv6-prefix
+            - interface
             type: object
           status:
             description: AttractorStatus defines the observed state of Attractor

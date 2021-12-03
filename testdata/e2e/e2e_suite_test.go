@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
 	scalescheme "k8s.io/client-go/scale/scheme"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
@@ -68,12 +69,6 @@ func init() {
 
 var fw = NewFramework()
 
-func int32pointer(i int32) *int32 {
-	var ret = new(int32)
-	*ret = i
-	return ret
-}
-
 // default trench used in all tests
 func trench(namespace string) *meridiov1alpha1.Trench {
 	return &meridiov1alpha1.Trench{
@@ -98,12 +93,18 @@ func attractor(namespace string) *meridiov1alpha1.Attractor {
 			},
 		},
 		Spec: meridiov1alpha1.AttractorSpec{
-			VlanID:         100,
-			VlanInterface:  "eth0",
-			Gateways:       []string{"gateway-a", "gateway-b"},
-			Vips:           []string{"vip-a", "vip-b"},
-			VlanPrefixIPv4: "169.254.100.0/24",
-			VlanPrefixIPv6: "100:100::/64",
+			Gateways: []string{"gateway-a", "gateway-b"},
+			Vips:     []string{"vip-a", "vip-b"},
+			Interface: meridiov1alpha1.InterfaceSpec{
+				Name:       "eth.100",
+				PrefixIPv4: "169.254.100.0/24",
+				PrefixIPv6: "100:100::/64",
+				Type:       meridiov1alpha1.NSMVlan,
+				NSMVlan: meridiov1alpha1.NSMVlanSpec{
+					VlanID:        pointer.Int32(100),
+					BaseInterface: "eth0",
+				},
+			},
 		},
 	}
 }
@@ -118,7 +119,7 @@ func conduit(namespace string) *meridiov1alpha1.Conduit {
 			},
 		},
 		Spec: meridiov1alpha1.ConduitSpec{
-			Replicas: int32pointer(1), // replica of lb-fe
+			Replicas: pointer.Int32(1), // replica of lb-fe
 		},
 	}
 }

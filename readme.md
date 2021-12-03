@@ -114,8 +114,8 @@ NAME                             READY   UP-TO-DATE   AVAILABLE   AGE
 deployment.apps/nse-vlan-attr1   1/1     1            1           5s
 
 $ kubectl get attractor
-NAME    VLANID   VLANITF   GATEWAYS                  VIPS              TRENCH
-attr1   100      eth0      ["gateway1","gateway2"]   ["vip1","vip2"]   trench-a
+NAME    INTERFACE-NAME   INTERFACE-TYPE   GATEWAYS                  VIPS              TRENCH
+attr1   eth0.100         nsm-vlan         ["gateway1","gateway2"]   ["vip1","vip2"]   trench-a
 ```
 
 ### Gateway

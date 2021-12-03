@@ -129,7 +129,7 @@ var _ = Describe("Flow", func() {
 					SourceSubnets:         flowB.Spec.SourceSubnets,
 					DestinationPortRanges: flowB.Spec.DestinationPorts,
 					Vips:                  flowB.Spec.Vips,
-					Priority:              float64(flowB.Spec.Priority),
+					Priority:              flowB.Spec.Priority,
 				}
 				assertFlowItemInConfigMap(newFlowInCm, configmapName, true)
 			})
@@ -162,7 +162,7 @@ var _ = Describe("Flow", func() {
 				DestinationPortRanges: s.Spec.DestinationPorts,
 				Protocols:             s.Spec.Protocols,
 				Vips:                  s.Spec.Vips,
-				Priority:              float64(s.Spec.Priority),
+				Priority:              s.Spec.Priority,
 				Stream:                s.Spec.Stream,
 			}
 			assertFlowItemInConfigMap(newFlowInCm, configmapName, true)
@@ -187,7 +187,7 @@ var _ = Describe("Flow", func() {
 				DestinationPortRanges: f.Spec.DestinationPorts,
 				Protocols:             f.Spec.Protocols,
 				Vips:                  f.Spec.Vips,
-				Priority:              float64(f.Spec.Priority),
+				Priority:              f.Spec.Priority,
 				Stream:                f.Spec.Stream,
 			}
 			assertFlowItemInConfigMap(fInCm, configmapName, false)

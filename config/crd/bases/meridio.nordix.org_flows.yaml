@@ -68,7 +68,7 @@ spec:
                 type: array
               priority:
                 description: Priority of the flow
-                format: int64
+                format: int32
                 type: integer
               protocols:
                 description: Protocols allowed in this flow The protocols should not

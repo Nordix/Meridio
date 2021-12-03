@@ -6,12 +6,16 @@ metadata:
     trench: trench-a
 spec:
   gateways:
-  - gateway1
-  - gateway2
+    - gateway1
+    - gateway2
   vips:
-  - vip1
-  - vip2
-  vlan-id: 100
-  vlan-interface: eth0
-  vlan-ipv4-prefix: 169.254.100.0/28
-  vlan-ipv6-prefix: 100:100::/64
+    - vip1
+    - vip2
+  interface:
+    name: eth0.100
+    ipv4-prefix: 169.254.100.0/24
+    ipv6-prefix: 100:100::/64
+    type: nsm-vlan
+    nsm-vlan:
+      vlan-id: 100
+      base-interface: eth0
