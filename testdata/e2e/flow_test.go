@@ -136,11 +136,12 @@ var _ = Describe("Flow", func() {
 		})
 	})
 
-	Context("When updating a stream", func() {
+	Context("When updating a flow", func() {
 		BeforeEach(func() {
 			Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 			Expect(fw.CreateResource(flowA.DeepCopy())).To(Succeed())
 		})
+
 		It("updates the configmap", func() {
 			var s = &meridiov1alpha1.Flow{}
 			Eventually(func(g Gomega) {
@@ -150,7 +151,7 @@ var _ = Describe("Flow", func() {
 				s.Spec.SourcePorts = []string{"50000"}
 				s.Spec.SourceSubnets = []string{"1000::/128"}
 				s.Spec.Protocols = []string{"udp"}
-				s.Spec.Priority = 10
+				s.Spec.Priority = flowA.Spec.Priority
 				g.Expect(fw.UpdateResource(s)).To(Succeed())
 			}).Should(Succeed())
 
@@ -169,6 +170,13 @@ var _ = Describe("Flow", func() {
 
 			By("checking old item is not in the configmap")
 			assertFlowItemInConfigMap(defaultFlowinCm, configmapName, false)
+		})
+
+		It("will be rejected when updating priority", func() {
+			var s = flowA.DeepCopy()
+			Expect(fw.GetResource(client.ObjectKeyFromObject(flowA), s)).To(Succeed())
+			s.Spec.Priority = 10
+			Expect(fw.UpdateResource(s)).ToNot(Succeed())
 		})
 
 		It("will be deleted from the configmap if stream is empty", func() {

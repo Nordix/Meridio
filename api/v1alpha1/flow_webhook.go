@@ -206,11 +206,15 @@ func (r *Flow) validateUpdate(oldObj runtime.Object) error {
 	if !ok {
 		return apierrors.NewBadRequest(fmt.Sprintf("expected a %s got a %T", r.GroupVersionKind().Kind, old))
 	}
-	attrNew := r.ObjectMeta.Labels["trench"]
-	attrOld := old.ObjectMeta.Labels["trench"]
-	if attrNew != attrOld {
+	trenchNew := r.ObjectMeta.Labels["trench"]
+	trenchOld := old.ObjectMeta.Labels["trench"]
+	if trenchNew != trenchOld {
 		return apierrors.NewForbidden(r.GroupResource(),
 			r.Name, field.Forbidden(field.NewPath("metadata", "labels", "trench"), "update on trench label is forbidden"))
+	}
+	if r.Spec.Priority != old.Spec.Priority {
+		return apierrors.NewForbidden(r.GroupResource(),
+			r.Name, field.Forbidden(field.NewPath("metadata", "spec", "priority"), "update on priority is forbidden"))
 	}
 	return nil
 }
