@@ -68,8 +68,10 @@ func (r *Role) getDesiredStatus() *rbacv1.Role {
 	return r.insertParameters(r.model)
 }
 
-func (r *Role) getReconciledDesiredStatus(current *rbacv1.Role) *rbacv1.Role {
-	return r.insertParameters(current)
+func (r *Role) getReconciledDesiredStatus(cd *rbacv1.Role) *rbacv1.Role {
+	template := cd.DeepCopy()
+	template.Rules = r.model.Rules
+	return r.insertParameters(template)
 }
 
 func (r *Role) getAction() error {

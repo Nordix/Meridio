@@ -90,10 +90,19 @@ func (i *NseDeployment) insertParameters(dep *appsv1.Deployment) *appsv1.Deploym
 
 	ret.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
 
-	if ret.Spec.Template.Spec.Containers[0].Image == "" {
-		ret.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.OrganizationNsm, nseImage, common.Tag)
+	for x, container := range ret.Spec.Template.Spec.Containers {
+		switch name := container.Name; name {
+		case "nse":
+			if container.Image == "" {
+				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.OrganizationNsm, nseImage, common.Tag)
+				container.ImagePullPolicy = corev1.PullAlways
+			}
+			container.Env = i.getEnvVars(container.Env)
+		default:
+			i.exec.LogError(fmt.Errorf("container %s not expected", name), "get container error")
+		}
+		ret.Spec.Template.Spec.Containers[x] = container
 	}
-	ret.Spec.Template.Spec.Containers[0].Env = i.getEnvVars(ret.Spec.Template.Spec.Containers[0].Env)
 	return ret
 }
 
@@ -121,7 +130,11 @@ func (i *NseDeployment) getDesiredStatus() *appsv1.Deployment {
 // getReconciledDesiredStatus gets the desired status of nse deployment after it's created
 // more paramters than what are defined in the model could be added by K8S
 func (i *NseDeployment) getReconciledDesiredStatus(cd *appsv1.Deployment) *appsv1.Deployment {
-	return i.insertParameters(cd)
+	template := cd.DeepCopy()
+	template.Spec.Template.Spec.InitContainers = i.model.Spec.Template.Spec.InitContainers
+	template.Spec.Template.Spec.Containers = i.model.Spec.Template.Spec.Containers
+	template.Spec.Template.Spec.Volumes = i.model.Spec.Template.Spec.Volumes
+	return i.insertParameters(template)
 }
 
 func (i *NseDeployment) getCurrentStatus() (*appsv1.Deployment, error) {

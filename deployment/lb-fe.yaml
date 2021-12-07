@@ -37,7 +37,7 @@ spec:
         - name: load-balancer
           image: # to be filled by operator
           imagePullPolicy: # Kubernetes default according to image tag
-          readinessProbe:
+          readinessProbe: # will be overwritten by operator if not specified
             exec:
               command:
                 - /bin/grpc_health_probe
@@ -48,7 +48,8 @@ spec:
             initialDelaySeconds: 0
             periodSeconds: 10
             timeoutSeconds: 3
-          livenessProbe:
+            successThreshold: 1
+          livenessProbe: # will be overwritten by operator if not specified
             exec:
               command:
                 - /bin/grpc_health_probe
@@ -59,6 +60,7 @@ spec:
             initialDelaySeconds: 0
             periodSeconds: 10
             timeoutSeconds: 3
+            successThreshold: 1
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
@@ -84,7 +86,7 @@ spec:
           securityContext:
             privileged: true
         - name: nsc
-          image: # to be filled by operator
+          image: # to be filled by operator if not specified
           imagePullPolicy: # Kubernetes default according to image tag
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
