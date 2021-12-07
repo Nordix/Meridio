@@ -17,11 +17,13 @@ limitations under the License.
 package proxy
 
 import (
+	"context"
 	"errors"
 	"sync"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/nordix/meridio/pkg/ipam"
+	"github.com/nordix/meridio/pkg/ipam/types"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/sirupsen/logrus"
 )
@@ -31,7 +33,7 @@ type Proxy struct {
 	bridge   networking.Bridge
 	vips     []*virtualIP
 	subnets  []string
-	ipam     *ipam.Ipam
+	ipam     types.Ipam
 	mutex    sync.Mutex
 	netUtils networking.Utils
 	nexthops []string
@@ -134,13 +136,13 @@ func (p *Proxy) SetIPContext(conn *networkservice.Connection, interfaceType netw
 	srcIPAddrs := []string{}
 	dstIpAddrs := []string{}
 	for _, subnet := range p.subnets {
-		srcIPAddr, err := p.ipam.AllocateIP(subnet)
+		srcIPAddr, err := p.ipam.AllocateIP(context.Background(), subnet)
 		if err != nil {
 			return err
 		}
 		srcIPAddrs = append(srcIPAddrs, srcIPAddr)
 
-		dstIPAddr, err := p.ipam.AllocateIP(subnet)
+		dstIPAddr, err := p.ipam.AllocateIP(context.Background(), subnet)
 		if err != nil {
 			return err
 		}
@@ -170,7 +172,7 @@ func (p *Proxy) setBridgeIP(prefix string) error {
 
 func (p *Proxy) setBridgeIPs() error {
 	for _, subnet := range p.subnets {
-		prefix, err := p.ipam.AllocateIP(subnet)
+		prefix, err := p.ipam.AllocateIP(context.Background(), subnet)
 		if err != nil {
 			return err
 		}
@@ -225,11 +227,11 @@ func NewProxy(subnets []string, netUtils networking.Utils) *Proxy {
 	if err != nil {
 		logrus.Errorf("Proxy: Error creating the bridge: %v", err)
 	}
-	ipam := ipam.NewIpam()
+	im := ipam.New()
 	proxy := &Proxy{
 		bridge:   bridge,
 		subnets:  subnets,
-		ipam:     ipam,
+		ipam:     im,
 		netUtils: netUtils,
 		nexthops: []string{},
 		vips:     []*virtualIP{},

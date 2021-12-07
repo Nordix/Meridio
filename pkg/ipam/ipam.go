@@ -17,92 +17,85 @@ limitations under the License.
 package ipam
 
 import (
+	"context"
 	"fmt"
-	"strconv"
+	"net"
 
-	goipam "github.com/metal-stack/go-ipam"
-	"github.com/vishvananda/netlink"
+	"github.com/nordix/meridio/pkg/ipam/storage/memory"
 )
 
 type Ipam struct {
-	goIpam           goipam.Ipamer
-	registeredPrefix map[string]struct{}
+	Store Storage
 }
 
-func (ipam *Ipam) registerPrefix(prefix string) error {
-	if _, ok := ipam.registeredPrefix[prefix]; ok {
-		return nil
+func New() *Ipam {
+	ipam := &Ipam{
+		Store: memory.NewStorage(),
 	}
-	ipam.registeredPrefix[prefix] = struct{}{}
-	_, err := ipam.goIpam.NewPrefix(prefix)
+	return ipam
+}
+
+func NewWithStorage(store Storage) *Ipam {
+	ipam := &Ipam{
+		Store: store,
+	}
+	return ipam
+}
+
+func (ipam *Ipam) AllocateSubnet(ctx context.Context, subnetPool string, prefixLength int) (string, error) {
+	p, err := NewPrefixWithStorage(subnetPool, ipam.Store)
+	if err != nil {
+		return "", err
+	}
+	newSubnet, err := p.Allocate(ctx, prefixLength)
+	if err != nil {
+		return "", err
+	}
+	return newSubnet, nil
+}
+
+func (ipam *Ipam) ReleaseSubnet(ctx context.Context, subnetPool string, subnet string) error {
+	p, err := NewPrefixWithStorage(subnetPool, ipam.Store)
+	if err != nil {
+		return err
+	}
+	err = p.Release(ctx, subnet)
 	return err
 }
 
-func (ipam *Ipam) AllocateSubnet(subnetPool string, prefixLength int) (string, error) {
-	_, err := netlink.ParseAddr(subnetPool)
+func (ipam *Ipam) AllocateIP(ctx context.Context, subnet string) (string, error) {
+	p, err := NewPrefixWithStorage(subnet, ipam.Store)
 	if err != nil {
 		return "", err
 	}
-	err = ipam.registerPrefix(subnetPool)
-	if err != nil {
-		return "", err
+	_, ipNet, _ := net.ParseCIDR(subnet) // should not return error since NewPrefixWithStorage
+	lastIP := LastIP(ipNet)
+	length, ipLength := ipNet.Mask.Size()
+	var new net.IP
+	for {
+		newIP, err := p.Allocate(ctx, ipLength)
+		new, _, _ = net.ParseCIDR(newIP) // should not return error since returned by Allocate
+		if err != nil {
+			return "", err
+		}
+		if new.String() != ipNet.IP.String() && new.String() != lastIP.String() {
+			break
+		}
 	}
-	child, err := ipam.goIpam.AcquireChildPrefix(subnetPool, uint8(prefixLength))
-	if err != nil {
-		return "", err
-	}
-	return child.Cidr, nil
+	return fmt.Sprintf("%s/%d", new.String(), length), nil
 }
 
-func (ipam *Ipam) ReleaseSubnet(subnet string) error {
-	_, err := netlink.ParseAddr(subnet)
+func (ipam *Ipam) ReleaseIP(ctx context.Context, subnet string, ip string) error {
+	p, err := NewPrefixWithStorage(subnet, ipam.Store)
 	if err != nil {
 		return err
 	}
-	err = ipam.registerPrefix(subnet)
+	_, ipNet, _ := net.ParseCIDR(subnet) // should not return error since NewPrefixWithStorage
+	_, ipLength := ipNet.Mask.Size()
+	newIp, _, err := net.ParseCIDR(ip)
 	if err != nil {
 		return err
 	}
-	// TODO
-	return nil
-}
-
-func (ipam *Ipam) AllocateIP(subnet string) (string, error) {
-	netlinkSubnet, err := netlink.ParseAddr(subnet)
-	if err != nil {
-		return "", err
-	}
-	err = ipam.registerPrefix(subnet)
-	if err != nil {
-		return "", err
-	}
-	ip, err := ipam.goIpam.AcquireIP(subnet)
-	if err != nil {
-		return "", err
-	}
-	prefixLength, _ := netlinkSubnet.Mask.Size()
-	ipCidr := fmt.Sprintf("%s/%s", ip.IP.String(), strconv.Itoa(prefixLength))
-	return ipCidr, nil
-}
-
-func (ipam *Ipam) ReleaseIP(ip string) error {
-	Addr, err := netlink.ParseAddr(ip)
-	if err != nil {
-		return err
-	}
-	err = ipam.registerPrefix(Addr.Network())
-	if err != nil {
-		return err
-	}
-	// TODO
-	return nil
-}
-
-func NewIpam() *Ipam {
-	goIpam := goipam.New()
-	ipam := &Ipam{
-		goIpam:           goIpam,
-		registeredPrefix: make(map[string]struct{}),
-	}
-	return ipam
+	err = p.Release(ctx, fmt.Sprintf("%s/%d", newIp, ipLength))
+	return err
 }

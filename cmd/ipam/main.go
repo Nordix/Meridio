@@ -17,13 +17,19 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
+	"net"
 	"os"
 	"strconv"
 
+	ipamAPI "github.com/nordix/meridio/api/ipam"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/ipam"
+	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -48,7 +54,28 @@ func main() {
 		port = 7777
 	}
 
-	i, _ := ipam.NewIpamService(port)
+	datastore := os.Getenv("IPAM_DATASOURCE")
+	if datastore == "" {
+		datastore = "/run/ipam/data/registry.db"
+	}
 
-	i.Start()
+	ipamServer, err := ipam.NewServer(datastore)
+	if err != nil {
+		logrus.Fatalf("Unable to create ipam server: %v", err)
+	}
+
+	server := grpc.NewServer(grpc.Creds(
+		credentials.GetServer(context.Background()),
+	))
+	ipamAPI.RegisterIpamServiceServer(server, ipamServer)
+
+	logrus.Infof("IPAM Service: Start the service (port: %v)", port)
+	listener, err := net.Listen("tcp", fmt.Sprintf("[::]:%d", port))
+	if err != nil {
+		logrus.Fatalf("NSP Service: failed to listen: %v", err)
+	}
+
+	if err := server.Serve(listener); err != nil {
+		logrus.Errorf("NSP Service: failed to serve: %v", err)
+	}
 }
