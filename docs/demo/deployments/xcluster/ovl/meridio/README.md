@@ -14,7 +14,7 @@ The aim is to deploy via Helm:
   installed via Multus. The benefit of a TG POD is to properly test Meridio
   when there are more than 1 external gateways available.
   TG also runs BIRD in a separate container to learn and install VIP related routes
-  (via BGP). Thus enabling on-the-fly VIP changes being propageted to the TG a well. 
+  (via BGP). Thus enabling on-the-fly VIP changes being propageted to the TG as well. 
 
 
 ## Basic Usage
