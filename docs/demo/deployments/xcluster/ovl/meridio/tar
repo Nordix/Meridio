@@ -21,13 +21,17 @@ if test -n $XCLUSTER_INSTALL_MULTUS; then
        if [ ! -d $XCLUSTER_WORKSPACE/multus-cni ]; then
                log "Clone multus-cni to $XCLUSTER_WORKSPACE/multus-cni"
                git clone https://github.com/k8snetworkplumbingwg/multus-cni.git $XCLUSTER_WORKSPACE/multus-cni/ || die "git: failed to clone multus"
+               cd $XCLUSTER_WORKSPACE/multus-cni/
+               log "Checkout multus v3.8"
+               git -c advice.detachedHead=false checkout v3.8 || die "git: failed to checkout multus v3.8"
+               cd -
        fi
 
        if [ ! -d $XCLUSTER_WORKSPACE/cni-plugins ]; then
                log "Clone cni-plugins to $XCLUSTER_WORKSPACE/cni-plugins"
                git clone https://github.com/containernetworking/plugins $XCLUSTER_WORKSPACE/cni-plugins/ || die "git: failed to clone cni plugins"
                cd $XCLUSTER_WORKSPACE/cni-plugins/
-               git checkout v0.8.7
+               git -c advice.detachedHead=false checkout v0.8.7
                log "Build CNI plugins v0.8.7"
                ./build_linux.sh
                cd -
