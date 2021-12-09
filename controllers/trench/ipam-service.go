@@ -40,7 +40,7 @@ func (i *IpamService) insertParameters(svc *corev1.Service) *corev1.Service {
 	// else use the default parameters
 	ret := svc.DeepCopy()
 	ret.ObjectMeta.Name = common.IPAMServiceName(i.trench)
-	ret.Spec.Selector["app"] = common.IPAMDeploymentName(i.trench)
+	ret.Spec.Selector["app"] = common.IPAMStatefulSetName(i.trench)
 	ret.ObjectMeta.Namespace = i.trench.ObjectMeta.Namespace
 	return ret
 }

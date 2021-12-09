@@ -16,14 +16,14 @@ const (
 	ipamEnvName = "IPAM_PORT"
 )
 
-type IpamDeployment struct {
+type IpamStatefulSet struct {
 	trench *meridiov1alpha1.Trench
-	model  *appsv1.Deployment
+	model  *appsv1.StatefulSet
 	exec   *common.Executor
 }
 
-func NewIPAM(e *common.Executor, t *meridiov1alpha1.Trench) (*IpamDeployment, error) {
-	l := &IpamDeployment{
+func NewIPAM(e *common.Executor, t *meridiov1alpha1.Trench) (*IpamStatefulSet, error) {
+	l := &IpamStatefulSet{
 		trench: t.DeepCopy(),
 		exec:   e,
 	}
@@ -35,16 +35,17 @@ func NewIPAM(e *common.Executor, t *meridiov1alpha1.Trench) (*IpamDeployment, er
 	return l, nil
 }
 
-func (i *IpamDeployment) insertParameters(dep *appsv1.Deployment) *appsv1.Deployment {
-	// if status ipam deployment parameters are specified in the cr, use those
+func (i *IpamStatefulSet) insertParameters(dep *appsv1.StatefulSet) *appsv1.StatefulSet {
+	// if status ipam statefulset parameters are specified in the cr, use those
 	// else use the default parameters
 	ret := dep.DeepCopy()
-	ipamDeploymentName := common.IPAMDeploymentName(i.trench)
-	ret.ObjectMeta.Name = ipamDeploymentName
+	ipamStatefulSetName := common.IPAMStatefulSetName(i.trench)
+	ret.ObjectMeta.Name = ipamStatefulSetName
 	ret.ObjectMeta.Namespace = i.trench.ObjectMeta.Namespace
-	ret.ObjectMeta.Labels["app"] = ipamDeploymentName
-	ret.Spec.Selector.MatchLabels["app"] = ipamDeploymentName
-	ret.Spec.Template.ObjectMeta.Labels["app"] = ipamDeploymentName
+	ret.ObjectMeta.Labels["app"] = ipamStatefulSetName
+	ret.Spec.Selector.MatchLabels["app"] = ipamStatefulSetName
+	ret.Spec.ServiceName = ipamStatefulSetName
+	ret.Spec.Template.ObjectMeta.Labels["app"] = ipamStatefulSetName
 	if ret.Spec.Template.Spec.Containers[0].Image == "" {
 		ret.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, imageIpam, common.Tag)
 	}
@@ -54,8 +55,8 @@ func (i *IpamDeployment) insertParameters(dep *appsv1.Deployment) *appsv1.Deploy
 	return ret
 }
 
-func (i *IpamDeployment) getModel() error {
-	model, err := common.GetDeploymentModel("deployment/ipam.yaml")
+func (i *IpamStatefulSet) getModel() error {
+	model, err := common.GetStatefulSetModel("deployment/ipam.yaml")
 	if err != nil {
 		return err
 	}
@@ -63,25 +64,25 @@ func (i *IpamDeployment) getModel() error {
 	return nil
 }
 
-func (i *IpamDeployment) getSelector() client.ObjectKey {
+func (i *IpamStatefulSet) getSelector() client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: i.trench.ObjectMeta.Namespace,
-		Name:      common.IPAMDeploymentName(i.trench),
+		Name:      common.IPAMStatefulSetName(i.trench),
 	}
 }
 
-func (i *IpamDeployment) getDesiredStatus() *appsv1.Deployment {
+func (i *IpamStatefulSet) getDesiredStatus() *appsv1.StatefulSet {
 	return i.insertParameters(i.model)
 }
 
-// getIpamDeploymentReconciledDesiredStatus gets the desired status of ipam deployment after it's created
+// getIpamStatefulSetReconciledDesiredStatus gets the desired status of ipam statefulset after it's created
 // more paramters than what are defined in the model could be added by K8S
-func (i *IpamDeployment) getReconciledDesiredStatus(cd *appsv1.Deployment) *appsv1.Deployment {
+func (i *IpamStatefulSet) getReconciledDesiredStatus(cd *appsv1.StatefulSet) *appsv1.StatefulSet {
 	return i.insertParameters(cd)
 }
 
-func (i *IpamDeployment) getCurrentStatus() (*appsv1.Deployment, error) {
-	currentStatus := &appsv1.Deployment{}
+func (i *IpamStatefulSet) getCurrentStatus() (*appsv1.StatefulSet, error) {
+	currentStatus := &appsv1.StatefulSet{}
 	selector := i.getSelector()
 	err := i.exec.GetObject(selector, currentStatus)
 	if err != nil {
@@ -93,7 +94,7 @@ func (i *IpamDeployment) getCurrentStatus() (*appsv1.Deployment, error) {
 	return currentStatus, nil
 }
 
-func (i *IpamDeployment) getAction() error {
+func (i *IpamStatefulSet) getAction() error {
 	cs, err := i.getCurrentStatus()
 	if err != nil {
 		return err

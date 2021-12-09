@@ -53,7 +53,7 @@ func (i *NspService) insertParameters(svc *corev1.Service) *corev1.Service {
 	// else use the default parameters
 	ret := svc.DeepCopy()
 	ret.ObjectMeta.Name = common.NSPServiceName(i.trench)
-	ret.Spec.Selector["app"] = common.NSPDeploymentName(i.trench)
+	ret.Spec.Selector["app"] = common.NSPStatefulSetName(i.trench)
 	ret.ObjectMeta.Namespace = i.trench.ObjectMeta.Namespace
 	ret.Spec.Ports = i.getPorts()
 	return ret

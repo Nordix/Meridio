@@ -68,7 +68,7 @@ func ProxyDeploymentName(trench *meridiov1alpha1.Trench) string {
 	return getTrenchSuffixedName(ProxyName, trench)
 }
 
-func IPAMDeploymentName(trench *meridiov1alpha1.Trench) string {
+func IPAMStatefulSetName(trench *meridiov1alpha1.Trench) string {
 	return getTrenchSuffixedName(IpamName, trench)
 }
 
@@ -76,7 +76,7 @@ func NSEDeploymentName(attractor *meridiov1alpha1.Attractor) string {
 	return getAttractorSuffixedName(NseName, attractor)
 }
 
-func NSPDeploymentName(trench *meridiov1alpha1.Trench) string {
+func NSPStatefulSetName(trench *meridiov1alpha1.Trench) string {
 	return getTrenchSuffixedName(NspName, trench)
 }
 
