@@ -27,7 +27,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
@@ -43,24 +42,24 @@ var (
 	namespace           string
 	networkServiceName  = "load-balancer"
 	stream              = "stream-a"
+
+	clientset *kubernetes.Clientset
+	op        operator.Operator
 )
 
 const (
-	timeout              = time.Minute * 3
-	interval             = time.Second * 2
-	trench               = "trench-a"
+	timeout  = time.Minute * 3
+	interval = time.Second * 2
+
+	trenchAName = "trench-a"
+	trenchBName = "trench-b"
+
 	targetDeploymentName = "target-a"
 	port                 = "5000"
 	ipv4                 = "20.0.0.1"
 	ipv6                 = "[2000::1]"
 	numberOfTargets      = 4
 	ipPort               = "20.0.0.1:5000"
-	trenchB              = "trench-b"
-)
-
-var (
-	clientset *kubernetes.Clientset
-	op        operator.Operator
 )
 
 func init() {
@@ -106,170 +105,10 @@ var _ = BeforeSuite(func() {
 		// By("cleaning up CRs")
 		// op.CleanUpResource()
 		// time.Sleep(5 * time.Second)
-
-		trenchA.Trench = meridiov1alpha1.Trench{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      trench,
-				Namespace: namespace,
-			},
-			// by default ip family is "dual-stack"
-		}
-
-		trenchA.Attractor = meridiov1alpha1.Attractor{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "attractor-a",
-				Namespace: namespace,
-				Labels: map[string]string{
-					"trench": trench,
-				},
-			},
-			Spec: meridiov1alpha1.AttractorSpec{
-				VlanID:         100,
-				VlanInterface:  "eth0",
-				Gateways:       []string{"gateway-v4-a", "gateway-v6-a"},
-				Vips:           []string{"vip-v4-a", "vip-v6-a"},
-				VlanPrefixIPv4: "169.254.100.0/24",
-				VlanPrefixIPv6: "100:100::/64",
-			},
-		}
-
-		trenchA.Conduit = meridiov1alpha1.Conduit{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "lb-fe",
-				Namespace: namespace,
-				Labels: map[string]string{
-					"trench": trench,
-				},
-			},
-			Spec: meridiov1alpha1.ConduitSpec{
-				Replicas: int32pointer(2),
-			},
-		}
-
-		trenchA.Gateways = []meridiov1alpha1.Gateway{
-			{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "gateway-v4-a",
-					Namespace: namespace,
-					Labels: map[string]string{
-						"trench": trench,
-					},
-				},
-				Spec: meridiov1alpha1.GatewaySpec{
-					Address: "169.254.100.150",
-					Bgp: meridiov1alpha1.BgpSpec{
-						LocalASN:   uint32pointer(8103),
-						RemoteASN:  uint32pointer(4248829953),
-						HoldTime:   "24s",
-						LocalPort:  uint16pointer(10179),
-						RemotePort: uint16pointer(10179),
-					},
-				},
-			},
-			{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "gateway-v6-a",
-					Namespace: namespace,
-					Labels: map[string]string{
-						"trench": trench,
-					},
-				},
-				Spec: meridiov1alpha1.GatewaySpec{
-					Address: "100:100::150",
-					Bgp: meridiov1alpha1.BgpSpec{
-						LocalASN:   uint32pointer(8103),
-						RemoteASN:  uint32pointer(4248829953),
-						HoldTime:   "24s",
-						LocalPort:  uint16pointer(10179),
-						RemotePort: uint16pointer(10179),
-					},
-				},
-			},
-		}
-
-		trenchA.Vips = []meridiov1alpha1.Vip{
-			{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "vip-v4-a",
-					Namespace: namespace,
-					Labels: map[string]string{
-						"trench": trench,
-					},
-				},
-				Spec: meridiov1alpha1.VipSpec{
-					Address: "20.0.0.1/32",
-				},
-			},
-			{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "vip-v4-6",
-					Namespace: namespace,
-					Labels: map[string]string{
-						"trench": trench,
-					},
-				},
-				Spec: meridiov1alpha1.VipSpec{
-					Address: "2000::1/128",
-				},
-			},
-		}
-
-		trenchA.Streams = []meridiov1alpha1.Stream{
-			{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "stream-a",
-					Namespace: namespace,
-					Labels: map[string]string{
-						"trench": trench,
-					},
-				},
-				Spec: meridiov1alpha1.StreamSpec{
-					Conduit: "lb-fe",
-				},
-			},
-		}
-
-		trenchA.Flows = []meridiov1alpha1.Flow{
-			{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "flow-a",
-					Namespace: namespace,
-					Labels: map[string]string{
-						"trench": trench,
-					},
-				},
-				Spec: meridiov1alpha1.FlowSpec{
-					Vips:             []string{"vip-v4-a", " vip-v6-a"},
-					SourceSubnets:    []string{"0.0.0.0/0", "0:0:0:0:0:0:0:0/0"},
-					DestinationPorts: []string{"5000"},
-					SourcePorts:      []string{"1024-65535"},
-					Protocols:        []string{"tcp"},
-					Stream:           "stream-a",
-					Priority:         1,
-				},
-			},
-		}
+		trenchA = op.GetMeridioResoucesByTrench(trenchAName, namespace)
 		op.AssertMeridioDeploymentsReady(trenchA)
 
 		// change networkServiceName
 		networkServiceName = trenchA.Conduit.ObjectMeta.Name
 	}
 })
-
-func int32pointer(i int32) *int32 {
-	var ret = new(int32)
-	*ret = i
-	return ret
-}
-
-func uint32pointer(i uint32) *uint32 {
-	var ret = new(uint32)
-	*ret = i
-	return ret
-}
-
-func uint16pointer(i uint16) *uint16 {
-	var ret = new(uint16)
-	*ret = i
-	return ret
-}

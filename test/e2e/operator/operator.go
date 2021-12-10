@@ -325,3 +325,54 @@ func (op Operator) UndeployMerido(m MeridioResources) {
 		Expect(op.DeleteResource(&f)).To(Succeed())
 	}
 }
+
+func (op *Operator) GetMeridioResoucesByTrench(trenchName, namespace string) MeridioResources {
+	trench := MeridioResources{}
+	_ = op.Client.Get(context.TODO(), client.ObjectKey{
+		Namespace: namespace,
+		Name:      trenchName,
+	}, &trench.Trench)
+
+	clst := &meridiov1alpha1.ConduitList{}
+	_ = op.Client.List(context.TODO(),
+		clst,
+		client.InNamespace(namespace),
+		client.MatchingLabels{"trench": trenchName})
+	trench.Conduit = clst.Items[0]
+
+	alst := &meridiov1alpha1.AttractorList{}
+	_ = op.Client.List(context.TODO(),
+		alst,
+		client.InNamespace(namespace),
+		client.MatchingLabels{"trench": trenchName})
+	trench.Attractor = alst.Items[0]
+
+	slst := &meridiov1alpha1.StreamList{}
+	_ = op.Client.List(context.TODO(),
+		slst,
+		client.InNamespace(namespace),
+		client.MatchingLabels{"trench": trenchName})
+	trench.Streams = slst.Items
+
+	flst := &meridiov1alpha1.FlowList{}
+	_ = op.Client.List(context.TODO(),
+		flst,
+		client.InNamespace(namespace),
+		client.MatchingLabels{"trench": trenchName})
+	trench.Flows = flst.Items
+
+	glst := &meridiov1alpha1.GatewayList{}
+	_ = op.Client.List(context.TODO(),
+		glst,
+		client.InNamespace(namespace),
+		client.MatchingLabels{"trench": trenchName})
+	trench.Gateways = glst.Items
+
+	vlst := &meridiov1alpha1.VipList{}
+	_ = op.Client.List(context.TODO(),
+		vlst,
+		client.InNamespace(namespace),
+		client.MatchingLabels{"trench": trenchName})
+	trench.Vips = vlst.Items
+	return trench
+}

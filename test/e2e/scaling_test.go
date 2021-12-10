@@ -96,7 +96,7 @@ var _ = Describe("Scaling", func() {
 			})
 			It("should receive the traffic correctly", func() {
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
-				lastingConnections, lostConnections, err := utils.SendTraffic(trafficGeneratorCMD, trench, namespace, ipPort, 400, 100)
+				lastingConnections, lostConnections, err := utils.SendTraffic(trafficGeneratorCMD, trenchAName, namespace, ipPort, 400, 100)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(len(lostConnections)).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(replicas))
@@ -111,7 +111,7 @@ var _ = Describe("Scaling", func() {
 				By("Waiting for the new targets to be registered")
 				time.Sleep(20 * time.Second)
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
-				lastingConnections, lostConnections, err := utils.SendTraffic(trafficGeneratorCMD, trench, namespace, ipPort, 400, 100)
+				lastingConnections, lostConnections, err := utils.SendTraffic(trafficGeneratorCMD, trenchAName, namespace, ipPort, 400, 100)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(len(lostConnections)).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(replicas))
