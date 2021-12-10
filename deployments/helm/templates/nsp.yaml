@@ -14,6 +14,7 @@ spec:
   template:
     metadata:
       labels:
+        spiffe.io/spiffe-id: "true"
         app: nsp-{{ .Values.trench.name }}
     spec:
       serviceAccountName: {{ template "meridio.serviceAccount" . }}

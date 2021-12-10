@@ -1,9 +1,10 @@
 ---
-# Default values for nsm.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
 
-registry: registry.nordix.org
-org: cloud-native/nsm
-tag: latest
-pullPolicy: IfNotPresent
+# https://github.com/spiffe/spire/blob/main/support/k8s/k8s-workload-registrar/mode-crd/README.md#quick-start
+
+clusterName: "meridio"
+trustDomain: "meridio.nordix.org"
+
+registry: gcr.io
+org: spiffe-io
+version: 1.1.0

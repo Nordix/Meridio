@@ -12,6 +12,7 @@ spec:
   template:
     metadata:
       labels:
+        spiffe.io/spiffe-id: "true"
         app: nsmgr
     spec:
       containers:

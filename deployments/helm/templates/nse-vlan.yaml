@@ -12,6 +12,7 @@ spec:
   template:
     metadata:
       labels:
+        spiffe.io/spiffe-id: "true"
         app: nse-vlan-{{ .Values.trench.name }}
     spec:
       containers:

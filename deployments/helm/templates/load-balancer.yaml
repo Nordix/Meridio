@@ -13,6 +13,7 @@ spec:
   template:
     metadata:
       labels:
+        spiffe.io/spiffe-id: "true"
         app: load-balancer-{{ .Values.trench.name }}
     spec:
       serviceAccountName: {{ template "meridio.serviceAccount" . }}

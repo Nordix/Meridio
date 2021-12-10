@@ -14,6 +14,7 @@ spec:
   template:
     metadata:
       labels:
+        spiffe.io/spiffe-id: "true"
         app: ipam-{{ .Values.trench.name }}
     spec:
       containers:
