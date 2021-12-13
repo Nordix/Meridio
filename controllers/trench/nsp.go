@@ -16,14 +16,14 @@ const (
 	imageNsp = "nsp"
 )
 
-type NspDeployment struct {
+type NspStatefulSet struct {
 	trench *meridiov1alpha1.Trench
-	model  *appsv1.Deployment
+	model  *appsv1.StatefulSet
 	exec   *common.Executor
 }
 
-func NewNspDeployment(e *common.Executor, t *meridiov1alpha1.Trench) (*NspDeployment, error) {
-	l := &NspDeployment{
+func NewNspStatefulSet(e *common.Executor, t *meridiov1alpha1.Trench) (*NspStatefulSet, error) {
+	l := &NspStatefulSet{
 		trench: t.DeepCopy(),
 		exec:   e,
 	}
@@ -35,7 +35,7 @@ func NewNspDeployment(e *common.Executor, t *meridiov1alpha1.Trench) (*NspDeploy
 	return l, nil
 }
 
-func (i *NspDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
+func (i *NspStatefulSet) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	ret := []corev1.EnvVar{}
 	for _, env := range allEnv {
 		switch env.Name {
@@ -43,7 +43,7 @@ func (i *NspDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			env.Value = fmt.Sprint(common.NspTargetPort)
 		case "NSP_CONFIG_MAP_NAME":
 			env.Value = common.ConfigMapName(i.trench)
-		case "NSP_NAMESPACE", "SPIFFE_ENDPOINT_SOCKET":
+		case "NSP_NAMESPACE", "SPIFFE_ENDPOINT_SOCKET", "NSP_DATASOURCE":
 		default:
 			i.exec.LogError(fmt.Errorf("env %s not expected", env.Name), "get env var error")
 		}
@@ -52,16 +52,17 @@ func (i *NspDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	return ret
 }
 
-func (i *NspDeployment) insertParameters(init *appsv1.Deployment) *appsv1.Deployment {
-	// if status nsp deployment parameters are specified in the cr, use those
+func (i *NspStatefulSet) insertParameters(init *appsv1.StatefulSet) *appsv1.StatefulSet {
+	// if status nsp statefulset parameters are specified in the cr, use those
 	// else use the default parameters
-	nspDeploymentName := common.NSPDeploymentName(i.trench)
+	nspStatefulSetName := common.NSPStatefulSetName(i.trench)
 	dep := init.DeepCopy()
-	dep.ObjectMeta.Name = nspDeploymentName
+	dep.ObjectMeta.Name = nspStatefulSetName
 	dep.ObjectMeta.Namespace = i.trench.ObjectMeta.Namespace
-	dep.ObjectMeta.Labels["app"] = nspDeploymentName
-	dep.Spec.Selector.MatchLabels["app"] = nspDeploymentName
-	dep.Spec.Template.ObjectMeta.Labels["app"] = nspDeploymentName
+	dep.ObjectMeta.Labels["app"] = nspStatefulSetName
+	dep.Spec.Selector.MatchLabels["app"] = nspStatefulSetName
+	dep.Spec.ServiceName = nspStatefulSetName
+	dep.Spec.Template.ObjectMeta.Labels["app"] = nspStatefulSetName
 	dep.Spec.Template.Spec.ServiceAccountName = common.ServiceAccountName(i.trench)
 
 	dep.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
@@ -84,8 +85,8 @@ func (i *NspDeployment) insertParameters(init *appsv1.Deployment) *appsv1.Deploy
 	return dep
 }
 
-func (i *NspDeployment) getModel() error {
-	model, err := common.GetDeploymentModel("deployment/nsp.yaml")
+func (i *NspStatefulSet) getModel() error {
+	model, err := common.GetStatefulSetModel("deployment/nsp.yaml")
 	if err != nil {
 		return err
 	}
@@ -93,25 +94,25 @@ func (i *NspDeployment) getModel() error {
 	return nil
 }
 
-func (i *NspDeployment) getSelector() client.ObjectKey {
+func (i *NspStatefulSet) getSelector() client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: i.trench.ObjectMeta.Namespace,
-		Name:      common.NSPDeploymentName(i.trench),
+		Name:      common.NSPStatefulSetName(i.trench),
 	}
 }
 
-func (i *NspDeployment) getDesiredStatus() *appsv1.Deployment {
+func (i *NspStatefulSet) getDesiredStatus() *appsv1.StatefulSet {
 	return i.insertParameters(i.model)
 }
 
-// getNspDeploymentReconciledDesiredStatus gets the desired status of nsp deployment after it's created
+// getNspStatefulSetReconciledDesiredStatus gets the desired status of nsp StatefulSet after it's created
 // more paramters than what are defined in the model could be added by K8S
-func (i *NspDeployment) getReconciledDesiredStatus(cd *appsv1.Deployment) *appsv1.Deployment {
+func (i *NspStatefulSet) getReconciledDesiredStatus(cd *appsv1.StatefulSet) *appsv1.StatefulSet {
 	return i.insertParameters(cd)
 }
 
-func (i *NspDeployment) getCurrentStatus() (*appsv1.Deployment, error) {
-	currentStatus := &appsv1.Deployment{}
+func (i *NspStatefulSet) getCurrentStatus() (*appsv1.StatefulSet, error) {
+	currentStatus := &appsv1.StatefulSet{}
 	selector := i.getSelector()
 	err := i.exec.GetObject(selector, currentStatus)
 	if err != nil {
@@ -123,7 +124,7 @@ func (i *NspDeployment) getCurrentStatus() (*appsv1.Deployment, error) {
 	return currentStatus, nil
 }
 
-func (i *NspDeployment) getAction() error {
+func (i *NspStatefulSet) getAction() error {
 	cs, err := i.getCurrentStatus()
 	if err != nil {
 		return err

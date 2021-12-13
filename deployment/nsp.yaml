@@ -1,12 +1,13 @@
 # Source: meridio/templates/nsp.yaml
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: nsp
   labels:
     app: nsp
 spec:
   replicas: 1
+  serviceName: nsp
   selector:
     matchLabels:
       app: nsp
@@ -53,12 +54,26 @@ spec:
                   fieldPath: metadata.namespace
             - name: NSP_CONFIG_MAP_NAME
               value: # to be filled by operator
+            - name: NSP_DATASOURCE
+              value: /run/nsp/data/registry.db
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
               readOnly: true
+            - name: nsp-data
+              mountPath: /run/nsp/data
+              readOnly: false
       volumes:
         - name: spire-agent-socket
           hostPath:
             path: /run/spire/sockets
             type: Directory
+  volumeClaimTemplates:
+    - metadata:
+        name: nsp-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
