@@ -20,7 +20,11 @@ func (t *Trench) Equals(t2 *Trench) bool {
 	if t == nil || t2 == nil {
 		return false
 	}
-	return t.GetName() == t2.GetName()
+	names := true
+	if t.GetName() != "" && t2.GetName() != "" {
+		names = t.GetName() == t2.GetName()
+	}
+	return names
 }
 
 func (c *Conduit) Equals(c2 *Conduit) bool {

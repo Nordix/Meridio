@@ -16,20 +16,11 @@ limitations under the License.
 
 package types
 
-import (
-	"context"
+import "context"
 
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
-)
-
-type TargetRegistry interface {
-	Set(context.Context, *nspAPI.Target) error
-	Remove(context.Context, *nspAPI.Target) error
-	Watch(context.Context, *nspAPI.Target) (TargetWatcher, error)
-	Get(context.Context, *nspAPI.Target) ([]*nspAPI.Target, error)
-}
-
-type TargetWatcher interface {
-	Stop()
-	ResultChan() <-chan []*nspAPI.Target
+type Ipam interface {
+	AllocateSubnet(ctx context.Context, subnetPool string, prefixLength int) (string, error)
+	ReleaseSubnet(ctx context.Context, subnetPool string, subnet string) error
+	AllocateIP(ctx context.Context, subnet string) (string, error)
+	ReleaseIP(ctx context.Context, subnet string, ip string) error
 }

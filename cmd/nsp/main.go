@@ -31,7 +31,8 @@ import (
 	"github.com/nordix/meridio/pkg/configuration/registry"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/nsp"
-	targetRegistry "github.com/nordix/meridio/pkg/nsp/registry"
+
+	sqliteRegistry "github.com/nordix/meridio/pkg/nsp/registry/sqlite"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -81,11 +82,11 @@ func main() {
 	configurationManagerServer := manager.NewServer(watcherNotifier)
 
 	// target registry
-	targetRegistryEventChan := make(chan struct{}, 10)
-	tr := targetRegistry.New(targetRegistryEventChan)
-	watcherNotifierTargetRegistry := nsp.NewWatcherNotifier(tr, targetRegistryEventChan)
-	go watcherNotifierTargetRegistry.Start(context.Background())
-	targetRegistryServer := nsp.NewServer(tr, watcherNotifierTargetRegistry)
+	sqlr, err := sqliteRegistry.New(config.Datasource)
+	if err != nil {
+		logrus.Fatalf("Unable create sqlite registry: %v", err)
+	}
+	targetRegistryServer := nsp.NewServer(sqlr)
 
 	server := grpc.NewServer(grpc.Creds(
 		credentials.GetServer(context.Background()),

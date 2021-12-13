@@ -11,7 +11,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"' -o ipam ./cmd/ipam
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags '-extldflags "-static"' -o ipam ./cmd/ipam
 
 FROM ubuntu:20.10 as grpc-health-probe
 

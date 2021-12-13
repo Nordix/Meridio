@@ -14,22 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package types
+package ipam_test
 
 import (
 	"context"
+	"testing"
 
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/ipam"
+	"github.com/stretchr/testify/assert"
 )
 
-type TargetRegistry interface {
-	Set(context.Context, *nspAPI.Target) error
-	Remove(context.Context, *nspAPI.Target) error
-	Watch(context.Context, *nspAPI.Target) (TargetWatcher, error)
-	Get(context.Context, *nspAPI.Target) ([]*nspAPI.Target, error)
-}
+func Test_IPv4_AllocateIP(t *testing.T) {
+	im := ipam.New()
+	assert.NotNil(t, im)
 
-type TargetWatcher interface {
-	Stop()
-	ResultChan() <-chan []*nspAPI.Target
+	ip, err := im.AllocateIP(context.TODO(), "169.16.0.0/24")
+	assert.Nil(t, err)
+	assert.Equal(t, "169.16.0.1/24", ip)
+
+	ip, err = im.AllocateIP(context.TODO(), "169.16.0.0/24")
+	assert.Nil(t, err)
+	assert.Equal(t, "169.16.0.2/24", ip)
 }

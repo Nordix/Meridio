@@ -14,22 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package types
+package ipam
 
-import (
-	"context"
+import "context"
 
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
-)
-
-type TargetRegistry interface {
-	Set(context.Context, *nspAPI.Target) error
-	Remove(context.Context, *nspAPI.Target) error
-	Watch(context.Context, *nspAPI.Target) (TargetWatcher, error)
-	Get(context.Context, *nspAPI.Target) ([]*nspAPI.Target, error)
-}
-
-type TargetWatcher interface {
-	Stop()
-	ResultChan() <-chan []*nspAPI.Target
+type Storage interface {
+	Add(ctx context.Context, prefix string, child string) error
+	Delete(ctx context.Context, prefix string, child string) error
+	Get(ctx context.Context, prefix string) ([]string, error)
 }

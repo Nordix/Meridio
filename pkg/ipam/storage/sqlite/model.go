@@ -14,22 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package types
+package sqlite
 
 import (
-	"context"
-
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"strings"
 )
 
-type TargetRegistry interface {
-	Set(context.Context, *nspAPI.Target) error
-	Remove(context.Context, *nspAPI.Target) error
-	Watch(context.Context, *nspAPI.Target) (TargetWatcher, error)
-	Get(context.Context, *nspAPI.Target) ([]*nspAPI.Target, error)
+const (
+	separator = ";"
+)
+
+type Prefix struct {
+	Prefix string `gorm:"primaryKey"`
+	Childs string
 }
 
-type TargetWatcher interface {
-	Stop()
-	ResultChan() <-chan []*nspAPI.Target
+func SerializeChilds(childs []string) string {
+	if childs == nil {
+		childs = []string{}
+	}
+	return strings.Join(childs, separator)
+}
+
+func DeserializeChilds(childs string) []string {
+	return strings.Split(childs, separator)
 }
