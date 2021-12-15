@@ -356,14 +356,14 @@ func (fw *Framework) CleanUpFlows() {
 func AssertTrenchReady(trench *meridiov1alpha1.Trench) {
 	ns := trench.ObjectMeta.Namespace
 	name := trench.ObjectMeta.Name
-	By("checking ipam deployment")
+	By("checking ipam StatefulSet")
 	Eventually(func(g Gomega) {
-		assertDeploymentReady(g, strings.Join([]string{"ipam", name}, "-"), ns)
+		g.Expect(assertStatefulSetReady(strings.Join([]string{"ipam", name}, "-"), ns)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 
-	By("checking nsp deployment")
+	By("checking nsp StatefulSet")
 	Eventually(func(g Gomega) {
-		assertDeploymentReady(g, strings.Join([]string{"nsp", name}, "-"), ns)
+		g.Expect(assertStatefulSetReady(strings.Join([]string{"nsp", name}, "-"), ns)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 }
 
@@ -372,7 +372,7 @@ func AssertAttractorReady(attractor *meridiov1alpha1.Attractor) {
 
 	By("checking nse vlan deployment")
 	Eventually(func(g Gomega) {
-		assertDeploymentReady(g, strings.Join([]string{"nse-vlan", attractor.ObjectMeta.Name}, "-"), ns)
+		g.Expect(assertDeploymentReady(strings.Join([]string{"nse-vlan", attractor.ObjectMeta.Name}, "-"), ns)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 }
 
@@ -382,12 +382,12 @@ func AssertConduitReady(conduit *meridiov1alpha1.Conduit) {
 
 	By("checking lb-fe deployment")
 	Eventually(func(g Gomega) {
-		assertDeploymentReady(g, strings.Join([]string{"lb-fe", name}, "-"), ns)
+		g.Expect(assertDeploymentReady(strings.Join([]string{"lb-fe", name}, "-"), ns)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 
 	By("checking proxy deployment")
 	Eventually(func(g Gomega) {
-		assertDaemonsetReady(g, strings.Join([]string{"proxy", trenchName}, "-"), ns)
+		g.Expect(assertDaemonsetReady(strings.Join([]string{"proxy", trenchName}, "-"), ns)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 }
 
@@ -399,53 +399,92 @@ func AssertMeridioDeploymentsReady(trench *meridiov1alpha1.Trench,
 	AssertConduitReady(conduit)
 }
 
-func assertDeploymentReady(g Gomega, name, ns string) {
+func assertDeploymentReady(name, ns string) error {
 	dep := &appsv1.Deployment{}
 	// checking if the deployment exists
-	g.Expect(fw.GetResource(client.ObjectKey{
+	err := fw.GetResource(client.ObjectKey{
 		Namespace: ns,
 		Name:      name,
-	}, dep)).Should(Succeed())
-	g.Expect(dep).ToNot(BeNil())
+	}, dep)
+	if err != nil {
+		return err
+	}
 
 	// checking all replicas are ready
-	g.Expect(dep.Status.ReadyReplicas).To(Equal(dep.Status.Replicas))
+	if dep.Status.ReadyReplicas != dep.Status.Replicas {
+		return fmt.Errorf("Status.ReadyReplicas not equal Status.Replicas")
+	}
 
 	// checking all pods are ready and never restarted
 	listOptions := &client.ListOptions{
 		LabelSelector: labels.Set(dep.Labels).AsSelector(),
 	}
-	g.Expect(podsRunning(g, listOptions)).Should(BeTrue())
+	return podsRunning(listOptions)
 }
 
-func assertDaemonsetReady(g Gomega, name, ns string) {
-	ds := &appsv1.DaemonSet{}
-	// checking if the daemonset exists
-	g.Expect(fw.GetResource(client.ObjectKey{
+func assertStatefulSetReady(name, ns string) error {
+	dep := &appsv1.StatefulSet{}
+	// checking if the deployment exists
+	err := fw.GetResource(client.ObjectKey{
 		Namespace: ns,
 		Name:      name,
-	}, ds)).Should(Succeed())
+	}, dep)
+	if err != nil {
+		return err
+	}
+
+	// checking all replicas are ready
+	if dep.Status.ReadyReplicas != dep.Status.Replicas {
+		return fmt.Errorf("Status.ReadyReplicas not equal Status.Replicas")
+	}
+
+	// checking all pods are ready and never restarted
+	listOptions := &client.ListOptions{
+		LabelSelector: labels.Set(dep.Labels).AsSelector(),
+	}
+	return podsRunning(listOptions)
+}
+
+func assertDaemonsetReady(name, ns string) error {
+	ds := &appsv1.DaemonSet{}
+	// checking if the daemonset exists
+	err := fw.GetResource(client.ObjectKey{
+		Namespace: ns,
+		Name:      name,
+	}, ds)
+	if err != nil {
+		return err
+	}
 
 	// checking all desired replicas are ready"
-	g.Expect(ds.Status.NumberReady).To(Equal(ds.Status.DesiredNumberScheduled))
+	if ds.Status.NumberReady != ds.Status.DesiredNumberScheduled {
+		return fmt.Errorf("Status.NumberReady not equal Status.DesiredNumberScheduled")
+	}
 	listOptions := &client.ListOptions{
 		LabelSelector: labels.Set(ds.Labels).AsSelector(),
 	}
-	g.Expect(podsRunning(g, listOptions)).Should(BeTrue())
+	return podsRunning(listOptions)
 }
 
-func podsRunning(g Gomega, opts client.ListOption) bool {
+func podsRunning(opts client.ListOption) error {
 	pods := &corev1.PodList{}
-	g.Expect(fw.Client.List(context.Background(), pods, opts)).Should(Succeed())
+	err := fw.Client.List(context.Background(), pods, opts)
+	if err != nil {
+		return err
+	}
 	// wait for all the pods of the deployment are in running status
 	for _, pod := range pods.Items {
-		g.Expect(pod.Status.Phase).Should(Equal(corev1.PodRunning))
+		if pod.Status.Phase != corev1.PodRunning {
+			return fmt.Errorf("pod %s is not running", pod.ObjectMeta.Name)
+		}
 	}
 	// check the restart count of each container of each pod
 	for _, pod := range pods.Items {
 		for _, container := range pod.Status.ContainerStatuses {
-			g.Expect(container.RestartCount).To(Equal(int32(0)))
+			if container.RestartCount != int32(0) {
+				return fmt.Errorf("container %s restart is not 0", container.Name)
+			}
 		}
 	}
-	return true
+	return nil
 }

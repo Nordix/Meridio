@@ -43,6 +43,8 @@ type ConduitReconciler struct {
 //+kubebuilder:rbac:groups=meridio.nordix.org,resources=conduits,namespace=system,verbs=get;list;watch;update;patch
 //+kubebuilder:rbac:groups=meridio.nordix.org,resources=conduits/status,namespace=system,verbs=get;update;patch
 //+kubebuilder:rbac:groups=meridio.nordix.org,resources=conduits/finalizers,namespace=system,verbs=update
+//+kubebuilder:rbac:groups=apps,resources=daemonsets,namespace=system,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=apps,resources=deployments,namespace=system,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -119,6 +121,7 @@ func (r *ConduitReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&meridiov1alpha1.Conduit{}).
 		Owns(&appsv1.Deployment{}).
+		Owns(&appsv1.DaemonSet{}).
 		Complete(r)
 }
 

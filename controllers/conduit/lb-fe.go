@@ -167,9 +167,14 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 		case "load-balancer":
 			if container.Image == "" {
 				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, lbImage, common.Tag)
+				container.ImagePullPolicy = corev1.PullAlways
 			}
-			container.LivenessProbe = common.GetLivenessProbe(l.trench)
-			container.ReadinessProbe = common.GetReadinessProbe(l.trench)
+			if container.LivenessProbe == nil {
+				container.LivenessProbe = common.GetLivenessProbe(l.trench)
+			}
+			if container.ReadinessProbe == nil {
+				container.ReadinessProbe = common.GetReadinessProbe(l.trench)
+			}
 			container.Env = l.getLbEnvVars(container.Env)
 		case "nsc":
 			if container.Image == "" {
@@ -181,6 +186,8 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, feImage, common.Tag)
 			}
 			container.Env = l.getFeEnvVars(container.Env)
+		default:
+			l.exec.LogError(fmt.Errorf("container %s not expected", name), "get container error")
 		}
 		ret.Spec.Template.Spec.Containers[i] = container
 	}
@@ -214,7 +221,11 @@ func (l *LoadBalancer) getDesiredStatus() *appsv1.Deployment {
 // getReconciledDesiredStatus gets the desired status of lb-fe deployment after it's created
 // more paramters than what are defined in the model could be added by K8S
 func (i *LoadBalancer) getReconciledDesiredStatus(lb *appsv1.Deployment) *appsv1.Deployment {
-	return i.insertParameters(lb)
+	template := lb.DeepCopy()
+	template.Spec.Template.Spec.InitContainers = i.model.Spec.Template.Spec.InitContainers
+	template.Spec.Template.Spec.Containers = i.model.Spec.Template.Spec.Containers
+	template.Spec.Template.Spec.Volumes = i.model.Spec.Template.Spec.Volumes
+	return i.insertParameters(template)
 }
 
 func (l *LoadBalancer) getAction() error {

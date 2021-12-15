@@ -72,9 +72,14 @@ func (i *NspStatefulSet) insertParameters(init *appsv1.StatefulSet) *appsv1.Stat
 		case "nsp":
 			if container.Image == "" {
 				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, imageNsp, common.Tag)
+				container.ImagePullPolicy = corev1.PullAlways
 			}
-			container.LivenessProbe = common.GetLivenessProbe(i.trench)
-			container.ReadinessProbe = common.GetReadinessProbe(i.trench)
+			if container.LivenessProbe == nil {
+				container.LivenessProbe = common.GetLivenessProbe(i.trench)
+			}
+			if container.ReadinessProbe == nil {
+				container.ReadinessProbe = common.GetReadinessProbe(i.trench)
+			}
 			container.Env = i.getEnvVars(container.Env)
 		default:
 			i.exec.LogError(fmt.Errorf("container %s not expected", name), "get container error")
@@ -105,10 +110,14 @@ func (i *NspStatefulSet) getDesiredStatus() *appsv1.StatefulSet {
 	return i.insertParameters(i.model)
 }
 
-// getNspStatefulSetReconciledDesiredStatus gets the desired status of nsp StatefulSet after it's created
+// getReconciledDesiredStatus gets the desired status of nsp StatefulSet after it's created
 // more paramters than what are defined in the model could be added by K8S
 func (i *NspStatefulSet) getReconciledDesiredStatus(cd *appsv1.StatefulSet) *appsv1.StatefulSet {
-	return i.insertParameters(cd)
+	template := cd.DeepCopy()
+	template.Spec.Template.Spec.InitContainers = i.model.Spec.Template.Spec.InitContainers
+	template.Spec.Template.Spec.Containers = i.model.Spec.Template.Spec.Containers
+	template.Spec.Template.Spec.Volumes = i.model.Spec.Template.Spec.Volumes
+	return i.insertParameters(template)
 }
 
 func (i *NspStatefulSet) getCurrentStatus() (*appsv1.StatefulSet, error) {

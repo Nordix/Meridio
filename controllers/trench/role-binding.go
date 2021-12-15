@@ -79,8 +79,11 @@ func (r *RoleBinding) getDesiredStatus() *rbacv1.RoleBinding {
 	return r.insertParameters(r.model)
 }
 
-func (r *RoleBinding) getReconciledDesiredStatus(current *rbacv1.RoleBinding) *rbacv1.RoleBinding {
-	return r.insertParameters(current)
+func (r *RoleBinding) getReconciledDesiredStatus(cd *rbacv1.RoleBinding) *rbacv1.RoleBinding {
+	template := cd.DeepCopy()
+	template.RoleRef = r.model.RoleRef
+	template.Subjects = r.model.Subjects
+	return r.insertParameters(template)
 }
 
 func (r *RoleBinding) getAction() error {

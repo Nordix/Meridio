@@ -65,6 +65,8 @@ func (i *IpamService) getDesiredStatus() *corev1.Service {
 // getReconciledDesiredStatus gets the desired status of ipam service after it's created
 // more paramters than what are defined in the model could be added by K8S
 func (i *IpamService) getReconciledDesiredStatus(svc *corev1.Service) *corev1.Service {
+	template := svc.DeepCopy()
+	template.Spec.Type = i.model.Spec.Type
 	return i.insertParameters(svc)
 }
 
