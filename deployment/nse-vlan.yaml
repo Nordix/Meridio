@@ -18,6 +18,48 @@ spec:
         - name: nse
           image: # to be filled by operator
           imagePullPolicy: # Kubernetes default according to image tag
+          startupProbe: # will be filled by operator if not specified
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -spiffe
+              - -addr=unix:///tmp/listen.on
+              - -service=
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 30
+            successThreshold: 1
+          readinessProbe: # will be filled by operator if not specified
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -spiffe
+              - -addr=unix:///tmp/listen.on
+              - -service=
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+            successThreshold: 1
+          livenessProbe: # will be filled by operator if not specified
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -spiffe
+              - -addr=unix:///tmp/listen.on
+              - -service=
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+            successThreshold: 1
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock

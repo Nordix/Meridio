@@ -163,11 +163,17 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, lbImage, common.Tag)
 				container.ImagePullPolicy = corev1.PullAlways
 			}
-			if container.LivenessProbe == nil {
-				container.LivenessProbe = common.GetLivenessProbe(l.trench)
+			if container.StartupProbe == nil {
+				container.StartupProbe = common.GetProbe(common.StartUpTimer,
+					common.GetProbeCommand(false, "unix:///tmp/health.sock", ""))
 			}
 			if container.ReadinessProbe == nil {
-				container.ReadinessProbe = common.GetReadinessProbe(l.trench)
+				container.ReadinessProbe = common.GetProbe(common.ReadinessTimer,
+					common.GetProbeCommand(false, "unix:///tmp/health.sock", "Readiness"))
+			}
+			if container.LivenessProbe == nil {
+				container.LivenessProbe = common.GetProbe(common.LivenessTimer,
+					common.GetProbeCommand(false, "unix:///tmp/health.sock", ""))
 			}
 			container.Env = l.getLbEnvVars(container.Env)
 		case "nsc":
@@ -178,6 +184,18 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 		case "fe":
 			if container.Image == "" {
 				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, feImage, common.Tag)
+			}
+			if container.StartupProbe == nil {
+				container.StartupProbe = common.GetProbe(common.StartUpTimer,
+					common.GetProbeCommand(false, "unix:///tmp/health.sock", ""))
+			}
+			if container.ReadinessProbe == nil {
+				container.ReadinessProbe = common.GetProbe(common.ReadinessTimer,
+					common.GetProbeCommand(false, "unix:///tmp/health.sock", "Readiness"))
+			}
+			if container.LivenessProbe == nil {
+				container.LivenessProbe = common.GetProbe(common.LivenessTimer,
+					common.GetProbeCommand(false, "unix:///tmp/health.sock", ""))
 			}
 			container.Env = l.getFeEnvVars(container.Env)
 		default:

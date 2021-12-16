@@ -6,6 +6,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -42,6 +43,12 @@ func (i *IpamService) insertParameters(svc *corev1.Service) *corev1.Service {
 	ret.ObjectMeta.Name = common.IPAMServiceName(i.trench)
 	ret.Spec.Selector["app"] = common.IPAMStatefulSetName(i.trench)
 	ret.ObjectMeta.Namespace = i.trench.ObjectMeta.Namespace
+
+	ret.Spec.Ports[0] = corev1.ServicePort{
+		Protocol:   "TCP",
+		Port:       int32(common.IpamPort),
+		TargetPort: intstr.FromInt(common.IpamTargetPort),
+	}
 	return ret
 }
 

@@ -60,37 +60,66 @@ func GetProxySysCtl(cr *meridiov1alpha1.Trench) string {
 	return ""
 }
 
-func GetReadinessProbe(cr *meridiov1alpha1.Trench) *corev1.Probe {
-	// if readiness probe is set in the cr do something
-	// else use the default readiness probe
-	return &corev1.Probe{
-		Handler: corev1.Handler{
-			Exec: &corev1.ExecAction{
-				Command: []string{"/bin/grpc_health_probe", "-addr=:8000", "-connect-timeout=100ms", "-rpc-timeout=150ms"},
-			},
-		},
-		InitialDelaySeconds: 0,
-		PeriodSeconds:       10,
-		TimeoutSeconds:      3,
-		FailureThreshold:    5,
-		SuccessThreshold:    1,
-	}
+type probeTimer struct {
+	initialDelaySeconds int32
+	periodSeconds       int32
+	timeoutSeconds      int32
+	failureThreshold    int32
+	successThreshold    int32
 }
 
-func GetLivenessProbe(cr *meridiov1alpha1.Trench) *corev1.Probe {
-	// if liveness probe is set in the cr do something
-	// else use the default liveness probe
+var (
+	LivenessTimer = probeTimer{
+		initialDelaySeconds: 0,
+		periodSeconds:       10,
+		timeoutSeconds:      3,
+		failureThreshold:    5,
+		successThreshold:    1,
+	}
+
+	ReadinessTimer = probeTimer{
+		initialDelaySeconds: 0,
+		periodSeconds:       10,
+		timeoutSeconds:      3,
+		failureThreshold:    5,
+		successThreshold:    1,
+	}
+
+	StartUpTimer = probeTimer{
+		initialDelaySeconds: 0,
+		periodSeconds:       2,
+		timeoutSeconds:      2,
+		failureThreshold:    30,
+		successThreshold:    1,
+	}
+)
+
+func GetProbeCommand(spiffe bool, addr, svc string) []string {
+	ret := []string{
+		"/bin/grpc_health_probe",
+		fmt.Sprintf("-addr=%s", addr),
+		fmt.Sprintf("-service=%s", svc),
+		"-connect-timeout=100ms",
+		"-rpc-timeout=150ms",
+	}
+	if spiffe {
+		ret = append(ret, "-spiffe")
+	}
+	return ret
+}
+
+func GetProbe(timer probeTimer, command []string) *corev1.Probe {
 	return &corev1.Probe{
 		Handler: corev1.Handler{
 			Exec: &corev1.ExecAction{
-				Command: []string{"/bin/grpc_health_probe", "-addr=:8000", "-connect-timeout=100ms", "-rpc-timeout=150ms"},
+				Command: command,
 			},
 		},
-		InitialDelaySeconds: 0,
-		PeriodSeconds:       10,
-		TimeoutSeconds:      3,
-		FailureThreshold:    5,
-		SuccessThreshold:    1,
+		InitialDelaySeconds: timer.initialDelaySeconds,
+		PeriodSeconds:       timer.periodSeconds,
+		TimeoutSeconds:      timer.timeoutSeconds,
+		FailureThreshold:    timer.failureThreshold,
+		SuccessThreshold:    timer.successThreshold,
 	}
 }
 

@@ -58,11 +58,17 @@ func (i *IpamStatefulSet) insertParameters(dep *appsv1.StatefulSet) *appsv1.Stat
 				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, imageIpam, common.Tag)
 				container.ImagePullPolicy = corev1.PullAlways
 			}
-			if container.LivenessProbe == nil {
-				container.LivenessProbe = common.GetLivenessProbe(i.trench)
+			if container.StartupProbe == nil {
+				container.StartupProbe = common.GetProbe(common.StartUpTimer,
+					common.GetProbeCommand(false, "unix:///tmp/health.sock", ""))
 			}
 			if container.ReadinessProbe == nil {
-				container.ReadinessProbe = common.GetReadinessProbe(i.trench)
+				container.ReadinessProbe = common.GetProbe(common.ReadinessTimer,
+					common.GetProbeCommand(true, fmt.Sprintf(":%d", common.IpamPort), ""))
+			}
+			if container.LivenessProbe == nil {
+				container.LivenessProbe = common.GetProbe(common.LivenessTimer,
+					common.GetProbeCommand(false, "unix:///tmp/health.sock", ""))
 			}
 		default:
 			i.exec.LogError(fmt.Errorf("container %s not expected", name), "get container error")

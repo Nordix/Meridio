@@ -97,6 +97,18 @@ func (i *NseDeployment) insertParameters(dep *appsv1.Deployment) *appsv1.Deploym
 				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.OrganizationNsm, nseImage, common.Tag)
 				container.ImagePullPolicy = corev1.PullAlways
 			}
+			if container.StartupProbe == nil {
+				container.StartupProbe = common.GetProbe(common.StartUpTimer,
+					common.GetProbeCommand(true, "unix:///tmp/listen.on", ""))
+			}
+			if container.ReadinessProbe == nil {
+				container.ReadinessProbe = common.GetProbe(common.ReadinessTimer,
+					common.GetProbeCommand(true, "unix:///tmp/listen.on", ""))
+			}
+			if container.LivenessProbe == nil {
+				container.LivenessProbe = common.GetProbe(common.LivenessTimer,
+					common.GetProbeCommand(true, "unix:///tmp/listen.on", ""))
+			}
 			container.Env = i.getEnvVars(container.Env)
 		default:
 			i.exec.LogError(fmt.Errorf("container %s not expected", name), "get container error")
