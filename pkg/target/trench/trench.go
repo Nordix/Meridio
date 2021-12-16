@@ -93,7 +93,6 @@ func (t *Trench) GetNamespace() string {
 
 func (t *Trench) Delete(ctx context.Context) error {
 	t.cancel()
-	t.nspConn.Close()
 	t.configurationWatcher.Delete()
 	for _, conduit := range t.conduits {
 		err := t.RemoveConduit(ctx, conduit)
@@ -101,6 +100,7 @@ func (t *Trench) Delete(ctx context.Context) error {
 			return err
 		}
 	}
+	t.nspConn.Close()
 	return nil
 }
 
