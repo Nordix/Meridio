@@ -104,7 +104,7 @@ func (a *Ambassador) Connect(ctx context.Context, c *nspAPI.Conduit) (*empty.Emp
 			return &empty.Empty{}, err
 		}
 	}
-	_, err = conduit.New(ctx, c.GetName(), t, a.config.apiClient, a.config.nsmConfig, a.evenChan, a.config.netUtils) // todo: api
+	_, err = conduit.New(ctx, c.GetName(), t, a.config.nodeName, a.config.apiClient, a.config.nsmConfig, a.evenChan, a.config.netUtils) // todo: api
 	return &empty.Empty{}, err
 }
 

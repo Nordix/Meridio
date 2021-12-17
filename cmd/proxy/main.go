@@ -29,6 +29,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/noop"
 	vfiomech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vfio"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/mechanisms/vfio"
 	sriovtoken "github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/token"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
@@ -44,15 +45,17 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/nordix/meridio/pkg/client"
 	"github.com/nordix/meridio/pkg/configuration"
-	"github.com/nordix/meridio/pkg/endpoint"
+	endpointOld "github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/health/probe"
 	"github.com/nordix/meridio/pkg/ipam"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/nsm"
+	"github.com/nordix/meridio/pkg/nsm/endpoint"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
 	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/nordix/meridio/pkg/nsm/ipcontext"
+	"github.com/nordix/meridio/pkg/nsm/service"
 	"github.com/nordix/meridio/pkg/proxy"
 	proxyHealth "github.com/nordix/meridio/pkg/proxy/health"
 	"github.com/pkg/errors"
@@ -120,9 +123,9 @@ func main() {
 
 	labels := map[string]string{}
 	if config.Host != "" {
-		labels["host"] = config.Host
+		labels["nodeName"] = config.Host
 	}
-	endpointConfig := &endpoint.Config{
+	endpointConfig := &endpointOld.Config{
 		Name:             config.Name,
 		ServiceName:      config.ServiceName,
 		MaxTokenLifetime: config.MaxTokenLifetime,
@@ -130,8 +133,13 @@ func main() {
 	}
 	interfaceMonitorServer := interfacemonitor.NewServer(interfaceMonitor, p, netUtils)
 	ep := startNSE(ctx, endpointConfig, nsmAPIClient, p, interfaceMonitorServer)
-	defer ep.Delete()
-	probe.CreateAndRunGRPCHealthProbe(ctx, health.NSMEndpointSvc, probe.WithAddress(ep.GetUrl()), probe.WithSpiffe())
+	probe.CreateAndRunGRPCHealthProbe(ctx, health.NSMEndpointSvc, probe.WithAddress(ep.Server.GetUrl()), probe.WithSpiffe())
+	defer func() {
+		err := ep.Delete(context.Background())
+		if err != nil {
+			logrus.Errorf("Err delete NSE: %v", err)
+		}
+	}()
 
 	// TODO: use NSP based config watcher
 	configWatcher := make(chan *configuration.OperatorConfig)
@@ -216,13 +224,13 @@ func startNSC(fullMeshClient client.NetworkServiceClient, networkServiceName str
 }
 
 func startNSE(ctx context.Context,
-	config *endpoint.Config,
+	config *endpointOld.Config,
 	nsmAPIClient *nsm.APIClient,
 	p *proxy.Proxy,
 	interfaceMonitorServer networkservice.NetworkServiceServer) *endpoint.Endpoint {
 
 	logrus.Infof("startNSE")
-	responderEndpoint := []networkservice.NetworkServiceServer{
+	additionalFunctionality := []networkservice.NetworkServiceServer{
 		recvfd.NewServer(),
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 			kernelmech.MECHANISM: kernel.NewServer(),
@@ -234,14 +242,49 @@ func startNSE(ctx context.Context,
 		sendfd.NewServer(),
 	}
 
-	ep, err := endpoint.NewEndpoint(ctx, config, nsmAPIClient.NetworkServiceRegistryClient, nsmAPIClient.NetworkServiceEndpointRegistryClient)
-	if err != nil {
-		logrus.Fatalf("unable to create a new nse %+v", err)
+	ns := &registry.NetworkService{
+		Name:    config.ServiceName,
+		Payload: payload.Ethernet,
+		Matches: []*registry.Match{
+			{
+				SourceSelector: make(map[string]string),
+				Routes: []*registry.Destination{
+					{
+						DestinationSelector: map[string]string{
+							"nodeName": "{{.nodeName}}",
+						},
+					},
+				},
+			},
+		},
 	}
 
-	err = ep.Start(responderEndpoint...)
+	service := service.New(nsmAPIClient.NetworkServiceRegistryClient, ns)
+	err := service.Register(ctx)
 	if err != nil {
-		logrus.Errorf("unable to start nse %+v", err)
+		logrus.Errorf("Err creating NSE: %v", err)
 	}
-	return ep
+
+	nse := &registry.NetworkServiceEndpoint{
+		Name:                config.Name,
+		NetworkServiceNames: []string{config.ServiceName},
+		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			config.ServiceName: {
+				Labels: config.Labels,
+			},
+		},
+	}
+
+	endpoint, err := endpoint.New(config.MaxTokenLifetime,
+		nsmAPIClient.NetworkServiceEndpointRegistryClient,
+		nse,
+		additionalFunctionality...)
+	if err != nil {
+		logrus.Errorf("Err creating NSE: %v", err)
+	}
+	err = endpoint.Register(ctx)
+	if err != nil {
+		logrus.Errorf("Err registring NSE: %v", err)
+	}
+	return endpoint
 }
