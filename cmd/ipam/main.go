@@ -30,6 +30,8 @@ import (
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	grpcHealth "google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func main() {
@@ -38,16 +40,8 @@ func main() {
 	logrus.SetOutput(os.Stdout)
 	logrus.SetLevel(logrus.DebugLevel)
 
-	healthChecker, err := health.NewChecker(8000)
-	if err != nil {
-		logrus.Fatalf("Unable to create Health checker: %v", err)
-	}
-	go func() {
-		err := healthChecker.Start()
-		if err != nil {
-			logrus.Fatalf("Unable to start Health checker: %v", err)
-		}
-	}()
+	// create and start health server
+	_ = health.CreateChecker(context.Background())
 
 	port, err := strconv.Atoi(os.Getenv("IPAM_PORT"))
 	if err != nil || port <= 0 {
@@ -68,6 +62,8 @@ func main() {
 		credentials.GetServer(context.Background()),
 	))
 	ipamAPI.RegisterIpamServiceServer(server, ipamServer)
+	healthServer := grpcHealth.NewServer()
+	grpc_health_v1.RegisterHealthServer(server, healthServer)
 
 	logrus.Infof("IPAM Service: Start the service (port: %v)", port)
 	listener, err := net.Listen("tcp", fmt.Sprintf("[::]:%d", port))

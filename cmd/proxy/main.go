@@ -46,6 +46,7 @@ import (
 	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"
+	"github.com/nordix/meridio/pkg/health/probe"
 	"github.com/nordix/meridio/pkg/ipam"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/nsm"
@@ -53,6 +54,7 @@ import (
 	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/nordix/meridio/pkg/nsm/ipcontext"
 	"github.com/nordix/meridio/pkg/proxy"
+	proxyHealth "github.com/nordix/meridio/pkg/proxy/health"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -78,16 +80,11 @@ func main() {
 	}
 	logrus.Infof("rootConf: %+v", config)
 
-	healthChecker, err := health.NewChecker(8000)
-	if err != nil {
-		logrus.Fatalf("Unable to create Health checker: %v", err)
+	// create and start health server
+	ctx = health.CreateChecker(ctx)
+	if err := health.RegisterReadinesSubservices(ctx, health.ProxyReadinessServices...); err != nil {
+		logrus.Warnf("%v", err)
 	}
-	go func() {
-		err := healthChecker.Start()
-		if err != nil {
-			logrus.Fatalf("Unable to start Health checker: %v", err)
-		}
-	}()
 
 	proxySubnets, err := getProxySubnets(config)
 	if err != nil {
@@ -134,10 +131,13 @@ func main() {
 	interfaceMonitorServer := interfacemonitor.NewServer(interfaceMonitor, p, netUtils)
 	ep := startNSE(ctx, endpointConfig, nsmAPIClient, p, interfaceMonitorServer)
 	defer ep.Delete()
+	probe.CreateAndRunGRPCHealthProbe(ctx, health.NSMEndpointSvc, probe.WithAddress(ep.GetUrl()), probe.WithSpiffe())
 
+	// TODO: use NSP based config watcher
 	configWatcher := make(chan *configuration.OperatorConfig)
 	configurationWatcher := configuration.NewOperatorWatcher(config.ConfigMapName, config.Namespace, configWatcher)
 	go configurationWatcher.Start()
+	health.SetServingStatus(ctx, health.NSPCliSvc, true)
 
 	for {
 		select {
@@ -188,10 +188,11 @@ func getNSC(ctx context.Context,
 		interfacename.NewClient("nsc", &interfacename.RandomGenerator{}),
 		ipcontext.NewClient(p),
 		interfaceMonitorClient,
+		proxyHealth.NewClient(),
 		authorize.NewClient(),
 		sendfd.NewClient(),
 	)
-	fullMeshClient := client.NewFullMeshNetworkServiceClient(config, nsmAPIClient, networkServiceClient)
+	fullMeshClient := client.NewFullMeshNetworkServiceClient(ctx, config, nsmAPIClient, networkServiceClient)
 	return fullMeshClient
 }
 

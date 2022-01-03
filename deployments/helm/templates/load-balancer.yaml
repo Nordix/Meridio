@@ -43,10 +43,12 @@ spec:
         - name: load-balancer
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.loadBalancer.image }}:{{ .Values.loadBalancer.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
+          startupProbe:
+{{include "meridio.startupProbe" (dict "component" .Values.loadBalancer "root" $) | indent 12 }}
           readinessProbe:
-{{ toYaml .Values.readinessProbe | indent 12 }}
+{{include "meridio.readinessProbe" (dict "component" .Values.loadBalancer "root" $) | indent 12 }}
           livenessProbe:
-{{ toYaml .Values.livenessProbe | indent 12 }}
+{{include "meridio.livenessProbe" (dict "component" .Values.loadBalancer "root" $) | indent 12 }}
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
@@ -96,7 +98,13 @@ spec:
               readOnly: true
         - name: fe
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.frontEnd.image }}:{{ .Values.frontEnd.version }}
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          startupProbe:
+{{include "meridio.startupProbe" (dict "component" .Values.frontEnd "root" $) | indent 12 }}
+          livenessProbe:
+{{include "meridio.livenessProbe" (dict "component" .Values.frontEnd "root" $) | indent 12 }}
+          readinessProbe:
+{{include "meridio.readinessProbe" (dict "component" .Values.frontEnd "root" $) | indent 12 }}
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock

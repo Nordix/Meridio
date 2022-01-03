@@ -31,27 +31,9 @@ import (
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/cmd/frontend/internal/env"
 	"github.com/nordix/meridio/cmd/frontend/internal/frontend"
+	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/security/credentials"
 )
-
-/* type Config struct {
-	VRRPs             []string `default:"" desc:"VRRP IP addresses to be used as next-hops for static default routes" envconfig:"VRRPS"`
-	ExternalInterface string   `default:"ext-vlan" desc:"External interface to start BIRD on" split_words:"true"`
-	BirdConfigPath    string   `default:"/etc/bird" desc:"Path to place bird config files" split_words:"true"`
-	LocalAS           string   `default:"8103" desc:"Local BGP AS number" envconfig:"LOCAL_AS"`
-	RemoteAS          string   `default:"4248829953" desc:"Local BGP AS number" envconfig:"REMOTE_AS"`
-	BGPLocalPort      string   `default:"10179" desc:"Local BGP server port" envconfig:"BGP_LOCAL_PORT"`
-	BGPRemotePort     string   `default:"10179" desc:"Remote BGP server port" envconfig:"BGP_REMOTE_PORT"`
-	BGPHoldTime       string   `default:"3" desc:"Seconds to wait for a Keepalive message from peer before considering the connection stale" envconfig:"BGP_HOLD_TIME"`
-	TableID           int      `default:"4096" desc:"OS Kernel routing table ID BIRD syncs the routes with" envconfig:"TABLE_ID"`
-	BFD               bool     `default:"false" desc:"Enable BFD for BGP" envconfig:"BFD"`
-	ECMP              bool     `default:"false" desc:"Enable ECMP towards next-hops of avaialble gateways" envconfig:"ECMP"`
-	DropIfNoPeer      bool     `default:"false" desc:"Install default blackhole route with high metric into routing table TableID" split_words:"true"`
-	LogBird           bool     `default:"false" desc:"Add important bird log snippets to our log" split_words:"true"`
-	Namespace         string   `default:"default" desc:"Namespace the pod is running on" split_words:"true"`
-	ConfigMapName     string   `default:"meridio-configuration" desc:"Name of the ConfigMap containing the configuration" split_words:"true"`
-	NSPService        string   `default:"nsp-service-trench-a:7778" desc:"IP (or domain) and port of the NSP Service" split_words:"true"`
-} */
 
 func main() {
 	ctx, cancel := signal.NotifyContext(
@@ -76,8 +58,15 @@ func main() {
 	}
 	logrus.Infof("rootConf: %+v", config)
 
+	// create and start health server
+	ctx = health.CreateChecker(ctx)
+	if err := health.RegisterReadinesSubservices(ctx, health.FeReadinessServices...); err != nil {
+		logrus.Warnf("%v", err)
+	}
+
 	fe := frontend.NewFrontEndService(config)
 	defer fe.CleanUp()
+	health.SetServingStatus(ctx, health.TargetRegistryCliSvc, true) // NewFrontEndService() creates Target Registry Client
 
 	/* if err := fe.AddVIPRules(); err != nil {
 		cancel()
@@ -143,6 +132,7 @@ func watchConfig(ctx context.Context, cancel context.CancelFunc, c *env.Config, 
 		logrus.Errorf("grpc.Dial err: %v", err)
 		cancel()
 	}
+	health.SetServingStatus(ctx, health.NSPCliSvc, true)
 	configurationManagerClient := nspAPI.NewConfigurationManagerClient(conn)
 	attractorToWatch := &nspAPI.Attractor{
 		Name: c.AttractorName,

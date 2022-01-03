@@ -24,6 +24,7 @@ import (
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/endpoint"
+	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/sirupsen/logrus"
 )
@@ -41,6 +42,7 @@ import (
 // thus controlling egress traffic from proxies. While also informs SimpleNetworkService through
 // serviceControlDispatcher to secure ingress LB functionality in case FE recovers.
 type FrontendNetworkService struct {
+	ctx                      context.Context
 	loadBalancerEndpoint     *endpoint.Endpoint
 	targetRegistryClient     nspAPI.TargetRegistryClient
 	targetRegistryStream     nspAPI.TargetRegistry_WatchClient
@@ -90,6 +92,7 @@ func (fns *FrontendNetworkService) recv() {
 				logrus.Errorf("FrontendNetworkService: endpoint announce err: %v", err)
 				continue
 			}
+			health.SetServingStatus(fns.ctx, health.EgressSvc, true)
 		} else {
 			logrus.Warnf("FrontendNetworkService: (local) FE unavailable: %v", target.GetContext()[types.IdentifierKey])
 			// inform controlled services they must pause operation:
@@ -100,6 +103,7 @@ func (fns *FrontendNetworkService) recv() {
 			if fns.serviceControlDispatcher != nil {
 				fns.serviceControlDispatcher.Dispatch(false)
 			}
+			health.SetServingStatus(fns.ctx, health.EgressSvc, false)
 			// denounce southbound NSE (to the proxies, in order to block egress
 			// traffic; proxies monitor the LB NSE endpoints via registry)
 			err := fns.loadBalancerEndpoint.Denounce()
@@ -125,8 +129,9 @@ func (fns *FrontendNetworkService) getLocal(targets []*nspAPI.Target) *nspAPI.Ta
 }
 
 // NewFrontendNetworkService -
-func NewFrontendNetworkService(targetRegistryClient nspAPI.TargetRegistryClient, loadBalancerEndpoint *endpoint.Endpoint, serviceControlDispatcher *serviceControlDispatcher) *FrontendNetworkService {
+func NewFrontendNetworkService(ctx context.Context, targetRegistryClient nspAPI.TargetRegistryClient, loadBalancerEndpoint *endpoint.Endpoint, serviceControlDispatcher *serviceControlDispatcher) *FrontendNetworkService {
 	frontendNetworkService := &FrontendNetworkService{
+		ctx:                      ctx,
 		loadBalancerEndpoint:     loadBalancerEndpoint,
 		targetRegistryClient:     targetRegistryClient,
 		serviceControlDispatcher: serviceControlDispatcher,

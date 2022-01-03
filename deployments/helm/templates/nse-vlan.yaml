@@ -16,8 +16,14 @@ spec:
     spec:
       containers:
         - name: nse
-          image: registry.nordix.org/cloud-native/nsm/nse-vlan:latest
-          imagePullPolicy: IfNotPresent
+          image: {{ .Values.registry }}/cloud-native/nsm/{{ .Values.vlanNSE.image }}:{{ .Values.vlanNSE.version }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          startupProbe:
+{{include "meridio.startupProbe" (dict "component" .Values.vlanNSE "root" $) | indent 12 }}
+          readinessProbe:
+{{include "meridio.readinessProbe" (dict "component" .Values.vlanNSE "root" $) | indent 12 }}
+          livenessProbe:
+{{include "meridio.livenessProbe" (dict "component" .Values.vlanNSE "root" $) | indent 12 }}
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
@@ -37,8 +43,6 @@ spec:
               value: "{{ .Values.vlan.ipv4Prefix }}"
             - name: NSE_IPV6_PREFIX
               value: "{{ .Values.vlan.ipv6Prefix }}"
-            - name: NSE_POINT2POINT
-              value: "False"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

@@ -44,6 +44,12 @@ spec:
         - name: target
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.target.image }}:{{ .Values.target.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
+          startupProbe:
+{{ toYaml .Values.startupProbe | indent 12 }}
+          readinessProbe:
+{{ tpl (toYaml .Values.readinessProbe) . | indent 12 }}
+          livenessProbe:
+{{ toYaml .Values.livenessProbe | indent 12 }}
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
@@ -68,7 +74,7 @@ spec:
             - name: NSM_NSP_SERVICE_PORT
               value: "{{ .Values.nsp.targetPort }}"
             - name: NSM_SOCKET
-              value: "/var/lib/meridio/ambassador.sock"
+              value: "{{ .Values.default.ambassadorSock }}"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

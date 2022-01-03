@@ -31,6 +31,7 @@ type SimpleNetworkServiceClient struct {
 	networkServiceClient networkservice.NetworkServiceClient
 	config               *Config
 	Connection           *networkservice.Connection
+	ctx                  context.Context
 }
 
 func (snsc *SimpleNetworkServiceClient) Request(request *networkservice.NetworkServiceRequest) error {
@@ -39,7 +40,7 @@ func (snsc *SimpleNetworkServiceClient) Request(request *networkservice.NetworkS
 	}
 	for {
 		req := proto.Clone(request).(*networkservice.NetworkServiceRequest)
-		connection, err := snsc.networkServiceClient.Request(context.Background(), req)
+		connection, err := snsc.networkServiceClient.Request(snsc.ctx, req)
 		if err != nil {
 			time.Sleep(15 * time.Second)
 			logrus.Errorf("Network Service Client: Request err: %v", err)
@@ -66,7 +67,7 @@ func (snsc *SimpleNetworkServiceClient) Request(request *networkservice.NetworkS
 }
 
 func (snsc *SimpleNetworkServiceClient) Close() error {
-	closeCtx, cancelClose := context.WithTimeout(context.Background(), snsc.config.RequestTimeout)
+	closeCtx, cancelClose := context.WithTimeout(snsc.ctx, snsc.config.RequestTimeout)
 	details := ""
 	if snsc.Connection != nil {
 		details += "id: " + snsc.Connection.GetId() + ", endpoint: " + snsc.Connection.GetNetworkServiceEndpointName()
@@ -100,10 +101,11 @@ func (snsc *SimpleNetworkServiceClient) requestIsValid(request *networkservice.N
 }
 
 // NewnetworkServiceClient
-func NewSimpleNetworkServiceClient(config *Config, nsmAPIClient *nsm.APIClient, additionalFunctionality ...networkservice.NetworkServiceClient) NetworkServiceClient {
+func NewSimpleNetworkServiceClient(ctx context.Context, config *Config, nsmAPIClient *nsm.APIClient, additionalFunctionality ...networkservice.NetworkServiceClient) NetworkServiceClient {
 	simpleNetworkServiceClient := &SimpleNetworkServiceClient{
 		config:               config,
-		networkServiceClient: newClient(context.Background(), config.Name, nsmAPIClient, additionalFunctionality...),
+		networkServiceClient: newClient(ctx, config.Name, nsmAPIClient, additionalFunctionality...),
+		ctx:                  ctx,
 	}
 
 	return simpleNetworkServiceClient

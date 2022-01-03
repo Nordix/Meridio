@@ -36,6 +36,8 @@ import (
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	grpcHealth "google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func main() {
@@ -58,16 +60,8 @@ func main() {
 	}
 	logrus.Infof("rootConf: %+v", config)
 
-	healthChecker, err := health.NewChecker(8000)
-	if err != nil {
-		logrus.Fatalf("Unable to create Health checker: %v", err)
-	}
-	go func() {
-		err := healthChecker.Start()
-		if err != nil {
-			logrus.Fatalf("Unable to start Health checker: %v", err)
-		}
-	}()
+	// create and start health server
+	ctx = health.CreateChecker(ctx)
 
 	// configuration
 	configurationEventChan := make(chan *registry.ConfigurationEvent, 10)
@@ -93,6 +87,8 @@ func main() {
 	))
 	nspAPI.RegisterTargetRegistryServer(server, targetRegistryServer)
 	nspAPI.RegisterConfigurationManagerServer(server, configurationManagerServer)
+	healthServer := grpcHealth.NewServer()
+	grpc_health_v1.RegisterHealthServer(server, healthServer)
 
 	listener, err := net.Listen("tcp", fmt.Sprintf("[::]:%s", config.Port))
 	if err != nil {

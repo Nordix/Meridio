@@ -18,15 +18,24 @@ loadBalancer:
   image: load-balancer
   version: latest
   networkServiceName: load-balancer
+  probe:
+    readiness:
+      service: "Readiness"
 
 frontEnd:
   image: frontend
   version: latest
+  probe:
+    readiness:
+      service: "Readiness"
 
 proxy:
   image: proxy
   version: latest
   networkServiceName: proxy.load-balancer
+  probe:
+    readiness:
+      service: "Readiness"
 
 ctraffic:
   image: ctraffic
@@ -38,6 +47,11 @@ ipam:
   port: 7777
   targetPort: 7777
   serviceName: ipam-service
+  probe:
+    readiness:
+      service: ""
+      addr: :7777
+      spiffe: true
 
 nsp:
   image: nsp
@@ -45,6 +59,11 @@ nsp:
   port: 7778
   targetPort: 7778
   serviceName: nsp-service
+  probe:
+    readiness:
+      service: ""
+      addr: :7778
+      spiffe: true
 
 ipFamily: ipv4 # ipv4 / ipv6 / dualstack
 
@@ -64,8 +83,11 @@ subnetPool:
     ipv6: 64
 
 vlanNSE:
-  image: cmd-nse-icmp-responder
+  image: nse-vlan
   version: latest
+  probe:
+    addr: unix:///tmp/listen.on
+    spiffe: true
 
 vlan:
   networkServiceName: external-vlan
@@ -89,18 +111,6 @@ vlan:
 #        - 169.254.100.252/24
 #        - fe80::beed/64
 
-readinessProbe:
-  exec:
-    command: ["/bin/grpc_health_probe", "-addr=:8000", "-connect-timeout=100ms", "-rpc-timeout=150ms"]
-  initialDelaySeconds: 0
-  periodSeconds: 10
-  timeoutSeconds: 3
-  failureThreshold: 5
-
-livenessProbe:
-  exec:
-    command: ["/bin/grpc_health_probe", "-addr=:8000", "-connect-timeout=100ms", "-rpc-timeout=150ms"]
-  initialDelaySeconds: 0
-  periodSeconds: 10
-  timeoutSeconds: 3
-  failureThreshold: 5
+probe:
+  addr: unix:///tmp/health.sock
+  service: ""

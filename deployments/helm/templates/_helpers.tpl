@@ -75,3 +75,99 @@ Set IP Family
 {{- define "meridio.serviceAccount" -}}
 {{- printf "meridio-%s" .Values.trench.name -}}
 {{- end -}}
+
+{{- define "meridio.startupProbe" -}}
+{{- $healthAddr := .root.Values.probe.addr -}}
+{{- $healthService := .root.Values.probe.service -}}
+{{- $spiffe := false -}}
+{{- if .component.probe -}}
+{{- $healthAddr = .component.probe.addr | default $healthAddr -}}
+{{- $healthService = .component.probe.service | default $healthService -}}
+{{- $spiffe = .component.probe.spiffe | default $spiffe -}}
+{{- if .component.probe.startup }}
+{{- with .component.probe.startup -}}
+{{- $healthAddr = .addr | default $healthAddr -}}
+{{- $healthService = .service | default $healthService -}}
+{{- $spiffe = .spiffe | default $spiffe -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+exec:
+  command:
+  - /bin/grpc_health_probe
+{{- if $spiffe }}
+  - -spiffe
+{{- end }}
+  - -addr={{ $healthAddr }}
+  - -service={{ $healthService }}
+  - -connect-timeout=100ms
+  - -rpc-timeout=150ms
+initialDelaySeconds: 0
+periodSeconds: 2
+timeoutSeconds: 2
+failureThreshold: 30
+{{- end -}}
+
+{{- define "meridio.livenessProbe" -}}
+{{- $healthAddr := .root.Values.probe.addr -}}
+{{- $healthService := .root.Values.probe.service -}}
+{{- $spiffe := false -}}
+{{- if .component.probe -}}
+{{- $healthAddr = .component.probe.addr | default $healthAddr -}}
+{{- $healthService = .component.probe.service | default $healthService -}}
+{{- $spiffe = .component.probe.spiffe | default $spiffe -}}
+{{- if .component.probe.liveness }}
+{{- with .component.probe.liveness -}}
+{{- $healthAddr = .addr | default $healthAddr -}}
+{{- $healthService = .service | default $healthService -}}
+{{- $spiffe = .spiffe | default $spiffe -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+exec:
+  command:
+  - /bin/grpc_health_probe
+{{- if $spiffe }}
+  - -spiffe
+{{- end }}
+  - -addr={{ $healthAddr }}
+  - -service={{ $healthService }}
+  - -connect-timeout=100ms
+  - -rpc-timeout=150ms
+initialDelaySeconds: 0
+periodSeconds: 10
+timeoutSeconds: 3
+failureThreshold: 5
+{{- end -}}
+
+{{- define "meridio.readinessProbe" -}}
+{{- $healthAddr := .root.Values.probe.addr -}}
+{{- $healthService := .root.Values.probe.service -}}
+{{- $spiffe := false -}}
+{{- if .component.probe }}
+{{- $healthAddr = .component.probe.addr | default $healthAddr -}}
+{{- $healthService = .component.probe.service | default $healthService -}}
+{{- $spiffe = .component.probe.spiffe | default $spiffe -}}
+{{- if .component.probe.readiness }}
+{{- with .component.probe.readiness -}}
+{{- $healthAddr = .addr | default $healthAddr -}}
+{{- $healthService = .service | default $healthService -}}
+{{- $spiffe = .spiffe | default $spiffe -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+exec:
+  command:
+  - /bin/grpc_health_probe
+{{- if $spiffe }}
+  - -spiffe
+{{- end }}
+  - -addr={{ $healthAddr }}
+  - -service={{ $healthService }}
+  - -connect-timeout=100ms
+  - -rpc-timeout=150ms
+initialDelaySeconds: 0
+periodSeconds: 10
+timeoutSeconds: 3
+failureThreshold: 5
+{{- end -}}

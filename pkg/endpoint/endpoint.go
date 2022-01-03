@@ -181,6 +181,10 @@ func (e *Endpoint) Denounce() error {
 	return e.unregister()
 }
 
+func (e *Endpoint) GetUrl() string {
+	return e.listenOn.String()
+}
+
 // NewEndpoint -
 func NewEndpoint(
 	context context.Context,
