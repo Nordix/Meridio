@@ -3,11 +3,13 @@ FROM golang:1.16 as build
 ENV GO111MODULE=on
 ENV CGO_ENABLED=0
 ENV GOOS=linux
+ENV GOBIN=/bin
 
 WORKDIR /app
 COPY go.mod .
 RUN go mod tidy
 RUN go mod download
+RUN go get github.com/grpc-ecosystem/grpc-health-probe@v0.4.2
 COPY . .
 RUN go build -ldflags '-extldflags "-static"' -o frontend ./cmd/frontend
 
@@ -20,5 +22,6 @@ RUN mkdir -p /run/bird && \
 
 WORKDIR /root
 COPY --from=build /app/frontend ./
+COPY --from=build /bin/grpc-health-probe /bin/grpc_health_probe
 
 CMD ["./frontend"]

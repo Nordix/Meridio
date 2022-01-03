@@ -51,7 +51,7 @@ func main() {
 
 	netUtils := &linuxKernel.KernelUtils{}
 
-	healthChecker, err := health.NewChecker(8000)
+	healthChecker, err := health.NewChecker(health.WithCtx(ctx))
 	if err != nil {
 		logrus.Fatalf("Unable to create Health checker: %v", err)
 	}

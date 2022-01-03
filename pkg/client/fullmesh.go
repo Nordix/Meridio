@@ -41,6 +41,7 @@ type FullMeshNetworkServiceClient struct {
 	nscIndex                             int
 	mu                                   sync.Mutex
 	networkServiceClients                map[string]*SimpleNetworkServiceClient
+	ctx                                  context.Context
 }
 
 // Request -
@@ -52,7 +53,7 @@ func (fmnsc *FullMeshNetworkServiceClient) Request(request *networkservice.Netwo
 	query := fmnsc.prepareQuery()
 	var err error
 	// TODO: Context
-	fmnsc.networkServiceDiscoveryStream, err = fmnsc.networkServiceEndpointRegistryClient.Find(context.Background(), query)
+	fmnsc.networkServiceDiscoveryStream, err = fmnsc.networkServiceEndpointRegistryClient.Find(fmnsc.ctx, query)
 	if err != nil {
 		return err
 	}
@@ -95,6 +96,7 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 	networkServiceClient := &SimpleNetworkServiceClient{
 		networkServiceClient: fmnsc.networkServiceClient,
 		config:               fmnsc.config,
+		ctx:                  fmnsc.ctx,
 	}
 	request := copyRequest(fmnsc.baseRequest)
 	request.Connection.NetworkServiceEndpointName = networkServiceEndpointName
@@ -155,16 +157,17 @@ func (fmnsc *FullMeshNetworkServiceClient) prepareQuery() *registry.NetworkServi
 }
 
 // NewFullMeshNetworkServiceClient -
-func NewFullMeshNetworkServiceClient(config *Config, nsmAPIClient *nsm.APIClient, additionalFunctionality ...networkservice.NetworkServiceClient) NetworkServiceClient {
+func NewFullMeshNetworkServiceClient(ctx context.Context, config *Config, nsmAPIClient *nsm.APIClient, additionalFunctionality ...networkservice.NetworkServiceClient) NetworkServiceClient {
 	fullMeshNetworkServiceClient := &FullMeshNetworkServiceClient{
 		config:                config,
-		networkServiceClient:  newClient(context.Background(), config.Name, nsmAPIClient, additionalFunctionality...),
+		networkServiceClient:  newClient(ctx, config.Name, nsmAPIClient, additionalFunctionality...),
 		networkServiceClients: make(map[string]*SimpleNetworkServiceClient),
 		nscIndex:              0,
+		ctx:                   ctx,
 	}
 
 	fullMeshNetworkServiceClient.networkServiceEndpointRegistryClient = registrychain.NewNetworkServiceEndpointRegistryClient(
-		registryrefresh.NewNetworkServiceEndpointRegistryClient(context.Background()),
+		registryrefresh.NewNetworkServiceEndpointRegistryClient(ctx),
 		registrysendfd.NewNetworkServiceEndpointRegistryClient(),
 		registry.NewNetworkServiceEndpointRegistryClient(nsmAPIClient.GRPCClient),
 	)

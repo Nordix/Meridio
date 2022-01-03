@@ -33,6 +33,7 @@ import (
 	"github.com/nordix/meridio/cmd/frontend/internal/connectivity"
 	"github.com/nordix/meridio/cmd/frontend/internal/env"
 	"github.com/nordix/meridio/cmd/frontend/internal/utils"
+	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -294,6 +295,7 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 					// Note: deanounce FE even if just started (init); container might have crashed
 					if !noConnectivity || init {
 						noConnectivity = true
+						health.SetServingStatus(ctx, health.EgressSvc, false)
 						if err := denounceFrontend(fes.targetRegistryClient); err != nil {
 							logrus.Infof("FrontEndService: failed to denounce frontend connectivity (err: %v)", err)
 						}
@@ -302,6 +304,7 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 				} else {
 					if noConnectivity {
 						noConnectivity = false
+						health.SetServingStatus(ctx, health.EgressSvc, true)
 						if err := announceFrontend(fes.targetRegistryClient); err != nil {
 							logrus.Infof("FrontEndService: failed to announce frontend connectivity (err: %v)", err)
 						}

@@ -25,6 +25,7 @@ import (
 	"time"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/loadbalancer/flow"
 	"github.com/nordix/meridio/pkg/loadbalancer/nfqlb"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
@@ -265,6 +266,11 @@ func (lb *LoadBalancer) setFlows(flows []*nspAPI.Flow) error {
 			errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 		}
 		delete(lb.flows, name)
+	}
+	// check if flow service can be enabled (needs at least 1 flow)
+	// TODO: no flows in any of the streams?
+	if len(lb.flows) > 0 {
+		health.SetServingStatus(lb.ctx, health.FlowSvc, true)
 	}
 	return errFinal
 }

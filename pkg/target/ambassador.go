@@ -35,6 +35,8 @@ import (
 	"github.com/nordix/meridio/pkg/target/types"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 type Ambassador struct {
@@ -74,6 +76,9 @@ func NewAmbassador(socket string, trenchNamespace string, config *Config) (*Amba
 	}
 
 	targetAPI.RegisterAmbassadorServer(s, ambassador)
+	logrus.Debugf("Creating ambassador grpc health server")
+	healthServer := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(s, healthServer)
 
 	return ambassador, nil
 }
@@ -183,6 +188,7 @@ func (a *Ambassador) Start(ctx context.Context) error {
 	a.context = ctx
 	a.config.apiClient = nsm.NewAPIClient(a.context, a.config.nsmConfig)
 	go a.watcher()
+	logrus.Debugf("Starting ambassador server")
 	return a.server.Serve(a.listener)
 }
 

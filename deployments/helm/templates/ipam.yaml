@@ -20,10 +20,12 @@ spec:
         - name: ipam
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ipam.image }}:{{ .Values.ipam.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
+          startupProbe:
+{{include "meridio.startupProbe" (dict "component" .Values.ipam "root" $) | indent 12 }}
           readinessProbe:
-{{ toYaml .Values.readinessProbe | indent 12 }}
+{{include "meridio.readinessProbe" (dict "component" .Values.ipam "root" $) | indent 12 }}
           livenessProbe:
-{{ toYaml .Values.livenessProbe | indent 12 }}
+{{include "meridio.livenessProbe" (dict "component" .Values.ipam "root" $) | indent 12 }}
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock

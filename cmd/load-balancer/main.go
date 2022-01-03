@@ -38,6 +38,7 @@ import (
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"
+	"github.com/nordix/meridio/pkg/health/probe"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/loadbalancer/stream"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
@@ -78,16 +79,11 @@ func main() {
 
 	netUtils := &linuxKernel.KernelUtils{}
 
-	healthChecker, err := health.NewChecker(8000)
-	if err != nil {
-		logrus.Fatalf("Unable to create Health checker: %v", err)
+	// create and start health server
+	ctx = health.CreateChecker(ctx)
+	if err := health.RegisterReadinesSubservices(ctx, health.LbReadinessServices...); err != nil {
+		logrus.Warnf("%v", err)
 	}
-	go func() {
-		err := healthChecker.Start()
-		if err != nil {
-			logrus.Fatalf("Unable to start Health checker: %v", err)
-		}
-	}()
 
 	conn, err := grpc.Dial(config.NSPService,
 		grpc.WithTransportCredentials(
@@ -99,6 +95,7 @@ func main() {
 	if err != nil {
 		logrus.Errorf("grpc.Dial err: %v", err)
 	}
+	health.SetServingStatus(ctx, health.NSPCliSvc, true)
 	targetRegistryClient := nspAPI.NewTargetRegistryClient(conn)
 	configurationManagerClient := nspAPI.NewConfigurationManagerClient(conn)
 	conduit := &nspAPI.Conduit{
@@ -152,10 +149,11 @@ func main() {
 	}
 
 	defer ep.Delete()
+	probe.CreateAndRunGRPCHealthProbe(ctx, health.NSMEndpointSvc, probe.WithAddress(ep.GetUrl()), probe.WithSpiffe())
 
 	sns.Start()
 	// monitor availibilty of frontends; if no feasible FE don't advertise NSE to proxies
-	fns := NewFrontendNetworkService(targetRegistryClient, ep, NewServiceControlDispatcher(sns))
+	fns := NewFrontendNetworkService(ctx, targetRegistryClient, ep, NewServiceControlDispatcher(sns))
 	fns.Start()
 
 	<-ctx.Done()
@@ -360,6 +358,8 @@ func (sns *SimpleNetworkService) updateStreams(streams []*nspAPI.Stream) error {
 			errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 		}
 	}
+	// adjust stream service serving status (needs at least 1 stream)
+	health.SetServingStatus(sns.ctx, health.StreamSvc, len(sns.streams) > 0)
 	return errFinal
 }
 
@@ -374,7 +374,7 @@ func (sns *SimpleNetworkService) addStream(strm *nspAPI.Stream) error {
 		return err
 	}
 	go func() {
-		err := s.Start(context.Background()) // todo
+		err := s.Start(sns.ctx)
 		if err != nil {
 			logrus.Errorf("stream start err: %v", err)
 		}
