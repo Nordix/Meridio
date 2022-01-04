@@ -128,7 +128,7 @@ func (i *IpamStatefulSet) getAction() error {
 		i.exec.AddCreateAction(ds)
 	} else {
 		ds := i.getReconciledDesiredStatus(cs)
-		if !equality.Semantic.DeepEqual(ds, cs) {
+		if !equality.Semantic.DeepEqual(ds.Spec, cs.Spec) {
 			i.exec.AddUpdateAction(ds)
 		}
 	}

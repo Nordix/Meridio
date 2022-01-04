@@ -241,7 +241,7 @@ func (l *LoadBalancer) getAction() error {
 		l.exec.AddCreateAction(ds)
 	} else {
 		ds := l.getReconciledDesiredStatus(cs)
-		if !equality.Semantic.DeepEqual(ds, cs) {
+		if !equality.Semantic.DeepEqual(ds.Spec, cs.Spec) {
 			l.exec.AddUpdateAction(ds)
 		}
 	}
