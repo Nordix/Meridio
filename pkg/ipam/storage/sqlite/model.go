@@ -17,25 +17,61 @@ limitations under the License.
 package sqlite
 
 import (
-	"strings"
-)
+	"fmt"
 
-const (
-	separator = ";"
+	"github.com/nordix/meridio/pkg/ipam/prefix"
+	"github.com/nordix/meridio/pkg/ipam/types"
 )
 
 type Prefix struct {
-	Prefix string `gorm:"primaryKey"`
-	Childs string
+	Id       string `gorm:"primaryKey"`
+	Name     string
+	Cidr     string
+	ParentID string
+	Parent   *Prefix
 }
 
-func SerializeChilds(childs []string) string {
-	if childs == nil {
-		childs = []string{}
+func modelToPrefix(p *Prefix) types.Prefix {
+	if p == nil {
+		return nil
 	}
-	return strings.Join(childs, separator)
+	prefix := &prefix.Prefix{
+		Name:   p.Name,
+		Cidr:   p.Cidr,
+		Parent: modelToPrefix(p.Parent),
+	}
+	return prefix
 }
 
-func DeserializeChilds(childs string) []string {
-	return strings.Split(childs, separator)
+func modelToPrefixWithParent(p *Prefix, parent types.Prefix) types.Prefix {
+	if p == nil {
+		return nil
+	}
+	prefix := &prefix.Prefix{
+		Name:   p.Name,
+		Cidr:   p.Cidr,
+		Parent: parent,
+	}
+	return prefix
+}
+
+func prefixToModel(p types.Prefix) *Prefix {
+	if p == nil {
+		return nil
+	}
+	parent := prefixToModel(p.GetParent())
+	var parentID string
+	id := p.GetName()
+	if parent != nil {
+		parentID = parent.Id
+		id = fmt.Sprintf("%s-%s", id, parentID)
+	}
+	prefix := &Prefix{
+		Id:       id,
+		Name:     p.GetName(),
+		Cidr:     p.GetCidr(),
+		ParentID: parentID,
+		Parent:   parent,
+	}
+	return prefix
 }

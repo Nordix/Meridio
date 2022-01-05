@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ipam
+package prefix
 
 import (
 	"net"
@@ -106,4 +106,14 @@ func LastIP(ipNet *net.IPNet) net.IP {
 		}
 	}
 	return last
+}
+
+func CollideWith(prefix string, childs []string) []string {
+	collisions := []string{}
+	for _, childPrefix := range childs {
+		if OverlappingPrefixes(childPrefix, prefix) {
+			collisions = append(collisions, childPrefix)
+		}
+	}
+	return collisions
 }

@@ -78,7 +78,10 @@ vips:
 subnetPool:
   ipv4: 172.16.0.0/16
   ipv6: fd00::/48
-  prefixLength:
+  conduitPrefixLength:
+    ipv4: 20
+    ipv6: 56
+  nodePrefixLength:
     ipv4: 24
     ipv6: 64
 

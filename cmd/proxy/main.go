@@ -43,12 +43,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/client"
 	"github.com/nordix/meridio/pkg/configuration"
 	endpointOld "github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/health/probe"
-	"github.com/nordix/meridio/pkg/ipam"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/endpoint"
@@ -58,9 +59,9 @@ import (
 	"github.com/nordix/meridio/pkg/nsm/service"
 	"github.com/nordix/meridio/pkg/proxy"
 	proxyHealth "github.com/nordix/meridio/pkg/proxy/health"
-	"github.com/pkg/errors"
+	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -89,10 +90,10 @@ func main() {
 		logrus.Warnf("%v", err)
 	}
 
-	proxySubnets, err := getProxySubnets(config)
-	if err != nil {
-		logrus.Fatalf("%v", err)
-	}
+	// proxySubnets, err := getProxySubnets(config)
+	// if err != nil {
+	// 	logrus.Fatalf("%v", err)
+	// }
 	netUtils := &linuxKernel.KernelUtils{}
 
 	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
@@ -100,7 +101,24 @@ func main() {
 		logrus.Fatalf("Error creating link monitor: %+v", err)
 	}
 
-	p := proxy.NewProxy(proxySubnets, netUtils)
+	conn, err := grpc.Dial(config.IPAMService,
+		grpc.WithTransportCredentials(
+			credentials.GetClient(context.Background()),
+		),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+		))
+	if err != nil {
+		logrus.Fatalf("Error dialing IPAM: %+v", err)
+	}
+	ipamClient := ipamAPI.NewIpamClient(conn)
+	conduit := &nspAPI.Conduit{
+		Name: config.ConduitName,
+		Trench: &nspAPI.Trench{
+			Name: config.TrenchName,
+		},
+	}
+	p := proxy.NewProxy(conduit, config.Host, ipamClient, config.IPFamily, netUtils)
 
 	apiClientConfig := &nsm.Config{
 		Name:             config.Name,
@@ -112,7 +130,7 @@ func main() {
 	nsmAPIClient := nsm.NewAPIClient(ctx, apiClientConfig)
 
 	clientConfig := &client.Config{
-		Name:           config.Name,
+		Name:           config.Host,
 		RequestTimeout: config.RequestTimeout,
 		ConnectTo:      config.ConnectTo,
 	}
@@ -126,7 +144,7 @@ func main() {
 		labels["nodeName"] = config.Host
 	}
 	endpointConfig := &endpointOld.Config{
-		Name:             config.Name,
+		Name:             config.Host,
 		ServiceName:      config.ServiceName,
 		MaxTokenLifetime: config.MaxTokenLifetime,
 		Labels:           labels,
@@ -155,26 +173,6 @@ func main() {
 			return
 		}
 	}
-}
-
-func getProxySubnets(config Config) ([]string, error) {
-	proxySubnets := []string{}
-	for index, subnetPool := range config.SubnetPools {
-		_, err := netlink.ParseAddr(subnetPool)
-		if err != nil {
-			return []string{}, errors.Wrap(err, "Error Parsing subnet pool")
-		}
-		ipamClient, err := ipam.NewIpamClient(config.IPAMService)
-		if err != nil {
-			return []string{}, errors.Wrap(err, "Error creating new ipam client")
-		}
-		proxySubnet, err := ipamClient.AllocateSubnet(subnetPool, config.SubnetPrefixLengths[index])
-		if err != nil {
-			return []string{}, errors.Wrap(err, "Error AllocateSubnet")
-		}
-		proxySubnets = append(proxySubnets, proxySubnet)
-	}
-	return proxySubnets, nil
 }
 
 func getNSC(ctx context.Context,

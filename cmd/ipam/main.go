@@ -22,11 +22,13 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
+	"strings"
 
-	ipamAPI "github.com/nordix/meridio/api/ipam"
+	"github.com/kelseyhightower/envconfig"
+	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/ipam"
+	"github.com/nordix/meridio/pkg/ipam/types"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -42,18 +44,29 @@ func main() {
 
 	// create and start health server
 	_ = health.CreateChecker(context.Background())
+	var config Config
+	err := envconfig.Process("ipam", &config)
+	if err != nil {
+		logrus.Fatalf("%v", err)
+	}
+	logrus.Infof("rootConf: %+v", config)
 
-	port, err := strconv.Atoi(os.Getenv("IPAM_PORT"))
-	if err != nil || port <= 0 {
-		port = 7777
+	prefixLengths := make(map[ipamAPI.IPFamily]*types.PrefixLengths)
+	cidrs := make(map[ipamAPI.IPFamily]string)
+	if strings.ToLower(config.IPFamily) == "ipv4" {
+		prefixLengths[ipamAPI.IPFamily_IPV4] = types.NewPrefixLengths(config.ConduitPrefixLengthIPv4, config.NodePrefixLengthIPv4, 32)
+		cidrs[ipamAPI.IPFamily_IPV4] = config.PrefixIPv4
+	} else if strings.ToLower(config.IPFamily) == "ipv6" {
+		prefixLengths[ipamAPI.IPFamily_IPV6] = types.NewPrefixLengths(config.ConduitPrefixLengthIPv6, config.NodePrefixLengthIPv6, 128)
+		cidrs[ipamAPI.IPFamily_IPV6] = config.PrefixIPv6
+	} else {
+		prefixLengths[ipamAPI.IPFamily_IPV4] = types.NewPrefixLengths(config.ConduitPrefixLengthIPv4, config.NodePrefixLengthIPv4, 32)
+		prefixLengths[ipamAPI.IPFamily_IPV6] = types.NewPrefixLengths(config.ConduitPrefixLengthIPv6, config.NodePrefixLengthIPv6, 128)
+		cidrs[ipamAPI.IPFamily_IPV4] = config.PrefixIPv4
+		cidrs[ipamAPI.IPFamily_IPV6] = config.PrefixIPv6
 	}
 
-	datastore := os.Getenv("IPAM_DATASOURCE")
-	if datastore == "" {
-		datastore = "/run/ipam/data/registry.db"
-	}
-
-	ipamServer, err := ipam.NewServer(datastore)
+	ipamServer, err := ipam.NewServer(config.Datasource, config.TrenchName, config.NSPService, cidrs, prefixLengths)
 	if err != nil {
 		logrus.Fatalf("Unable to create ipam server: %v", err)
 	}
@@ -61,12 +74,12 @@ func main() {
 	server := grpc.NewServer(grpc.Creds(
 		credentials.GetServer(context.Background()),
 	))
-	ipamAPI.RegisterIpamServiceServer(server, ipamServer)
+	ipamAPI.RegisterIpamServer(server, ipamServer)
 	healthServer := grpcHealth.NewServer()
 	grpc_health_v1.RegisterHealthServer(server, healthServer)
 
-	logrus.Infof("IPAM Service: Start the service (port: %v)", port)
-	listener, err := net.Listen("tcp", fmt.Sprintf("[::]:%d", port))
+	logrus.Infof("IPAM Service: Start the service (port: %v)", config.Port)
+	listener, err := net.Listen("tcp", fmt.Sprintf("[::]:%d", config.Port))
 	if err != nil {
 		logrus.Fatalf("NSP Service: failed to listen: %v", err)
 	}

@@ -55,14 +55,16 @@ spec:
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
               value: {{ template "meridio.proxy.networkServiceName" . }}
-            - name: NSM_SUBNET_POOLS
-              value: {{ template "meridio.subnetPool.prefixes" . }}
-            - name: NSM_SUBNET_PREFIX_LENGTHS
-              value: {{ template "meridio.subnetPool.prefixLengths" . }}
             - name: NSM_IPAM_SERVICE
               value: {{ template "meridio.ipam.serviceName" . }}:{{ .Values.ipam.targetPort }}
             - name: NSM_NETWORK_SERVICE_NAME
               value: {{ template "meridio.loadBalancer.networkServiceName" . }}
+            - name: NSM_TRENCH_NAME
+              value: {{ .Values.trench.name }}
+            - name: NSM_CONDUIT_NAME
+              value: {{ .Values.loadBalancer.networkServiceName }}
+            - name: NSM_IP_FAMILY
+              value: {{ .Values.ipFamily }}
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
