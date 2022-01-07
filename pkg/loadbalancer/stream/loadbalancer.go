@@ -162,18 +162,19 @@ func (lb *LoadBalancer) RemoveTarget(identifier int) error {
 	if target == nil {
 		return errors.New("the target is not existing")
 	}
+	var errFinal error
 	lb.removeFromPendingTarget(target)
 	err := lb.nfqlb.Deactivate(target.GetIdentifier())
 	if err != nil {
-		return err
+		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 	}
 	err = target.Delete()
 	if err != nil {
-		return err
+		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 	}
 	delete(lb.targets, target.GetIdentifier())
 	logrus.Infof("stream: %v, target removed: %v", lb.Stream.GetName(), target)
-	return nil
+	return errFinal
 }
 
 // TargetExists -
@@ -340,10 +341,24 @@ func (lb *LoadBalancer) processPendingTargets(ctx context.Context) {
 	for {
 		select {
 		case <-time.After(10 * time.Second):
+			lb.verifyTargets()
 			lb.retryPendingTargets()
 		case <-ctx.Done():
 			return
 		}
+	}
+}
+
+func (lb *LoadBalancer) verifyTargets() {
+	for _, target := range lb.targets {
+		if target.Verify() {
+			continue
+		}
+		err := lb.RemoveTarget(target.GetIdentifier())
+		if err != nil {
+			logrus.Warnf("err deleting target (%v): %v", target.GetIdentifier(), err)
+		}
+		lb.addPendingTarget(target)
 	}
 }
 

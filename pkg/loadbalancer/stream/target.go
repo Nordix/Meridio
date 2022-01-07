@@ -53,6 +53,15 @@ func (t *Target) GetIdentifier() int {
 	return t.getIdentifier()
 }
 
+func (t *Target) Verify() bool {
+	for _, fwMark := range t.fwMarks {
+		if !fwMark.Verify() {
+			return false
+		}
+	}
+	return true
+}
+
 func (t *Target) Configure() error {
 	if t.fwMarks == nil {
 		t.fwMarks = []networking.FWMarkRoute{}
