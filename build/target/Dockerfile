@@ -13,7 +13,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"' -o target ./cmd/target
 
-FROM ubuntu:20.10 as grpc-health-probe
+FROM ubuntu:21.04 as grpc-health-probe
 
 RUN apt-get update -y
 RUN apt-get install -y wget
@@ -22,7 +22,7 @@ RUN wget https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v
 RUN mv grpc_health_probe-linux-amd64 /bin/grpc_health_probe
 RUN chmod +x /bin/grpc_health_probe
 
-FROM ubuntu:20.10
+FROM ubuntu:21.04
 
 RUN apt-get update -y
 RUN apt-get install -y iproute2 tcpdump iptables net-tools iputils-ping ipvsadm netcat
