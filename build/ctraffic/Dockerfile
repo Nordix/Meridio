@@ -13,7 +13,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"' -o target-client ./test/applications/target-client
 
-FROM ubuntu:20.10
+FROM ubuntu:21.04
 
 RUN apt-get update -y --fix-missing
 RUN apt-get install -y iproute2 tcpdump iptables net-tools iputils-ping ipvsadm netcat wget screen

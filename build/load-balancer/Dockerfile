@@ -13,7 +13,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"' -o load-balancer ./cmd/load-balancer
 
-FROM ubuntu:20.10 as lb-builder
+FROM ubuntu:21.04 as lb-builder
 
 WORKDIR /
 RUN apt-get update -y --fix-missing
@@ -22,7 +22,7 @@ RUN wget https://github.com/Nordix/nfqueue-loadbalancer/releases/download/0.4.0/
 RUN tar -xvf /nfqlb-0.4.0.tar.xz
 RUN mv nfqlb-0.4.0 nfqlb
 
-FROM ubuntu:20.10 as grpc-health-probe
+FROM ubuntu:21.04 as grpc-health-probe
 
 RUN apt-get update -y
 RUN apt-get install -y wget
@@ -31,7 +31,7 @@ RUN wget https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/v
 RUN mv grpc_health_probe-linux-amd64 /bin/grpc_health_probe
 RUN chmod +x /bin/grpc_health_probe
 
-FROM ubuntu:20.10
+FROM ubuntu:21.04
 
 RUN apt-get update -y
 run apt-get install -y libmnl-dev
