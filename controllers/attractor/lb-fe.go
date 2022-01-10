@@ -1,4 +1,4 @@
-package conduit
+package attractor
 
 import (
 	"fmt"
@@ -9,7 +9,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -19,10 +18,10 @@ const (
 )
 
 type LoadBalancer struct {
-	model   *appsv1.Deployment
-	trench  *meridiov1alpha1.Trench
-	conduit *meridiov1alpha1.Conduit
-	exec    *common.Executor
+	model     *appsv1.Deployment
+	trench    *meridiov1alpha1.Trench
+	attractor *meridiov1alpha1.Attractor
+	exec      *common.Executor
 }
 
 func (l *LoadBalancer) getModel() error {
@@ -34,11 +33,11 @@ func (l *LoadBalancer) getModel() error {
 	return nil
 }
 
-func NewLoadBalancer(e *common.Executor, con *meridiov1alpha1.Conduit, t *meridiov1alpha1.Trench) (*LoadBalancer, error) {
+func NewLoadBalancer(e *common.Executor, attr *meridiov1alpha1.Attractor, t *meridiov1alpha1.Trench) (*LoadBalancer, error) {
 	l := &LoadBalancer{
-		exec:    e,
-		conduit: con.DeepCopy(),
-		trench:  t.DeepCopy(),
+		exec:      e,
+		trench:    t.DeepCopy(),
+		attractor: attr.DeepCopy(),
 	}
 
 	// get model of load balancer
@@ -51,12 +50,14 @@ func NewLoadBalancer(e *common.Executor, con *meridiov1alpha1.Conduit, t *meridi
 func (l *LoadBalancer) getLbEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	env := []corev1.EnvVar{
 		{
-			Name:  "NSM_SERVICE_NAME",
-			Value: common.LoadBalancerNsName(l.conduit),
+			Name: "NSM_SERVICE_NAME",
+			Value: common.LoadBalancerNsName(l.attractor.Spec.Composites[0],
+				l.trench.ObjectMeta.Name,
+				l.attractor.ObjectMeta.Namespace),
 		},
 		{
 			Name:  "NSM_CONDUIT_NAME",
-			Value: l.conduit.ObjectMeta.Name,
+			Value: l.attractor.Spec.Composites[0],
 		},
 		{
 			Name:  "NSM_TRENCH_NAME",
@@ -99,14 +100,6 @@ func (l *LoadBalancer) getNscEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 }
 
 func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
-	// workaround for lb and fe are in the same deployment, the env vars come from both conduit and attractor
-	al := &meridiov1alpha1.AttractorList{}
-	sel := labels.Set{"trench": l.trench.ObjectMeta.Name}
-	l.exec.ListObject(al, &client.ListOptions{
-		LabelSelector: sel.AsSelector(),
-		Namespace:     l.conduit.ObjectMeta.Namespace,
-	})
-
 	env := []corev1.EnvVar{
 		{
 			Name:  "NFE_CONFIG_MAP_NAME",
@@ -122,7 +115,7 @@ func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 		},
 		{
 			Name:  "NFE_ATTRACTOR_NAME",
-			Value: al.Items[0].ObjectMeta.Name,
+			Value: l.attractor.ObjectMeta.Name,
 		},
 	}
 
@@ -141,17 +134,18 @@ func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployment {
 	// if status lb-fe deployment parameters are specified in the cr, use those
 	// else use the default parameters
-	loadBalancerDeploymentName := common.LoadBalancerDeploymentName(l.conduit)
+	loadBalancerDeploymentName := common.LoadBalancerDeploymentName(l.attractor)
 	ret := dep.DeepCopy()
 	ret.ObjectMeta.Name = loadBalancerDeploymentName
 	ret.ObjectMeta.Namespace = l.trench.ObjectMeta.Namespace
 	ret.ObjectMeta.Labels["app"] = loadBalancerDeploymentName
 	ret.Spec.Selector.MatchLabels["app"] = loadBalancerDeploymentName
+
+	ret.Spec.Replicas = l.attractor.Spec.Replicas
+
 	ret.Spec.Template.ObjectMeta.Labels["app"] = loadBalancerDeploymentName
-	ret.Spec.Replicas = l.conduit.Spec.Replicas
 	ret.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchExpressions[0].Values[0] = loadBalancerDeploymentName
 	ret.Spec.Template.Spec.ServiceAccountName = common.ServiceAccountName(l.trench)
-
 	ret.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
 
 	if ret.Spec.Template.Spec.InitContainers[0].Image == "" {
@@ -198,7 +192,7 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 func (l *LoadBalancer) getSelector() client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: l.trench.ObjectMeta.Namespace,
-		Name:      common.LoadBalancerDeploymentName(l.conduit),
+		Name:      common.LoadBalancerDeploymentName(l.attractor),
 	}
 }
 

@@ -23,7 +23,8 @@ import (
 
 // VipSpec defines the desired state of Vip
 type VipSpec struct {
-	// vip address
+	// vip address. Both ipv4 and ipv6 addresses are supported. Vip address must
+	// be a valid network prefix.
 	// +optional
 	Address string `json:"address,omitempty"`
 }
@@ -37,7 +38,9 @@ type VipStatus struct {
 //+kubebuilder:printcolumn:name="Address",type=string,JSONPath=`.spec.address`
 //+kubebuilder:printcolumn:name="Trench",type=string,JSONPath=`.metadata.labels.trench`
 
-// Vip is the Schema for the vips API
+// Vip is the Schema for the vips API. It defines a Vip to be used as destination
+// for ingress traffic to facilitate load-balancing. For egress traffic the Vip
+// is used as source to avoid Direct Server Return.
 type Vip struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

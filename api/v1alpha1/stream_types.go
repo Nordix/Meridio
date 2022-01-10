@@ -23,7 +23,7 @@ import (
 
 // StreamSpec defines the desired state of Stream
 type StreamSpec struct {
-	// The conduit that this stream sign up for
+	// The conduit that is to convey traffic included in this Stream
 	// +optional
 	Conduit string `json:"conduit,omitempty"`
 }
@@ -37,7 +37,8 @@ type StreamStatus struct {
 //+kubebuilder:printcolumn:name="conduit",type=string,JSONPath=`.spec.conduit`
 //+kubebuilder:printcolumn:name="Trench",type=string,JSONPath=`.metadata.labels.trench`
 
-// Stream is the Schema for the streams API
+// Stream is the Schema for the streams API. It refers a group of Flows processed
+// through the same Conduit before consumed by the user application.
 type Stream struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

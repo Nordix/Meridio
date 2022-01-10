@@ -42,7 +42,9 @@ type TrenchStatus struct {
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="IP-Family",type=string,JSONPath=`.spec.ip-family`
 
-// Trench is the Schema for the trenches API
+// Trench is the Schema for the trenches API. It defines the extension of an
+// external VPN into the K8s cluster scope. All other Merido CRs are related
+// to a trench
 type Trench struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

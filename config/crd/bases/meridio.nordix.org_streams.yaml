@@ -26,7 +26,8 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Stream is the Schema for the streams API
+        description: Stream is the Schema for the streams API. It refers a group of
+          Flows processed through the same Conduit before consumed by the user application.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -44,7 +45,8 @@ spec:
             description: StreamSpec defines the desired state of Stream
             properties:
               conduit:
-                description: The conduit that this stream sign up for
+                description: The conduit that is to convey traffic included in this
+                  Stream
                 type: string
             type: object
           status:

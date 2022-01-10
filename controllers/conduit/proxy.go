@@ -62,8 +62,10 @@ func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			Value: common.IPAMServiceWithPort(i.trench),
 		},
 		{
-			Name:  "NSM_NETWORK_SERVICE_NAME",
-			Value: common.LoadBalancerNsName(i.conduit),
+			Name: "NSM_NETWORK_SERVICE_NAME",
+			Value: common.LoadBalancerNsName(i.conduit.ObjectMeta.Name,
+				i.trench.ObjectMeta.Name,
+				i.conduit.ObjectMeta.Namespace),
 		},
 	}
 

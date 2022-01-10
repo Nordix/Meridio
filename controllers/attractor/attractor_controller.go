@@ -42,7 +42,7 @@ type AttractorReconciler struct {
 //+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=attractors,verbs=get;list;watch;update;patch
 //+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=attractors/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=attractors/finalizers,verbs=update
-//+kubebuilder:rbac:groups=core,resources=configmaps,namespace=system,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=apps,resources=deployments,namespace=system,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -79,6 +79,15 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		}
 
 		err = nse.getAction()
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
+		lb, err := NewLoadBalancer(executor, attr, trench)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		err = lb.getAction()
 		if err != nil {
 			return ctrl.Result{}, err
 		}

@@ -11,6 +11,8 @@ spec:
   vips:
     - vip1
     - vip2
+  composites:
+    - conduit-stateless
   interface:
     name: eth0.100
     ipv4-prefix: 169.254.100.0/24
@@ -31,6 +33,8 @@ spec:
     - gateway3
   vips:
     - vip3
+  composites:
+    - conduit-stateless2
   interface:
     name: eth0.100
     ipv4-prefix: 169.254.100.0/24

@@ -23,11 +23,6 @@ import (
 
 // ConduitSpec defines the desired state of Conduit
 type ConduitSpec struct {
-	// +kubebuilder:default=1
-
-	// replicas of the lb-fe deployment
-	// +optional
-	Replicas *int32 `json:"replicas,omitempty"`
 	// +kubebuilder:default=stateless-lb
 
 	// Type is the type of network service for this conduit
@@ -42,10 +37,10 @@ type ConduitStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.spec.type`
-//+kubebuilder:printcolumn:name="replicas",type=string,JSONPath=`.spec.replicas`
 //+kubebuilder:printcolumn:name="Trench",type=string,JSONPath=`.metadata.labels.trench`
 
-// Conduit is the Schema for the conduits API
+// Conduit is the Schema for the conduits API. It defines a logical/physical
+// traffic-path through the k8s cluster for processing traffic streams
 type Conduit struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

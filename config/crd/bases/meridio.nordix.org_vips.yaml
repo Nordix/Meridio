@@ -26,7 +26,9 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Vip is the Schema for the vips API
+        description: Vip is the Schema for the vips API. It defines a Vip to be used
+          as destination for ingress traffic to facilitate load-balancing. For egress
+          traffic the Vip is used as source to avoid Direct Server Return.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -44,7 +46,8 @@ spec:
             description: VipSpec defines the desired state of Vip
             properties:
               address:
-                description: vip address
+                description: vip address. Both ipv4 and ipv6 addresses are supported.
+                  Vip address must be a valid network prefix.
                 type: string
             type: object
           status:
