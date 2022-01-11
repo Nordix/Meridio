@@ -260,7 +260,7 @@ func startNSE(ctx context.Context,
 	service := service.New(nsmAPIClient.NetworkServiceRegistryClient, ns)
 	err := service.Register(ctx)
 	if err != nil {
-		logrus.Errorf("Err creating NSE: %v", err)
+		logrus.Errorf("Err registering NS: %v", err)
 	}
 
 	nse := &registry.NetworkServiceEndpoint{
@@ -282,7 +282,7 @@ func startNSE(ctx context.Context,
 	}
 	err = endpoint.Register(ctx)
 	if err != nil {
-		logrus.Errorf("Err registring NSE: %v", err)
+		logrus.Errorf("Err registering NSE: %v", err)
 	}
 	return endpoint
 }

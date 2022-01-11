@@ -26,11 +26,15 @@ import (
 
 type Trench struct {
 	types.Prefix
-	Store          types.Storage
-	ConduitWatcher *ConduitWatcher
-	PrefixLengths  *types.PrefixLengths
+	Store         types.Storage
+	PrefixLengths *types.PrefixLengths
 }
 
+// New is the constructor for the Trench struct
+// The constructor registers the trench to the store if not already registered in.
+// prefix - prefix of the Trench
+// store - storage for the prefix and its childs (conduit)
+// prefixLengths - prefix length used to allocate the childs (conduit)
 func New(ctx context.Context, prefix types.Prefix, store types.Storage, prefixLengths *types.PrefixLengths) (*Trench, error) {
 	p, err := store.Get(ctx, prefix.GetName(), nil)
 	if err != nil {
@@ -51,6 +55,8 @@ func New(ctx context.Context, prefix types.Prefix, store types.Storage, prefixLe
 	return t, nil
 }
 
+// GetNode returns the node with the name in parameter and with as parent the current conduit.
+// If not existing, a nil value is returned.
 func (t *Trench) GetConduit(ctx context.Context, name string) (types.Conduit, error) {
 	prefix, err := t.Store.Get(ctx, name, t)
 	if err != nil {
@@ -62,6 +68,8 @@ func (t *Trench) GetConduit(ctx context.Context, name string) (types.Conduit, er
 	return conduit.New(prefix, t.Store, t.PrefixLengths), nil
 }
 
+// AddConduit returns the conduit with the name in parameter and with as parent the current trench.
+// If not existing, a new one will be created and returned.
 func (t *Trench) AddConduit(ctx context.Context, name string) (types.Conduit, error) {
 	newPrefix, err := prefix.Allocate(ctx, t, name, t.PrefixLengths.ConduitLength, t.Store)
 	if err != nil {
@@ -70,6 +78,8 @@ func (t *Trench) AddConduit(ctx context.Context, name string) (types.Conduit, er
 	return conduit.New(newPrefix, t.Store, t.PrefixLengths), nil
 }
 
+// RemoveConduit removes the conduit with the name in parameter and with as parent the current node.
+// no error is returned if the conduit does not exist.
 func (t *Trench) RemoveConduit(ctx context.Context, name string) error {
 	prefix, err := t.Store.Get(ctx, name, t)
 	if err != nil {

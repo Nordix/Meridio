@@ -27,6 +27,7 @@ const (
 	IPv6 = 1
 )
 
+// IsCIDR checks if the cidr is not valid
 func IsCIDR(cidr string) bool {
 	ip, ipnet, err := net.ParseCIDR(cidr)
 	if err != nil || !ip.Equal(ipnet.IP) {
@@ -35,6 +36,8 @@ func IsCIDR(cidr string) bool {
 	return true
 }
 
+// GetFamily returns the family of the cidr in parameter
+// an error is returned if the cidr is not valid
 func GetFamily(cidr string) (IPFamily, error) {
 	ip, _, err := net.ParseCIDR(cidr)
 	if err != nil {
@@ -46,6 +49,8 @@ func GetFamily(cidr string) (IPFamily, error) {
 	return IPv4, nil
 }
 
+// OverlappingPrefixes checks if the 2 parameters are colliding/overlapping
+// e.g.: 192.168.2.1/32 - 192.168.2.0/24 will return true
 func OverlappingPrefixes(cidr1 string, cidr2 string) bool {
 	_, ipnet1, err := net.ParseCIDR(cidr1)
 	if err != nil {
@@ -58,6 +63,8 @@ func OverlappingPrefixes(cidr1 string, cidr2 string) bool {
 	return ipnet2.Contains(ipnet1.IP) || ipnet1.Contains(ipnet2.IP)
 }
 
+// NextPrefix returns the next prefix
+// e.g.: 169.16.0.0/24 will return 169.16.1.0/24
 func NextPrefix(ipNet *net.IPNet) *net.IPNet {
 	next := make([]byte, len(ipNet.IP))
 	copy(next, ipNet.IP)
@@ -88,6 +95,7 @@ func NextPrefix(ipNet *net.IPNet) *net.IPNet {
 	return new
 }
 
+// LastIP returns the last ip in the network
 func LastIP(ipNet *net.IPNet) net.IP {
 	last := make([]byte, len(ipNet.IP))
 	maskLength, ipLength := ipNet.Mask.Size()

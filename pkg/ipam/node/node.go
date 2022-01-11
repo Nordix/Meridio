@@ -31,6 +31,10 @@ type Node struct {
 	PrefixLengths *types.PrefixLengths
 }
 
+// New is the constructor for the Node struct
+// prefix - prefix of the Node
+// store - storage for the prefix and its childs (target, LB, Bridge...)
+// prefixLengths - prefix length used to allocate the childs (target, LB, Bridge...)
 func New(prefix types.Prefix, store types.Storage, prefixLengths *types.PrefixLengths) *Node {
 	p := &Node{
 		Prefix:        prefix,
@@ -40,6 +44,8 @@ func New(prefix types.Prefix, store types.Storage, prefixLengths *types.PrefixLe
 	return p
 }
 
+// Allocate returns the prefix with the name in parameter and with as parent the current node.
+// If not existing, a new one will be created and returned.
 func (n *Node) Allocate(ctx context.Context, name string) (types.Prefix, error) {
 	p, err := n.Store.Get(ctx, name, n)
 	if err != nil {
@@ -58,6 +64,8 @@ func (n *Node) Allocate(ctx context.Context, name string) (types.Prefix, error) 
 	return p, nil
 }
 
+// Release removes the prefix with the name in parameter and with as parent the current node.
+// no error is returned if the prefix does not exist.
 func (n *Node) Release(ctx context.Context, name string) error {
 	prefix, err := n.Store.Get(ctx, name, n)
 	if err != nil {

@@ -77,7 +77,7 @@ func (sqlis *SQLiteIPAMStorage) Get(ctx context.Context, name string, parent typ
 		}
 		return nil, tx.Error
 	}
-	np := modelToPrefixWithParent(result, parent)
+	np := modelToPrefix(result, parent)
 	return np, nil
 }
 
@@ -104,7 +104,7 @@ func (sqlis *SQLiteIPAMStorage) getChilds(prefix types.Prefix) ([]types.Prefix, 
 	}
 	prefixList := []types.Prefix{}
 	for _, result := range results {
-		np := modelToPrefixWithParent(result, prefix)
+		np := modelToPrefix(result, prefix)
 		prefixList = append(prefixList, np)
 	}
 	return prefixList, nil

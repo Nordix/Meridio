@@ -31,19 +31,7 @@ type Prefix struct {
 	Parent   *Prefix
 }
 
-func modelToPrefix(p *Prefix) types.Prefix {
-	if p == nil {
-		return nil
-	}
-	prefix := &prefix.Prefix{
-		Name:   p.Name,
-		Cidr:   p.Cidr,
-		Parent: modelToPrefix(p.Parent),
-	}
-	return prefix
-}
-
-func modelToPrefixWithParent(p *Prefix, parent types.Prefix) types.Prefix {
+func modelToPrefix(p *Prefix, parent types.Prefix) types.Prefix {
 	if p == nil {
 		return nil
 	}

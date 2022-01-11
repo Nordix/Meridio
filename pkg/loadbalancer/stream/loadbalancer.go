@@ -341,8 +341,10 @@ func (lb *LoadBalancer) processPendingTargets(ctx context.Context) {
 	for {
 		select {
 		case <-time.After(10 * time.Second):
+			lb.mu.Lock()
 			lb.verifyTargets()
 			lb.retryPendingTargets()
+			lb.mu.Unlock()
 		case <-ctx.Done():
 			return
 		}

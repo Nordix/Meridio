@@ -55,8 +55,8 @@ func AllocateWithBlocklist(ctx context.Context, parent types.Prefix, name string
 	childList := prefixSliceToStringSlice(childs)
 	var currentCandidatePrefix types.Prefix
 	for {
+		childList = append(childList, blocklist...)
 		for {
-			childList = append(childList, blocklist...)
 			collisions := CollideWith(currentCandidate.String(), childList)
 			if len(collisions) <= 0 {
 				break
@@ -84,7 +84,7 @@ func AllocateWithBlocklist(ctx context.Context, parent types.Prefix, name string
 			break
 		}
 		err = store.Delete(ctx, currentCandidatePrefix)
-		if err == nil {
+		if err != nil {
 			return nil, err
 		}
 	}

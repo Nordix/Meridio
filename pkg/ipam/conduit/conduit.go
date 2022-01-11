@@ -18,6 +18,7 @@ package conduit
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/nordix/meridio/pkg/ipam/node"
 	"github.com/nordix/meridio/pkg/ipam/prefix"
@@ -30,6 +31,10 @@ type Conduit struct {
 	PrefixLengths *types.PrefixLengths
 }
 
+// New is the constructor for the Conduit struct
+// prefix - prefix of the conduit
+// store - storage for the prefix and its childs (nodes)
+// prefixLengths - prefix length used to allocate the childs (nodes)
 func New(prefix types.Prefix, store types.Storage, prefixLengths *types.PrefixLengths) *Conduit {
 	p := &Conduit{
 		Prefix:        prefix,
@@ -39,6 +44,8 @@ func New(prefix types.Prefix, store types.Storage, prefixLengths *types.PrefixLe
 	return p
 }
 
+// GetNode returns the node with the name in parameter and with as parent the current conduit.
+// If not existing, a new one will be created and returned.
 func (c *Conduit) GetNode(ctx context.Context, name string) (types.Node, error) {
 	p, err := c.Store.Get(ctx, name, c)
 	if err != nil {
@@ -56,6 +63,8 @@ func (c *Conduit) GetNode(ctx context.Context, name string) (types.Node, error) 
 	return n, nil
 }
 
+// RemoveNode removes the node with the name in parameter and with as parent the current conduit.
+// no error is returned if the node does not exist.
 func (c *Conduit) RemoveNode(ctx context.Context, name string) error {
 	prefix, err := c.Store.Get(ctx, name, c)
 	if err != nil {
@@ -67,7 +76,11 @@ func (c *Conduit) RemoveNode(ctx context.Context, name string) error {
 func (c *Conduit) addNode(ctx context.Context, name string) (types.Node, error) {
 	newPrefix, err := prefix.Allocate(ctx, c, name, c.PrefixLengths.NodeLength, c.Store)
 	if err != nil {
-		return nil, err
+		errFinal := err
+		newPrefix, err = c.Store.Get(ctx, name, c)
+		if err != nil {
+			return nil, fmt.Errorf("%w; %v", errFinal, err) // todo
+		}
 	}
 	return node.New(newPrefix, c.Store, c.PrefixLengths), nil
 }

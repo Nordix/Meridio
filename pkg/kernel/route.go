@@ -113,6 +113,8 @@ func (sbr *SourceBasedRoute) RemoveNexthop(nexthop string) error {
 }
 
 func (sbr *SourceBasedRoute) Delete() error {
+	sbr.mu.Lock()
+	defer sbr.mu.Unlock()
 	if sbr.cancel != nil {
 		sbr.cancel()
 	}
