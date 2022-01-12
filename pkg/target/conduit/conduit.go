@@ -52,6 +52,7 @@ type Conduit struct {
 	Name                 string
 	Trench               types.Trench
 	NodeName             string
+	Configuration        *Configuration
 	networkServiceClient client.NetworkServiceClient
 	EventChan            chan<- struct{}
 	NetUtils             networking.Utils
@@ -89,7 +90,12 @@ func New(
 		NetUtils:  netUtils,
 		status:    types.Disconnected,
 	}
-	return conduit, trench.AddConduit(ctx, conduit)
+	conduit.Configuration = NewConfiguration(conduit, trench.GetConfigurationManagerClient())
+	err := trench.AddConduit(ctx, conduit)
+	if err != nil {
+		return nil, err
+	}
+	return conduit, nil
 }
 
 func (c *Conduit) GetName() string {
@@ -127,6 +133,7 @@ func (c *Conduit) Connect(ctx context.Context) error {
 	}
 	c.status = types.Connected
 	c.notifyWatcher()
+	go c.Configuration.WatchVIPs(context.Background())
 	return nil
 }
 
@@ -148,6 +155,7 @@ func (c *Conduit) Disconnect(ctx context.Context) error {
 	c.deleteVIPs(c.vips)
 	c.nexthops = []string{}
 	c.tableID = 1
+	c.Configuration.Delete()
 	return nil
 }
 

@@ -14,22 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package types
+package nsp
 
-import (
-	"context"
+import "fmt"
 
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
-)
-
-type Trench interface {
-	GetName() string
-	GetNamespace() string
-	Delete(ctx context.Context) error
-	AddConduit(context.Context, Conduit) error
-	RemoveConduit(context.Context, Conduit) error
-	GetConduits(conduit *nspAPI.Conduit) []Conduit
-	GetTargetRegistryClient() nspAPI.TargetRegistryClient
-	GetConfigurationManagerClient() nspAPI.ConfigurationManagerClient
-	Equals(*nspAPI.Trench) bool
+func GetServiceName(prefix string, trench string, namespace string, port int) string {
+	return fmt.Sprintf("%s-%s.%s:%d", prefix, trench, namespace, port)
 }

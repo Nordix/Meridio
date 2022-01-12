@@ -69,16 +69,6 @@ helm install deployments/helm/ --generate-name --create-namespace --namespace re
 
 ### target
 
-Deploy common resources for the targets
-```
-helm install examples/target/common/ --generate-name --create-namespace --namespace red
-```
-
-Configure Spire for the targets
-```
-./docs/demo/scripts/spire.sh meridio red
-```
-
 Install targets connected to trench-a
 ```
 helm install examples/target/helm/ --generate-name --create-namespace --namespace red --set applicationName=target-a --set default.trench.name=trench-a

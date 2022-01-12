@@ -19,31 +19,27 @@ package trench
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
-	"github.com/nordix/meridio/pkg/configuration"
+	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/nordix/meridio/pkg/target/types"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
 type Trench struct {
-	Name                 string
-	NSPClient            nspAPI.TargetRegistryClient
-	Namespace            string
-	context              context.Context
-	cancel               context.CancelFunc
-	conduits             []types.Conduit
-	vips                 []string
-	configurationWatcher *configuration.OperatorWatcher
-	configWatcher        <-chan *configuration.OperatorConfig
-	mu                   sync.Mutex
-	nspServiceName       string
-	nspServicePort       int
-	nspConn              *grpc.ClientConn
+	Name                       string
+	TargetRegistryClient       nspAPI.TargetRegistryClient
+	ConfigurationManagerClient nspAPI.ConfigurationManagerClient
+	Namespace                  string
+	context                    context.Context
+	cancel                     context.CancelFunc
+	conduits                   []types.Conduit
+	mu                         sync.Mutex
+	nspServiceName             string
+	nspServicePort             int
+	nspConn                    *grpc.ClientConn
 }
 
 func New(
@@ -53,32 +49,22 @@ func New(
 	nspServiceName string,
 	nspServicePort int) (types.Trench, error) {
 
-	configMapName = fmt.Sprintf("%s-%s", configMapName, name)
-	configWatcher := make(chan *configuration.OperatorConfig, 10)
-	configurationWatcher := configuration.NewOperatorWatcher(configMapName, namespace, configWatcher)
-	go configurationWatcher.Start()
-
 	context, cancel := context.WithCancel(context.Background())
 
 	trench := &Trench{
-		context:              context,
-		cancel:               cancel,
-		Name:                 name,
-		Namespace:            namespace,
-		conduits:             []types.Conduit{},
-		vips:                 []string{},
-		configurationWatcher: configurationWatcher,
-		configWatcher:        configWatcher,
-		nspServiceName:       nspServiceName,
-		nspServicePort:       nspServicePort,
+		context:        context,
+		cancel:         cancel,
+		Name:           name,
+		Namespace:      namespace,
+		conduits:       []types.Conduit{},
+		nspServiceName: nspServiceName,
+		nspServicePort: nspServicePort,
 	}
 
 	err := trench.connectNSPService()
 	if err != nil {
 		return nil, err
 	}
-
-	go trench.watchConfig()
 
 	return trench, nil
 }
@@ -93,7 +79,6 @@ func (t *Trench) GetNamespace() string {
 
 func (t *Trench) Delete(ctx context.Context) error {
 	t.cancel()
-	t.configurationWatcher.Delete()
 	for _, conduit := range t.conduits {
 		err := t.RemoveConduit(ctx, conduit)
 		if err != nil {
@@ -114,10 +99,6 @@ func (t *Trench) AddConduit(ctx context.Context, conduit types.Conduit) error {
 	err := conduit.Connect(ctx)
 	if err != nil {
 		return err
-	}
-	err = conduit.SetVIPs(t.vips)
-	if err != nil {
-		return err // todo: disconnect
 	}
 	t.conduits = append(t.conduits, conduit)
 	return nil
@@ -155,7 +136,11 @@ func (t *Trench) GetConduits(conduit *nspAPI.Conduit) []types.Conduit {
 }
 
 func (t *Trench) GetTargetRegistryClient() nspAPI.TargetRegistryClient {
-	return t.NSPClient
+	return t.TargetRegistryClient
+}
+
+func (t *Trench) GetConfigurationManagerClient() nspAPI.ConfigurationManagerClient {
+	return t.ConfigurationManagerClient
 }
 
 func (t *Trench) Equals(trench *nspAPI.Trench) bool {
@@ -178,23 +163,6 @@ func (t *Trench) getIndex(conduitName string) int {
 	return -1
 }
 
-func (t *Trench) watchConfig() {
-	for {
-		select {
-		case config := <-t.configWatcher:
-			t.vips = configuration.AddrListFromVipConfig(config.VIPs)
-			for _, conduit := range t.conduits {
-				err := conduit.SetVIPs(t.vips)
-				if err != nil {
-					logrus.Errorf("Error updating to VIPs for the conduit: %V", err)
-				}
-			}
-		case <-t.context.Done():
-			return
-		}
-	}
-}
-
 func (t *Trench) connectNSPService() error {
 	var err error
 	t.nspConn, err = grpc.Dial(t.getNSPService(),
@@ -208,10 +176,11 @@ func (t *Trench) connectNSPService() error {
 		return nil
 	}
 
-	t.NSPClient = nspAPI.NewTargetRegistryClient(t.nspConn)
+	t.TargetRegistryClient = nspAPI.NewTargetRegistryClient(t.nspConn)
+	t.ConfigurationManagerClient = nspAPI.NewConfigurationManagerClient(t.nspConn)
 	return nil
 }
 
 func (t *Trench) getNSPService() string {
-	return fmt.Sprintf("%s-%s.%s:%d", t.nspServiceName, t.GetName(), t.GetNamespace(), t.nspServicePort)
+	return nsp.GetServiceName(t.nspServiceName, t.GetName(), t.GetNamespace(), t.nspServicePort)
 }

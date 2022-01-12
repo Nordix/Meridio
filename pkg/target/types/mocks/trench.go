@@ -92,6 +92,20 @@ func (mr *MockTrenchMockRecorder) GetConduits(conduit interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConduits", reflect.TypeOf((*MockTrench)(nil).GetConduits), conduit)
 }
 
+// GetConfigurationManagerClient mocks base method.
+func (m *MockTrench) GetConfigurationManagerClient() v1.ConfigurationManagerClient {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetConfigurationManagerClient")
+	ret0, _ := ret[0].(v1.ConfigurationManagerClient)
+	return ret0
+}
+
+// GetConfigurationManagerClient indicates an expected call of GetConfigurationManagerClient.
+func (mr *MockTrenchMockRecorder) GetConfigurationManagerClient() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfigurationManagerClient", reflect.TypeOf((*MockTrench)(nil).GetConfigurationManagerClient))
+}
+
 // GetName mocks base method.
 func (m *MockTrench) GetName() string {
 	m.ctrl.T.Helper()

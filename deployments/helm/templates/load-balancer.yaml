@@ -15,7 +15,6 @@ spec:
       labels:
         app: load-balancer-{{ .Values.trench.name }}
     spec:
-      serviceAccountName: {{ template "meridio.serviceAccount" . }}
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

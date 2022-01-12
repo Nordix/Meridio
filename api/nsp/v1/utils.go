@@ -107,3 +107,11 @@ func (t *Target) Equals(t2 *Target) bool {
 	}
 	return status && t.GetType() == t2.GetType() && stream
 }
+
+func (vr *VipResponse) ToSlice() []string {
+	vipSlice := []string{}
+	for _, vip := range vr.GetVips() {
+		vipSlice = append(vipSlice, vip.Address)
+	}
+	return vipSlice
+}
