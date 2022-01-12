@@ -17,7 +17,10 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
+	"log"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -31,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/faisal-memon/sviddisk"
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	attactorcontroller "github.com/nordix/meridio-operator/controllers/attractor"
 	conduitcontroller "github.com/nordix/meridio-operator/controllers/conduit"
@@ -38,6 +42,9 @@ import (
 	gatewaycontroller "github.com/nordix/meridio-operator/controllers/gateway"
 	streamcontroller "github.com/nordix/meridio-operator/controllers/stream"
 	trenchcontroller "github.com/nordix/meridio-operator/controllers/trench"
+	"github.com/spiffe/go-spiffe/v2/workloadapi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/nordix/meridio-operator/controllers/version"
 	vipcontroller "github.com/nordix/meridio-operator/controllers/vip"
@@ -56,15 +63,57 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
+func setupTLSCert(socket string) error {
+	ctx := context.Background()
+	client, err := workloadapi.New(ctx, workloadapi.WithAddr(socket))
+	if err != nil {
+		return fmt.Errorf("unable to create workload API client: %w", err)
+	}
+
+	certDir := "/tmp/k8s-webhook-server/serving-certs"
+
+	go func() {
+		defer client.Close()
+		err := client.WatchX509Context(ctx, &x509Watcher{CertDir: certDir})
+		if err != nil && status.Code(err) != codes.Canceled {
+			log.Fatalf("error watching X.509 context:%v", err)
+		}
+	}()
+
+	if err = sviddisk.WaitForCertificates(certDir); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// x509Watcher is a sample implementation of the workloadapi.X509ContextWatcher interface
+type x509Watcher struct {
+	CertDir string
+}
+
+// UpdateX509SVIDs is run every time an SVID is updated
+func (x *x509Watcher) OnX509ContextUpdate(c *workloadapi.X509Context) {
+	sviddisk.WriteToDisk(c.DefaultSVID(), x.CertDir)
+}
+
+// OnX509ContextWatchError is run when the client runs into an error
+func (x509Watcher) OnX509ContextWatchError(err error) {
+	if status.Code(err) != codes.Canceled {
+		log.Printf("OnX509ContextWatchError error: %v", err)
+	}
+}
+
 func main() {
-	var metricsAddr string
+	var metricsAddr, probeAddr string
 	var enableLeaderElection bool
-	var probeAddr string
+
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
+
 	opts := zap.Options{
 		Development: true,
 	}
@@ -82,6 +131,16 @@ func main() {
 	} else {
 		setupLog.Info("operator is namespace-scoped", "namespace", namespace)
 	}
+
+	// Prepare tls cert when using spire
+	var spiffeSocket string
+	if spiffeSocket = os.Getenv("SPIFFE_ENDPOINT_SOCKET"); spiffeSocket != "" {
+		setupLog.Info("using spire for webhook")
+		if err := setupTLSCert(spiffeSocket); err != nil {
+			setupLog.Error(err, "failed to setup the webhook")
+		}
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,

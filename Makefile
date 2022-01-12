@@ -140,14 +140,15 @@ namespace: ## Edit the namespace of operator to be deployed
 	cd config/default && $(KUSTOMIZE) edit set namespace ${NAMESPACE}
 
 ENABLE_MUTATING_WEBHOOK?=true
+WEBHOOK_SUPPORT ?= spire # spire or certmanager
 configure-webhook:
-	ENABLE_MUTATING_WEBHOOK=$(ENABLE_MUTATING_WEBHOOK) hack/webhook-switch.sh
+	ENABLE_MUTATING_WEBHOOK=$(ENABLE_MUTATING_WEBHOOK) WEBHOOK_SUPPORT=$(WEBHOOK_SUPPORT) hack/webhook-switch.sh
 
 deploy: manifests kustomize namespace configure-webhook ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
-undeploy: namespace  configure-webhook ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+undeploy: namespace configure-webhook ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f - --ignore-not-found=true
 
 apply-samples: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
