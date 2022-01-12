@@ -24,10 +24,12 @@ const (
 	BusyboxImage = "busybox"
 	BusyboxTag   = "1.29"
 
-	SubnetPoolIpv4   = "172.16.0.0/16"
-	SubnetPoolIpv6   = "fd00::/48"
-	PrefixLengthIpv4 = "24"
-	PrefixLengthIpv6 = "64"
+	SubnetPoolIpv4          = "172.16.0.0/16"
+	SubnetPoolIpv6          = "fd00::/48"
+	ConduitPrefixLengthIpv4 = "20"
+	ConduitPrefixLengthIpv6 = "56"
+	NodePrefixLengthIpv4    = "24"
+	NodePrefixLengthIpv6    = "64"
 
 	NspPort        = 7778
 	NspTargetPort  = 7778

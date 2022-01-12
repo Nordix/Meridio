@@ -13,8 +13,7 @@ import (
 )
 
 const (
-	imageIpam   = "ipam"
-	ipamEnvName = "IPAM_PORT"
+	imageIpam = "ipam"
 )
 
 type IpamStatefulSet struct {
@@ -34,6 +33,61 @@ func NewIPAM(e *common.Executor, t *meridiov1alpha1.Trench) (*IpamStatefulSet, e
 		return nil, err
 	}
 	return l, nil
+}
+
+func (i *IpamStatefulSet) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
+	// if envVars are set in the cr, use the values
+	// else return default envVars
+	env := []corev1.EnvVar{
+		{
+			Name:  "IPAM_TRENCH_NAME",
+			Value: i.trench.ObjectMeta.GetName(),
+		},
+		{
+			Name:  "IPAM_NSP_SERVICE",
+			Value: common.NSPServiceWithPort(i.trench),
+		},
+		{
+			Name:  "IPAM_PREFIX_IPV4",
+			Value: common.SubnetPoolIpv4,
+		},
+		{
+			Name:  "IPAM_PREFIX_IPV6",
+			Value: common.SubnetPoolIpv6,
+		},
+		{
+			Name:  "IPAM_CONDUIT_PREFIX_LENGTH_IPV4",
+			Value: common.ConduitPrefixLengthIpv4,
+		},
+		{
+			Name:  "IPAM_CONDUIT_PREFIX_LENGTH_IPV6",
+			Value: common.ConduitPrefixLengthIpv6,
+		},
+		{
+			Name:  "IPAM_NODE_PREFIX_LENGTH_IPV4",
+			Value: common.NodePrefixLengthIpv4,
+		},
+		{
+			Name:  "IPAM_NODE_PREFIX_LENGTH_IPV6",
+			Value: common.NodePrefixLengthIpv6,
+		},
+		{
+			Name:  "IPAM_IP_FAMILY",
+			Value: common.GetIPFamily(i.trench),
+		},
+	}
+
+	for _, e := range allEnv {
+		// append all hard coded envVars
+		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
+			e.Name == "IPAM_PORT" ||
+			e.Name == "IPAM_NAMESPACE" ||
+			e.Name == "IPAM_DATASOURCE" {
+			env = append(env, e)
+		}
+	}
+
+	return env
 }
 
 func (i *IpamStatefulSet) insertParameters(dep *appsv1.StatefulSet) *appsv1.StatefulSet {
@@ -64,6 +118,7 @@ func (i *IpamStatefulSet) insertParameters(dep *appsv1.StatefulSet) *appsv1.Stat
 			if container.ReadinessProbe == nil {
 				container.ReadinessProbe = common.GetReadinessProbe(i.trench)
 			}
+			container.Env = i.getEnvVars(ret.Spec.Template.Spec.Containers[0].Env)
 		default:
 			i.exec.LogError(fmt.Errorf("container %s not expected", name), "get container error")
 		}

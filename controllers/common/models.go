@@ -13,26 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
-func GetSubnetPool(cr *meridiov1alpha1.Trench) string {
-	if cr.Spec.IPFamily == string(meridiov1alpha1.Dualstack) {
-		return fmt.Sprintf("%s,%s", SubnetPoolIpv4, SubnetPoolIpv6)
-	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv4) {
-		return SubnetPoolIpv4
-	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv6) {
-		return SubnetPoolIpv6
-	}
-	return ""
-}
-
-func GetPrefixLength(cr *meridiov1alpha1.Trench) string {
-	if cr.Spec.IPFamily == string(meridiov1alpha1.Dualstack) {
-		return fmt.Sprintf("%s,%s", PrefixLengthIpv4, PrefixLengthIpv6)
-	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv4) {
-		return PrefixLengthIpv4
-	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv6) {
-		return PrefixLengthIpv6
-	}
-	return ""
+func GetIPFamily(cr *meridiov1alpha1.Trench) string {
+	return string(cr.Spec.IPFamily)
 }
 
 const ipv4SysCtl = "sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1 ; sysctl -w net.ipv4.conf.all.rp_filter=0 ; sysctl -w net.ipv4.conf.default.rp_filter=0"

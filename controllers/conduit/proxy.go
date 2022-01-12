@@ -2,6 +2,7 @@ package conduit
 
 import (
 	"fmt"
+	"strconv"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	common "github.com/nordix/meridio-operator/controllers/common"
@@ -46,14 +47,6 @@ func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			Value: common.ConfigMapName(i.trench),
 		},
 		{
-			Name:  "NSM_SUBNET_POOLS",
-			Value: common.GetSubnetPool(i.trench),
-		},
-		{
-			Name:  "NSM_SUBNET_PREFIX_LENGTHS",
-			Value: common.GetPrefixLength(i.trench),
-		},
-		{
 			Name:  "NSM_SERVICE_NAME",
 			Value: common.ProxyNtwkSvcNsName(i.conduit),
 		},
@@ -64,6 +57,26 @@ func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 		{
 			Name:  "NSM_NETWORK_SERVICE_NAME",
 			Value: common.LoadBalancerNsName(i.conduit),
+		},
+		{
+			Name:  "NSM_TRENCH_NAME",
+			Value: i.trench.ObjectMeta.GetName(),
+		},
+		{
+			Name:  "NSM_NSP_SERVICE_NAME",
+			Value: common.NspSvcName,
+		},
+		{
+			Name:  "NSM_NSP_SERVICE_PORT",
+			Value: strconv.Itoa(common.NspTargetPort),
+		},
+		{
+			Name:  "NSM_CONDUIT_NAME",
+			Value: i.conduit.ObjectMeta.GetName(),
+		},
+		{
+			Name:  "NSM_IP_FAMILY",
+			Value: common.GetIPFamily(i.trench),
 		},
 	}
 

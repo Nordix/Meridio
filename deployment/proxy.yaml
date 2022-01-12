@@ -72,13 +72,21 @@ spec:
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
               value: # to be filled by operator
-            - name: NSM_SUBNET_POOLS
-              value: # to be filled by operator
-            - name: NSM_SUBNET_PREFIX_LENGTHS
-              value: # to be filled by operator
             - name: NSM_IPAM_SERVICE
               value: # to be filled by operator
             - name: NSM_NETWORK_SERVICE_NAME
+              value: # to be filled by operator
+            - name: NSM_TRENCH
+              value: # to be filled by operator
+            - name: NSM_NSP_SERVICE_NAME
+              value: # to be filled by operator
+            - name: NSM_NSP_SERVICE_PORT
+              value: # to be filled by operator
+            - name: NSM_TRENCH_NAME
+              value: # to be filled by operator
+            - name: NSM_CONDUIT_NAME
+              value: # to be filled by operator
+            - name: NSM_IP_FAMILY
               value: # to be filled by operator
           volumeMounts:
             - name: spire-agent-socket
