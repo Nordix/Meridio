@@ -156,7 +156,6 @@ func main() {
 		}
 	}()
 
-	health.SetServingStatus(ctx, health.NSPCliSvc, true)
 	configurationContext, configurationCancel := context.WithCancel(ctx)
 	defer configurationCancel()
 	nspConn, err := grpc.Dial(nsp.GetServiceName(config.NSPServiceName, config.Trench, config.Namespace, config.NSPServicePort),
@@ -179,6 +178,7 @@ func main() {
 	if err != nil {
 		logrus.Fatalf("WatchVip err: %v", err)
 	}
+	health.SetServingStatus(ctx, health.NSPCliSvc, true)
 	for {
 		vipResponse, err := vipWatcher.Recv()
 		if err == io.EOF {

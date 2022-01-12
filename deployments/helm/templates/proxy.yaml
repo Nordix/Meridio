@@ -74,7 +74,8 @@ spec:
               mountPath: /var/lib/networkservicemesh
               readOnly: true
           securityContext:
-            privileged: true
+            capabilities:
+              add: ["NET_ADMIN"]
       volumes:
         - name: spire-agent-socket
           hostPath:

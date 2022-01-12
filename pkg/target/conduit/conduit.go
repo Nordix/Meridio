@@ -150,12 +150,12 @@ func (c *Conduit) Disconnect(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	c.Configuration.Delete() // todo: https://github.com/Nordix/Meridio/pull/139#discussion_r788055463
 	c.status = types.Disconnected
 	c.notifyWatcher()
 	c.deleteVIPs(c.vips)
 	c.nexthops = []string{}
 	c.tableID = 1
-	c.Configuration.Delete()
 	return nil
 }
 
