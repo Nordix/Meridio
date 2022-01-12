@@ -14,7 +14,6 @@ spec:
       labels:
         app: proxy
     spec:
-      serviceAccountName: # to be filled by operator
       initContainers:
         - name: sysctl-init
           image: # to be filled by operator
@@ -81,8 +80,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: NSM_CONFIG_MAP_NAME
-              value: # to be filled by operator
             - name: NSM_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
@@ -91,15 +88,13 @@ spec:
               value: # to be filled by operator
             - name: NSM_NETWORK_SERVICE_NAME
               value: # to be filled by operator
-            - name: NSM_TRENCH
-              value: # to be filled by operator
             - name: NSM_NSP_SERVICE_NAME
               value: # to be filled by operator
             - name: NSM_NSP_SERVICE_PORT
               value: # to be filled by operator
-            - name: NSM_TRENCH_NAME
+            - name: NSM_TRENCH
               value: # to be filled by operator
-            - name: NSM_CONDUIT_NAME
+            - name: NSM_CONDUIT
               value: # to be filled by operator
             - name: NSM_IP_FAMILY
               value: # to be filled by operator
@@ -111,7 +106,8 @@ spec:
               mountPath: /var/lib/networkservicemesh
               readOnly: true
           securityContext:
-            privileged: true
+            capabilities:
+              add: ["NET_ADMIN"]
       volumes:
         - name: spire-agent-socket
           hostPath:
