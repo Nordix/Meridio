@@ -6,7 +6,9 @@ metadata:
   labels:
     app: ipam
 spec:
+  podManagementPolicy: OrderedReady
   replicas: 1
+  revisionHistoryLimit: 10
   serviceName: ipam
   selector:
     matchLabels:
@@ -64,13 +66,11 @@ spec:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
             - name: IPAM_PORT
-              value: "7777"
+              value:  # to be filled by operator
             - name: IPAM_DATASOURCE
               value: /run/ipam/data/registry.db
             - name: IPAM_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
+              value:  # to be filled by operator
             - name: IPAM_TRENCH_NAME
               value:  # to be filled by operator
             - name: IPAM_NSP_SERVICE
@@ -89,6 +89,8 @@ spec:
               value:  # to be filled by operator
             - name: IPAM_IP_FAMILY
               value:  # to be filled by operator
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
@@ -96,11 +98,20 @@ spec:
             - name: ipam-data
               mountPath: /run/ipam/data
               readOnly: false
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
       volumes:
         - name: spire-agent-socket
           hostPath:
             path: /run/spire/sockets
             type: Directory
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
   volumeClaimTemplates:
     - metadata:
         name: ipam-data
