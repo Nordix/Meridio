@@ -29,13 +29,22 @@ spec:
     - jsonPath: .spec.vips
       name: Vips
       type: string
+    - jsonPath: .spec.composites
+      name: Composites
+      type: string
+    - jsonPath: .spec.replicas
+      name: Replicas
+      type: string
     - jsonPath: .metadata.labels.trench
       name: Trench
       type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Attractor is the Schema for the attractors API
+        description: Attractor is the Schema for the attractors API. It defines how
+          traffic are attracted and lead into the K8s cluster. This includes which
+          external interface to consume. The Attractor is instantiated as a set of
+          pods running frontend functionality.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -52,6 +61,11 @@ spec:
           spec:
             description: AttractorSpec defines the desired state of Attractor
             properties:
+              composites:
+                description: Reference to the composite conduits
+                items:
+                  type: string
+                type: array
               gateways:
                 description: gateways that attractor expect to use
                 items:
@@ -61,12 +75,12 @@ spec:
                 description: defines the interface information that attractor use
                 properties:
                   ipv4-prefix:
-                    description: (immutable) ipv4 prefix of the vlan interface, which
-                      is used for frontend to set up communication with the ipv4 gateways
+                    description: (immutable) ipv4 prefix of the interface, which is
+                      used for frontend to set up communication with the ipv4 gateways
                     type: string
                   ipv6-prefix:
-                    description: (immutable) ipv6 prefix of the vlan interface, which
-                      is used for frontend to set up communication with the ipv6 gateways
+                    description: (immutable) ipv6 prefix of the interface, which is
+                      used for frontend to set up communication with the ipv6 gateways
                     type: string
                   name:
                     description: name of the interface
@@ -94,12 +108,20 @@ spec:
                 - name
                 - type
                 type: object
+              replicas:
+                default: 1
+                description: The number of front-end pods. (The load-balancer is bundled
+                  with front-end currently)
+                format: int32
+                type: integer
               vips:
-                description: vips that attractor expect to use
+                description: vips that attractor will announce to the gateways when
+                  possible
                 items:
                   type: string
                 type: array
             required:
+            - composites
             - interface
             type: object
           status:

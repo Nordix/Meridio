@@ -23,36 +23,36 @@ import (
 
 // FlowSpec defines the desired state of Flow
 type FlowSpec struct {
-	// Stream that this flow will sign up
+	// Stream that is to include traffic classified by this flow
 	// +optional
 	Stream string `json:"stream,omitempty"`
 
-	// Vips that this flow will send traffic to
-	// The vips should not have overlapping
+	// Vips that this flow will send traffic to.
+	// The vips should not have overlaps.
 	Vips []string `json:"vips"`
 
-	// Source subnets allowed in the flow
-	// The subnets should not have overlapping
+	// Source subnets allowed in the flow.
+	// The subnets should not have overlaps.
 	SourceSubnets []string `json:"source-subnets"`
 
-	// Source port ranges allowed in the flow
-	// The ports should not have overlapping
+	// Source port ranges allowed in the flow.
+	// The ports should not have overlaps.
 	// Ports can be defined by:
-	//  - a single port, such as 3000
-	//  - a port range, such as 3000-4000
-	//  - "any", which is equivalent to port range 0-65535
+	// - a single port, such as 3000;
+	// - a port range, such as 3000-4000;
+	// - "any", which is equivalent to port range 0-65535.
 	SourcePorts []string `json:"source-ports"`
 
-	// Destination port ranges allowed in the flow
-	// The ports should not have overlapping
+	// Destination port ranges allowed in the flow.
+	// The ports should not have overlaps.
 	// Ports can be defined by:
-	//  - a single port, such as 3000
-	//  - a port range, such as 3000-4000
-	//  - "any", which is equivalent to port range 0-65535
+	// - a single port, such as 3000;
+	// - a port range, such as 3000-4000;
+	// - "any", which is equivalent to port range 0-65535.
 	DestinationPorts []string `json:"destination-ports"`
 
-	// Protocols allowed in this flow
-	// The protocols should not have overlapping
+	// Protocols allowed in this flow.
+	// The protocols should not have overlaps.
 	Protocols []string `json:"protocols"`
 
 	// Priority of the flow
@@ -73,7 +73,8 @@ type FlowStatus struct {
 //+kubebuilder:printcolumn:name="stream",type=string,JSONPath=`.spec.stream`
 //+kubebuilder:printcolumn:name="Trench",type=string,JSONPath=`.metadata.labels.trench`
 
-// Flow is the Schema for the flows API
+// Flow is the Schema for the flows API. It defines how ingress
+// traffic flows are classified and collected into streams
 type Flow struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

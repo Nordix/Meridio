@@ -20,16 +20,14 @@ spec:
     - jsonPath: .spec.type
       name: Type
       type: string
-    - jsonPath: .spec.replicas
-      name: replicas
-      type: string
     - jsonPath: .metadata.labels.trench
       name: Trench
       type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Conduit is the Schema for the conduits API
+        description: Conduit is the Schema for the conduits API. It defines a logical/physical
+          traffic-path through the k8s cluster for processing traffic streams
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -46,11 +44,6 @@ spec:
           spec:
             description: ConduitSpec defines the desired state of Conduit
             properties:
-              replicas:
-                default: 1
-                description: replicas of the lb-fe deployment
-                format: int32
-                type: integer
               type:
                 default: stateless-lb
                 description: Type is the type of network service for this conduit

@@ -108,14 +108,16 @@ kubectl apply -f ./config/samples/meridio_v1alpha1_attractor.yaml
 
 $ kubectl get all
 NAME                                  READY   STATUS    RESTARTS   AGE
+pod/lb-fe-attr-1-57c865cf4c-mzwpj     3/3     Running   0          5s
 pod/nse-vlan-attr1-7844574dc-dlgkr    1/1     Running   0          5s
 
 NAME                             READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/lb-fe-attr-1     1/1     1            1           5s
 deployment.apps/nse-vlan-attr1   1/1     1            1           5s
 
 $ kubectl get attractor
-NAME    INTERFACE-NAME   INTERFACE-TYPE   GATEWAYS                  VIPS              TRENCH
-attr1   eth0.100         nsm-vlan         ["gateway1","gateway2"]   ["vip1","vip2"]   trench-a
+NAME    INTERFACE-NAME   INTERFACE-TYPE   GATEWAYS                  VIPS              COMPOSITES              REPLICAS   TRENCH
+attr1   eth0.100         nsm-vlan         ["gateway1","gateway2"]   ["vip1","vip2"]   ["conduit-stateless"]   1          trench-a
 ```
 
 ### Gateway
@@ -172,12 +174,13 @@ $ kubectl apply -f ./config/samples/meridio_v1alpha1_conduit.yaml
 $ kubectl get all
 NAME                                                       READY   STATUS    RESTARTS   AGE
 ...
-pod/lb-fe-conduit-stateless-f6774f9b8-4rbst                3/3     Running   0          6m2s
+pod/proxy-trench-a-dq7pn                                   1/1     Running   0          22m
+pod/proxy-trench-a-xzx8m                                   1/1     Running   0          22m
 ...
 
-NAME                                                  READY   UP-TO-DATE   AVAILABLE   AGE
+NAME                            DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
 ...
-deployment.apps/lb-fe-conduit-stateless               1/1     1            1           6m2s
+daemonset.apps/proxy-trench-a   2         2         2       2            2           <none>          22m
 ...
 
 $ kubectl get conduit

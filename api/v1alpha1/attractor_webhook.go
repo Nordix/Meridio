@@ -92,6 +92,15 @@ func (r *Attractor) ValidateCreate() error {
 		return fmt.Errorf("only one attractor is allowed in a trench, but also found %s", strings.Join(names, ", "))
 	}
 
+	if r.Spec.Replicas == nil {
+		r.Spec.Replicas = new(int32)
+		*r.Spec.Replicas = 1
+	}
+
+	if len(r.Spec.Composites) > 1 {
+		return fmt.Errorf("only one composite is supported in the current version")
+	}
+
 	return r.validateAttractor()
 }
 

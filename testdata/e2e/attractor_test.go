@@ -179,6 +179,30 @@ var _ = Describe("Attractor", func() {
 				assertAttractorItemInConfigMap(attractor, configmapName, false)
 				assertAttractorItemInConfigMap(attr, configmapName, true)
 			})
+
+			It("can update the replicas of the lb-fe", func() {
+				attr := &meridiov1alpha1.Attractor{}
+				By("checking current replica is 1")
+				deployment := &appsv1.Deployment{}
+				loadBalancerName := fmt.Sprintf("%s-%s", common.LBName, attractorName)
+				Expect(fw.GetResource(client.ObjectKey{Name: loadBalancerName, Namespace: namespace}, deployment)).To(Succeed())
+				Expect(*deployment.Spec.Replicas).To(Equal(int32(1)))
+
+				By("updating attractor spec.replicas to be 2")
+				Eventually(func(g Gomega) {
+					err := fw.GetResource(client.ObjectKeyFromObject(attractor), attr)
+					g.Expect(err).ToNot(HaveOccurred())
+					*attr.Spec.Replicas = 2
+					g.Expect(fw.UpdateResource(attr)).To(Succeed())
+				}, timeout, interval).Should(Succeed())
+
+				By("checking the lb-fe replicas to be 2")
+				Eventually(func() int32 {
+					Expect(fw.GetResource(client.ObjectKey{Name: loadBalancerName, Namespace: namespace}, deployment)).To(Succeed())
+					By(fmt.Sprintf("current replicas: %v", *deployment.Spec.Replicas))
+					return *deployment.Spec.Replicas
+				}, timeout, interval).Should(Equal(int32(2)))
+			})
 		})
 	})
 

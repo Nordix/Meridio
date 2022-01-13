@@ -1,16 +1,13 @@
 package e2e
 
 import (
-	"fmt"
 	"time"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
-	"github.com/nordix/meridio-operator/controllers/common"
 	"github.com/nordix/meridio-operator/testdata/utils"
 	config "github.com/nordix/meridio/pkg/configuration/reader"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -102,45 +99,6 @@ var _ = Describe("Conduit", func() {
 
 			By("checking configmap")
 			assertConduitItemInConfigMap(con, configmapName, false)
-		})
-	})
-
-	Context("when updating a conduit", func() {
-		BeforeEach(func() {
-			Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
-			Expect(fw.CreateResource(attractor.DeepCopy())).To(Succeed())
-			Expect(fw.CreateResource(conduit.DeepCopy())).To(Succeed())
-			AssertConduitReady(conduit)
-		})
-
-		AfterEach(func() {
-			fw.CleanUpTrenches()
-			fw.CleanUpAttractors()
-			fw.CleanUpConduits()
-		})
-
-		It("can update the replicas of the lb-fe", func() {
-			con := &meridiov1alpha1.Conduit{}
-			By("checking current replica is 1")
-			deployment := &appsv1.Deployment{}
-			loadBalancerName := fmt.Sprintf("%s-%s", common.LBName, conduit.ObjectMeta.Name)
-			Expect(fw.GetResource(client.ObjectKey{Name: loadBalancerName, Namespace: namespace}, deployment)).To(Succeed())
-			Expect(*deployment.Spec.Replicas).To(Equal(int32(1)))
-
-			By("updating conduit spec.replicas to be 4")
-			Eventually(func(g Gomega) {
-				err := fw.GetResource(client.ObjectKeyFromObject(conduit), con)
-				g.Expect(err).ToNot(HaveOccurred())
-				*con.Spec.Replicas = 4
-				g.Expect(fw.UpdateResource(con)).To(Succeed())
-			}, timeout, interval).Should(Succeed())
-
-			By("checking the lb-fe replicas to be 4")
-			Eventually(func() int32 {
-				Expect(fw.GetResource(client.ObjectKey{Name: loadBalancerName, Namespace: namespace}, deployment)).To(Succeed())
-				By(fmt.Sprintf("current replicas: %v", *deployment.Spec.Replicas))
-				return *deployment.Spec.Replicas
-			}, timeout, interval).Should(Equal(int32(4)))
 		})
 	})
 

@@ -60,8 +60,8 @@ func NSPServiceName(trench *meridiov1alpha1.Trench) string {
 	return getTrenchSuffixedName(NspSvcName, trench)
 }
 
-func LoadBalancerDeploymentName(conduit *meridiov1alpha1.Conduit) string {
-	return getConduitSuffixedName(LBName, conduit)
+func LoadBalancerDeploymentName(attractor *meridiov1alpha1.Attractor) string {
+	return getAttractorSuffixedName(LBName, attractor)
 }
 
 func ProxyDeploymentName(trench *meridiov1alpha1.Trench) string {
@@ -108,16 +108,12 @@ func getAttractorSuffixedName(resourceName string, cr *meridiov1alpha1.Attractor
 	return fmt.Sprintf("%s%s-%s", getResourceNamePrefix(), resourceName, cr.ObjectMeta.Name)
 }
 
-func getConduitSuffixedName(resourceName string, cr *meridiov1alpha1.Conduit) string {
-	return fmt.Sprintf("%s%s-%s", getResourceNamePrefix(), resourceName, cr.ObjectMeta.Name)
-}
-
 func ProxyNtwkSvcNsName(cr *meridiov1alpha1.Conduit) string {
 	return strings.Join([]string{ProxyName, cr.ObjectMeta.Name, cr.ObjectMeta.Labels["trench"], cr.ObjectMeta.Namespace}, ".")
 }
 
-func LoadBalancerNsName(cr *meridiov1alpha1.Conduit) string {
-	return strings.Join([]string{cr.ObjectMeta.Name, cr.ObjectMeta.Labels["trench"], cr.ObjectMeta.Namespace}, ".")
+func LoadBalancerNsName(conduit, trench, namespace string) string {
+	return strings.Join([]string{conduit, trench, namespace}, ".")
 }
 
 func VlanNtwkSvcName(cr *meridiov1alpha1.Trench) string {

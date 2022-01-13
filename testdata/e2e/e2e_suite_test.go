@@ -93,8 +93,9 @@ func attractor(namespace string) *meridiov1alpha1.Attractor {
 			},
 		},
 		Spec: meridiov1alpha1.AttractorSpec{
-			Gateways: []string{"gateway-a", "gateway-b"},
-			Vips:     []string{"vip-a", "vip-b"},
+			Gateways:   []string{"gateway-a", "gateway-b"},
+			Vips:       []string{"vip-a", "vip-b"},
+			Composites: []string{"conduit-a"},
 			Interface: meridiov1alpha1.InterfaceSpec{
 				Name:       "eth.100",
 				PrefixIPv4: "169.254.100.0/24",
@@ -117,9 +118,6 @@ func conduit(namespace string) *meridiov1alpha1.Conduit {
 			Labels: map[string]string{
 				"trench": trenchName,
 			},
-		},
-		Spec: meridiov1alpha1.ConduitSpec{
-			Replicas: pointer.Int32(1), // replica of lb-fe
 		},
 	}
 }
@@ -374,16 +372,15 @@ func AssertAttractorReady(attractor *meridiov1alpha1.Attractor) {
 	Eventually(func(g Gomega) {
 		g.Expect(assertDeploymentReady(strings.Join([]string{"nse-vlan", attractor.ObjectMeta.Name}, "-"), ns)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
-}
-
-func AssertConduitReady(conduit *meridiov1alpha1.Conduit) {
-	name := conduit.ObjectMeta.Name
-	ns := conduit.ObjectMeta.Namespace
 
 	By("checking lb-fe deployment")
 	Eventually(func(g Gomega) {
-		g.Expect(assertDeploymentReady(strings.Join([]string{"lb-fe", name}, "-"), ns)).Should(Succeed())
+		g.Expect(assertDeploymentReady(strings.Join([]string{"lb-fe", attractor.ObjectMeta.Name}, "-"), ns)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
+}
+
+func AssertConduitReady(conduit *meridiov1alpha1.Conduit) {
+	ns := conduit.ObjectMeta.Namespace
 
 	By("checking proxy deployment")
 	Eventually(func(g Gomega) {

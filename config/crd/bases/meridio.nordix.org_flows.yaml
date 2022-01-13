@@ -41,7 +41,8 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Flow is the Schema for the flows API
+        description: Flow is the Schema for the flows API. It defines how ingress
+          traffic flows are classified and collected into streams
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -59,10 +60,10 @@ spec:
             description: FlowSpec defines the desired state of Flow
             properties:
               destination-ports:
-                description: 'Destination port ranges allowed in the flow The ports
-                  should not have overlapping Ports can be defined by:  - a single
-                  port, such as 3000  - a port range, such as 3000-4000  - "any",
-                  which is equivalent to port range 0-65535'
+                description: 'Destination port ranges allowed in the flow. The ports
+                  should not have overlaps. Ports can be defined by: - a single port,
+                  such as 3000; - a port range, such as 3000-4000; - "any", which
+                  is equivalent to port range 0-65535.'
                 items:
                   type: string
                 type: array
@@ -71,31 +72,32 @@ spec:
                 format: int32
                 type: integer
               protocols:
-                description: Protocols allowed in this flow The protocols should not
-                  have overlapping
+                description: Protocols allowed in this flow. The protocols should
+                  not have overlaps.
                 items:
                   type: string
                 type: array
               source-ports:
-                description: 'Source port ranges allowed in the flow The ports should
-                  not have overlapping Ports can be defined by:  - a single port,
-                  such as 3000  - a port range, such as 3000-4000  - "any", which
-                  is equivalent to port range 0-65535'
+                description: 'Source port ranges allowed in the flow. The ports should
+                  not have overlaps. Ports can be defined by: - a single port, such
+                  as 3000; - a port range, such as 3000-4000; - "any", which is equivalent
+                  to port range 0-65535.'
                 items:
                   type: string
                 type: array
               source-subnets:
-                description: Source subnets allowed in the flow The subnets should
-                  not have overlapping
+                description: Source subnets allowed in the flow. The subnets should
+                  not have overlaps.
                 items:
                   type: string
                 type: array
               stream:
-                description: Stream that this flow will sign up
+                description: Stream that is to include traffic classified by this
+                  flow
                 type: string
               vips:
-                description: Vips that this flow will send traffic to The vips should
-                  not have overlapping
+                description: Vips that this flow will send traffic to. The vips should
+                  not have overlaps.
                 items:
                   type: string
                 type: array

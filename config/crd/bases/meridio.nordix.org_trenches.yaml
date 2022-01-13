@@ -23,7 +23,9 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Trench is the Schema for the trenches API
+        description: Trench is the Schema for the trenches API. It defines the extension
+          of an external VPN into the K8s cluster scope. All other Merido CRs are
+          related to a trench
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation

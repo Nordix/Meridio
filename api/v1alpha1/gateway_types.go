@@ -23,22 +23,23 @@ import (
 
 // GatewaySpec defines the desired state of Gateway
 type GatewaySpec struct {
-	// Address of the Edge Router
+	// Address of the Gateway Router
 	Address string `json:"address"`
 
 	// +kubebuilder:default=bgp
 
-	// The routing choice between the gateway and frontend
+	// The routing choice between the Gateway Router and Attractor FrontEnds.
 	// +optional
 	Protocol string `json:"protocol,omitempty"`
 
 	// Parameters to set up the BGP session to specified Address.
 	// If the Protocol is static, this property must be empty.
-	// If the Protocol is bgp, the minimal parameters to be defined in BgpSpec are RemoteASN and LocalASN.
+	// If the Protocol is bgp, the minimal parameters to be defined in bgp properties
+	// are RemoteASN and LocalASN
 	// +optional
 	Bgp BgpSpec `json:"bgp,omitempty"`
 
-	// Parameters to work with the static routing configured on the Edge Router with specified Address
+	// Parameters to work with the static routing configured on the Gateway Router with specified Address.
 	// If the Protocol is bgp, this property must be empty.
 	// +optional
 	Static StaticSpec `json:"static,omitempty"`
@@ -46,10 +47,10 @@ type GatewaySpec struct {
 
 // BgpSpec defines the parameters to set up a BGP session
 type BgpSpec struct {
-	// The ASN number of the Gateway
+	// The ASN number of the Gateway Router
 	RemoteASN *uint32 `json:"remote-asn,omitempty"`
 
-	// The ASN number of the system where the FrontEnd locates
+	// The ASN number of the system where the Attractor FrontEnds locates
 	LocalASN *uint32 `json:"local-asn,omitempty"`
 
 	// BFD monitoring of BGP session.
@@ -63,11 +64,11 @@ type BgpSpec struct {
 	// +optional
 	HoldTime string `json:"hold-time,omitempty"`
 
-	// BGP listening port of the gateway. Default 179
+	// BGP listening port of the Gateway Router. Default 179
 	// +optional
 	RemotePort *uint16 `json:"remote-port,omitempty"`
 
-	// BGP listening port of the frontend. Default 179
+	// BGP listening port of the Attractor FrontEnds. Default 179
 	// +optional
 	LocalPort *uint16 `json:"local-port,omitempty"`
 }
@@ -84,23 +85,23 @@ type StaticSpec struct {
 type BfdSpec struct {
 	// BFD monitoring.
 	// Valid values are:
-	// - false (default): no BFD monitoring
+	// - false (default): no BFD monitoring;
 	// - true: turns on the BFD monitoring
 	// +optional
 	Switch *bool `json:"switch,omitempty"`
 
-	// min-tx timer of bfd session. Please refere to BFD material to understand what this implies.
+	// Min-tx timer of bfd session. Please refere to BFD material to understand what this implies.
 	// The value must be a valid duration format. For example, 300ms, 90s, 1m, 1h.
 	// The duration will be rounded by millisecond
 	MinTx string `json:"min-tx,omitempty"`
 
-	// min-rx timer of bfd session. Please refere to BFD material to understand what this implies.
+	// Min-rx timer of bfd session. Please refere to BFD material to understand what this implies.
 	// The value must be a valid duration format. For example, 300ms, 90s, 1m, 1h.
 	// The duration will be rounded by millisecond
 	MinRx string `json:"min-rx,omitempty"`
 
-	// multiplier of bfd session
-	// when this number of bfd packets failed to receive, bfd session will go down
+	// Multiplier of bfd session.
+	// When this number of bfd packets failed to receive, bfd session will go down
 	Multiplier *uint16 `json:"multiplier,omitempty"`
 }
 
@@ -114,7 +115,8 @@ type GatewayStatus struct {
 //+kubebuilder:printcolumn:name="protocol",type=string,JSONPath=`.spec.protocol`
 //+kubebuilder:printcolumn:name="trench",type=string,JSONPath=`.metadata.labels.trench`
 
-// Gateway is the Schema for the gateways API
+// Gateway is the Schema for the gateways API. It defines protocol settings
+// enabling communication with Gateway Router through which traffic is to be conveyed.
 type Gateway struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

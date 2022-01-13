@@ -55,11 +55,6 @@ func (r *Conduit) Default() {
 	} else {
 		r.Spec.Type = strings.ToLower(r.Spec.Type)
 	}
-
-	if r.Spec.Replicas == nil {
-		r.Spec.Replicas = new(int32)
-		*r.Spec.Replicas = 1
-	}
 }
 
 //+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1alpha1-conduit,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=conduits,verbs=create;update,versions=v1alpha1,name=vconduit.kb.io,admissionReviewVersions=v1

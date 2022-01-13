@@ -44,7 +44,6 @@ type ConduitReconciler struct {
 //+kubebuilder:rbac:groups=meridio.nordix.org,resources=conduits/status,namespace=system,verbs=get;update;patch
 //+kubebuilder:rbac:groups=meridio.nordix.org,resources=conduits/finalizers,namespace=system,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=daemonsets,namespace=system,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=apps,resources=deployments,namespace=system,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -89,14 +88,6 @@ func (r *ConduitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 		// create/update lb-fe & nse-vlan deployment
 		executor.SetOwner(conduit)
-		lb, err := NewLoadBalancer(executor, conduit, trench)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		err = lb.getAction()
-		if err != nil {
-			return ctrl.Result{}, err
-		}
 
 		proxy, err := NewProxy(executor, trench, conduit)
 		if err != nil {
