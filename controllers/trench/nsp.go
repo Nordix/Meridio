@@ -75,10 +75,16 @@ func (i *NspStatefulSet) insertParameters(init *appsv1.StatefulSet) *appsv1.Stat
 				container.ImagePullPolicy = corev1.PullAlways
 			}
 			if container.LivenessProbe == nil {
-				container.LivenessProbe = common.GetLivenessProbe(i.trench)
+				container.LivenessProbe = common.GetProbe(common.StartUpTimer,
+					common.GetProbeCommand(false, "unix:///tmp/health.sock", ""))
 			}
 			if container.ReadinessProbe == nil {
-				container.ReadinessProbe = common.GetReadinessProbe(i.trench)
+				container.ReadinessProbe = common.GetProbe(common.ReadinessTimer,
+					common.GetProbeCommand(true, fmt.Sprintf(":%d", common.NspPort), ""))
+			}
+			if container.LivenessProbe == nil {
+				container.LivenessProbe = common.GetProbe(common.LivenessTimer,
+					common.GetProbeCommand(false, "unix:///tmp/health.sock", ""))
 			}
 			container.Env = i.getEnvVars(container.Env)
 		default:

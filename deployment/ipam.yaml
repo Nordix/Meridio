@@ -19,11 +19,26 @@ spec:
         - name: ipam
           image: # to be filled by operator
           imagePullPolicy: # Kubernetes default according to image tag
-          readinessProbe: # will be overwritten by operator if not specified
+          startupProbe:
             exec:
               command:
                 - /bin/grpc_health_probe
-                - -addr=:8000
+                - -addr=unix:///tmp/health.sock
+                - -service=
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
+              initialDelaySeconds: 0
+              periodSeconds: 2
+              timeoutSeconds: 2
+              failureThreshold: 30
+              successThreshold: 1
+          readinessProbe: # will be filled by operator if not specified
+            exec:
+              command:
+                - /bin/grpc_health_probe
+                - -spiffe
+                - -addr=:7777
+                - -service=
                 - -connect-timeout=100ms
                 - -rpc-timeout=150ms
             failureThreshold: 5
@@ -31,11 +46,12 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
             successThreshold: 1
-          livenessProbe: # will be overwritten by operator if not specified
+          livenessProbe: # will be filled by operator if not specified
             exec:
               command:
                 - /bin/grpc_health_probe
-                - -addr=:8000
+                - -addr=unix:///tmp/health.sock
+                - -service=
                 - -connect-timeout=100ms
                 - -rpc-timeout=150ms
             failureThreshold: 5

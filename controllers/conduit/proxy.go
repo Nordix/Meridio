@@ -113,11 +113,17 @@ func (i *Proxy) insertParameters(init *appsv1.DaemonSet) *appsv1.DaemonSet {
 				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, imageProxy, common.Tag)
 				container.ImagePullPolicy = corev1.PullAlways
 			}
-			if container.LivenessProbe == nil {
-				container.LivenessProbe = common.GetLivenessProbe(i.trench)
+			if container.StartupProbe == nil {
+				container.StartupProbe = common.GetProbe(common.StartUpTimer,
+					common.GetProbeCommand(false, "unix:///tmp/health.sock", ""))
 			}
 			if container.ReadinessProbe == nil {
-				container.ReadinessProbe = common.GetLivenessProbe(i.trench)
+				container.ReadinessProbe = common.GetProbe(common.ReadinessTimer,
+					common.GetProbeCommand(false, "unix:///tmp/health.sock", "Readiness"))
+			}
+			if container.LivenessProbe == nil {
+				container.LivenessProbe = common.GetProbe(common.LivenessTimer,
+					common.GetProbeCommand(false, "unix:///tmp/health.sock", ""))
 			}
 			container.Env = i.getEnvVars(container.Env)
 		default:
