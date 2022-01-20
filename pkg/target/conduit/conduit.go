@@ -170,7 +170,7 @@ func (c *Conduit) RemoveStream(ctx context.Context, stream types.Stream) error {
 	}
 	err := stream.Close(ctx)
 	if err != nil {
-		return nil
+		return err
 	}
 	c.streams = append(c.streams[:index], c.streams[index+1:]...)
 	return nil
