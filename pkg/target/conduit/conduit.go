@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -30,13 +31,16 @@ import (
 	"github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/mechanisms/vfio"
 	sriovtoken "github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/token"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/trimpath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/client"
@@ -46,6 +50,7 @@ import (
 	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/nordix/meridio/pkg/target/types"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 )
 
 type Conduit struct {
@@ -293,9 +298,11 @@ func (c *Conduit) getAdditionalFunctionalities(ctx context.Context) networkservi
 	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, c, c.NetUtils)
 	additionalFunctionalities := chain.NewNetworkServiceClient(
 		updatepath.NewClient(c.apiClient.Config.Name),
-		serialize.NewClient(),
-		refresh.NewClient(ctx),
+		begin.NewClient(),
 		metadata.NewClient(),
+		refresh.NewClient(ctx),
+		NewTestClient(),
+		heal.NewClient(ctx),
 		sriovtoken.NewClient(),
 		mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
 			vfiomech.MECHANISM:   chain.NewNetworkServiceClient(vfio.NewClient()),
@@ -304,6 +311,7 @@ func (c *Conduit) getAdditionalFunctionalities(ctx context.Context) networkservi
 		interfacename.NewClient("nsc", &interfacename.RandomGenerator{}),
 		interfaceMonitorClient,
 		authorize.NewClient(),
+		trimpath.NewClient(),
 		sendfd.NewClient(),
 	)
 	return additionalFunctionalities
@@ -346,4 +354,33 @@ func (c *Conduit) InterfaceDeleted(intf networking.Iface) {
 			}
 		}
 	}
+}
+
+//--------------------------------------------------------------------------------------------
+
+type testClient struct {
+}
+
+func NewTestClient() networkservice.NetworkServiceClient {
+	return &testClient{}
+}
+
+func (inc *testClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	logrus.Debugf("testClient: Request: %v", request)
+	c, err := next.Client(ctx).Request(ctx, request, opts...)
+	if err != nil {
+		logrus.Debugf("testClient: Request err: %v", err)
+	} else {
+		logrus.Debugf("testClient: conn: %v", c)
+	}
+	return c, err
+}
+
+func (inc *testClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	logrus.Debugf("testClient: Close: %v", conn)
+	e, err := next.Client(ctx).Close(ctx, conn, opts...)
+	if err != nil {
+		logrus.Debugf("testClient: Close err: %v", err)
+	}
+	return e, err
 }

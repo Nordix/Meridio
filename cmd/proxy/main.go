@@ -22,6 +22,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	nested "github.com/antonfisher/nested-logrus-formatter"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -32,16 +34,22 @@ import (
 	"github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/mechanisms/vfio"
 	sriovtoken "github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/token"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
+
+	/* "github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh" */
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/trimpath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	"github.com/nordix/meridio/pkg/client"
 	"github.com/nordix/meridio/pkg/configuration"
 	"github.com/nordix/meridio/pkg/endpoint"
@@ -53,11 +61,14 @@ import (
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
 	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/nordix/meridio/pkg/nsm/ipcontext"
+
+	"github.com/nordix/meridio/pkg/nsm/refresh"
 	"github.com/nordix/meridio/pkg/proxy"
 	proxyHealth "github.com/nordix/meridio/pkg/proxy/health"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -71,7 +82,7 @@ func main() {
 	defer cancel()
 
 	logrus.SetOutput(os.Stdout)
-	logrus.SetLevel(logrus.DebugLevel)
+	logrus.SetLevel(logrus.TraceLevel)
 
 	var config Config
 	err := envconfig.Process("nsm", &config)
@@ -114,6 +125,12 @@ func main() {
 		ConnectTo:      config.ConnectTo,
 	}
 	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, p, netUtils)
+	log.EnableTracing(true)
+	logrus.SetFormatter(&nested.Formatter{})
+	ctx = log.WithLog(ctx, logruslogger.New(ctx))
+	log.FromContext(ctx).Tracef("proba: TRACE")
+	log.FromContext(ctx).Debugf("proba: DEBUG")
+	log.FromContext(ctx).Infof("proba: INFO")
 	client := getNSC(ctx, clientConfig, nsmAPIClient, p, interfaceMonitorClient)
 	defer client.Close()
 	go startNSC(client, config.NetworkServiceName)
@@ -177,9 +194,11 @@ func getNSC(ctx context.Context,
 
 	networkServiceClient := chain.NewNetworkServiceClient(
 		updatepath.NewClient(config.Name),
-		serialize.NewClient(),
-		refresh.NewClient(ctx),
+		begin.NewClient(),
 		metadata.NewClient(),
+		refresh.NewClient(ctx),
+		NewTestClient(),
+		heal.NewClient(ctx),
 		sriovtoken.NewClient(),
 		mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
 			vfiomech.MECHANISM:   chain.NewNetworkServiceClient(vfio.NewClient()),
@@ -190,6 +209,7 @@ func getNSC(ctx context.Context,
 		interfaceMonitorClient,
 		proxyHealth.NewClient(),
 		authorize.NewClient(),
+		trimpath.NewClient(),
 		sendfd.NewClient(),
 	)
 	fullMeshClient := client.NewFullMeshNetworkServiceClient(ctx, config, nsmAPIClient, networkServiceClient)
@@ -228,7 +248,7 @@ func startNSE(ctx context.Context,
 			kernelmech.MECHANISM: kernel.NewServer(),
 			noop.MECHANISM:       null.NewServer(),
 		}),
-		interfacename.NewServer("nse", &interfacename.RandomGenerator{}),
+		/* interfacename.NewServer("nse", &interfacename.RandomGenerator{}), */
 		ipcontext.NewServer(p),
 		interfaceMonitorServer,
 		sendfd.NewServer(),
@@ -244,4 +264,33 @@ func startNSE(ctx context.Context,
 		logrus.Errorf("unable to start nse %+v", err)
 	}
 	return ep
+}
+
+//--------------------------------------------------------------------------------------------
+
+type testClient struct {
+}
+
+func NewTestClient() networkservice.NetworkServiceClient {
+	return &testClient{}
+}
+
+func (inc *testClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+	logrus.Debugf("testClient: Request: %v", request)
+	c, err := next.Client(ctx).Request(ctx, request, opts...)
+	if err != nil {
+		logrus.Debugf("testClient: Request err: %v", err)
+	} else {
+		logrus.Debugf("testClient: conn: %v", c)
+	}
+	return c, err
+}
+
+func (inc *testClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	logrus.Debugf("testClient: Close: %v", conn)
+	e, err := next.Client(ctx).Close(ctx, conn, opts...)
+	if err != nil {
+		logrus.Debugf("testClient: Close err: %v", err)
+	}
+	return e, err
 }

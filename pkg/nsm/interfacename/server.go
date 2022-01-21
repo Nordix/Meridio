@@ -22,6 +22,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 type interfaceNameServer struct {
@@ -41,8 +42,12 @@ func NewServer(prefix string, generator NameGenerator) networkservice.NetworkSer
 // It implements NetworkServiceServer for the interfacename package
 func (ine *interfaceNameServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	// TODO: check if interface name already exists
-	ine.SetInterfaceName(request)
-	return next.Server(ctx).Request(ctx, request)
+	//logrus.Infof("interfaceNameServer: Request: req: %v", request)
+	ine.SetInterfaceName(request, metadata.IsClient(ine))
+	c, err := next.Server(ctx).Request(ctx, request)
+
+	//logrus.Infof("interfaceNameServer: Request: conn: %v", c)
+	return c, err
 }
 
 // Close it does nothing except calling the next Close in the chain

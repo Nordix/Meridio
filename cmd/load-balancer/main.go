@@ -26,6 +26,7 @@ import (
 	"sync"
 	"syscall"
 
+	nested "github.com/antonfisher/nested-logrus-formatter"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -35,6 +36,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"
@@ -45,7 +48,6 @@ import (
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
-	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -68,7 +70,7 @@ func main() {
 	defer cancel()
 
 	logrus.SetOutput(os.Stdout)
-	logrus.SetLevel(logrus.DebugLevel)
+	logrus.SetLevel(logrus.TraceLevel)
 
 	var config Config
 	err := envconfig.Process("nsm", &config)
@@ -76,6 +78,14 @@ func main() {
 		logrus.Fatalf("%v", err)
 	}
 	logrus.Infof("rootConf: %+v", config)
+
+	// (NSM 1.1) temp workaround: set nse interface name prefix based on the NS name
+	// until interference between interfacename chain component and kernel.NewServer is resolved
+	types.TempInterfaceNamePrefix = config.ServiceName
+	nsMaxLength := kernelmech.LinuxIfMaxLength - 5
+	if len(types.TempInterfaceNamePrefix) > nsMaxLength {
+		types.TempInterfaceNamePrefix = types.TempInterfaceNamePrefix[:nsMaxLength]
+	}
 
 	netUtils := &linuxKernel.KernelUtils{}
 
@@ -118,7 +128,7 @@ func main() {
 			kernelmech.MECHANISM: kernel.NewServer(),
 			noop.MECHANISM:       null.NewServer(),
 		}),
-		interfacename.NewServer(types.InterfaceNamePrefix, &interfacename.RandomGenerator{}),
+		//interfacename.NewServer(types.InterfaceNamePrefix, &interfacename.RandomGenerator{}),
 		interfaceMonitorEndpoint,
 		sendfd.NewServer(),
 	}
@@ -138,6 +148,12 @@ func main() {
 		Labels:           make(map[string]string),
 		MaxTokenLifetime: config.MaxTokenLifetime,
 	}
+	log.EnableTracing(true)
+	logrus.SetFormatter(&nested.Formatter{})
+	ctx = log.WithLog(ctx, logruslogger.New(ctx))
+	log.FromContext(ctx).Tracef("proba: TRACE")
+	log.FromContext(ctx).Debugf("proba: DEBUG")
+	log.FromContext(ctx).Infof("proba: INFO")
 	ep, err := endpoint.NewEndpoint(ctx, endpointConfig, nsmAPIClient.NetworkServiceRegistryClient, nsmAPIClient.NetworkServiceEndpointRegistryClient)
 	if err != nil {
 		logrus.Fatalf("unable to create a new nse %+v", err)

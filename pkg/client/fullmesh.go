@@ -51,10 +51,12 @@ func (fmnsc *FullMeshNetworkServiceClient) Request(request *networkservice.Netwo
 	}
 	fmnsc.baseRequest = request
 	query := fmnsc.prepareQuery()
+	logrus.Debugf("Full Mesh: Request: %v", query)
 	var err error
 	// TODO: Context
 	fmnsc.networkServiceDiscoveryStream, err = fmnsc.networkServiceEndpointRegistryClient.Find(fmnsc.ctx, query)
 	if err != nil {
+		logrus.Debugf("Full Mesh: Find err: %v", err)
 		return err
 	}
 	return fmnsc.recv()
@@ -70,17 +72,19 @@ func (fmnsc *FullMeshNetworkServiceClient) Close() error {
 
 func (fmnsc *FullMeshNetworkServiceClient) recv() error {
 	for {
-		networkServiceEndpoint, err := fmnsc.networkServiceDiscoveryStream.Recv()
+		resp, err := fmnsc.networkServiceDiscoveryStream.Recv()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
+			logrus.Debugf("Full Mesh: Recv err: %v", err)
 			return err
 		}
-
-		if !expirationTimeIsNull(networkServiceEndpoint.ExpirationTime) {
+		networkServiceEndpoint := resp.NetworkServiceEndpoint
+		if !expirationTimeIsNull(networkServiceEndpoint.ExpirationTime) && !resp.Deleted {
 			fmnsc.addNetworkServiceClient(networkServiceEndpoint.Name)
 		} else {
+			logrus.Debugf("Full Mesh: endpoint deleted or expired: %v", resp)
 			fmnsc.deleteNetworkServiceClient(networkServiceEndpoint.Name)
 		}
 	}

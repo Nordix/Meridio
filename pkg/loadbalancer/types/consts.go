@@ -20,3 +20,5 @@ const (
 	IdentifierKey       = "identifier"
 	InterfaceNamePrefix = "nse"
 )
+
+var TempInterfaceNamePrefix string = "load-balancer"

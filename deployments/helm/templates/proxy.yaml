@@ -13,6 +13,7 @@ spec:
     metadata:
       labels:
         app: proxy-{{ .Values.trench.name }}
+        "spiffe.io/spiffe-id": "true"
     spec:
       serviceAccountName: {{ template "meridio.serviceAccount" . }}
       initContainers:
@@ -63,6 +64,8 @@ spec:
               value: {{ template "meridio.ipam.serviceName" . }}:{{ .Values.ipam.targetPort }}
             - name: NSM_NETWORK_SERVICE_NAME
               value: {{ template "meridio.loadBalancer.networkServiceName" . }}
+            - name: NSM_MAX_TOKEN_LIFETIME
+              value: {{ .Values.maxTokenLifetime }}
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

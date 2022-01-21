@@ -5,6 +5,8 @@ organization: cloud-native/meridio
 tag: latest
 pullPolicy: IfNotPresent
 
+maxTokenLifetime: 10m
+
 trench:
   name: trench-a
 

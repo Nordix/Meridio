@@ -61,6 +61,40 @@ func (snsc *SimpleNetworkServiceClient) Request(request *networkservice.NetworkS
 			duration := time.Duration(float64(time.Until(expireTime)) * scale)
 			logrus.Debugf("Network Service Client: connection duration: %v", duration)
 		}
+
+		{
+			var minTimeout *time.Duration
+			var expireTime time.Time
+			for _, segment := range connection.GetPath().GetPathSegments() {
+				ts := segment.GetExpires()
+				if err := ts.CheckValid(); err != nil {
+					break
+				}
+				expTime := ts.AsTime()
+				timeout := time.Until(expTime)
+
+				if minTimeout == nil || timeout < *minTimeout {
+					if minTimeout == nil {
+						minTimeout = new(time.Duration)
+					}
+
+					*minTimeout = timeout
+					expireTime = expTime
+				}
+			}
+			if minTimeout != nil {
+				logrus.Debugf("expiration after %s at %s", minTimeout.String(), expireTime.UTC())
+			}
+			if minTimeout != nil && *minTimeout > 0 {
+				scale := 1. / 3.
+				path := connection.GetPath()
+				if len(path.PathSegments) > 1 {
+					scale = 0.2 + 0.2*float64(path.Index)/float64(len(path.PathSegments))
+				}
+				duration := time.Duration(float64(*minTimeout) * scale)
+				logrus.Debugf("Network Service Client: connection duration(x): %v", duration)
+			}
+		}
 		break
 	}
 	return nil

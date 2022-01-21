@@ -15,6 +15,7 @@ spec:
     metadata:
       labels:
         app: ipam-{{ .Values.trench.name }}
+        "spiffe.io/spiffe-id": "true"
     spec:
       containers:
         - name: ipam
