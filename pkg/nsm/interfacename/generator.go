@@ -32,6 +32,7 @@ type RandomGenerator struct {
 	usedNames map[string]struct{}
 }
 
+// TODO: make sure the generated name is within range (probably the prefix length should be limited as well)
 func (rg *RandomGenerator) Generate(prefix string, maxLength int) string {
 	rg.mu.Lock()
 	defer rg.mu.Unlock()

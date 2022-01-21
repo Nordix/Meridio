@@ -22,4 +22,5 @@ type Config struct {
 	Port          string `default:"7778" desc:"Trench the pod is running on" split_words:"true"`
 	ConfigMapName string `default:"meridio-configuration" desc:"Name of the ConfigMap containing the configuration" split_words:"true"`
 	Datasource    string `default:"/run/nsp/data/registry.db" desc:"Path and file name of the sqlite database" split_words:"true"`
+	LogLevel      string `default:"DEBUG" desc:"Log level" split_words:"true"`
 }

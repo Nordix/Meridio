@@ -44,6 +44,10 @@ Set IP Family
 {{- printf "%s.%s.%s" .Values.vlan.networkServiceName .Values.trench.name .Release.Namespace -}}
 {{- end -}}
 
+{{- define "meridio.vlan.extInterfaceName" -}}
+{{- printf "ext-vlan.%d" ( .Values.vlan.id | int ) -}}
+{{- end -}}
+
 {{- define "meridio.vrrps" -}}
 {{- join "," .Values.vlan.fe.vrrp }}
 {{- end -}}

@@ -1,0 +1,18 @@
+#! /bin/sh
+
+export PATH="/bin:/sbin:/usr/bin:/usr/sbin"
+. /etc/profile
+
+die() {
+	echo "$@"
+	exit 1
+}
+
+hostname | grep -Eq 'vm-[0-9]+$' || die "Invalid hostname [$(hostname)]"
+i=$(hostname | cut -d- -f2 | sed -re 's,^0+,,')
+test $i -ge 200 -a $i -le 220 || exit 0
+
+INTERFACES=`ip link|grep -E 'eth[0-9]\:'|cut -d ' ' -f 2|cut -d ':' -f 1`
+for i in $(echo $INTERFACES); do
+	ethtool -K $i tx off
+done

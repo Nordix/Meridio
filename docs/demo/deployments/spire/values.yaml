@@ -1,9 +1,0 @@
----
-# Default values for nsm.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
-
-registry: registry.nordix.org
-org: cloud-native/nsm
-tag: latest
-pullPolicy: IfNotPresent

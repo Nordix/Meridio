@@ -1,0 +1,21 @@
+#! /bin/sh
+
+export PATH="/bin:/sbin:/usr/bin:/usr/sbin"
+. /etc/profile
+
+die() {
+	echo "$@"
+	exit 1
+}
+
+hostname | grep -Eq 'vm-[0-9]+$' || die "Invalid hostname [$(hostname)]"
+i=$(hostname | cut -d- -f2 | sed -re 's,^0+,,')
+test $i -le 200 || exit 0
+
+# Set promisc mode on worker interfaces so that VLAN interfaces created
+# via NSM vpp-forwarder could resolve the L2 addresses of IPs.
+
+INTERFACES=`ip link|grep -E 'eth[0-9]\:'|cut -d ' ' -f 2|cut -d ':' -f 1`
+for i in $(echo $INTERFACES); do
+	ip link set dev $i promisc on
+done

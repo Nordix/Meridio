@@ -9,11 +9,12 @@ spec:
   selector:
     matchLabels:
       app: load-balancer-{{ .Values.trench.name }}
-  replicas: 2
+  replicas: 1
   template:
     metadata:
       labels:
         app: load-balancer-{{ .Values.trench.name }}
+        "spiffe.io/spiffe-id": "true"
     spec:
       affinity:
         podAntiAffinity:
@@ -63,6 +64,10 @@ spec:
               value: {{ .Values.trench.name }}
             - name: NSM_NSP_SERVICE
               value: {{ template "meridio.nsp.serviceName" . }}:{{ .Values.nsp.targetPort }}
+            - name: NSM_MAX_TOKEN_LIFETIME
+              value: {{ .Values.maxTokenLifetime }}
+            - name: NSM_LOG_LEVEL
+              value: "DEBUG"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
@@ -74,7 +79,7 @@ spec:
             capabilities:
               add: ["NET_ADMIN"]
         - name: nsc
-          image: registry.nordix.org/cloud-native/nsm/cmd-nsc:latest-dns-fix
+          image: {{ .Values.registry }}/cloud-native/nsm/{{ .Values.vlanNSC.image }}:{{ .Values.vlanNSC.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
@@ -84,11 +89,15 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: NSM_NETWORK_SERVICES
-              value: vlan://{{ template "meridio.vlan.networkServiceName" . }}/ext-vlan?forwarder=forwarder-vlan
+              value: kernel://{{ template "meridio.vlan.networkServiceName" . }}/{{ template "meridio.vlan.extInterfaceName" . }}
             - name: NSM_DIAL_TIMEOUT
               value: "30s"
             - name: NSM_REQUEST_TIMEOUT
               value: "300s"
+            - name: NSM_MAX_TOKEN_LIFETIME
+              value: {{ .Values.maxTokenLifetime }}
+            - name: NSM_LOG_LEVEL
+              value: "TRACE"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
@@ -116,6 +125,8 @@ spec:
               value: "true"
             - name: NFE_ECMP
               value: "true"
+            - name: NFE_EXTERNAL_INTERFACE
+              value: {{ template "meridio.vlan.extInterfaceName" . }}
             - name: NFE_NSP_SERVICE
               value: {{ template "meridio.nsp.serviceName" . }}:{{ .Values.nsp.targetPort }}
             - name: NFE_CONFIG_MAP_NAME

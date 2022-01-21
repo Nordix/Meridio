@@ -21,7 +21,11 @@ import (
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 	"github.com/nordix/meridio/pkg/nsm"
 )
 
@@ -32,12 +36,28 @@ func expirationTimeIsNull(expirationTime *timestamp.Timestamp) bool {
 	return expirationTime == nil || expirationTime.AsTime().Equal(nullTImeStamp.AsTime())
 }
 
+// newClient -
+// Creates networkservice.NetworkServiceClient relying on NSM's client.NewClient API
+//
+// Note:
+// Refresh Client comes from the NSM sdk version used. (In case of NSM v1.1.1 the built-in
+// refresh might lead to connection issues if the different path segments have different
+// maxTokenLifetime configured (unless the NSC side has the lowest maxtokenlifetime)).
 func newClient(ctx context.Context, name string, nsmAPIClient *nsm.APIClient, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	return chain.NewNetworkServiceClient(
-		append(
-			additionalFunctionality,
-			networkservice.NewNetworkServiceClient(nsmAPIClient.GRPCClient),
-		)...,
+	additionalFunctionality = append(additionalFunctionality,
+		sendfd.NewClient(),
+		dnscontext.NewClient(dnscontext.WithChainContext(ctx)),
+		// excludedprefixes.NewClient(),
+	)
+
+	return client.NewClient(ctx,
+		client.WithClientURL(&nsmAPIClient.Config.ConnectTo),
+		client.WithName(name),
+		client.WithAuthorizeClient(authorize.NewClient()),
+		client.WithHealClient(heal.NewClient(ctx)),
+		client.WithAdditionalFunctionality(additionalFunctionality...),
+		client.WithDialTimeout(nsmAPIClient.Config.DialTimeout),
+		client.WithDialOptions(nsmAPIClient.GRPCDialOption...),
 	)
 }
 

@@ -24,6 +24,7 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 type interfaceNameClient struct {
@@ -43,7 +44,7 @@ func NewClient(prefix string, generator NameGenerator) networkservice.NetworkSer
 // It implements NetworkServiceClient for the interfacename package
 func (inc *interfaceNameClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	// TODO: check if interface name already exists
-	inc.SetInterfaceName(request)
+	inc.SetInterfaceName(request, metadata.IsClient(inc))
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 

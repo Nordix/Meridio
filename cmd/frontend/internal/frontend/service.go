@@ -978,7 +978,7 @@ func (fes *FrontEndService) setVIPRules(vipsAdded, vipsRemoved []string) error {
 			logrus.Errorf("setVIPRules: Failed to open handler: %v", err)
 			return err
 		}
-		defer handler.Delete()
+		defer handler.Close()
 
 		for _, vip := range vipsRemoved {
 			rule := netlink.NewRule()
