@@ -21,7 +21,11 @@ import (
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 	"github.com/nordix/meridio/pkg/nsm"
 )
 
@@ -32,12 +36,53 @@ func expirationTimeIsNull(expirationTime *timestamp.Timestamp) bool {
 	return expirationTime == nil || expirationTime.AsTime().Equal(nullTImeStamp.AsTime())
 }
 
+// newClient -
+// Creates networkservice.NetworkServiceClient relying on NSM's client.NewClient API
+//
+// Note:
+// Refresh Client comes from the NSM sdk version used. In case of NSM 1.1.1 the built-in
+// refresh might lead to connection issues if the different path segments have different
+// maxTokenLifetime configured (unless the NSC side has the lowest maxtokenlifetime).
+// To load a custom refresh client the client.NewClient chain must be replaced by the
+// chain in the comment with the desired refresh (a more up to date backport of the NSM
+// refresh client is avaialbe in Meridio/pkg/nsm/refresh).
 func newClient(ctx context.Context, name string, nsmAPIClient *nsm.APIClient, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	return chain.NewNetworkServiceClient(
+	additionalFunctionality = append(additionalFunctionality,
+		sendfd.NewClient(),
+		dnscontext.NewClient(dnscontext.WithChainContext(ctx)))
+
+	/* return chain.NewNetworkServiceClient(
 		append(
-			additionalFunctionality,
-			networkservice.NewNetworkServiceClient(nsmAPIClient.GRPCClient),
+			[]networkservice.NetworkServiceClient{
+				updatepath.NewClient(name),
+				begin.NewClient(),
+				metadata.NewClient(),
+				refresh.NewClient(ctx),
+				clienturl.NewClient(&nsmAPIClient.Config.ConnectTo),
+				//clientconn.NewClient(nsmAPIClient.GRPCClient),
+				heal.NewClient(ctx),
+				dial.NewClient(ctx,
+					dial.WithDialOptions(nsmAPIClient.GRPCDialOption...),
+					dial.WithDialTimeout(nsmAPIClient.Config.DialTimeout),
+				),
+			},
+			append(
+				additionalFunctionality,
+				authorize.NewClient(),
+				trimpath.NewClient(),
+				connect.NewClient(),
+			)...,
 		)...,
+	) */
+
+	return client.NewClient(ctx,
+		client.WithClientURL(&nsmAPIClient.Config.ConnectTo),
+		client.WithName(name),
+		client.WithAuthorizeClient(authorize.NewClient()),
+		client.WithHealClient(heal.NewClient(ctx)),
+		client.WithAdditionalFunctionality(additionalFunctionality...),
+		client.WithDialTimeout(nsmAPIClient.Config.DialTimeout),
+		client.WithDialOptions(nsmAPIClient.GRPCDialOption...),
 	)
 }
 

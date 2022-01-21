@@ -33,17 +33,14 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/mechanisms/vfio"
 	sriovtoken "github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/token"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/client"
@@ -54,10 +51,10 @@ import (
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/endpoint"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
-	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/nordix/meridio/pkg/nsm/ipcontext"
 	"github.com/nordix/meridio/pkg/nsm/service"
 	"github.com/nordix/meridio/pkg/nsp"
+
 	"github.com/nordix/meridio/pkg/proxy"
 	proxyHealth "github.com/nordix/meridio/pkg/proxy/health"
 	"github.com/nordix/meridio/pkg/security/credentials"
@@ -84,6 +81,19 @@ func main() {
 		logrus.Fatalf("%v", err)
 	}
 	logrus.Infof("rootConf: %+v", config)
+
+	logrus.SetLevel(func() logrus.Level {
+
+		l, err := logrus.ParseLevel(config.LogLevel)
+		if err != nil {
+			logrus.Fatalf("invalid log level %s", config.LogLevel)
+		}
+		if l == logrus.TraceLevel {
+			log.EnableTracing(true) // enable tracing in NSM
+		}
+		return l
+	}())
+	ctx = log.WithLog(ctx, logruslogger.New(ctx)) // allow NSM logs
 
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
@@ -199,24 +209,20 @@ func getNSC(ctx context.Context,
 	p *proxy.Proxy,
 	interfaceMonitorClient networkservice.NetworkServiceClient) client.NetworkServiceClient {
 
-	networkServiceClient := chain.NewNetworkServiceClient(
-		updatepath.NewClient(config.Name),
-		serialize.NewClient(),
-		refresh.NewClient(ctx),
-		metadata.NewClient(),
+	log.FromContext(ctx).Infof("Get New NSC")
+	// Note: naming the interface is left to NSM (refer to getNameFromConnection())
+	// However NSM does not seem to ensure uniqueness either. Might need to revisit...
+	additionalFunctionality := chain.NewNetworkServiceClient(
 		sriovtoken.NewClient(),
 		mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
 			vfiomech.MECHANISM:   chain.NewNetworkServiceClient(vfio.NewClient()),
 			kernelmech.MECHANISM: chain.NewNetworkServiceClient(kernel.NewClient()),
 		}),
-		interfacename.NewClient("nsc", &interfacename.RandomGenerator{}),
 		ipcontext.NewClient(p),
 		interfaceMonitorClient,
 		proxyHealth.NewClient(),
-		authorize.NewClient(),
-		sendfd.NewClient(),
 	)
-	fullMeshClient := client.NewFullMeshNetworkServiceClient(ctx, config, nsmAPIClient, networkServiceClient)
+	fullMeshClient := client.NewFullMeshNetworkServiceClient(ctx, config, nsmAPIClient, additionalFunctionality)
 	return fullMeshClient
 }
 
@@ -247,12 +253,13 @@ func startNSE(ctx context.Context,
 
 	logrus.Infof("startNSE")
 	additionalFunctionality := []networkservice.NetworkServiceServer{
+		// Note: naming the interface is left to NSM (refer to getNameFromConnection())
+		// However NSM does not seem to ensure uniqueness either. Might need to revisit...
 		recvfd.NewServer(),
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 			kernelmech.MECHANISM: kernel.NewServer(),
 			noop.MECHANISM:       null.NewServer(),
 		}),
-		interfacename.NewServer("nse", &interfacename.RandomGenerator{}),
 		ipcontext.NewServer(p),
 		interfaceMonitorServer,
 		sendfd.NewServer(),

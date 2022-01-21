@@ -35,6 +35,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"
@@ -45,7 +47,6 @@ import (
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
-	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -77,6 +78,19 @@ func main() {
 	}
 	logrus.Infof("rootConf: %+v", config)
 
+	logrus.SetLevel(func() logrus.Level {
+
+		l, err := logrus.ParseLevel(config.LogLevel)
+		if err != nil {
+			logrus.Fatalf("invalid log level %s", config.LogLevel)
+		}
+		if l == logrus.TraceLevel {
+			log.EnableTracing(true) // enable tracing in NSM
+		}
+		return l
+	}())
+	ctx = log.WithLog(ctx, logruslogger.New(ctx)) // allow NSM logs
+
 	netUtils := &linuxKernel.KernelUtils{}
 
 	// create and start health server
@@ -96,6 +110,7 @@ func main() {
 		logrus.Errorf("grpc.Dial err: %v", err)
 	}
 	health.SetServingStatus(ctx, health.NSPCliSvc, true)
+	stream.SetInterfaceNamePrefix(config.ServiceName) // deduce the NSM interfacename prefix for the netfilter defrag rules
 	targetRegistryClient := nspAPI.NewTargetRegistryClient(conn)
 	configurationManagerClient := nspAPI.NewConfigurationManagerClient(conn)
 	conduit := &nspAPI.Conduit{
@@ -112,13 +127,14 @@ func main() {
 	}
 	interfaceMonitorEndpoint := interfacemonitor.NewServer(interfaceMonitor, sns, netUtils)
 
+	// Note: naming the interface is left to NSM (refer to getNameFromConnection())
+	// However NSM does not seem to ensure uniqueness either. Might need to revisit...
 	responderEndpoint := []networkservice.NetworkServiceServer{
 		recvfd.NewServer(),
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 			kernelmech.MECHANISM: kernel.NewServer(),
 			noop.MECHANISM:       null.NewServer(),
 		}),
-		interfacename.NewServer(types.InterfaceNamePrefix, &interfacename.RandomGenerator{}),
 		interfaceMonitorEndpoint,
 		sendfd.NewServer(),
 	}

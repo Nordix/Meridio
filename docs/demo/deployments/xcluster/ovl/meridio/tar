@@ -2,6 +2,9 @@
 
 dir=$(dirname $0); dir=$(readlink -f $dir)
 tmp=/tmp/xcluster_$$
+if test -n $XCLUSTER_TMP; then
+	tmp=$XCLUSTER_TMP/xcluster_$$
+fi
 die() {
     echo "ERROR: $*" >&2
     rm -rf $tmp

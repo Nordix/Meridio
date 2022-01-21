@@ -1,0 +1,23 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: device-selector
+data:
+  selector: "---\ninterfaces:\n
+    \  - name: eth0\n
+    \    matches:\n
+    \       - labelSelector:\n
+    \          - via: eth0\n
+    \  - name: eth1\n
+    \    matches:\n
+    \       - labelSelector:\n
+    \          - via: eth1\n
+    \  - name: eth2\n
+    \    matches:\n
+    \       - labelSelector:\n
+    \          - via: eth2\n
+    \  - name: eth3\n
+    \    matches:\n
+    \       - labelSelector:\n
+    \          - via: eth3\n     \n"

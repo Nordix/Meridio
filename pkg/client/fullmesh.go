@@ -23,6 +23,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	registryrefresh "github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
@@ -50,10 +51,12 @@ func (fmnsc *FullMeshNetworkServiceClient) Request(request *networkservice.Netwo
 	}
 	fmnsc.baseRequest = request
 	query := fmnsc.prepareQuery()
+	logrus.Debugf("Full Mesh: Request: %v", query)
 	var err error
 	// TODO: Context
 	fmnsc.networkServiceDiscoveryStream, err = fmnsc.networkServiceEndpointRegistryClient.Find(fmnsc.ctx, query)
 	if err != nil {
+		logrus.Debugf("Full Mesh: Find err: %v", err)
 		return err
 	}
 	return fmnsc.recv()
@@ -69,17 +72,19 @@ func (fmnsc *FullMeshNetworkServiceClient) Close() error {
 
 func (fmnsc *FullMeshNetworkServiceClient) recv() error {
 	for {
-		networkServiceEndpoint, err := fmnsc.networkServiceDiscoveryStream.Recv()
+		resp, err := fmnsc.networkServiceDiscoveryStream.Recv()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
+			logrus.Debugf("Full Mesh: Recv err: %v", err)
 			return err
 		}
-
-		if !expirationTimeIsNull(networkServiceEndpoint.ExpirationTime) {
+		networkServiceEndpoint := resp.NetworkServiceEndpoint
+		if !expirationTimeIsNull(networkServiceEndpoint.ExpirationTime) && !resp.Deleted {
 			fmnsc.addNetworkServiceClient(networkServiceEndpoint.Name)
 		} else {
+			logrus.Infof("Full Mesh: endpoint deleted or expired: %v", resp)
 			fmnsc.deleteNetworkServiceClient(networkServiceEndpoint.Name)
 		}
 	}
@@ -100,7 +105,9 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 	request := copyRequest(fmnsc.baseRequest)
 	request.Connection.NetworkServiceEndpointName = networkServiceEndpointName
 	request.Connection.Id = fmt.Sprintf("%s-%s-%s", fmnsc.config.Name, request.Connection.NetworkService, request.Connection.NetworkServiceEndpointName)
-	// logrus.Infof("Full Mesh Client (%v - %v): event add: %v", request.Connection.Id, request.Connection.NetworkService, networkServiceEndpointName)
+	// UUID part at the start of the conn id will be used by NSM to generate the interface name (we want it to be unique)
+	request.Connection.Id = fmt.Sprintf("%s-%s-%s-%s", uuid.New().String(), fmnsc.config.Name, request.Connection.NetworkService, request.Connection.NetworkServiceEndpointName)
+	logrus.Infof("Full Mesh Client (%v - %v): event add: %v", request.Connection.Id, request.Connection.NetworkService, networkServiceEndpointName)
 	// TODO: Request tries forever, but what if the NSE is removed in the meantime?
 	// The recv will be blocked on the Request as well... Should be refactored. (Are client components thread safe to opt for async requests?)
 
@@ -156,6 +163,7 @@ func (fmnsc *FullMeshNetworkServiceClient) prepareQuery() *registry.NetworkServi
 }
 
 // NewFullMeshNetworkServiceClient -
+// Creates FullMeshNetworkServiceClient relying on NSM's client.NewClient API
 func NewFullMeshNetworkServiceClient(ctx context.Context, config *Config, nsmAPIClient *nsm.APIClient, additionalFunctionality ...networkservice.NetworkServiceClient) NetworkServiceClient {
 	fullMeshNetworkServiceClient := &FullMeshNetworkServiceClient{
 		config:                config,

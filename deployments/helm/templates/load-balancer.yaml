@@ -14,6 +14,7 @@ spec:
     metadata:
       labels:
         app: load-balancer-{{ .Values.trench.name }}
+        "spiffe.io/spiffe-id": "true"
     spec:
       affinity:
         podAntiAffinity:
@@ -63,6 +64,8 @@ spec:
               value: {{ .Values.trench.name }}
             - name: NSM_NSP_SERVICE
               value: {{ template "meridio.nsp.serviceName" . }}:{{ .Values.nsp.targetPort }}
+            - name: NSM_MAX_TOKEN_LIFETIME
+              value: {{ .Values.maxTokenLifetime }}
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
@@ -74,7 +77,7 @@ spec:
             capabilities:
               add: ["NET_ADMIN"]
         - name: nsc
-          image: registry.nordix.org/cloud-native/nsm/cmd-nsc:latest-dns-fix
+          image: registry.nordix.org/cloud-native/nsm/cmd-nsc:vlansup
           imagePullPolicy: {{ .Values.pullPolicy }}
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
@@ -84,11 +87,13 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: NSM_NETWORK_SERVICES
-              value: vlan://{{ template "meridio.vlan.networkServiceName" . }}/ext-vlan?forwarder=forwarder-vlan
+              value: kernel://{{ template "meridio.vlan.networkServiceName" . }}/ext-vlan
             - name: NSM_DIAL_TIMEOUT
               value: "30s"
             - name: NSM_REQUEST_TIMEOUT
               value: "300s"
+            - name: NSM_MAX_TOKEN_LIFETIME
+              value: {{ .Values.maxTokenLifetime }}
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

@@ -27,6 +27,7 @@ import (
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	lbTypes "github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/target/types"
+	"github.com/sirupsen/logrus"
 )
 
 // Stream implements types.Stream
@@ -80,6 +81,7 @@ func (s *Stream) Open(ctx context.Context) error {
 	}
 	s.setIdentifier(identifiersInUse)
 	s.status = nspAPI.Target_DISABLED
+	logrus.Tracef("Initial open of stream %v with id %v", s.Name, strconv.Itoa(s.identifier))
 	err = s.register(ctx) // register the target as disabled status
 	if err != nil {
 		return err
@@ -110,6 +112,7 @@ func (s *Stream) Open(ctx context.Context) error {
 		}
 	}
 	s.status = nspAPI.Target_ENABLED
+	logrus.Tracef("Open stream %v with id %v", s.Name, strconv.Itoa(s.identifier))
 	err = s.update(ctx) // Update the target as enabled status
 	if err != nil {
 		return err
@@ -122,6 +125,7 @@ func (s *Stream) Open(ctx context.Context) error {
 // If success, no error will be returned and an event will be send via the streamWatcher.
 // If not, an error will be returned.
 func (s *Stream) Close(ctx context.Context) error {
+	logrus.Tracef("Close stream %v with id %v", s.Name, strconv.Itoa(s.identifier))
 	err := s.unregister(ctx)
 	if err != nil {
 		return err

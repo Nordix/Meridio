@@ -142,7 +142,7 @@ func (e *Endpoint) setSource() error {
 }
 
 func (e *Endpoint) register() error {
-	networkService, err := e.networkServiceRegistryClient.Register(context.Background(), &registryapi.NetworkService{
+	networkService, err := e.networkServiceRegistryClient.Register(e.context, &registryapi.NetworkService{
 		Name:    e.config.ServiceName,
 		Payload: payload.Ethernet,
 	})
@@ -153,7 +153,7 @@ func (e *Endpoint) register() error {
 	}
 
 	e.nse.ExpirationTime = nil
-	nse, err := e.networkServiceEndpointRegistryClient.Register(context.Background(), e.nse)
+	nse, err := e.networkServiceEndpointRegistryClient.Register(e.context, e.nse)
 	logrus.Infof("Endpoint: nse: %+v", nse)
 
 	return err
@@ -165,7 +165,7 @@ func (e *Endpoint) unregister() error {
 	}
 
 	logrus.Infof("Endpoint: unregister nse: %+v", e.nse)
-	_, err := e.networkServiceEndpointRegistryClient.Unregister(context.Background(), e.nse)
+	_, err := e.networkServiceEndpointRegistryClient.Unregister(e.context, e.nse)
 	if err != nil {
 		logrus.Warnf("Error unregister network service: %+v", err)
 	}

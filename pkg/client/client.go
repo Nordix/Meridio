@@ -49,7 +49,7 @@ func (snsc *SimpleNetworkServiceClient) Request(request *networkservice.NetworkS
 		logrus.Debugf("Network Service Client: Got connection: %v", connection)
 		snsc.Connection = connection
 
-		// expiration time based on NSM updatepath (connection will be refreshed by NSM after this)
+		// expiration time based on NSM 1.1.1 updatepath (connection will be refreshed by NSM after this)
 		ts := connection.GetCurrentPathSegment().GetExpires()
 		if err := ts.CheckValid(); err == nil {
 			expireTime := ts.AsTime()
@@ -59,7 +59,42 @@ func (snsc *SimpleNetworkServiceClient) Request(request *networkservice.NetworkS
 				scale = 0.2 + 0.2*float64(path.Index)/float64(len(path.PathSegments))
 			}
 			duration := time.Duration(float64(time.Until(expireTime)) * scale)
-			logrus.Debugf("Network Service Client: connection duration: %v", duration)
+			logrus.Debugf("Network Service Client: connection duration (local): %v", duration)
+		}
+
+		// expiration time based on NSM@8e96470 updatepath (considers all path segments)
+		{
+			var minTimeout *time.Duration
+			var expireTime time.Time
+			for _, segment := range connection.GetPath().GetPathSegments() {
+				ts := segment.GetExpires()
+				if err := ts.CheckValid(); err != nil {
+					break
+				}
+				expTime := ts.AsTime()
+				timeout := time.Until(expTime)
+
+				if minTimeout == nil || timeout < *minTimeout {
+					if minTimeout == nil {
+						minTimeout = new(time.Duration)
+					}
+
+					*minTimeout = timeout
+					expireTime = expTime
+				}
+			}
+			if minTimeout != nil {
+				logrus.Debugf("expiration after %s at %s", minTimeout.String(), expireTime.UTC())
+			}
+			if minTimeout != nil && *minTimeout > 0 {
+				scale := 1. / 3.
+				path := connection.GetPath()
+				if len(path.PathSegments) > 1 {
+					scale = 0.2 + 0.2*float64(path.Index)/float64(len(path.PathSegments))
+				}
+				duration := time.Duration(float64(*minTimeout) * scale)
+				logrus.Debugf("Network Service Client: connection duration (end-to-end): %v", duration)
+			}
 		}
 		break
 	}

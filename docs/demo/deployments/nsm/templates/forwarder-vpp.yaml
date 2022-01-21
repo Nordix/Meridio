@@ -13,10 +13,12 @@ spec:
     metadata:
       labels:
         app: forwarder-vpp
+        "spiffe.io/spiffe-id": "true"
     spec:
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       containers:
-        - image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.forwarderVPPImage }}:latest
+        - image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.forwarderVPPImage }}:{{ .Values.tag }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           name: forwarder-vpp
           securityContext:
@@ -24,22 +26,49 @@ spec:
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
+            - name: NSM_LOG_LEVEL
+              value: TRACE
             - name: NSM_TUNNEL_IP
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
             - name: NSM_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
+            - name: NSM_LISTEN_ON
+              value: unix:///listen.on.sock
             - name: NSM_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: NSM_DEVICE_SELECTOR_FILE
+              value: /var/lib/networkservicemesh/device-selector.yaml
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
               readOnly: true
             - name: nsm-socket
               mountPath: /var/lib/networkservicemesh
+            - name: kubelet-socket
+              mountPath: /var/lib/kubelet
+            - name: cgroup
+              mountPath: /host/sys/fs/cgroup
+            - name: vfio
+              mountPath: /host/dev/vfio
+            - name: devsel-vol
+              mountPath: /var/lib/networkservicemesh/device-selector.yaml
+              subPath: device-selector.yaml
+          resources:
+            requests:
+              cpu: 150m
+            limits:
+              memory: 500Mi
+              cpu: 500m
+          readinessProbe:
+            exec:
+              command: ["/bin/grpc-health-probe", "-spiffe", "-addr=unix:///listen.on.sock"]
+          livenessProbe:
+            exec:
+              command: ["/bin/grpc-health-probe", "-spiffe", "-addr=unix:///listen.on.sock"]
       volumes:
         - name: spire-agent-socket
           hostPath:
@@ -49,3 +78,21 @@ spec:
           hostPath:
             path: /var/lib/networkservicemesh
             type: DirectoryOrCreate
+        - name: kubelet-socket
+          hostPath:
+            path: /var/lib/kubelet
+            type: Directory
+        - name: cgroup
+          hostPath:
+            path: /sys/fs/cgroup
+            type: Directory
+        - name: vfio
+          hostPath:
+            path: /dev/vfio
+            type: DirectoryOrCreate
+        - name: devsel-vol
+          configMap:
+            name: device-selector
+            items:
+            - key: selector
+              path: device-selector.yaml

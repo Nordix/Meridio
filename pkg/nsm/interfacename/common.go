@@ -17,6 +17,8 @@ limitations under the License.
 package interfacename
 
 import (
+	"strings"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 )
@@ -29,7 +31,7 @@ type interfaceNameSetter struct {
 	maxLength     int
 }
 
-func (ins *interfaceNameSetter) SetInterfaceName(request *networkservice.NetworkServiceRequest) {
+func (ins *interfaceNameSetter) SetInterfaceName(request *networkservice.NetworkServiceRequest, isClient bool) {
 	ins.setInterfaceNameMechanism(request)
 	ins.setInterfaceNameMechanismPreferences(request)
 }
@@ -44,7 +46,10 @@ func (ins *interfaceNameSetter) setInterfaceNameMechanism(request *networkservic
 	}
 	// Do not generate new local interface name when Request for an established connection
 	// is resent by the refresh chain component.
-	if val, ok := mechanism.GetParameters()[common.InterfaceNameKey]; !ok || val == "" {
+	// Also, if the name is set but does not match the prefix overwrite it.
+	if val, ok := mechanism.GetParameters()[common.InterfaceNameKey]; !ok ||
+		val == "" || (ins.prefix != "" && !strings.HasPrefix(val, ins.prefix)) {
+		//logrus.Debugf("Generate new mech interface name (old %v)", val)
 		mechanism.GetParameters()[common.InterfaceNameKey] = ins.nameGenerator.Generate(ins.prefix, ins.maxLength)
 	}
 }
@@ -61,7 +66,10 @@ func (ins *interfaceNameSetter) setInterfaceNameMechanismPreferences(request *ne
 		// is resent by the refresh chain component. (Does it even make sense to generate a new
 		// interfae name for MechanismPreferences during connection refresh? (Interface in use is
 		// present in Mechanism.))
-		if val, ok := mechanism.Parameters[common.InterfaceNameKey]; !ok || val == "" {
+		// Also, if the name is set but does not match the prefix overwrite it.
+		if val, ok := mechanism.Parameters[common.InterfaceNameKey]; !ok ||
+			val == "" || (ins.prefix != "" && !strings.HasPrefix(val, ins.prefix)) {
+			//logrus.Debugf("Generate new mech_pref interface name (old %v)", val)
 			mechanism.Parameters[common.InterfaceNameKey] = ins.nameGenerator.Generate(ins.prefix, ins.maxLength)
 		}
 	}

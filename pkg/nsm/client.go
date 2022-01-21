@@ -42,6 +42,7 @@ type APIClient struct {
 	x509source                           *workloadapi.X509Source
 	NetworkServiceEndpointRegistryClient registry.NetworkServiceEndpointRegistryClient
 	NetworkServiceRegistryClient         registry.NetworkServiceRegistryClient
+	GRPCDialOption                       []grpc.DialOption
 }
 
 func (apiClient *APIClient) getX509Source() *workloadapi.X509Source {
@@ -120,14 +121,34 @@ func (apiClient *APIClient) dial() {
 	}
 }
 
+func (apiClient *APIClient) dialOptions() {
+	apiClient.GRPCDialOption = append(opentracing.WithTracingDial(),
+		grpcfd.WithChainStreamInterceptor(),
+		grpcfd.WithChainUnaryInterceptor(),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+			grpc.PerRPCCredentials(token.NewPerRPCCredentials(spiffejwt.TokenGeneratorFunc(apiClient.x509source, apiClient.Config.MaxTokenLifetime))),
+		),
+		grpc.WithTransportCredentials(
+			grpcfd.TransportCredentials(
+				credentials.NewTLS(
+					tlsconfig.MTLSClientConfig(apiClient.x509source, apiClient.x509source, tlsconfig.AuthorizeAny()),
+				),
+			),
+		),
+	)
+}
+
 // NewAPIClient -
 func NewAPIClient(ctx context.Context, config *Config) *APIClient {
 	apiClient := &APIClient{
-		context: ctx,
-		Config:  config,
+		context:        ctx,
+		Config:         config,
+		GRPCDialOption: []grpc.DialOption{},
 	}
 
 	apiClient.dial()
+	apiClient.dialOptions()
 	apiClient.setNetworkServiceEndpointRegistryClient()
 	apiClient.setNetworkServiceRegistryClient()
 

@@ -3,15 +3,16 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-tag: latest
+tag: v1.1.1
 pullPolicy: IfNotPresent
 
-# registry: docker.pkg.github.com
-# organization: networkservicemesh
-
-registry: registry.nordix.org
-organization: cloud-native/nsm
+registry: ghcr.io
+organization: networkservicemesh
 
 forwarderVPPImage: cmd-forwarder-vpp
 registryMemoryImage: cmd-registry-memory
 nsmgrImage: cmd-nsmgr
+excludePrefixesImage: cmd-exclude-prefixes-k8s
+admissionWebhookImage: cmd-admission-webhook-k8s
+nscImage: cmd-nsc
+nscInitImage: cmd-nsc-init

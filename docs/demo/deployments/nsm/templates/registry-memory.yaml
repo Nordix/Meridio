@@ -13,24 +13,33 @@ spec:
     metadata:
       labels:
         app: nsm-registry
+        "spiffe.io/spiffe-id": "true"
     spec:
       containers:
-        - name: nsm-registry
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.registryMemoryImage }}:latest
+        - image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.registryMemoryImage }}:{{ .Values.tag }}
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
             - name: REGISTRY_MEMORY_LISTEN_ON
               value: tcp://:5002
+            - name: REGISTRY_MEMORY_LOG_LEVEL
+              value: TRACE
             - name: REGISTRY_MEMORY_PROXY_REGISTRY_URL
-              value: nsm-registry-proxy-dns-svc:5003
+              value: nsmgr-proxy:5004
           imagePullPolicy: {{ .Values.pullPolicy }}
+          name: nsm-registry
           ports:
             - containerPort: 5002
               hostPort: 5002
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
+          resources:
+            requests:
+              cpu: 100m
+            limits:
+              memory: 40Mi
+              cpu: 200m
       volumes:
         - name: spire-agent-socket
           hostPath:
@@ -40,3 +49,4 @@ spec:
           hostPath:
             path: /var/lib/networkservicemesh
             type: DirectoryOrCreate
+

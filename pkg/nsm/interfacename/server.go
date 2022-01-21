@@ -22,6 +22,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 type interfaceNameServer struct {
@@ -30,6 +31,9 @@ type interfaceNameServer struct {
 
 // NewServer implements NetworkServiceServer to generate and add the interface name in the
 // mechanism and mechanism preferences of the requests
+//
+// Note: NSM v1.1.1 kernel.NewServer() interferes with interfaceNameServer.
+// It has been decided to let NSM name the NSE side interfaces if possible.
 func NewServer(prefix string, generator NameGenerator) networkservice.NetworkServiceServer {
 	return &interfaceNameServer{
 		newInterfaceNameSetter(prefix, generator, MAX_INTERFACE_NAME_LENGTH),
@@ -41,7 +45,7 @@ func NewServer(prefix string, generator NameGenerator) networkservice.NetworkSer
 // It implements NetworkServiceServer for the interfacename package
 func (ine *interfaceNameServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	// TODO: check if interface name already exists
-	ine.SetInterfaceName(request)
+	ine.SetInterfaceName(request, metadata.IsClient(ine))
 	return next.Server(ctx).Request(ctx, request)
 }
 
