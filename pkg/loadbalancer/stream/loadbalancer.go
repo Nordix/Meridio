@@ -68,7 +68,8 @@ func New(stream *nspAPI.Stream, targetRegistryClient nspAPI.TargetRegistryClient
 	}
 	// first enable kernel's IP defrag except for the interfaces facing targets
 	// (defrag is needed by Flows to match rules with L4 information)
-	loadBalancer.defrag, err = NewDefrag(types.InterfaceNamePrefix)
+	//loadBalancer.defrag, err = NewDefrag(types.InterfaceNamePrefix)
+	loadBalancer.defrag, err = NewDefrag(GetInterfaceNamePrefix())
 	if err != nil {
 		logrus.Warnf("Stream '%v' Defrag setup err=%v", loadBalancer.GetName(), err)
 		return nil, err
@@ -84,9 +85,10 @@ func New(stream *nspAPI.Stream, targetRegistryClient nspAPI.TargetRegistryClient
 func (lb *LoadBalancer) Start(ctx context.Context) error {
 	lb.ctx, lb.cancel = context.WithCancel(ctx)
 	go func() { // todo
+		logrus.Debugf("Stream '%v' Start watchTargets", lb.GetName())
 		err := lb.watchTargets(lb.ctx)
 		if err != nil {
-			logrus.Errorf("watch Targets err: %v", err)
+			logrus.Errorf("Stream '%v' watch Targets err: %v", lb.GetName(), err)
 		}
 	}()
 	go lb.processPendingTargets(lb.ctx)
@@ -221,7 +223,7 @@ func (lb *LoadBalancer) watchFlows(ctx context.Context) error {
 		}
 		err = lb.setFlows(flowResponse.Flows)
 		if err != nil {
-			logrus.Warnf("err set flows: %v", err) // todo
+			logrus.Warnf("Stream '%v' err set flows: %v", lb.GetName(), err) // todo
 		}
 	}
 	return nil
@@ -294,9 +296,10 @@ func (lb *LoadBalancer) watchTargets(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		logrus.Tracef("Stream '%v' watchTargets: %v", lb.GetName(), targetResponse)
 		err = lb.setTargets(targetResponse.GetTargets())
 		if err != nil {
-			logrus.Warnf("err set targets: %v", err) // todo
+			logrus.Warnf("Stream '%v' err set targets: %v", lb.GetName(), err) // todo
 		}
 	}
 	return nil
@@ -313,6 +316,7 @@ func (lb *LoadBalancer) setTargets(targets []*nspAPI.Target) error {
 	for identifier := range lb.targets {
 		toRemoveTargetsMap[identifier] = struct{}{}
 	}
+	logrus.Tracef("Stream '%v' setTargets: %v", lb.GetName(), targets)
 	for _, target := range targets { // targets to add
 		t, err := NewTarget(target, lb.netUtils)
 		if err != nil {
@@ -368,7 +372,7 @@ func (lb *LoadBalancer) retryPendingTargets() {
 	for _, target := range lb.pendingTargets {
 		err := lb.AddTarget(target)
 		if err != nil {
-			logrus.Warnf("err add target (pending): %v", err) // todo
+			logrus.Warnf("Stream '%v' err add target (pending): %v", lb.GetName(), err) // todo
 		}
 	}
 }
@@ -378,7 +382,7 @@ func (lb *LoadBalancer) addPendingTarget(target types.Target) {
 	if exists {
 		return
 	}
-	logrus.Infof("add pending target: %v", target)
+	logrus.Infof("Stream '%v' add pending target: %v", lb.GetName(), target)
 	lb.pendingTargets[target.GetIdentifier()] = target
 }
 
@@ -387,7 +391,7 @@ func (lb *LoadBalancer) removeFromPendingTarget(target types.Target) {
 	if !exists {
 		return
 	}
-	logrus.Infof("remove pending target: %v", target)
+	logrus.Infof("Stream '%v' remove pending target: %v", lb.GetName(), target)
 	delete(lb.pendingTargets, target.GetIdentifier())
 }
 

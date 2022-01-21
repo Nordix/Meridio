@@ -89,6 +89,7 @@ func (cmm *ConfigMapMonitor) watchEvent(eventChannel <-chan watch.Event) {
 func (cmm *ConfigMapMonitor) eventHandler(event *watch.Event) {
 	configmap, ok := event.Object.(*corev1.ConfigMap)
 	if !ok {
+		logrus.Errorf("failed to cast event.Object to %T", &corev1.ConfigMap{})
 		return
 	}
 	trench, conduits, streams, flows, vips, attractors, gateways, err := reader.UnmarshalConfig(configmap.Data)

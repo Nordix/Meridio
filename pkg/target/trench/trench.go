@@ -25,6 +25,7 @@ import (
 	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/nordix/meridio/pkg/target/types"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
@@ -178,6 +179,7 @@ func (t *Trench) connectNSPService() error {
 
 	t.TargetRegistryClient = nspAPI.NewTargetRegistryClient(t.nspConn)
 	t.ConfigurationManagerClient = nspAPI.NewConfigurationManagerClient(t.nspConn)
+	logrus.Tracef("Connected with NSP service in trench %v", t.Name)
 	return nil
 }
 

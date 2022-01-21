@@ -23,6 +23,7 @@ import (
 	"syscall"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/nordix/meridio/pkg/health"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/nsm"
@@ -48,6 +49,19 @@ func main() {
 	if err != nil {
 		logrus.Fatalf("%v", err)
 	}
+	logrus.Infof("rootConf: %+v", config)
+
+	logrus.SetLevel(func() logrus.Level {
+
+		l, err := logrus.ParseLevel(config.LogLevel)
+		if err != nil {
+			logrus.Fatalf("invalid log level %s", config.LogLevel)
+		}
+		if l == logrus.TraceLevel {
+			log.EnableTracing(true) // enable tracing in NSM
+		}
+		return l
+	}())
 
 	netUtils := &linuxKernel.KernelUtils{}
 

@@ -5,6 +5,13 @@ organization: cloud-native/meridio
 tag: latest
 pullPolicy: IfNotPresent
 
+maxTokenLifetime: 10m
+
+nsm:
+  namespace: nsm
+  registryService: nsm-registry-svc
+  registryPort: 5002
+
 trench:
   name: trench-a
 
@@ -65,7 +72,7 @@ nsp:
       addr: :7778
       spiffe: true
 
-ipFamily: ipv4 # ipv4 / ipv6 / dualstack
+ipFamily: ipv4  # ipv4 / ipv6 / dualstack
 
 vips:
   - name: vip1
@@ -86,11 +93,15 @@ subnetPool:
     ipv6: 64
 
 vlanNSE:
-  image: nse-vlan
-  version: latest
+  image: cmd-nse-remote-vlan
+  version: v1.2.0-rc.1
   probe:
-    addr: unix:///tmp/listen.on
+    addr: :5003
     spiffe: true
+
+vlanNSC:
+  image: cmd-nsc
+  version: v1.2.0-rc.1
 
 vlan:
   networkServiceName: external-vlan

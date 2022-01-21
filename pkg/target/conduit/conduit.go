@@ -29,21 +29,16 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/mechanisms/vfio"
 	sriovtoken "github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/token"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/serialize"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/client"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
-	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/nordix/meridio/pkg/target/types"
 	"github.com/sirupsen/logrus"
 )
@@ -111,7 +106,9 @@ func (c *Conduit) Connect(ctx context.Context) error {
 		RequestTimeout: c.nsmConfig.RequestTimeout,
 		ConnectTo:      c.nsmConfig.ConnectTo,
 	}
+
 	nscCtx := context.Background()
+	nscCtx = log.WithLog(nscCtx, logruslogger.New(nscCtx)) // allow NSM logs
 	c.networkServiceClient = client.NewSimpleNetworkServiceClient(nscCtx, clientConfig, c.apiClient, c.getAdditionalFunctionalities(nscCtx))
 	err := c.networkServiceClient.Request(&networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -305,20 +302,15 @@ func (c *Conduit) getAdditionalFunctionalities(ctx context.Context) networkservi
 		logrus.Fatalf("Error creating link monitor: %+v", err)
 	}
 	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, c, c.NetUtils)
+	// Note: tell NSM to use "nsc" for the interface name
+	// Must be revisited once multiple NSM client interface are to be supported on the application side.
 	additionalFunctionalities := chain.NewNetworkServiceClient(
-		updatepath.NewClient(c.apiClient.Config.Name),
-		serialize.NewClient(),
-		refresh.NewClient(ctx),
-		metadata.NewClient(),
 		sriovtoken.NewClient(),
 		mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
 			vfiomech.MECHANISM:   chain.NewNetworkServiceClient(vfio.NewClient()),
-			kernelmech.MECHANISM: chain.NewNetworkServiceClient(kernel.NewClient()),
+			kernelmech.MECHANISM: chain.NewNetworkServiceClient(kernel.NewClient(kernel.WithInterfaceName("nsc"))),
 		}),
-		interfacename.NewClient("nsc", &interfacename.RandomGenerator{}),
 		interfaceMonitorClient,
-		authorize.NewClient(),
-		sendfd.NewClient(),
 	)
 	return additionalFunctionalities
 }

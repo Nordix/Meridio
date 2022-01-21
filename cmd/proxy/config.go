@@ -39,6 +39,7 @@ type Config struct {
 	NSPServiceName     string        `default:"nsp-service" desc:"IP (or domain) of the NSP Service" split_words:"true"`
 	NSPServicePort     int           `default:"7778" desc:"port of the NSP Service" split_words:"true"`
 	IPFamily           string        `default:"dualstack" desc:"ip family" envconfig:"ip_family"`
+	LogLevel           string        `default:"DEBUG" desc:"Log level" split_words:"true"`
 }
 
 // IsValid checks if the configuration is valid

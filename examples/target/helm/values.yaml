@@ -17,6 +17,7 @@ default:
     name: load-balancer
   stream:
     name: stream-a
+  maxTokenLifetime: 10m
 
 target:
   image: target

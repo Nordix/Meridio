@@ -29,4 +29,5 @@ type Config struct {
 	ConduitPrefixLengthIPv6 int    `default:"56" desc:"conduit prefix length which will be allocated" envconfig:"conduit_prefix_length_ipv6"`
 	NodePrefixLengthIPv6    int    `default:"64" desc:"node prefix length which will be allocated" envconfig:"node_prefix_length_ipv6"`
 	IPFamily                string `default:"dualstack" desc:"ip family" envconfig:"ip_family"`
+	LogLevel                string `default:"DEBUG" desc:"Log level" split_words:"true"`
 }

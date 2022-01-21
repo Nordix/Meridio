@@ -60,6 +60,15 @@ func main() {
 	}
 	logrus.Infof("rootConf: %+v", config)
 
+	logrus.SetLevel(func() logrus.Level {
+
+		l, err := logrus.ParseLevel(config.LogLevel)
+		if err != nil {
+			logrus.Fatalf("invalid log level %s", config.LogLevel)
+		}
+		return l
+	}())
+
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
 

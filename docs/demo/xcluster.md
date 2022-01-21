@@ -21,10 +21,10 @@ nameserver 8.8.8.8
 export XCLUSTER_OVLPATH="$XCLUSTER_OVLPATH:docs/demo/deployments/xcluster/ovl"
 unset __mem1
 unset __mem
-# start xcluster with 3 workers and 2 routers (at least 1 worker is required)
-xc mkcdrom meridio; xc starts --nets_vm=0,1,2 --nvm=3 --mem=4096 --smp=4
+# start xcluster with 2 workers and 2 routers (at least 1 worker is required)
+xc mkcdrom meridio; xc starts --nets_vm=0,1,2 --nvm=2 --mem=4096 --smp=4
 # or using private docker registry
-xc mkcdrom private-reg meridio; xc starts --nets_vm=0,1,2 --nvm=3 --mem=4096 --smp=4
+xc mkcdrom private-reg meridio; xc starts --nets_vm=0,1,2 --nvm=2 --mem=4096 --smp=4
 ```
 
 ### External host / External connectivity
@@ -35,24 +35,19 @@ prerequisite; Multus is ready (deployed by meridio ovl)
 # default interface setup
 helm install docs/demo/deployments/xcluster/ovl/meridio/helm/gateway --generate-name
 # eth1:meridio<-->gateways, eth2:gateways<-->tg
-helm install docs/demo/deployments/xcluster/ovl/meridio/helm/gateway --generate-name --set masterItf=eth1,tgMasterItf=eth2
+helm install docs/demo/deployments/xcluster/ovl/meridio/helm/gateway --generate-name --set masterItf=eth1,tgMasterItf=eth2 --create-namespace --namespace tg1
 ```
 
 ### NSM
 
 Deploy Spire
 ```
-helm install docs/demo/deployments/spire/ --generate-name
-```
-
-Configure Spire
-```
-docs/demo/scripts/spire-config.sh
+kubectl apply -k docs/demo/deployments/spire
 ```
 
 Deploy NSM
 ```
-helm install docs/demo/deployments/nsm-vlan/ --generate-name
+helm install docs/demo/deployments/nsm --generate-name --create-namespace --namespace nsm
 ```
 
 ### Meridio-Operator
@@ -79,11 +74,6 @@ make deploy IMG="registry.nordix.org/meridio/meridio-operator:v0.0.1" NAMESPACE=
 
 ### Meridio
 
-Configure Spire for trench-a
-```
-docs/demo/scripts/spire.sh meridio-sa-trench-a default
-```
-
 Install Meridio for trench-a through Meridio-Operator  
 Note: vlan interface config in the Attractor Custom Resource must match the one used by external gateway PODs to connect Meridio
 ```
@@ -106,11 +96,14 @@ metadata:
   labels:
     trench: trench-a
 spec:
+  replicas: 1
   gateways:
     - gateway1
     - gateway2
     - gateway3
     - gateway4
+  composites:
+    - load-balancer
   vips:
     - vip1
     - vip2
@@ -226,8 +219,6 @@ metadata:
   name: load-balancer
   labels:
     trench: trench-a
-spec:
-  replicas: 2
 EOF
 
 # add Stream to previously defined Conduit
@@ -272,16 +263,6 @@ EOF
 
 ## Target
 
-Configure Spire for the targets
-```
-./docs/demo/scripts/spire.sh meridio default
-```
-
-Deploy common resources for the targets
-```
-helm install examples/target/common/ --generate-name
-```
-
 Install targets connected to trench-a and conduit "load-balancer"
 ```
 helm install examples/target/helm/ --generate-name --namespace default --set applicationName=target-a --set default.trench.name=trench-a --set default.conduit.name=load-balancer
@@ -292,7 +273,7 @@ helm install examples/target/helm/ --generate-name --namespace default --set app
 Connect to the Traffic Generator POD
 ```
 # exec into traffic generator POD
-kubectl exec -ti tg -- bash
+kubectl exec -ti tg -n tg1 -- bash
 ```
 
 Generate traffic
@@ -340,42 +321,42 @@ Lasting connections: 400
 
 ```
 
-## Scale Conduit
+## Scale Attractor
 
-Update the replicas field of the Conduit
+Update the replicas field of the Attractor
 ```
 cat <<EOF | kubectl apply -f -
 apiVersion: meridio.nordix.org/v1alpha1
-kind: Conduit
+kind: Attractor
 metadata:
-  name: load-balancer
+  name: attr1
   labels:
     trench: trench-a
 spec:
-  replicas: 3
+  replicas: 2
+  gateways:
+    - gateway1
+    - gateway2
+    - gateway3
+    - gateway4
+  composites:
+    - load-balancer
+  vips:
+    - vip1
+    - vip2
+    - vip3
+  interface:
+    name: eth1.100
+    ipv4-prefix: 169.254.100.0/24
+    ipv6-prefix: 100:100::/64
+    type: nsm-vlan
+    nsm-vlan:
+      vlan-id: 100
+      base-interface: eth1
 EOF
+
 ```
 
 ## Ambassador
 
-From a target:
-
-Connect to a conduit/trench (Conduit/Network Service: load-balancer, Trench: trench-a)
-```
-./target-client connect -ns load-balancer -t trench-a
-```
-
-Disconnect from a conduit/trench (Conduit/Network Service: load-balancer, Trench: trench-a)
-```
-./target-client disconnect -ns load-balancer -t trench-a
-```
-
-Request a stream (Conduit/Network Service: load-balancer, Trench: trench-a)
-```
-./target-client request -ns load-balancer -t trench-a
-```
-
-Close a stream (Conduit/Network Service: load-balancer, Trench: trench-a)
-```
-./target-client close -ns load-balancer -t trench-a
-```
+Refer to the [description](https://github.com/Nordix/Meridio/blob/master/docs/demo/readme.md#ambassador).

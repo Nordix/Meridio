@@ -33,6 +33,7 @@ type Config struct {
 	NSPService       string        `default:"nsp-service:7778" desc:"IP (or domain) and port of the NSP Service" split_words:"true"`
 	ConduitName      string        `default:"load-balancer" desc:"Name of the conduit" split_words:"true"`
 	TrenchName       string        `default:"default" desc:"Trench the pod is running on" split_words:"true"`
+	LogLevel         string        `default:"DEBUG" desc:"Log level" split_words:"true"`
 }
 
 // IsValid checks if the configuration is valid
