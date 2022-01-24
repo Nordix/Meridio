@@ -19,25 +19,28 @@ package proxy
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/nordix/meridio/pkg/ipam"
-	"github.com/nordix/meridio/pkg/ipam/types"
+	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/sirupsen/logrus"
 )
 
 // Proxy -
 type Proxy struct {
-	bridge   networking.Bridge
-	vips     []*virtualIP
-	subnets  []string
-	ipam     types.Ipam
-	mutex    sync.Mutex
-	netUtils networking.Utils
-	nexthops []string
-	tableID  int
+	bridge     networking.Bridge
+	vips       []*virtualIP
+	conduit    *nspAPI.Conduit
+	Subnets    map[ipamAPI.IPFamily]*ipamAPI.Subnet
+	ipamClient ipamAPI.IpamClient
+	mutex      sync.Mutex
+	netUtils   networking.Utils
+	nexthops   []string
+	tableID    int
 }
 
 func (p *Proxy) isNSMInterface(intf networking.Iface) bool {
@@ -135,18 +138,26 @@ func (p *Proxy) SetIPContext(conn *networkservice.Connection, interfaceType netw
 
 	srcIPAddrs := []string{}
 	dstIpAddrs := []string{}
-	for _, subnet := range p.subnets {
-		srcIPAddr, err := p.ipam.AllocateIP(context.Background(), subnet)
+	for _, subnet := range p.Subnets {
+		child := &ipamAPI.Child{
+			Name:   fmt.Sprintf("%s-src", conn.Id),
+			Subnet: subnet,
+		}
+		srcPrefix, err := p.ipamClient.Allocate(context.TODO(), child)
 		if err != nil {
 			return err
 		}
-		srcIPAddrs = append(srcIPAddrs, srcIPAddr)
+		srcIPAddrs = append(srcIPAddrs, srcPrefix.ToString())
 
-		dstIPAddr, err := p.ipam.AllocateIP(context.Background(), subnet)
+		child = &ipamAPI.Child{
+			Name:   fmt.Sprintf("%s-dst", conn.Id),
+			Subnet: subnet,
+		}
+		dstPrefix, err := p.ipamClient.Allocate(context.TODO(), child)
 		if err != nil {
 			return err
 		}
-		dstIpAddrs = append(dstIpAddrs, dstIPAddr)
+		dstIpAddrs = append(dstIpAddrs, dstPrefix.ToString())
 	}
 
 	conn.GetContext().IpContext = &networkservice.IPContext{}
@@ -171,12 +182,16 @@ func (p *Proxy) setBridgeIP(prefix string) error {
 }
 
 func (p *Proxy) setBridgeIPs() error {
-	for _, subnet := range p.subnets {
-		prefix, err := p.ipam.AllocateIP(context.Background(), subnet)
+	for _, subnet := range p.Subnets {
+		child := &ipamAPI.Child{
+			Name:   "bridge",
+			Subnet: subnet,
+		}
+		prefix, err := p.ipamClient.Allocate(context.TODO(), child)
 		if err != nil {
 			return err
 		}
-		err = p.setBridgeIP(prefix)
+		err = p.setBridgeIP(prefix.ToString())
 		if err != nil {
 			return err
 		}
@@ -222,20 +237,45 @@ func (p *Proxy) SetVIPs(vips []string) {
 }
 
 // NewProxy -
-func NewProxy(subnets []string, netUtils networking.Utils) *Proxy {
+func NewProxy(conduit *nspAPI.Conduit, nodeName string, ipamClient ipamAPI.IpamClient, ipFamily string, netUtils networking.Utils) *Proxy {
 	bridge, err := netUtils.NewBridge("bridge0")
 	if err != nil {
 		logrus.Errorf("Proxy: Error creating the bridge: %v", err)
 	}
-	im := ipam.New()
 	proxy := &Proxy{
-		bridge:   bridge,
-		subnets:  subnets,
-		ipam:     im,
-		netUtils: netUtils,
-		nexthops: []string{},
-		vips:     []*virtualIP{},
-		tableID:  1,
+		bridge:     bridge,
+		conduit:    conduit,
+		netUtils:   netUtils,
+		nexthops:   []string{},
+		vips:       []*virtualIP{},
+		tableID:    1,
+		Subnets:    make(map[ipamAPI.IPFamily]*ipamAPI.Subnet),
+		ipamClient: ipamClient,
+	}
+
+	if strings.ToLower(ipFamily) == "ipv4" {
+		proxy.Subnets[ipamAPI.IPFamily_IPV4] = &ipamAPI.Subnet{
+			Conduit:  conduit,
+			Node:     nodeName,
+			IpFamily: ipamAPI.IPFamily_IPV4,
+		}
+	} else if strings.ToLower(ipFamily) == "ipv6" {
+		proxy.Subnets[ipamAPI.IPFamily_IPV6] = &ipamAPI.Subnet{
+			Conduit:  conduit,
+			Node:     nodeName,
+			IpFamily: ipamAPI.IPFamily_IPV6,
+		}
+	} else {
+		proxy.Subnets[ipamAPI.IPFamily_IPV4] = &ipamAPI.Subnet{
+			Conduit:  conduit,
+			Node:     nodeName,
+			IpFamily: ipamAPI.IPFamily_IPV4,
+		}
+		proxy.Subnets[ipamAPI.IPFamily_IPV6] = &ipamAPI.Subnet{
+			Conduit:  conduit,
+			Node:     nodeName,
+			IpFamily: ipamAPI.IPFamily_IPV6,
+		}
 	}
 	err = proxy.setBridgeIPs()
 	if err != nil {

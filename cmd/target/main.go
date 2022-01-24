@@ -70,7 +70,7 @@ func main() {
 		MaxTokenLifetime: config.MaxTokenLifetime,
 	}
 
-	targetConfig := target.NewConfig(config.ConfigMapName, config.NSPServiceName, config.NSPServicePort, netUtils, apiClientConfig)
+	targetConfig := target.NewConfig(config.ConfigMapName, config.NSPServiceName, config.NSPServicePort, config.Host, netUtils, apiClientConfig)
 	ambassador, err := target.NewAmbassador(config.Socket, config.Namespace, targetConfig)
 	if err != nil {
 		logrus.Fatalf("Error creating new ambassador: %v", err)

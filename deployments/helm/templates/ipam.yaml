@@ -33,6 +33,28 @@ spec:
               value: "{{ .Values.ipam.targetPort }}"
             - name: IPAM_DATASOURCE
               value: /run/ipam/data/registry.db
+            - name: IPAM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: IPAM_TRENCH_NAME
+              value: {{ .Values.trench.name }}
+            - name: IPAM_NSP_SERVICE
+              value: {{ template "meridio.nsp.serviceName" . }}:{{ .Values.nsp.targetPort }}
+            - name: IPAM_PREFIX_IPV4
+              value: "{{ .Values.subnetPool.ipv4 }}"
+            - name: IPAM_PREFIX_IPV6
+              value: "{{ .Values.subnetPool.ipv6 }}"
+            - name: IPAM_CONDUIT_PREFIX_LENGTH_IPV4
+              value: "{{ .Values.subnetPool.conduitPrefixLength.ipv4 }}"
+            - name: IPAM_CONDUIT_PREFIX_LENGTH_IPV6
+              value: "{{ .Values.subnetPool.conduitPrefixLength.ipv6 }}"
+            - name: IPAM_NODE_PREFIX_LENGTH_IPV4
+              value: "{{ .Values.subnetPool.nodePrefixLength.ipv4}}"
+            - name: IPAM_NODE_PREFIX_LENGTH_IPV6
+              value: "{{ .Values.subnetPool.nodePrefixLength.ipv6 }}"
+            - name: IPAM_IP_FAMILY
+              value: "{{ .Values.ipFamily }}"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

@@ -55,7 +55,7 @@ frontend:
 
 .PHONY: ipam-proto
 ipam-proto:
-	protoc --go_out=plugins=grpc:. --go_opt=paths=source_relative api/ipam/ipam.proto
+	protoc --go_out=plugins=grpc:. --go_opt=paths=source_relative api/ipam/**/*.proto
 
 .PHONY: nsp-proto
 nsp-proto:

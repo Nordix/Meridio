@@ -25,16 +25,18 @@ type Config struct {
 	configMapName  string
 	nspServiceName string
 	nspServicePort int
+	nodeName       string
 	netUtils       networking.Utils
 	nsmConfig      *nsm.Config
 	apiClient      *nsm.APIClient
 }
 
-func NewConfig(configMapName string, nspServiceName string, nspServicePort int, netUtils networking.Utils, nsmConfig *nsm.Config) *Config {
+func NewConfig(configMapName string, nspServiceName string, nspServicePort int, nodeName string, netUtils networking.Utils, nsmConfig *nsm.Config) *Config {
 	config := &Config{
 		configMapName:  configMapName,
 		nspServiceName: nspServiceName,
 		nspServicePort: nspServicePort,
+		nodeName:       nodeName,
 		netUtils:       netUtils,
 		nsmConfig:      nsmConfig,
 	}

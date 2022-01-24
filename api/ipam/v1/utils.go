@@ -14,12 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ipam
+package v1
 
-import "context"
+import "fmt"
 
-type Storage interface {
-	Add(ctx context.Context, prefix string, child string) error
-	Delete(ctx context.Context, prefix string, child string) error
-	Get(ctx context.Context, prefix string) ([]string, error)
+func (p *Prefix) ToString() string {
+	return fmt.Sprintf("%s/%d", p.Address, p.PrefixLength)
+}
+
+// func (p *Prefixes) ToSlice() []string {
+// 	res := []string{}
+// 	for _, prefix := range p.Prefixes {
+// 		res = append(res, prefix.ToString())
+// 	}
+// 	return res
+// }
+
+func (s *Subnet) ToString() string {
+	return fmt.Sprintf("%s.%s.%s", s.Conduit.GetName(), s.Conduit.GetTrench().GetName(), s.Node)
 }

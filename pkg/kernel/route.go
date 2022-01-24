@@ -17,14 +17,18 @@ limitations under the License.
 package kernel
 
 import (
+	"context"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/vishvananda/netlink"
 )
 
 // SourceBasedRoute -
 type SourceBasedRoute struct {
+	ctx      context.Context
+	cancel   context.CancelFunc
 	tableID  int
 	vip      *netlink.Addr
 	nexthops []*netlink.Addr
@@ -109,6 +113,11 @@ func (sbr *SourceBasedRoute) RemoveNexthop(nexthop string) error {
 }
 
 func (sbr *SourceBasedRoute) Delete() error {
+	sbr.mu.Lock()
+	defer sbr.mu.Unlock()
+	if sbr.cancel != nil {
+		sbr.cancel()
+	}
 	// Delete Rule
 	rule := netlink.NewRule()
 	rule.Table = sbr.tableID
@@ -140,6 +149,21 @@ func (sbr *SourceBasedRoute) family() int {
 	return netlink.FAMILY_V6
 }
 
+// Todo
+// pkg/loadbalancer/stream/loadbalancer.go - processPendingTargets
+func (sbr *SourceBasedRoute) verify() {
+	for {
+		select {
+		case <-time.After(10 * time.Second):
+			sbr.mu.Lock()
+			_ = sbr.updateRoute()
+			sbr.mu.Unlock()
+		case <-sbr.ctx.Done():
+			return
+		}
+	}
+}
+
 // NewSourceBasedRoute -
 func NewSourceBasedRoute(tableID int, vip string) (*SourceBasedRoute, error) {
 	netlinkAddr, err := netlink.ParseAddr(vip)
@@ -151,9 +175,11 @@ func NewSourceBasedRoute(tableID int, vip string) (*SourceBasedRoute, error) {
 		vip:      netlinkAddr,
 		nexthops: []*netlink.Addr{},
 	}
+	sourceBasedRoute.ctx, sourceBasedRoute.cancel = context.WithCancel(context.TODO())
 	err = sourceBasedRoute.create()
 	if err != nil {
 		return nil, err
 	}
+	go sourceBasedRoute.verify()
 	return sourceBasedRoute, nil
 }

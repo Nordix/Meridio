@@ -38,7 +38,6 @@ type FullMeshNetworkServiceClient struct {
 	baseRequest                          *networkservice.NetworkServiceRequest
 	networkServiceDiscoveryStream        registry.NetworkServiceEndpointRegistry_FindClient
 	config                               *Config
-	nscIndex                             int
 	mu                                   sync.Mutex
 	networkServiceClients                map[string]*SimpleNetworkServiceClient
 	ctx                                  context.Context
@@ -100,11 +99,11 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 	}
 	request := copyRequest(fmnsc.baseRequest)
 	request.Connection.NetworkServiceEndpointName = networkServiceEndpointName
-	request.Connection.Id = fmt.Sprintf("%s-%s-%d", fmnsc.config.Name, request.Connection.NetworkService, fmnsc.nscIndex)
-	fmnsc.nscIndex++
-	logrus.Infof("Full Mesh Client (%v - %v): event add: %v", request.Connection.Id, request.Connection.NetworkService, networkServiceEndpointName)
+	request.Connection.Id = fmt.Sprintf("%s-%s-%s", fmnsc.config.Name, request.Connection.NetworkService, request.Connection.NetworkServiceEndpointName)
+	// logrus.Infof("Full Mesh Client (%v - %v): event add: %v", request.Connection.Id, request.Connection.NetworkService, networkServiceEndpointName)
 	// TODO: Request tries forever, but what if the NSE is removed in the meantime?
 	// The recv will be blocked on the Request as well... Should be refactored. (Are client components thread safe to opt for async requests?)
+
 	err := networkServiceClient.Request(request)
 	fmnsc.networkServiceClients[networkServiceEndpointName] = networkServiceClient
 	if err != nil {
@@ -162,7 +161,6 @@ func NewFullMeshNetworkServiceClient(ctx context.Context, config *Config, nsmAPI
 		config:                config,
 		networkServiceClient:  newClient(ctx, config.Name, nsmAPIClient, additionalFunctionality...),
 		networkServiceClients: make(map[string]*SimpleNetworkServiceClient),
-		nscIndex:              0,
 		ctx:                   ctx,
 	}
 

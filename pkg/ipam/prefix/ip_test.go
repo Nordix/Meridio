@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ipam_test
+package prefix_test
 
 import (
 	"net"
 	"testing"
 
-	"github.com/nordix/meridio/pkg/ipam"
+	"github.com/nordix/meridio/pkg/ipam/prefix"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -84,7 +84,7 @@ func Test_OverlappingPrefixes(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		assert.Equal(t, test.result, ipam.OverlappingPrefixes(test.cidr1, test.cidr2))
+		assert.Equal(t, test.result, prefix.OverlappingPrefixes(test.cidr1, test.cidr2))
 	}
 }
 
@@ -142,7 +142,7 @@ func Test_NextPrefix(t *testing.T) {
 		{prefix: p15, result: r15},
 	}
 	for _, test := range tests {
-		assert.Equal(t, test.result, ipam.NextPrefix(test.prefix))
+		assert.Equal(t, test.result, prefix.NextPrefix(test.prefix))
 	}
 }
 
@@ -158,6 +158,6 @@ func Test_LastIP(t *testing.T) {
 		{prefix: p1, result: r1},
 	}
 	for _, test := range tests {
-		assert.Equal(t, test.result.String(), ipam.LastIP(test.prefix).String())
+		assert.Equal(t, test.result.String(), prefix.LastIP(test.prefix).String())
 	}
 }

@@ -29,6 +29,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/noop"
 	vfiomech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vfio"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/mechanisms/vfio"
 	sriovtoken "github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/token"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
@@ -42,22 +43,25 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/client"
 	"github.com/nordix/meridio/pkg/configuration"
-	"github.com/nordix/meridio/pkg/endpoint"
+	endpointOld "github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/health/probe"
-	"github.com/nordix/meridio/pkg/ipam"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/nsm"
+	"github.com/nordix/meridio/pkg/nsm/endpoint"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
 	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/nordix/meridio/pkg/nsm/ipcontext"
+	"github.com/nordix/meridio/pkg/nsm/service"
 	"github.com/nordix/meridio/pkg/proxy"
 	proxyHealth "github.com/nordix/meridio/pkg/proxy/health"
-	"github.com/pkg/errors"
+	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
-	"github.com/vishvananda/netlink"
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -86,10 +90,10 @@ func main() {
 		logrus.Warnf("%v", err)
 	}
 
-	proxySubnets, err := getProxySubnets(config)
-	if err != nil {
-		logrus.Fatalf("%v", err)
-	}
+	// proxySubnets, err := getProxySubnets(config)
+	// if err != nil {
+	// 	logrus.Fatalf("%v", err)
+	// }
 	netUtils := &linuxKernel.KernelUtils{}
 
 	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
@@ -97,7 +101,24 @@ func main() {
 		logrus.Fatalf("Error creating link monitor: %+v", err)
 	}
 
-	p := proxy.NewProxy(proxySubnets, netUtils)
+	conn, err := grpc.Dial(config.IPAMService,
+		grpc.WithTransportCredentials(
+			credentials.GetClient(context.Background()),
+		),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+		))
+	if err != nil {
+		logrus.Fatalf("Error dialing IPAM: %+v", err)
+	}
+	ipamClient := ipamAPI.NewIpamClient(conn)
+	conduit := &nspAPI.Conduit{
+		Name: config.ConduitName,
+		Trench: &nspAPI.Trench{
+			Name: config.TrenchName,
+		},
+	}
+	p := proxy.NewProxy(conduit, config.Host, ipamClient, config.IPFamily, netUtils)
 
 	apiClientConfig := &nsm.Config{
 		Name:             config.Name,
@@ -109,7 +130,7 @@ func main() {
 	nsmAPIClient := nsm.NewAPIClient(ctx, apiClientConfig)
 
 	clientConfig := &client.Config{
-		Name:           config.Name,
+		Name:           config.Host,
 		RequestTimeout: config.RequestTimeout,
 		ConnectTo:      config.ConnectTo,
 	}
@@ -120,18 +141,23 @@ func main() {
 
 	labels := map[string]string{}
 	if config.Host != "" {
-		labels["host"] = config.Host
+		labels["nodeName"] = config.Host
 	}
-	endpointConfig := &endpoint.Config{
-		Name:             config.Name,
+	endpointConfig := &endpointOld.Config{
+		Name:             config.Host,
 		ServiceName:      config.ServiceName,
 		MaxTokenLifetime: config.MaxTokenLifetime,
 		Labels:           labels,
 	}
 	interfaceMonitorServer := interfacemonitor.NewServer(interfaceMonitor, p, netUtils)
 	ep := startNSE(ctx, endpointConfig, nsmAPIClient, p, interfaceMonitorServer)
-	defer ep.Delete()
-	probe.CreateAndRunGRPCHealthProbe(ctx, health.NSMEndpointSvc, probe.WithAddress(ep.GetUrl()), probe.WithSpiffe())
+	probe.CreateAndRunGRPCHealthProbe(ctx, health.NSMEndpointSvc, probe.WithAddress(ep.Server.GetUrl()), probe.WithSpiffe())
+	defer func() {
+		err := ep.Delete(context.Background())
+		if err != nil {
+			logrus.Errorf("Err delete NSE: %v", err)
+		}
+	}()
 
 	// TODO: use NSP based config watcher
 	configWatcher := make(chan *configuration.OperatorConfig)
@@ -147,26 +173,6 @@ func main() {
 			return
 		}
 	}
-}
-
-func getProxySubnets(config Config) ([]string, error) {
-	proxySubnets := []string{}
-	for index, subnetPool := range config.SubnetPools {
-		_, err := netlink.ParseAddr(subnetPool)
-		if err != nil {
-			return []string{}, errors.Wrap(err, "Error Parsing subnet pool")
-		}
-		ipamClient, err := ipam.NewIpamClient(config.IPAMService)
-		if err != nil {
-			return []string{}, errors.Wrap(err, "Error creating new ipam client")
-		}
-		proxySubnet, err := ipamClient.AllocateSubnet(subnetPool, config.SubnetPrefixLengths[index])
-		if err != nil {
-			return []string{}, errors.Wrap(err, "Error AllocateSubnet")
-		}
-		proxySubnets = append(proxySubnets, proxySubnet)
-	}
-	return proxySubnets, nil
 }
 
 func getNSC(ctx context.Context,
@@ -216,13 +222,13 @@ func startNSC(fullMeshClient client.NetworkServiceClient, networkServiceName str
 }
 
 func startNSE(ctx context.Context,
-	config *endpoint.Config,
+	config *endpointOld.Config,
 	nsmAPIClient *nsm.APIClient,
 	p *proxy.Proxy,
 	interfaceMonitorServer networkservice.NetworkServiceServer) *endpoint.Endpoint {
 
 	logrus.Infof("startNSE")
-	responderEndpoint := []networkservice.NetworkServiceServer{
+	additionalFunctionality := []networkservice.NetworkServiceServer{
 		recvfd.NewServer(),
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 			kernelmech.MECHANISM: kernel.NewServer(),
@@ -234,14 +240,49 @@ func startNSE(ctx context.Context,
 		sendfd.NewServer(),
 	}
 
-	ep, err := endpoint.NewEndpoint(ctx, config, nsmAPIClient.NetworkServiceRegistryClient, nsmAPIClient.NetworkServiceEndpointRegistryClient)
-	if err != nil {
-		logrus.Fatalf("unable to create a new nse %+v", err)
+	ns := &registry.NetworkService{
+		Name:    config.ServiceName,
+		Payload: payload.Ethernet,
+		Matches: []*registry.Match{
+			{
+				SourceSelector: make(map[string]string),
+				Routes: []*registry.Destination{
+					{
+						DestinationSelector: map[string]string{
+							"nodeName": "{{.nodeName}}",
+						},
+					},
+				},
+			},
+		},
 	}
 
-	err = ep.Start(responderEndpoint...)
+	service := service.New(nsmAPIClient.NetworkServiceRegistryClient, ns)
+	err := service.Register(ctx)
 	if err != nil {
-		logrus.Errorf("unable to start nse %+v", err)
+		logrus.Errorf("Err registering NS: %v", err)
 	}
-	return ep
+
+	nse := &registry.NetworkServiceEndpoint{
+		Name:                config.Name,
+		NetworkServiceNames: []string{config.ServiceName},
+		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+			config.ServiceName: {
+				Labels: config.Labels,
+			},
+		},
+	}
+
+	endpoint, err := endpoint.New(config.MaxTokenLifetime,
+		nsmAPIClient.NetworkServiceEndpointRegistryClient,
+		nse,
+		additionalFunctionality...)
+	if err != nil {
+		logrus.Errorf("Err creating NSE: %v", err)
+	}
+	err = endpoint.Register(ctx)
+	if err != nil {
+		logrus.Errorf("Err registering NSE: %v", err)
+	}
+	return endpoint
 }

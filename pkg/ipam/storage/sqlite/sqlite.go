@@ -19,9 +19,10 @@ package sqlite
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 
+	"github.com/nordix/meridio/pkg/ipam/prefix"
+	"github.com/nordix/meridio/pkg/ipam/types"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -32,7 +33,7 @@ type SQLiteIPAMStorage struct {
 	mu sync.Mutex
 }
 
-func NewStorage(datastore string) (*SQLiteIPAMStorage, error) {
+func New(datastore string) (*SQLiteIPAMStorage, error) {
 	db, err := gorm.Open(sqlite.Open(datastore), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
@@ -49,73 +50,41 @@ func NewStorage(datastore string) (*SQLiteIPAMStorage, error) {
 	return sqlis, nil
 }
 
-func (sqlis *SQLiteIPAMStorage) Add(ctx context.Context, prefix string, child string) error {
+func (sqlis *SQLiteIPAMStorage) Add(ctx context.Context, prefix types.Prefix) error {
 	sqlis.mu.Lock()
 	defer sqlis.mu.Unlock()
-	var p Prefix
-	tx := sqlis.DB.First(&p, "Prefix", prefix)
-	if tx.Error != nil {
-		if errors.Is(tx.Error, gorm.ErrRecordNotFound) { // Create
-			tx = sqlis.DB.Create(&Prefix{
-				Prefix: prefix,
-				Childs: SerializeChilds([]string{child}),
-			})
-			return tx.Error
-		}
-		return tx.Error
-	}
-	childs := DeserializeChilds(p.Childs)
-	if childExists(childs, child) {
-		return fmt.Errorf("child %v already exists in %v", child, prefix)
-	}
-	childs = append(childs, child)
-	tx = sqlis.DB.Save(&Prefix{
-		Prefix: prefix,
-		Childs: SerializeChilds(childs),
-	})
+	model := prefixToModel(prefix)
+	tx := sqlis.DB.Create(model)
 	return tx.Error
 }
 
-func (sqlis *SQLiteIPAMStorage) Delete(ctx context.Context, prefix string, child string) error {
+func (sqlis *SQLiteIPAMStorage) Delete(ctx context.Context, prefix types.Prefix) error {
 	sqlis.mu.Lock()
 	defer sqlis.mu.Unlock()
-	var p Prefix
-	tx := sqlis.DB.First(&p, "Prefix", prefix)
-	if tx.Error != nil {
-		if errors.Is(tx.Error, gorm.ErrRecordNotFound) {
-			return nil
-		}
-		return tx.Error
-	}
-	childs := DeserializeChilds(p.Childs)
-	if len(childs) <= 0 {
-		tx = sqlis.DB.Delete(&Prefix{}, prefix)
-		return tx.Error
-	}
-	childs = removeChild(childs, child)
-	tx = sqlis.DB.Save(&Prefix{
-		Prefix: prefix,
-		Childs: SerializeChilds(childs),
-	})
-	return tx.Error
+	return sqlis.delete(prefix)
 }
 
-func (sqlis *SQLiteIPAMStorage) Get(ctx context.Context, prefix string) ([]string, error) {
+func (sqlis *SQLiteIPAMStorage) Get(ctx context.Context, name string, parent types.Prefix) (types.Prefix, error) {
 	sqlis.mu.Lock()
 	defer sqlis.mu.Unlock()
-	return sqlis.get(ctx, prefix)
-}
-
-func (sqlis *SQLiteIPAMStorage) get(ctx context.Context, prefix string) ([]string, error) {
-	var p Prefix
-	tx := sqlis.DB.First(&p, "Prefix", prefix)
+	prefix := prefix.New(name, "", parent)
+	model := prefixToModel(prefix)
+	var result *Prefix
+	tx := sqlis.DB.First(&result, model)
 	if tx.Error != nil {
 		if errors.Is(tx.Error, gorm.ErrRecordNotFound) {
-			return []string{}, nil
+			return nil, nil
 		}
 		return nil, tx.Error
 	}
-	return DeserializeChilds(p.Childs), nil
+	np := modelToPrefix(result, parent)
+	return np, nil
+}
+
+func (sqlis *SQLiteIPAMStorage) GetChilds(ctx context.Context, prefix types.Prefix) ([]types.Prefix, error) {
+	sqlis.mu.Lock()
+	defer sqlis.mu.Unlock()
+	return sqlis.getChilds(prefix)
 }
 
 func (sqlis *SQLiteIPAMStorage) init() error {
@@ -123,25 +92,36 @@ func (sqlis *SQLiteIPAMStorage) init() error {
 	return err
 }
 
-func removeChild(childs []string, child string) []string {
-	index := -1
-	for i, c := range childs {
-		if c == child {
-			index = i
-			break
+func (sqlis *SQLiteIPAMStorage) getChilds(prefix types.Prefix) ([]types.Prefix, error) {
+	model := prefixToModel(prefix)
+	var results []*Prefix
+	tx := sqlis.DB.Where("parent_id = ?", model.Id).Find(&results)
+	if tx.Error != nil {
+		if errors.Is(tx.Error, gorm.ErrRecordNotFound) {
+			return []types.Prefix{}, nil
 		}
+		return nil, tx.Error
 	}
-	if index <= -1 {
-		return childs
+	prefixList := []types.Prefix{}
+	for _, result := range results {
+		np := modelToPrefix(result, prefix)
+		prefixList = append(prefixList, np)
 	}
-	return append(childs[:index], childs[index+1:]...)
+	return prefixList, nil
 }
 
-func childExists(childs []string, child string) bool {
-	for _, c := range childs {
-		if c == child {
-			return true
+func (sqlis *SQLiteIPAMStorage) delete(prefix types.Prefix) error {
+	childs, err := sqlis.getChilds(prefix)
+	if err != nil {
+		return err
+	}
+	for _, child := range childs {
+		err = sqlis.delete(child)
+		if err != nil {
+			return err
 		}
 	}
-	return false
+	model := prefixToModel(prefix)
+	tx := sqlis.DB.Delete(model)
+	return tx.Error
 }

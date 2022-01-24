@@ -4,26 +4,6 @@
 Set IP Family
 */}}
 
-{{- define "meridio.subnetPool.prefixes" -}}
-{{- if eq .Values.ipFamily "dualstack" -}}
-{{- (printf "%s,%s" .Values.subnetPool.ipv4 .Values.subnetPool.ipv6) | quote -}}
-{{- else if eq .Values.ipFamily "ipv6" -}}
-{{- printf .Values.subnetPool.ipv6 -}}
-{{- else -}}
-{{- printf .Values.subnetPool.ipv4 -}}
-{{- end -}}
-{{- end -}}
-
-{{- define "meridio.subnetPool.prefixLengths" -}}
-{{- if eq .Values.ipFamily "dualstack" -}}
-{{- (printf "%d,%d" (int64 .Values.subnetPool.prefixLength.ipv4) (int64 .Values.subnetPool.prefixLength.ipv6)) | quote -}}
-{{- else if eq .Values.ipFamily "ipv6" -}}
-{{- .Values.subnetPool.prefixLength.ipv6 | quote -}}
-{{- else -}}
-{{- .Values.subnetPool.prefixLength.ipv4 | quote -}}
-{{- end -}}
-{{- end -}}
-
 {{- define "meridio.loadBalancer.sysctls" -}}
 {{- if eq .Values.ipFamily "dualstack" -}}
 {{- printf "sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1 ; sysctl -w net.ipv4.conf.all.rp_filter=0 ; sysctl -w net.ipv4.conf.default.rp_filter=0" -}}

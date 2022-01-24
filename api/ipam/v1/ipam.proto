@@ -16,27 +16,33 @@ limitations under the License.
 
 syntax = "proto3";
 
-package ipam;
-option go_package = "github.com/nordix/meridio/api/ipam";
+package ipam.v1;
+option go_package = "github.com/nordix/meridio/api/ipam/v1";
 import "google/protobuf/empty.proto";
+import "api/nsp/v1/model.proto";
 
-service IpamService {
-    rpc Allocate(SubnetRequest) returns (Subnet) {}
-    rpc Release(SubnetRelease) returns (google.protobuf.Empty) {}
+service Ipam {
+    rpc Allocate(Child) returns (Prefix) {}
+    rpc Release(Child) returns (google.protobuf.Empty) {}
 }
 
-message Subnet {
+enum IPFamily {
+    IPV4 = 0;
+    IPV6 = 1;
+}
+
+message Prefix {
     string address = 1;
     int32 prefixLength = 2;
 }
 
-message SubnetRequest {
-    Subnet subnetPool = 1;
-    int32 prefixLength = 2;
+message Subnet {
+    nsp.v1.Conduit conduit = 1;
+    string node = 2;
+    IPFamily ipFamily = 3;
 }
 
-message SubnetRelease {
-    Subnet subnetPool = 1;
+message Child {
+    string name = 1;
     Subnet subnet = 2;
 }
-

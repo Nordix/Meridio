@@ -51,6 +51,7 @@ import (
 type Conduit struct {
 	Name                 string
 	Trench               types.Trench
+	NodeName             string
 	networkServiceClient client.NetworkServiceClient
 	EventChan            chan<- struct{}
 	NetUtils             networking.Utils
@@ -69,6 +70,7 @@ func New(
 	ctx context.Context,
 	name string,
 	trench types.Trench,
+	nodeName string,
 	apiClient *nsm.APIClient,
 	nsmConfig *nsm.Config,
 	eventChan chan<- struct{},
@@ -76,6 +78,7 @@ func New(
 	conduit := &Conduit{
 		Name:      name,
 		Trench:    trench,
+		NodeName:  nodeName,
 		apiClient: apiClient,
 		nsmConfig: nsmConfig,
 		vips:      []*virtualIP{},
@@ -107,8 +110,10 @@ func (c *Conduit) Connect(ctx context.Context) error {
 		Connection: &networkservice.Connection{
 			Id:             fmt.Sprintf("%s-%s-%d", c.nsmConfig.Name, proxyNetworkServiceName, 0),
 			NetworkService: proxyNetworkServiceName,
-			Labels:         make(map[string]string),
-			Payload:        payload.Ethernet,
+			Labels: map[string]string{
+				"nodeName": c.NodeName,
+			},
+			Payload: payload.Ethernet,
 		},
 		MechanismPreferences: []*networkservice.Mechanism{
 			{

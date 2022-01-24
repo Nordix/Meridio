@@ -17,6 +17,7 @@ limitations under the License.
 package kernel
 
 import (
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
@@ -25,6 +26,7 @@ type FWMarkRoute struct {
 	ip      *netlink.Addr
 	fwmark  int
 	tableID int
+	route   *netlink.Route
 }
 
 // Delete -
@@ -44,6 +46,15 @@ func (fwmr *FWMarkRoute) Delete() error {
 	return netlink.RouteDel(route)
 }
 
+func (fwmr *FWMarkRoute) Verify() bool {
+	routes, err := netlink.RouteListFiltered(fwmr.family(), fwmr.route, netlink.RT_FILTER_GW|netlink.RT_FILTER_TABLE)
+	if err != nil {
+		logrus.Debugf("Verify FWMarkRoute (table: %v ; fwmark: %v) err: %v", fwmr.tableID, fwmr.fwmark, err)
+		return false
+	}
+	return len(routes) > 0
+}
+
 func (fwmr *FWMarkRoute) configure() error {
 	rule := netlink.NewRule()
 	rule.Table = fwmr.tableID
@@ -54,11 +65,11 @@ func (fwmr *FWMarkRoute) configure() error {
 		return err
 	}
 
-	route := &netlink.Route{
+	fwmr.route = &netlink.Route{
 		Gw:    fwmr.ip.IP,
 		Table: fwmr.tableID,
 	}
-	return netlink.RouteAdd(route)
+	return netlink.RouteAdd(fwmr.route)
 }
 
 func (fwmr *FWMarkRoute) family() int {

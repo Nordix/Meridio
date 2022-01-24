@@ -65,6 +65,7 @@ type Bridge interface {
 }
 
 type FWMarkRoute interface {
+	Verify() bool
 	Delete() error
 }
 

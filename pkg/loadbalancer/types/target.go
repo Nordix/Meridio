@@ -20,5 +20,6 @@ type Target interface {
 	GetIps() []string
 	GetIdentifier() int
 	Configure() error
+	Verify() bool
 	Delete() error
 }
