@@ -66,6 +66,28 @@ spec:
               value: "7777"
             - name: IPAM_DATASOURCE
               value: /run/ipam/data/registry.db
+            - name: IPAM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: IPAM_TRENCH_NAME
+              value: # to be filled by operator
+            - name: IPAM_NSP_SERVICE
+              value: # to be filled by operator
+            - name: IPAM_PREFIX_IPV4
+              value: # to be filled by operator
+            - name: IPAM_PREFIX_IPV6
+              value: # to be filled by operator
+            - name: IPAM_CONDUIT_PREFIX_LENGTH_IPV4
+              value: # to be filled by operator
+            - name: IPAM_CONDUIT_PREFIX_LENGTH_IPV6
+              value: # to be filled by operator
+            - name: IPAM_NODE_PREFIX_LENGTH_IPV4
+              value: # to be filled by operator
+            - name: IPAM_NODE_PREFIX_LENGTH_IPV6
+              value: # to be filled by operator
+            - name: IPAM_IP_FAMILY
+              value: # to be filled by operator
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
