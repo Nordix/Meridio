@@ -15,7 +15,6 @@ spec:
       labels:
         app: load-balancer-{{ .Values.trench.name }}
     spec:
-      serviceAccountName: {{ template "meridio.serviceAccount" . }}
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -72,7 +71,8 @@ spec:
               mountPath: /var/lib/networkservicemesh
               readOnly: false
           securityContext:
-            privileged: true
+            capabilities:
+              add: ["NET_ADMIN"]
         - name: nsc
           image: registry.nordix.org/cloud-native/nsm/cmd-nsc:latest-dns-fix
           imagePullPolicy: {{ .Values.pullPolicy }}
@@ -129,7 +129,8 @@ spec:
               mountPath: /run/spire/sockets
               readOnly: true
           securityContext:
-            privileged: true
+            capabilities:
+              add: ["NET_ADMIN"]
       volumes:
         - name: spire-agent-socket
           hostPath:

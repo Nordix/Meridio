@@ -15,7 +15,6 @@ spec:
       labels:
         app: {{ .Values.applicationName }}
     spec:
-      serviceAccountName: meridio
       containers:
         - name: ctraffic
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ctraffic.image }}:{{ .Values.ctraffic.version }}

@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -46,7 +47,6 @@ import (
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/client"
-	"github.com/nordix/meridio/pkg/configuration"
 	endpointOld "github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/health/probe"
@@ -57,6 +57,7 @@ import (
 	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/nordix/meridio/pkg/nsm/ipcontext"
 	"github.com/nordix/meridio/pkg/nsm/service"
+	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/nordix/meridio/pkg/proxy"
 	proxyHealth "github.com/nordix/meridio/pkg/proxy/health"
 	"github.com/nordix/meridio/pkg/security/credentials"
@@ -90,10 +91,6 @@ func main() {
 		logrus.Warnf("%v", err)
 	}
 
-	// proxySubnets, err := getProxySubnets(config)
-	// if err != nil {
-	// 	logrus.Fatalf("%v", err)
-	// }
 	netUtils := &linuxKernel.KernelUtils{}
 
 	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
@@ -113,9 +110,9 @@ func main() {
 	}
 	ipamClient := ipamAPI.NewIpamClient(conn)
 	conduit := &nspAPI.Conduit{
-		Name: config.ConduitName,
+		Name: config.Conduit,
 		Trench: &nspAPI.Trench{
-			Name: config.TrenchName,
+			Name: config.Trench,
 		},
 	}
 	p := proxy.NewProxy(conduit, config.Host, ipamClient, config.IPFamily, netUtils)
@@ -159,20 +156,41 @@ func main() {
 		}
 	}()
 
-	// TODO: use NSP based config watcher
-	configWatcher := make(chan *configuration.OperatorConfig)
-	configurationWatcher := configuration.NewOperatorWatcher(config.ConfigMapName, config.Namespace, configWatcher)
-	go configurationWatcher.Start()
-	health.SetServingStatus(ctx, health.NSPCliSvc, true)
-
-	for {
-		select {
-		case config := <-configWatcher:
-			p.SetVIPs(configuration.AddrListFromVipConfig(config.VIPs))
-		case <-ctx.Done():
-			return
-		}
+	configurationContext, configurationCancel := context.WithCancel(ctx)
+	defer configurationCancel()
+	nspConn, err := grpc.Dial(nsp.GetServiceName(config.NSPServiceName, config.Trench, config.Namespace, config.NSPServicePort),
+		grpc.WithTransportCredentials(
+			credentials.GetClient(configurationContext),
+		),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+		))
+	if err != nil {
+		logrus.Fatalf("Dial err: %v", err)
 	}
+
+	configurationManagerClient := nspAPI.NewConfigurationManagerClient(nspConn)
+	vipWatcher, err := configurationManagerClient.WatchVip(configurationContext, &nspAPI.Vip{
+		Trench: &nspAPI.Trench{
+			Name: config.Trench,
+		},
+	})
+	if err != nil {
+		logrus.Fatalf("WatchVip err: %v", err)
+	}
+	health.SetServingStatus(ctx, health.NSPCliSvc, true)
+	for {
+		vipResponse, err := vipWatcher.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			logrus.Warnf("err vipWatcher.Recv: %v", err) // todo
+			break
+		}
+		p.SetVIPs(vipResponse.ToSlice())
+	}
+	<-ctx.Done()
 }
 
 func getNSC(ctx context.Context,

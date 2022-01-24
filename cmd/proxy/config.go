@@ -34,9 +34,10 @@ type Config struct {
 	Host               string        `default:"" desc:"Host name the proxy is running on" split_words:"true"`
 	NetworkServiceName string        `default:"load-balancer" desc:"Name of the network service the proxy request the connection" split_words:"true"`
 	Namespace          string        `default:"default" desc:"Namespace the pod is running on" split_words:"true"`
-	ConfigMapName      string        `default:"meridio-configuration" desc:"Name of the ConfigMap containing the configuration" split_words:"true"`
-	TrenchName         string        `default:"default" desc:"Trench the pod is running on" split_words:"true"`
-	ConduitName        string        `default:"load-balancer" desc:"Name of the conduit" split_words:"true"`
+	Trench             string        `default:"default" desc:"Trench the pod is running on" split_words:"true"`
+	Conduit            string        `default:"load-balancer" desc:"Name of the conduit" split_words:"true"`
+	NSPServiceName     string        `default:"nsp-service" desc:"IP (or domain) of the NSP Service" split_words:"true"`
+	NSPServicePort     int           `default:"7778" desc:"port of the NSP Service" split_words:"true"`
 	IPFamily           string        `default:"dualstack" desc:"ip family" envconfig:"ip_family"`
 }
 
