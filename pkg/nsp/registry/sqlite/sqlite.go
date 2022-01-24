@@ -81,7 +81,7 @@ func (trsql *TargetRegistrySQLite) Remove(ctx context.Context, target *nspAPI.Ta
 	trsql.mu.Lock()
 	defer trsql.mu.Unlock()
 	targetModel := NSPTargetToSQLTarget(target)
-	tx := trsql.DB.Delete(&Target{}, targetModel.ID)
+	tx := trsql.DB.Delete(targetModel)
 	if tx.Error != nil {
 		return tx.Error
 	}
