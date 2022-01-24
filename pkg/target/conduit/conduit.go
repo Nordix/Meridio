@@ -102,7 +102,8 @@ func (c *Conduit) Connect(ctx context.Context) error {
 		RequestTimeout: c.nsmConfig.RequestTimeout,
 		ConnectTo:      c.nsmConfig.ConnectTo,
 	}
-	c.networkServiceClient = client.NewSimpleNetworkServiceClient(ctx, clientConfig, c.apiClient, c.getAdditionalFunctionalities(ctx))
+	nscCtx := context.Background()
+	c.networkServiceClient = client.NewSimpleNetworkServiceClient(nscCtx, clientConfig, c.apiClient, c.getAdditionalFunctionalities(nscCtx))
 	err := c.networkServiceClient.Request(&networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id:             fmt.Sprintf("%s-%s-%d", c.nsmConfig.Name, proxyNetworkServiceName, 0),
