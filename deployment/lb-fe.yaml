@@ -15,7 +15,6 @@ spec:
       labels:
         app: lb-fe
     spec:
-      serviceAccountName: # to be filled by operator
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -99,7 +98,8 @@ spec:
               mountPath: /var/lib/networkservicemesh
               readOnly: false
           securityContext:
-            privileged: true
+            capabilities:
+              add: ["NET_ADMIN"]
         - name: nsc
           image: # to be filled by operator if not specified
           imagePullPolicy: # Kubernetes default according to image tag
@@ -185,7 +185,8 @@ spec:
             - name: NFE_ATTRACTOR_NAME
               value: # to be filled by operator
           securityContext:
-            privileged: true
+            capabilities:
+              add: ["NET_ADMIN"]
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

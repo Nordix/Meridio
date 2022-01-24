@@ -43,10 +43,6 @@ func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	// else return default envVars
 	env := []corev1.EnvVar{
 		{
-			Name:  "NSM_CONFIG_MAP_NAME",
-			Value: common.ConfigMapName(i.trench),
-		},
-		{
 			Name:  "NSM_SERVICE_NAME",
 			Value: common.ProxyNtwkSvcNsName(i.conduit),
 		},
@@ -61,8 +57,16 @@ func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 				i.conduit.ObjectMeta.Namespace),
 		},
 		{
-			Name:  "NSM_TRENCH_NAME",
-			Value: i.trench.ObjectMeta.GetName(),
+			Name:  "NSM_IP_FAMILY",
+			Value: common.GetIPFamily(i.trench),
+		},
+		{
+			Name:  "NSM_TRENCH",
+			Value: i.trench.GetName(),
+		},
+		{
+			Name:  "NSM_CONDUIT",
+			Value: i.conduit.ObjectMeta.GetName(),
 		},
 		{
 			Name:  "NSM_NSP_SERVICE_NAME",
@@ -71,14 +75,6 @@ func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 		{
 			Name:  "NSM_NSP_SERVICE_PORT",
 			Value: strconv.Itoa(common.NspTargetPort),
-		},
-		{
-			Name:  "NSM_CONDUIT_NAME",
-			Value: i.conduit.ObjectMeta.GetName(),
-		},
-		{
-			Name:  "NSM_IP_FAMILY",
-			Value: common.GetIPFamily(i.trench),
 		},
 	}
 
