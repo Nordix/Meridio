@@ -21,7 +21,7 @@ import (
 	"io"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
-	"github.com/nordix/meridio/pkg/target/types"
+	"github.com/nordix/meridio/pkg/ambassador/tap/types"
 	"github.com/sirupsen/logrus"
 )
 

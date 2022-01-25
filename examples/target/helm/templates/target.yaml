@@ -41,8 +41,8 @@ spec:
             - name: meridio-socket
               mountPath: /var/lib/meridio
               readOnly: true
-        - name: target
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.target.image }}:{{ .Values.target.version }}
+        - name: tapa
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.tapa.image }}:{{ .Values.tapa.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           startupProbe:
 {{ toYaml .Values.startupProbe | indent 12 }}

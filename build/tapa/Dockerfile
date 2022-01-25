@@ -11,7 +11,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"' -o target ./cmd/target
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"' -o tapa ./cmd/tapa
 
 FROM ubuntu:21.04 as grpc-health-probe
 
@@ -28,7 +28,7 @@ RUN apt-get update -y
 RUN apt-get install -y iproute2 tcpdump iptables net-tools iputils-ping ipvsadm netcat
 
 WORKDIR /root/
-COPY --from=build /app/target .
+COPY --from=build /app/tapa .
 COPY --from=grpc-health-probe /bin/grpc_health_probe /bin/
 
-CMD ["./target"]
+CMD ["./tapa"]

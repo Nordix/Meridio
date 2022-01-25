@@ -19,8 +19,8 @@ default:
     name: stream-a
   maxTokenLifetime: 10m
 
-target:
-  image: target
+tapa:
+  image: tapa
   version: latest
 
 ctraffic:

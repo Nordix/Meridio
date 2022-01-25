@@ -14,16 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package target
+package tap
 
 import (
+	tapAPI "github.com/nordix/meridio/api/ambassador/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
-	targetAPI "github.com/nordix/meridio/api/target/v1"
-	"github.com/nordix/meridio/pkg/target/types"
+	"github.com/nordix/meridio/pkg/ambassador/tap/types"
 )
 
 type conduitWatcher struct {
-	watcher        targetAPI.Ambassador_WatchConduitServer
+	watcher        tapAPI.Ambassador_WatchConduitServer
 	conduitToWatch *nspAPI.Conduit
 }
 
@@ -52,7 +52,7 @@ func (cw *conduitWatcher) notify(trench types.Trench) {
 }
 
 type streamWatcher struct {
-	watcher       targetAPI.Ambassador_WatchStreamServer
+	watcher       tapAPI.Ambassador_WatchStreamServer
 	streamToWatch *nspAPI.Stream
 }
 

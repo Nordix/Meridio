@@ -13,8 +13,8 @@ limitations under the License.
 
 syntax = "proto3";
 
-package target.v1;
-option go_package = "github.com/nordix/meridio/api/v1/target";
+package ambassador.v1;
+option go_package = "github.com/nordix/meridio/api/v1/ambassador";
 import "google/protobuf/empty.proto";
 import "api/nsp/v1/model.proto";
 

@@ -25,8 +25,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	tapAPI "github.com/nordix/meridio/api/ambassador/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
-	targetAPI "github.com/nordix/meridio/api/target/v1"
 	"google.golang.org/grpc"
 )
 
@@ -255,7 +255,7 @@ func watch() error {
 	return nil
 }
 
-func getClient() (targetAPI.AmbassadorClient, error) {
+func getClient() (tapAPI.AmbassadorClient, error) {
 	conn, err := grpc.Dial(os.Getenv("MERIDIO_AMBASSADOR_SOCKET"), grpc.WithInsecure(),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
@@ -263,5 +263,5 @@ func getClient() (targetAPI.AmbassadorClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return targetAPI.NewAmbassadorClient(conn), nil
+	return tapAPI.NewAmbassadorClient(conn), nil
 }
