@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -169,7 +169,7 @@ func (c *Conduit) AddStream(ctx context.Context, stream types.Stream) error {
 	}
 	err := stream.Open(ctx)
 	if err != nil {
-		return nil
+		return err
 	}
 	c.streams = append(c.streams, stream)
 	return nil
