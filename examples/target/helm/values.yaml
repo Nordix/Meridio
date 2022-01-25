@@ -18,8 +18,8 @@ default:
   stream:
     name: stream-a
 
-target:
-  image: target
+tapa:
+  image: tapa
   version: latest
 
 ctraffic:

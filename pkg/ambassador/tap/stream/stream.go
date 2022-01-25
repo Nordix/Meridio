@@ -25,8 +25,8 @@ import (
 	"time"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/ambassador/tap/types"
 	lbTypes "github.com/nordix/meridio/pkg/loadbalancer/types"
-	"github.com/nordix/meridio/pkg/target/types"
 )
 
 // Stream implements types.Stream

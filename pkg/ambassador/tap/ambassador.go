@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package target
+package tap
 
 import (
 	"context"
@@ -26,13 +26,13 @@ import (
 	"sync"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	tapAPI "github.com/nordix/meridio/api/ambassador/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
-	targetAPI "github.com/nordix/meridio/api/target/v1"
+	"github.com/nordix/meridio/pkg/ambassador/tap/conduit"
+	"github.com/nordix/meridio/pkg/ambassador/tap/stream"
+	"github.com/nordix/meridio/pkg/ambassador/tap/trench"
+	"github.com/nordix/meridio/pkg/ambassador/tap/types"
 	"github.com/nordix/meridio/pkg/nsm"
-	"github.com/nordix/meridio/pkg/target/conduit"
-	"github.com/nordix/meridio/pkg/target/stream"
-	"github.com/nordix/meridio/pkg/target/trench"
-	"github.com/nordix/meridio/pkg/target/types"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -75,7 +75,7 @@ func NewAmbassador(socket string, trenchNamespace string, config *Config) (*Amba
 		evenChan:        make(chan struct{}, 10),
 	}
 
-	targetAPI.RegisterAmbassadorServer(s, ambassador)
+	tapAPI.RegisterAmbassadorServer(s, ambassador)
 	logrus.Debugf("Creating ambassador grpc health server")
 	healthServer := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(s, healthServer)
@@ -160,7 +160,7 @@ func (a *Ambassador) Close(ctx context.Context, s *nspAPI.Stream) (*empty.Empty,
 	return &empty.Empty{}, conduit.RemoveStream(ctx, stream)
 }
 
-func (a *Ambassador) WatchConduit(conduitToWatch *nspAPI.Conduit, watcher targetAPI.Ambassador_WatchConduitServer) error {
+func (a *Ambassador) WatchConduit(conduitToWatch *nspAPI.Conduit, watcher tapAPI.Ambassador_WatchConduitServer) error {
 	conduitWatcher := &conduitWatcher{
 		watcher:        watcher,
 		conduitToWatch: conduitToWatch,
@@ -172,7 +172,7 @@ func (a *Ambassador) WatchConduit(conduitToWatch *nspAPI.Conduit, watcher target
 	return nil
 }
 
-func (a *Ambassador) WatchStream(streamToWatch *nspAPI.Stream, watcher targetAPI.Ambassador_WatchStreamServer) error {
+func (a *Ambassador) WatchStream(streamToWatch *nspAPI.Stream, watcher tapAPI.Ambassador_WatchStreamServer) error {
 	streamWatcher := &streamWatcher{
 		watcher:       watcher,
 		streamToWatch: streamToWatch,

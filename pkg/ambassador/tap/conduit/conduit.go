@@ -39,12 +39,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/ambassador/tap/types"
 	"github.com/nordix/meridio/pkg/client"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
 	"github.com/nordix/meridio/pkg/nsm/interfacename"
-	"github.com/nordix/meridio/pkg/target/types"
 	"github.com/sirupsen/logrus"
 )
 
