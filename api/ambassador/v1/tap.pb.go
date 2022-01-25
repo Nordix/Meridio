@@ -28,6 +28,7 @@ import (
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	reflect "reflect"
+	sync "sync"
 )
 
 const (
@@ -36,6 +37,164 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
+
+type StreamStatus_Status int32
+
+const (
+	// Stream is open and ready to carry traffic
+	StreamStatus_OPEN StreamStatus_Status = 0
+	// The stream is requested open, but a stable status is not known yet due to a lengthy transition
+	StreamStatus_PENDING StreamStatus_Status = 1
+	// Stream is not reachable (NSP unreachable, under upgrade, failed etc.)
+	StreamStatus_UNAVAILABLE StreamStatus_Status = 2
+	// The stream is requested open, but it is not defined on the Meridio side
+	StreamStatus_UNDEFINED StreamStatus_Status = 3
+)
+
+// Enum value maps for StreamStatus_Status.
+var (
+	StreamStatus_Status_name = map[int32]string{
+		0: "OPEN",
+		1: "PENDING",
+		2: "UNAVAILABLE",
+		3: "UNDEFINED",
+	}
+	StreamStatus_Status_value = map[string]int32{
+		"OPEN":        0,
+		"PENDING":     1,
+		"UNAVAILABLE": 2,
+		"UNDEFINED":   3,
+	}
+)
+
+func (x StreamStatus_Status) Enum() *StreamStatus_Status {
+	p := new(StreamStatus_Status)
+	*p = x
+	return p
+}
+
+func (x StreamStatus_Status) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (StreamStatus_Status) Descriptor() protoreflect.EnumDescriptor {
+	return file_api_ambassador_v1_tap_proto_enumTypes[0].Descriptor()
+}
+
+func (StreamStatus_Status) Type() protoreflect.EnumType {
+	return &file_api_ambassador_v1_tap_proto_enumTypes[0]
+}
+
+func (x StreamStatus_Status) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use StreamStatus_Status.Descriptor instead.
+func (StreamStatus_Status) EnumDescriptor() ([]byte, []int) {
+	return file_api_ambassador_v1_tap_proto_rawDescGZIP(), []int{1, 0}
+}
+
+type StreamResponse struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	StreamStatus []*StreamStatus `protobuf:"bytes,1,rep,name=streamStatus,proto3" json:"streamStatus,omitempty"`
+}
+
+func (x *StreamResponse) Reset() {
+	*x = StreamResponse{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_api_ambassador_v1_tap_proto_msgTypes[0]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *StreamResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamResponse) ProtoMessage() {}
+
+func (x *StreamResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ambassador_v1_tap_proto_msgTypes[0]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamResponse.ProtoReflect.Descriptor instead.
+func (*StreamResponse) Descriptor() ([]byte, []int) {
+	return file_api_ambassador_v1_tap_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *StreamResponse) GetStreamStatus() []*StreamStatus {
+	if x != nil {
+		return x.StreamStatus
+	}
+	return nil
+}
+
+type StreamStatus struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Status StreamStatus_Status `protobuf:"varint,1,opt,name=status,proto3,enum=ambassador.v1.StreamStatus_Status" json:"status,omitempty"`
+	Stream *v1.Stream          `protobuf:"bytes,2,opt,name=stream,proto3" json:"stream,omitempty"`
+}
+
+func (x *StreamStatus) Reset() {
+	*x = StreamStatus{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_api_ambassador_v1_tap_proto_msgTypes[1]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *StreamStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamStatus) ProtoMessage() {}
+
+func (x *StreamStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_api_ambassador_v1_tap_proto_msgTypes[1]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamStatus.ProtoReflect.Descriptor instead.
+func (*StreamStatus) Descriptor() ([]byte, []int) {
+	return file_api_ambassador_v1_tap_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *StreamStatus) GetStatus() StreamStatus_Status {
+	if x != nil {
+		return x.Status
+	}
+	return StreamStatus_OPEN
+}
+
+func (x *StreamStatus) GetStream() *v1.Stream {
+	if x != nil {
+		return x.Stream
+	}
+	return nil
+}
 
 var File_api_ambassador_v1_tap_proto protoreflect.FileDescriptor
 
@@ -46,59 +205,75 @@ var file_api_ambassador_v1_tap_proto_rawDesc = []byte{
 	0x6f, 0x67, 0x6c, 0x65, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2f, 0x65, 0x6d,
 	0x70, 0x74, 0x79, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x16, 0x61, 0x70, 0x69, 0x2f, 0x6e,
 	0x73, 0x70, 0x2f, 0x76, 0x31, 0x2f, 0x6d, 0x6f, 0x64, 0x65, 0x6c, 0x2e, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x32, 0xd9, 0x02, 0x0a, 0x0a, 0x41, 0x6d, 0x62, 0x61, 0x73, 0x73, 0x61, 0x64, 0x6f, 0x72,
-	0x12, 0x34, 0x0a, 0x07, 0x43, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x12, 0x0f, 0x2e, 0x6e, 0x73,
-	0x70, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x6f, 0x6e, 0x64, 0x75, 0x69, 0x74, 0x1a, 0x16, 0x2e, 0x67,
-	0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45,
-	0x6d, 0x70, 0x74, 0x79, 0x22, 0x00, 0x12, 0x37, 0x0a, 0x0a, 0x44, 0x69, 0x73, 0x63, 0x6f, 0x6e,
-	0x6e, 0x65, 0x63, 0x74, 0x12, 0x0f, 0x2e, 0x6e, 0x73, 0x70, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x6f,
-	0x6e, 0x64, 0x75, 0x69, 0x74, 0x1a, 0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x22, 0x00, 0x12,
-	0x3c, 0x0a, 0x0c, 0x57, 0x61, 0x74, 0x63, 0x68, 0x43, 0x6f, 0x6e, 0x64, 0x75, 0x69, 0x74, 0x12,
-	0x0f, 0x2e, 0x6e, 0x73, 0x70, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x6f, 0x6e, 0x64, 0x75, 0x69, 0x74,
-	0x1a, 0x17, 0x2e, 0x6e, 0x73, 0x70, 0x2e, 0x76, 0x31, 0x2e, 0x43, 0x6f, 0x6e, 0x64, 0x75, 0x69,
-	0x74, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x30, 0x01, 0x12, 0x30, 0x0a,
-	0x04, 0x4f, 0x70, 0x65, 0x6e, 0x12, 0x0e, 0x2e, 0x6e, 0x73, 0x70, 0x2e, 0x76, 0x31, 0x2e, 0x53,
-	0x74, 0x72, 0x65, 0x61, 0x6d, 0x1a, 0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x22, 0x00, 0x12,
-	0x31, 0x0a, 0x05, 0x43, 0x6c, 0x6f, 0x73, 0x65, 0x12, 0x0e, 0x2e, 0x6e, 0x73, 0x70, 0x2e, 0x76,
-	0x31, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x1a, 0x16, 0x2e, 0x67, 0x6f, 0x6f, 0x67, 0x6c,
-	0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79,
-	0x22, 0x00, 0x12, 0x39, 0x0a, 0x0b, 0x57, 0x61, 0x74, 0x63, 0x68, 0x53, 0x74, 0x72, 0x65, 0x61,
-	0x6d, 0x12, 0x0e, 0x2e, 0x6e, 0x73, 0x70, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61,
-	0x6d, 0x1a, 0x16, 0x2e, 0x6e, 0x73, 0x70, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61,
-	0x6d, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00, 0x30, 0x01, 0x42, 0x2d, 0x5a,
-	0x2b, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6e, 0x6f, 0x72, 0x64,
-	0x69, 0x78, 0x2f, 0x6d, 0x65, 0x72, 0x69, 0x64, 0x69, 0x6f, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x76,
-	0x31, 0x2f, 0x61, 0x6d, 0x62, 0x61, 0x73, 0x73, 0x61, 0x64, 0x6f, 0x72, 0x62, 0x06, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x33,
+	0x6f, 0x22, 0x51, 0x0a, 0x0e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x52, 0x65, 0x73, 0x70, 0x6f,
+	0x6e, 0x73, 0x65, 0x12, 0x3f, 0x0a, 0x0c, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x53, 0x74, 0x61,
+	0x74, 0x75, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x1b, 0x2e, 0x61, 0x6d, 0x62, 0x61,
+	0x73, 0x73, 0x61, 0x64, 0x6f, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d,
+	0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x0c, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x53, 0x74,
+	0x61, 0x74, 0x75, 0x73, 0x22, 0xb3, 0x01, 0x0a, 0x0c, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x53,
+	0x74, 0x61, 0x74, 0x75, 0x73, 0x12, 0x3a, 0x0a, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75, 0x73, 0x18,
+	0x01, 0x20, 0x01, 0x28, 0x0e, 0x32, 0x22, 0x2e, 0x61, 0x6d, 0x62, 0x61, 0x73, 0x73, 0x61, 0x64,
+	0x6f, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x53, 0x74, 0x61, 0x74,
+	0x75, 0x73, 0x2e, 0x53, 0x74, 0x61, 0x74, 0x75, 0x73, 0x52, 0x06, 0x73, 0x74, 0x61, 0x74, 0x75,
+	0x73, 0x12, 0x26, 0x0a, 0x06, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x18, 0x02, 0x20, 0x01, 0x28,
+	0x0b, 0x32, 0x0e, 0x2e, 0x6e, 0x73, 0x70, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61,
+	0x6d, 0x52, 0x06, 0x73, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x22, 0x3f, 0x0a, 0x06, 0x53, 0x74, 0x61,
+	0x74, 0x75, 0x73, 0x12, 0x08, 0x0a, 0x04, 0x4f, 0x50, 0x45, 0x4e, 0x10, 0x00, 0x12, 0x0b, 0x0a,
+	0x07, 0x50, 0x45, 0x4e, 0x44, 0x49, 0x4e, 0x47, 0x10, 0x01, 0x12, 0x0f, 0x0a, 0x0b, 0x55, 0x4e,
+	0x41, 0x56, 0x41, 0x49, 0x4c, 0x41, 0x42, 0x4c, 0x45, 0x10, 0x02, 0x12, 0x0d, 0x0a, 0x09, 0x55,
+	0x4e, 0x44, 0x45, 0x46, 0x49, 0x4e, 0x45, 0x44, 0x10, 0x03, 0x32, 0xa6, 0x01, 0x0a, 0x03, 0x54,
+	0x61, 0x70, 0x12, 0x30, 0x0a, 0x04, 0x4f, 0x70, 0x65, 0x6e, 0x12, 0x0e, 0x2e, 0x6e, 0x73, 0x70,
+	0x2e, 0x76, 0x31, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x1a, 0x16, 0x2e, 0x67, 0x6f, 0x6f,
+	0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e, 0x45, 0x6d, 0x70,
+	0x74, 0x79, 0x22, 0x00, 0x12, 0x31, 0x0a, 0x05, 0x43, 0x6c, 0x6f, 0x73, 0x65, 0x12, 0x0e, 0x2e,
+	0x6e, 0x73, 0x70, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x1a, 0x16, 0x2e,
+	0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x62, 0x75, 0x66, 0x2e,
+	0x45, 0x6d, 0x70, 0x74, 0x79, 0x22, 0x00, 0x12, 0x3a, 0x0a, 0x05, 0x57, 0x61, 0x74, 0x63, 0x68,
+	0x12, 0x0e, 0x2e, 0x6e, 0x73, 0x70, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d,
+	0x1a, 0x1d, 0x2e, 0x61, 0x6d, 0x62, 0x61, 0x73, 0x73, 0x61, 0x64, 0x6f, 0x72, 0x2e, 0x76, 0x31,
+	0x2e, 0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22,
+	0x00, 0x30, 0x01, 0x42, 0x2d, 0x5a, 0x2b, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f,
+	0x6d, 0x2f, 0x6e, 0x6f, 0x72, 0x64, 0x69, 0x78, 0x2f, 0x6d, 0x65, 0x72, 0x69, 0x64, 0x69, 0x6f,
+	0x2f, 0x61, 0x70, 0x69, 0x2f, 0x76, 0x31, 0x2f, 0x61, 0x6d, 0x62, 0x61, 0x73, 0x73, 0x61, 0x64,
+	0x6f, 0x72, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
+var (
+	file_api_ambassador_v1_tap_proto_rawDescOnce sync.Once
+	file_api_ambassador_v1_tap_proto_rawDescData = file_api_ambassador_v1_tap_proto_rawDesc
+)
+
+func file_api_ambassador_v1_tap_proto_rawDescGZIP() []byte {
+	file_api_ambassador_v1_tap_proto_rawDescOnce.Do(func() {
+		file_api_ambassador_v1_tap_proto_rawDescData = protoimpl.X.CompressGZIP(file_api_ambassador_v1_tap_proto_rawDescData)
+	})
+	return file_api_ambassador_v1_tap_proto_rawDescData
+}
+
+var file_api_ambassador_v1_tap_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_api_ambassador_v1_tap_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_api_ambassador_v1_tap_proto_goTypes = []interface{}{
-	(*v1.Conduit)(nil),         // 0: nsp.v1.Conduit
-	(*v1.Stream)(nil),          // 1: nsp.v1.Stream
-	(*emptypb.Empty)(nil),      // 2: google.protobuf.Empty
-	(*v1.ConduitResponse)(nil), // 3: nsp.v1.ConduitResponse
-	(*v1.StreamResponse)(nil),  // 4: nsp.v1.StreamResponse
+	(StreamStatus_Status)(0), // 0: ambassador.v1.StreamStatus.Status
+	(*StreamResponse)(nil),   // 1: ambassador.v1.StreamResponse
+	(*StreamStatus)(nil),     // 2: ambassador.v1.StreamStatus
+	(*v1.Stream)(nil),        // 3: nsp.v1.Stream
+	(*emptypb.Empty)(nil),    // 4: google.protobuf.Empty
 }
 var file_api_ambassador_v1_tap_proto_depIdxs = []int32{
-	0, // 0: ambassador.v1.Ambassador.Connect:input_type -> nsp.v1.Conduit
-	0, // 1: ambassador.v1.Ambassador.Disconnect:input_type -> nsp.v1.Conduit
-	0, // 2: ambassador.v1.Ambassador.WatchConduit:input_type -> nsp.v1.Conduit
-	1, // 3: ambassador.v1.Ambassador.Open:input_type -> nsp.v1.Stream
-	1, // 4: ambassador.v1.Ambassador.Close:input_type -> nsp.v1.Stream
-	1, // 5: ambassador.v1.Ambassador.WatchStream:input_type -> nsp.v1.Stream
-	2, // 6: ambassador.v1.Ambassador.Connect:output_type -> google.protobuf.Empty
-	2, // 7: ambassador.v1.Ambassador.Disconnect:output_type -> google.protobuf.Empty
-	3, // 8: ambassador.v1.Ambassador.WatchConduit:output_type -> nsp.v1.ConduitResponse
-	2, // 9: ambassador.v1.Ambassador.Open:output_type -> google.protobuf.Empty
-	2, // 10: ambassador.v1.Ambassador.Close:output_type -> google.protobuf.Empty
-	4, // 11: ambassador.v1.Ambassador.WatchStream:output_type -> nsp.v1.StreamResponse
-	6, // [6:12] is the sub-list for method output_type
-	0, // [0:6] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	2, // 0: ambassador.v1.StreamResponse.streamStatus:type_name -> ambassador.v1.StreamStatus
+	0, // 1: ambassador.v1.StreamStatus.status:type_name -> ambassador.v1.StreamStatus.Status
+	3, // 2: ambassador.v1.StreamStatus.stream:type_name -> nsp.v1.Stream
+	3, // 3: ambassador.v1.Tap.Open:input_type -> nsp.v1.Stream
+	3, // 4: ambassador.v1.Tap.Close:input_type -> nsp.v1.Stream
+	3, // 5: ambassador.v1.Tap.Watch:input_type -> nsp.v1.Stream
+	4, // 6: ambassador.v1.Tap.Open:output_type -> google.protobuf.Empty
+	4, // 7: ambassador.v1.Tap.Close:output_type -> google.protobuf.Empty
+	1, // 8: ambassador.v1.Tap.Watch:output_type -> ambassador.v1.StreamResponse
+	6, // [6:9] is the sub-list for method output_type
+	3, // [3:6] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_api_ambassador_v1_tap_proto_init() }
@@ -106,18 +281,46 @@ func file_api_ambassador_v1_tap_proto_init() {
 	if File_api_ambassador_v1_tap_proto != nil {
 		return
 	}
+	if !protoimpl.UnsafeEnabled {
+		file_api_ambassador_v1_tap_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*StreamResponse); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_api_ambassador_v1_tap_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*StreamStatus); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_api_ambassador_v1_tap_proto_rawDesc,
-			NumEnums:      0,
-			NumMessages:   0,
+			NumEnums:      1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_api_ambassador_v1_tap_proto_goTypes,
 		DependencyIndexes: file_api_ambassador_v1_tap_proto_depIdxs,
+		EnumInfos:         file_api_ambassador_v1_tap_proto_enumTypes,
+		MessageInfos:      file_api_ambassador_v1_tap_proto_msgTypes,
 	}.Build()
 	File_api_ambassador_v1_tap_proto = out.File
 	file_api_ambassador_v1_tap_proto_rawDesc = nil
@@ -133,72 +336,61 @@ var _ grpc.ClientConnInterface
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion6
 
-// AmbassadorClient is the client API for Ambassador service.
+// TapClient is the client API for Tap service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type AmbassadorClient interface {
-	// Connect to a conduit, so a new interface will be created.
-	// The Ambassador will also connect to the trench the
-	// conduit belongs to. And, the VIPs will be added to
-	// the loopback interface.
-	Connect(ctx context.Context, in *v1.Conduit, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	// Disconnect from a conduit, so the interface will be removed.
-	// The Ambassador will also close the streams which are opened
-	// in the conduit. It will disconnect the target from the trench.
-	// And, the VIPs will be removed from the loopback interface.
-	Disconnect(ctx context.Context, in *v1.Conduit, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	// WatchConduit will return a list of conduits containing the same
-	// properties as the one in parameter (nil properties will be
-	// ignored). On any event (any conduit created/deleted/updated)
-	// the list will be sent again.
-	WatchConduit(ctx context.Context, in *v1.Conduit, opts ...grpc.CallOption) (Ambassador_WatchConduitClient, error)
-	// Open a stream, so the identifier will be registered
-	// in the NSP service, the LBs will start load-balancing the
-	// traffic to the target.
+type TapClient interface {
+	// Open a stream registers the target to the NSP,
+	// If the trench or conduit is not connected to the target, then it will
+	// be connected automatically before registering the target to the NSP.
+	// If any property is not defined (empty name, nil trench/conduit...),
+	// or, if another trench is already connected, an error will be returned.
 	Open(ctx context.Context, in *v1.Stream, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	// Close a stream, so the identifier will be unregistered
-	// in the NSP service, the LBs will stop load-balancing the
-	// traffic to the target.
+	// Close a stream unregisters the target from the NSP, disconnects
+	// the target from the conduit if no more stream is connected to it,
+	// and disconnects from the trench if no more conduit is connected to it.
+	// If any property is not defined (empty name, nil trench/conduit...),
+	// an error will be returned.
 	Close(ctx context.Context, in *v1.Stream, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	// WatchStream will return a list of streams containing the same
-	// properties as the one in parameter (nil properties will be
-	// ignored). On any event (any stream created/deleted/updated)
+	// WatchStream will return a list of stream status containing
+	// the same properties as the one in parameter (nil properties
+	// will be ignored). On any event (any stream created/deleted/updated)
 	// the list will be sent again.
-	WatchStream(ctx context.Context, in *v1.Stream, opts ...grpc.CallOption) (Ambassador_WatchStreamClient, error)
+	Watch(ctx context.Context, in *v1.Stream, opts ...grpc.CallOption) (Tap_WatchClient, error)
 }
 
-type ambassadorClient struct {
+type tapClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewAmbassadorClient(cc grpc.ClientConnInterface) AmbassadorClient {
-	return &ambassadorClient{cc}
+func NewTapClient(cc grpc.ClientConnInterface) TapClient {
+	return &tapClient{cc}
 }
 
-func (c *ambassadorClient) Connect(ctx context.Context, in *v1.Conduit, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *tapClient) Open(ctx context.Context, in *v1.Stream, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/ambassador.v1.Ambassador/Connect", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/ambassador.v1.Tap/Open", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *ambassadorClient) Disconnect(ctx context.Context, in *v1.Conduit, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *tapClient) Close(ctx context.Context, in *v1.Stream, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/ambassador.v1.Ambassador/Disconnect", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/ambassador.v1.Tap/Close", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *ambassadorClient) WatchConduit(ctx context.Context, in *v1.Conduit, opts ...grpc.CallOption) (Ambassador_WatchConduitClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Ambassador_serviceDesc.Streams[0], "/ambassador.v1.Ambassador/WatchConduit", opts...)
+func (c *tapClient) Watch(ctx context.Context, in *v1.Stream, opts ...grpc.CallOption) (Tap_WatchClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_Tap_serviceDesc.Streams[0], "/ambassador.v1.Tap/Watch", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &ambassadorWatchConduitClient{stream}
+	x := &tapWatchClient{stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -208,276 +400,136 @@ func (c *ambassadorClient) WatchConduit(ctx context.Context, in *v1.Conduit, opt
 	return x, nil
 }
 
-type Ambassador_WatchConduitClient interface {
-	Recv() (*v1.ConduitResponse, error)
+type Tap_WatchClient interface {
+	Recv() (*StreamResponse, error)
 	grpc.ClientStream
 }
 
-type ambassadorWatchConduitClient struct {
+type tapWatchClient struct {
 	grpc.ClientStream
 }
 
-func (x *ambassadorWatchConduitClient) Recv() (*v1.ConduitResponse, error) {
-	m := new(v1.ConduitResponse)
+func (x *tapWatchClient) Recv() (*StreamResponse, error) {
+	m := new(StreamResponse)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
 	return m, nil
 }
 
-func (c *ambassadorClient) Open(ctx context.Context, in *v1.Stream, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/ambassador.v1.Ambassador/Open", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *ambassadorClient) Close(ctx context.Context, in *v1.Stream, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, "/ambassador.v1.Ambassador/Close", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *ambassadorClient) WatchStream(ctx context.Context, in *v1.Stream, opts ...grpc.CallOption) (Ambassador_WatchStreamClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_Ambassador_serviceDesc.Streams[1], "/ambassador.v1.Ambassador/WatchStream", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &ambassadorWatchStreamClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-type Ambassador_WatchStreamClient interface {
-	Recv() (*v1.StreamResponse, error)
-	grpc.ClientStream
-}
-
-type ambassadorWatchStreamClient struct {
-	grpc.ClientStream
-}
-
-func (x *ambassadorWatchStreamClient) Recv() (*v1.StreamResponse, error) {
-	m := new(v1.StreamResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-// AmbassadorServer is the server API for Ambassador service.
-type AmbassadorServer interface {
-	// Connect to a conduit, so a new interface will be created.
-	// The Ambassador will also connect to the trench the
-	// conduit belongs to. And, the VIPs will be added to
-	// the loopback interface.
-	Connect(context.Context, *v1.Conduit) (*emptypb.Empty, error)
-	// Disconnect from a conduit, so the interface will be removed.
-	// The Ambassador will also close the streams which are opened
-	// in the conduit. It will disconnect the target from the trench.
-	// And, the VIPs will be removed from the loopback interface.
-	Disconnect(context.Context, *v1.Conduit) (*emptypb.Empty, error)
-	// WatchConduit will return a list of conduits containing the same
-	// properties as the one in parameter (nil properties will be
-	// ignored). On any event (any conduit created/deleted/updated)
-	// the list will be sent again.
-	WatchConduit(*v1.Conduit, Ambassador_WatchConduitServer) error
-	// Open a stream, so the identifier will be registered
-	// in the NSP service, the LBs will start load-balancing the
-	// traffic to the target.
+// TapServer is the server API for Tap service.
+type TapServer interface {
+	// Open a stream registers the target to the NSP,
+	// If the trench or conduit is not connected to the target, then it will
+	// be connected automatically before registering the target to the NSP.
+	// If any property is not defined (empty name, nil trench/conduit...),
+	// or, if another trench is already connected, an error will be returned.
 	Open(context.Context, *v1.Stream) (*emptypb.Empty, error)
-	// Close a stream, so the identifier will be unregistered
-	// in the NSP service, the LBs will stop load-balancing the
-	// traffic to the target.
+	// Close a stream unregisters the target from the NSP, disconnects
+	// the target from the conduit if no more stream is connected to it,
+	// and disconnects from the trench if no more conduit is connected to it.
+	// If any property is not defined (empty name, nil trench/conduit...),
+	// an error will be returned.
 	Close(context.Context, *v1.Stream) (*emptypb.Empty, error)
-	// WatchStream will return a list of streams containing the same
-	// properties as the one in parameter (nil properties will be
-	// ignored). On any event (any stream created/deleted/updated)
+	// WatchStream will return a list of stream status containing
+	// the same properties as the one in parameter (nil properties
+	// will be ignored). On any event (any stream created/deleted/updated)
 	// the list will be sent again.
-	WatchStream(*v1.Stream, Ambassador_WatchStreamServer) error
+	Watch(*v1.Stream, Tap_WatchServer) error
 }
 
-// UnimplementedAmbassadorServer can be embedded to have forward compatible implementations.
-type UnimplementedAmbassadorServer struct {
+// UnimplementedTapServer can be embedded to have forward compatible implementations.
+type UnimplementedTapServer struct {
 }
 
-func (*UnimplementedAmbassadorServer) Connect(context.Context, *v1.Conduit) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Connect not implemented")
-}
-func (*UnimplementedAmbassadorServer) Disconnect(context.Context, *v1.Conduit) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Disconnect not implemented")
-}
-func (*UnimplementedAmbassadorServer) WatchConduit(*v1.Conduit, Ambassador_WatchConduitServer) error {
-	return status.Errorf(codes.Unimplemented, "method WatchConduit not implemented")
-}
-func (*UnimplementedAmbassadorServer) Open(context.Context, *v1.Stream) (*emptypb.Empty, error) {
+func (*UnimplementedTapServer) Open(context.Context, *v1.Stream) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Open not implemented")
 }
-func (*UnimplementedAmbassadorServer) Close(context.Context, *v1.Stream) (*emptypb.Empty, error) {
+func (*UnimplementedTapServer) Close(context.Context, *v1.Stream) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Close not implemented")
 }
-func (*UnimplementedAmbassadorServer) WatchStream(*v1.Stream, Ambassador_WatchStreamServer) error {
-	return status.Errorf(codes.Unimplemented, "method WatchStream not implemented")
+func (*UnimplementedTapServer) Watch(*v1.Stream, Tap_WatchServer) error {
+	return status.Errorf(codes.Unimplemented, "method Watch not implemented")
 }
 
-func RegisterAmbassadorServer(s *grpc.Server, srv AmbassadorServer) {
-	s.RegisterService(&_Ambassador_serviceDesc, srv)
+func RegisterTapServer(s *grpc.Server, srv TapServer) {
+	s.RegisterService(&_Tap_serviceDesc, srv)
 }
 
-func _Ambassador_Connect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(v1.Conduit)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AmbassadorServer).Connect(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/ambassador.v1.Ambassador/Connect",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AmbassadorServer).Connect(ctx, req.(*v1.Conduit))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Ambassador_Disconnect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(v1.Conduit)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AmbassadorServer).Disconnect(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/ambassador.v1.Ambassador/Disconnect",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AmbassadorServer).Disconnect(ctx, req.(*v1.Conduit))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Ambassador_WatchConduit_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(v1.Conduit)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(AmbassadorServer).WatchConduit(m, &ambassadorWatchConduitServer{stream})
-}
-
-type Ambassador_WatchConduitServer interface {
-	Send(*v1.ConduitResponse) error
-	grpc.ServerStream
-}
-
-type ambassadorWatchConduitServer struct {
-	grpc.ServerStream
-}
-
-func (x *ambassadorWatchConduitServer) Send(m *v1.ConduitResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func _Ambassador_Open_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Tap_Open_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(v1.Stream)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AmbassadorServer).Open(ctx, in)
+		return srv.(TapServer).Open(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/ambassador.v1.Ambassador/Open",
+		FullMethod: "/ambassador.v1.Tap/Open",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AmbassadorServer).Open(ctx, req.(*v1.Stream))
+		return srv.(TapServer).Open(ctx, req.(*v1.Stream))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Ambassador_Close_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Tap_Close_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(v1.Stream)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AmbassadorServer).Close(ctx, in)
+		return srv.(TapServer).Close(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/ambassador.v1.Ambassador/Close",
+		FullMethod: "/ambassador.v1.Tap/Close",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AmbassadorServer).Close(ctx, req.(*v1.Stream))
+		return srv.(TapServer).Close(ctx, req.(*v1.Stream))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Ambassador_WatchStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _Tap_Watch_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(v1.Stream)
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(AmbassadorServer).WatchStream(m, &ambassadorWatchStreamServer{stream})
+	return srv.(TapServer).Watch(m, &tapWatchServer{stream})
 }
 
-type Ambassador_WatchStreamServer interface {
-	Send(*v1.StreamResponse) error
+type Tap_WatchServer interface {
+	Send(*StreamResponse) error
 	grpc.ServerStream
 }
 
-type ambassadorWatchStreamServer struct {
+type tapWatchServer struct {
 	grpc.ServerStream
 }
 
-func (x *ambassadorWatchStreamServer) Send(m *v1.StreamResponse) error {
+func (x *tapWatchServer) Send(m *StreamResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-var _Ambassador_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "ambassador.v1.Ambassador",
-	HandlerType: (*AmbassadorServer)(nil),
+var _Tap_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "ambassador.v1.Tap",
+	HandlerType: (*TapServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Connect",
-			Handler:    _Ambassador_Connect_Handler,
-		},
-		{
-			MethodName: "Disconnect",
-			Handler:    _Ambassador_Disconnect_Handler,
-		},
-		{
 			MethodName: "Open",
-			Handler:    _Ambassador_Open_Handler,
+			Handler:    _Tap_Open_Handler,
 		},
 		{
 			MethodName: "Close",
-			Handler:    _Ambassador_Close_Handler,
+			Handler:    _Tap_Close_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "WatchConduit",
-			Handler:       _Ambassador_WatchConduit_Handler,
-			ServerStreams: true,
-		},
-		{
-			StreamName:    "WatchStream",
-			Handler:       _Ambassador_WatchStream_Handler,
+			StreamName:    "Watch",
+			Handler:       _Tap_Watch_Handler,
 			ServerStreams: true,
 		},
 	},

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -31,16 +31,13 @@ type StreamStatus int
 
 // Stream is an interface that rate limits items being added to the queue.
 type Stream interface {
-	// GetName returns the name of the stream
-	GetName() string
 	// Open the stream in the conduit by generating a identifier and registering
 	// the target to the NSP service while avoiding the identifier collisions.
 	Open(ctx context.Context) error
 	// Close the stream in the conduit by unregistering target from the NSP service.
 	Close(ctx context.Context) error
-	// GetConduit returns the conduit the stream belongs to.
-	GetConduit() Conduit
 	//
 	Equals(*nspAPI.Stream) bool
-	GetStatus() StreamStatus
+	//
+	GetStream() *nspAPI.Stream
 }

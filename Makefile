@@ -88,5 +88,24 @@ e2e:
 test: 
 	go test -race -cover -short ./... 
 
+.PHONY: cover
+cover: 
+	go test -race -coverprofile cover.out -short ./... 
+	go tool cover -html=cover.out -o cover.html
+
 .PHONY: check
 check: lint test
+
+.PHONY: mocks
+mocks:
+	mockgen -source=./pkg/ambassador/tap/types/stream.go -destination=./pkg/ambassador/tap/types/mocks/stream.go -package=mocks
+	mockgen -source=./pkg/ambassador/tap/types/conduit.go -destination=./pkg/ambassador/tap/types/mocks/conduit.go -package=mocks
+	mockgen -source=./pkg/ambassador/tap/types/trench.go -destination=./pkg/ambassador/tap/types/mocks/trench.go -package=mocks
+	mockgen -source=./pkg/ambassador/tap/types/registry.go -destination=./pkg/ambassador/tap/types/mocks/registry.go -package=mocks
+	mockgen -source=./pkg/ambassador/tap/trench/factory.go -destination=./pkg/ambassador/tap/trench/mocks/factory.go -package=mocks
+	mockgen -source=./pkg/ambassador/tap/conduit/factory.go -destination=./pkg/ambassador/tap/conduit/mocks/factory.go -package=mocks
+	mockgen -source=./pkg/ambassador/tap/conduit/configuration.go -destination=./pkg/ambassador/tap/conduit/mocks/configuration.go -package=mocks
+	mockgen -source=./pkg/ambassador/tap/stream/conduit.go -destination=./pkg/ambassador/tap/stream/mocks/conduit.go -package=mocks
+	mockgen -source=./pkg/ambassador/tap/stream/targetregistry.go -destination=./pkg/ambassador/tap/stream/mocks/targetregistry.go -package=mocks
+	mockgen -source=./pkg/ambassador/tap/stream/configuration.go -destination=./pkg/ambassador/tap/stream/mocks/configuration.go -package=mocks
+	mockgen -source=./pkg/nsm/client.go -destination=./pkg/nsm/mocks/client.go -package=mocks

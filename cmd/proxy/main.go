@@ -168,8 +168,8 @@ func main() {
 
 	configurationContext, configurationCancel := context.WithCancel(ctx)
 	defer configurationCancel()
-	logrus.Debugf("Dial NSP (%v)", nsp.GetServiceName(config.NSPServiceName, config.Trench, config.Namespace, config.NSPServicePort))
-	nspConn, err := grpc.Dial(nsp.GetServiceName(config.NSPServiceName, config.Trench, config.Namespace, config.NSPServicePort),
+	logrus.Debugf("Dial NSP (%v)", nsp.GetService(config.NSPServiceName, config.Trench, config.Namespace, config.NSPServicePort))
+	nspConn, err := grpc.Dial(nsp.GetService(config.NSPServiceName, config.Trench, config.Namespace, config.NSPServicePort),
 		grpc.WithTransportCredentials(
 			credentials.GetClient(configurationContext),
 		),

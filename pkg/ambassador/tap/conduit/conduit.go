@@ -25,193 +25,215 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
-	vfiomech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vfio"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
-	"github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/mechanisms/vfio"
-	sriovtoken "github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/token"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/ambassador/tap/stream"
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
-	"github.com/nordix/meridio/pkg/client"
+	"github.com/nordix/meridio/pkg/conduit"
 	"github.com/nordix/meridio/pkg/networking"
-	"github.com/nordix/meridio/pkg/nsm"
-	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
 	"github.com/sirupsen/logrus"
 )
 
+// Conduit implements types.Conduit
 type Conduit struct {
-	Name                 string
-	Trench               types.Trench
-	NodeName             string
-	Configuration        *Configuration
-	networkServiceClient client.NetworkServiceClient
-	EventChan            chan<- struct{}
-	NetUtils             networking.Utils
-	apiClient            *nsm.APIClient
-	nsmConfig            *nsm.Config
-	vips                 []*virtualIP
-	nexthops             []string
-	ips                  []string
-	tableID              int
-	streams              []types.Stream
-	mu                   sync.Mutex
-	status               types.ConduitStatus
+	TargetName                 string
+	Namespace                  string
+	Conduit                    *nspAPI.Conduit
+	NodeName                   string
+	ConfigurationManagerClient nspAPI.ConfigurationManagerClient
+	TargetRegistryClient       nspAPI.TargetRegistryClient
+	NetworkServiceClient       networkservice.NetworkServiceClient
+	Configuration              Configuration
+	StreamRegistry             types.Registry
+	NetUtils                   networking.Utils
+	StreamFactory              StreamFactory
+	connection                 *networkservice.Connection
+	streams                    *streamList
+	mu                         sync.Mutex
+	vips                       []*virtualIP
+	tableID                    int
+	configurationCancel        context.CancelFunc
+	openStreamsCancel          context.CancelFunc
+	openStreamsMu              sync.Mutex
+	addRemoveStreamMu          sync.Mutex
 }
 
-func New(
-	ctx context.Context,
-	name string,
-	trench types.Trench,
+// New is the constructor of Conduit.
+// The constructor will create a new stream factory and a VIP configuration watcher
+func New(conduit *nspAPI.Conduit,
+	targetName string,
+	namespace string,
 	nodeName string,
-	apiClient *nsm.APIClient,
-	nsmConfig *nsm.Config,
-	eventChan chan<- struct{},
-	netUtils networking.Utils) (types.Conduit, error) {
-	conduit := &Conduit{
-		Name:      name,
-		Trench:    trench,
-		NodeName:  nodeName,
-		apiClient: apiClient,
-		nsmConfig: nsmConfig,
-		vips:      []*virtualIP{},
-		nexthops:  []string{},
-		ips:       []string{},
-		tableID:   1,
-		EventChan: eventChan,
-		NetUtils:  netUtils,
-		status:    types.Disconnected,
+	configurationManagerClient nspAPI.ConfigurationManagerClient,
+	targetRegistryClient nspAPI.TargetRegistryClient,
+	networkServiceClient networkservice.NetworkServiceClient,
+	streamRegistry types.Registry,
+	netUtils networking.Utils) (*Conduit, error) {
+	c := &Conduit{
+		TargetName:                 targetName,
+		Namespace:                  namespace,
+		Conduit:                    conduit,
+		NodeName:                   nodeName,
+		ConfigurationManagerClient: configurationManagerClient,
+		TargetRegistryClient:       targetRegistryClient,
+		NetworkServiceClient:       networkServiceClient,
+		StreamRegistry:             streamRegistry,
+		NetUtils:                   netUtils,
+		connection:                 nil,
+		streams:                    newStreamList(),
+		vips:                       []*virtualIP{},
+		tableID:                    1,
 	}
-	conduit.Configuration = NewConfiguration(conduit, trench.GetConfigurationManagerClient())
-	err := trench.AddConduit(ctx, conduit)
-	if err != nil {
-		return nil, err
-	}
-	return conduit, nil
+	c.StreamFactory = newStreamFactoryImpl(c.TargetRegistryClient, c.ConfigurationManagerClient, c.StreamRegistry, stream.MaxNumberOfTargets, stream.DefaultPendingChan)
+	c.Configuration = newConfigurationImpl(c, c.Conduit.GetTrench(), c.ConfigurationManagerClient)
+	return c, nil
 }
 
-func (c *Conduit) GetName() string {
-	return c.Name
-}
-
+// Connect requests the connection to NSM and, if success, will open all streams added
+// and watch the VIPs
 func (c *Conduit) Connect(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	proxyNetworkServiceName := c.getNetworkServiceName()
-	clientConfig := &client.Config{
-		Name:           c.nsmConfig.Name,
-		RequestTimeout: c.nsmConfig.RequestTimeout,
-		ConnectTo:      c.nsmConfig.ConnectTo,
+	logrus.Infof("Connect to conduit: %v", c.Conduit)
+	if c.isConnected() {
+		return nil
 	}
 
-	nscCtx := context.Background()
-	nscCtx = log.WithLog(nscCtx, logruslogger.New(nscCtx)) // allow NSM logs
-	c.networkServiceClient = client.NewSimpleNetworkServiceClient(nscCtx, clientConfig, c.apiClient, c.getAdditionalFunctionalities(nscCtx))
-	err := c.networkServiceClient.Request(&networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id:             fmt.Sprintf("%s-%s-%d", c.nsmConfig.Name, proxyNetworkServiceName, 0),
-			NetworkService: proxyNetworkServiceName,
-			Labels: map[string]string{
-				"nodeName": c.NodeName,
+	nsName := conduit.GetNetworkServiceNameWithProxy(c.Conduit.GetName(), c.Conduit.GetTrench().GetName(), c.Namespace)
+	connection, err := c.NetworkServiceClient.Request(ctx,
+		&networkservice.NetworkServiceRequest{
+			Connection: &networkservice.Connection{
+				Id:             fmt.Sprintf("%s-%s-%d", c.TargetName, nsName, 0),
+				NetworkService: nsName,
+				Labels: map[string]string{
+					"nodeName": c.NodeName,
+				},
+				Payload: payload.Ethernet,
 			},
-			Payload: payload.Ethernet,
-		},
-		MechanismPreferences: []*networkservice.Mechanism{
-			{
-				Cls:  cls.LOCAL,
-				Type: kernelmech.MECHANISM,
+			MechanismPreferences: []*networkservice.Mechanism{
+				{
+					Cls:  cls.LOCAL,
+					Type: kernelmech.MECHANISM,
+				},
 			},
-		},
-	})
+		})
 	if err != nil {
 		return err
 	}
-	c.status = types.Connected
-	c.notifyWatcher()
-	go c.Configuration.WatchVIPs(context.Background())
+	c.connection = connection
+
+	var configurationCtx context.Context
+	configurationCtx, c.configurationCancel = context.WithCancel(context.TODO())
+	go c.Configuration.WatchVIPs(configurationCtx)
+
+	var openStreamCtx context.Context
+	openStreamCtx, c.openStreamsCancel = context.WithCancel(context.TODO())
+	go c.openStreams(openStreamCtx)
 	return nil
 }
 
+// Disconnect closes the connection from NSM, closes all streams
+// and stop the VIP watcher
 func (c *Conduit) Disconnect(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	for _, stream := range c.streams {
-		err := stream.Close(ctx)
+	logrus.Infof("Disconnect from conduit: %v", c.Conduit)
+	if c.configurationCancel != nil {
+		c.configurationCancel()
+	}
+	if c.openStreamsCancel != nil {
+		c.openStreamsCancel()
+	}
+	var errFinal error
+	err := c.closeStreams(ctx)
+	if err != nil {
+		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+	}
+	if c.isConnected() {
+		_, err = c.NetworkServiceClient.Close(ctx, c.connection)
 		if err != nil {
-			return err
+			errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 		}
+		c.connection = nil
 	}
-	err := c.networkServiceClient.Close()
-	if err != nil {
-		return err
-	}
-	c.Configuration.Delete() // todo: https://github.com/Nordix/Meridio/pull/139#discussion_r788055463
-	c.status = types.Disconnected
-	c.notifyWatcher()
 	c.deleteVIPs(c.vips)
-	c.nexthops = []string{}
 	c.tableID = 1
-	return nil
+	return errFinal
 }
 
-func (c *Conduit) AddStream(ctx context.Context, stream types.Stream) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	index := c.getIndex(stream.GetName())
-	if index >= 0 {
-		return errors.New("this stream is already opened")
+// AddStream creates a stream based on its factory and will open it (in another goroutine)
+func (c *Conduit) AddStream(ctx context.Context, strm *nspAPI.Stream) (types.Stream, error) {
+	c.addRemoveStreamMu.Lock()
+	defer c.addRemoveStreamMu.Unlock()
+	logrus.Debugf("Add stream: %v to conduit: %v", strm, c.Conduit)
+	if !c.Equals(strm.GetConduit()) {
+		return nil, errors.New("invalid stream for this conduit")
 	}
-	err := stream.Open(ctx)
+	ss := c.streams.get(strm)
+	if ss != nil {
+		return ss.stream, nil
+	}
+	s, err := c.StreamFactory.New(strm, c)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	c.streams = append(c.streams, stream)
-	return nil
+	streamStatus := &streamStatus{
+		stream: s,
+		status: closed,
+	}
+	c.streams.add(streamStatus)
+	return s, nil
 }
 
-func (c *Conduit) RemoveStream(ctx context.Context, stream types.Stream) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	index := c.getIndex(stream.GetName())
-	if index < 0 {
-		return errors.New("this stream is not opened")
+// RemoveStream closes and removes the stream (if existing), and removes it from the
+// stream registry.
+func (c *Conduit) RemoveStream(ctx context.Context, strm *nspAPI.Stream) error {
+	c.addRemoveStreamMu.Lock()
+	defer c.addRemoveStreamMu.Unlock()
+	logrus.Debugf("Remove stream: %v to conduit: %v", strm, c.Conduit)
+	ss := c.streams.get(strm)
+	if ss == nil {
+		return nil
 	}
-	err := stream.Close(ctx)
+	var errFinal error
+	err := c.StreamRegistry.Remove(ctx, strm)
 	if err != nil {
-		return err
+		errFinal = err
 	}
-	c.streams = append(c.streams[:index], c.streams[index+1:]...)
-	return nil
+	c.streams.del(strm)
+	err = ss.stream.Close(ctx) // todo: retry
+	if err != nil {
+		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+	}
+	return errFinal
 }
 
-func (c *Conduit) GetStreams(stream *nspAPI.Stream) []types.Stream {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if stream == nil {
-		return c.streams
-	}
+// GetStreams returns all streams previously added to this conduit
+func (c *Conduit) GetStreams() []types.Stream {
+	c.addRemoveStreamMu.Lock()
+	defer c.addRemoveStreamMu.Unlock()
 	streams := []types.Stream{}
-	for _, s := range c.streams {
-		if s.GetStatus() == types.Closed || !s.Equals(stream) {
-			continue
-		}
-		streams = append(streams, s)
+	for _, s := range c.streams.getList() {
+		streams = append(streams, s.stream)
 	}
 	return streams
 }
 
-func (c *Conduit) GetTrench() types.Trench {
-	return c.Trench
-}
-
+// GetStreams returns the local IPs for this conduit
 func (c *Conduit) GetIPs() []string {
-	return c.ips
+	if c.connection != nil {
+		return c.connection.GetContext().GetIpContext().GetSrcIpAddrs()
+	}
+	return []string{}
 }
 
+// SetVIPs checks the vips which has to be added or removed
 func (c *Conduit) SetVIPs(vips []string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.isConnected() {
+		return nil
+	}
 	currentVIPs := make(map[string]*virtualIP)
 	for _, vip := range c.vips {
 		currentVIPs[vip.prefix] = vip
@@ -225,7 +247,7 @@ func (c *Conduit) SetVIPs(vips []string) error {
 			}
 			c.tableID++
 			c.vips = append(c.vips, newVIP)
-			for _, nexthop := range c.nexthops {
+			for _, nexthop := range c.getGateways() {
 				err = newVIP.AddNexthop(nexthop)
 				if err != nil {
 					logrus.Errorf("Client: Error adding nexthop: %v", err) // todo: err handling
@@ -243,19 +265,53 @@ func (c *Conduit) SetVIPs(vips []string) error {
 	return nil
 }
 
+// Equals checks if the conduit is equal to the one in parameter
 func (c *Conduit) Equals(conduit *nspAPI.Conduit) bool {
-	if conduit == nil {
-		return true
-	}
-	name := true
-	if conduit.GetName() != "" {
-		name = c.GetName() == conduit.GetName()
-	}
-	return name && c.GetTrench().Equals(conduit.GetTrench())
+	return c.Conduit.Equals(conduit)
 }
 
-func (c *Conduit) GetStatus() types.ConduitStatus {
-	return c.status
+func (c *Conduit) openStreams(ctx context.Context) {
+	c.openStreamsMu.Lock()
+	defer c.openStreamsMu.Unlock()
+	for { // todo: retry
+		if ctx.Err() != nil {
+			return
+		}
+		for _, stream := range c.streams.getList() {
+			if stream.status == opened {
+				continue
+			}
+			err := stream.stream.Open(ctx)
+			if err != nil {
+				logrus.Warnf("could not open stream %v, err: %v", stream, err)
+				continue
+			}
+			stream.setStatus(opened)
+		}
+	}
+}
+
+func (c *Conduit) closeStreams(ctx context.Context) error {
+	c.openStreamsMu.Lock()
+	defer c.openStreamsMu.Unlock()
+	var errFinal error
+	// todo: retry
+	for _, stream := range c.streams.getList() {
+		err := stream.stream.Close(ctx)
+		if stream.status == closed {
+			continue
+		}
+		if err != nil {
+			errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+			continue
+		}
+		stream.setStatus(closed)
+	}
+	return errFinal
+}
+
+func (c *Conduit) isConnected() bool {
+	return c.connection != nil
 }
 
 func (c *Conduit) deleteVIPs(vips []*virtualIP) {
@@ -276,80 +332,9 @@ func (c *Conduit) deleteVIPs(vips []*virtualIP) {
 	}
 }
 
-func (c *Conduit) getIndex(streamName string) int {
-	for i, stream := range c.streams {
-		if stream.GetName() == streamName {
-			return i
-		}
+func (c *Conduit) getGateways() []string {
+	if c.connection != nil {
+		return c.connection.GetContext().GetIpContext().GetDstIpAddrs()
 	}
-	return -1
-}
-
-func (c *Conduit) notifyWatcher() {
-	if c.EventChan == nil {
-		return
-	}
-	c.EventChan <- struct{}{}
-}
-
-func (c *Conduit) getNetworkServiceName() string {
-	return fmt.Sprintf("%s.%s.%s.%s", proxyPrefix, c.GetName(), c.GetTrench().GetName(), c.GetTrench().GetNamespace())
-}
-
-func (c *Conduit) getAdditionalFunctionalities(ctx context.Context) networkservice.NetworkServiceClient {
-	interfaceMonitor, err := c.NetUtils.NewInterfaceMonitor()
-	if err != nil {
-		logrus.Fatalf("Error creating link monitor: %+v", err)
-	}
-	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, c, c.NetUtils)
-	// Note: tell NSM to use "nsc" for the interface name
-	// Must be revisited once multiple NSM client interface are to be supported on the application side.
-	additionalFunctionalities := chain.NewNetworkServiceClient(
-		sriovtoken.NewClient(),
-		mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
-			vfiomech.MECHANISM:   chain.NewNetworkServiceClient(vfio.NewClient()),
-			kernelmech.MECHANISM: chain.NewNetworkServiceClient(kernel.NewClient(kernel.WithInterfaceName("nsc"))),
-		}),
-		interfaceMonitorClient,
-	)
-	return additionalFunctionalities
-}
-
-func (c *Conduit) InterfaceCreated(intf networking.Iface) {
-	logrus.Infof("Client: InterfaceCreated: %v", intf)
-	c.ips = intf.GetLocalPrefixes()
-	if len(intf.GetGatewayPrefixes()) <= 0 {
-		logrus.Errorf("Client: Adding nexthop: no gateway: %v", intf)
-		return
-	}
-	for _, gateway := range intf.GetGatewayPrefixes() {
-		for _, vip := range c.vips {
-			err := vip.AddNexthop(gateway)
-			if err != nil {
-				logrus.Errorf("Client: Adding nexthop (%v) to source base route err: %v", gateway, err)
-			}
-		}
-		c.nexthops = append(c.nexthops, gateway)
-	}
-}
-
-func (c *Conduit) InterfaceDeleted(intf networking.Iface) {
-	c.ips = []string{}
-	if len(intf.GetGatewayPrefixes()) <= 0 {
-		logrus.Errorf("Client: Removing nexthop: no gateway: %v", intf)
-		return
-	}
-	for _, gateway := range intf.GetGatewayPrefixes() {
-		for _, vip := range c.vips {
-			err := vip.RemoveNexthop(gateway)
-			if err != nil {
-				logrus.Errorf("Client: Removing nexthop (%v) from source base route err: %v", gateway, err)
-			}
-		}
-		for index, nexthop := range c.nexthops {
-			if nexthop == gateway {
-				c.nexthops = append(c.nexthops[:index], c.nexthops[index+1:]...)
-			}
-		}
-	}
+	return []string{}
 }

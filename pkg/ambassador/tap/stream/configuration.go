@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package conduit
+package stream
 
 import (
 	"context"
@@ -25,53 +25,50 @@ import (
 )
 
 type Configuration interface {
-	WatchVIPs(ctx context.Context)
+	WatchStream(ctx context.Context)
 }
 
 type configurationImpl struct {
 	Watcher                    watcher
-	Trench                     *nspAPI.Trench
+	Stream                     *nspAPI.Stream
 	ConfigurationManagerClient nspAPI.ConfigurationManagerClient
 }
 
 type watcher interface {
-	SetVIPs([]string) error
+	StreamExists(bool) error
 }
 
 func newConfigurationImpl(watcher watcher,
-	trench *nspAPI.Trench,
+	stream *nspAPI.Stream,
 	configurationManagerClient nspAPI.ConfigurationManagerClient) *configurationImpl {
 	c := &configurationImpl{
 		Watcher:                    watcher,
-		Trench:                     trench,
+		Stream:                     stream,
 		ConfigurationManagerClient: configurationManagerClient,
 	}
 	return c
 }
 
-func (c *configurationImpl) WatchVIPs(ctx context.Context) {
+func (c *configurationImpl) WatchStream(ctx context.Context) {
 	for { // Todo: retry
 		if ctx.Err() != nil {
 			return
 		}
-		vipsToWatch := &nspAPI.Vip{
-			Trench: c.Trench,
-		}
-		watchVIPClient, err := c.ConfigurationManagerClient.WatchVip(ctx, vipsToWatch)
+		watchStreamClient, err := c.ConfigurationManagerClient.WatchStream(ctx, c.Stream)
 		if err != nil {
-			logrus.Warnf("err watchVIPClient.Recv: %v", err) // todo
+			logrus.Warnf("err WatchStream: %v", err) // todo
 			continue
 		}
 		for {
-			vipResponse, err := watchVIPClient.Recv()
+			streamResponse, err := watchStreamClient.Recv()
 			if err == io.EOF {
 				break
 			}
 			if err != nil {
-				logrus.Warnf("err watchVIPClient.Recv: %v", err) // todo
+				logrus.Warnf("err watchStreamClient.Recv: %v", err) // todo
 				break
 			}
-			err = c.Watcher.SetVIPs(vipResponse.ToSlice())
+			err = c.Watcher.StreamExists(len(streamResponse.Streams) > 0)
 			if err != nil {
 				logrus.Warnf("err set vips: %v", err) // todo
 			}

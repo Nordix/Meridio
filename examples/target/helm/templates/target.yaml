@@ -21,8 +21,7 @@ spec:
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ctraffic.image }}:{{ .Values.ctraffic.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           args:
-            - ./target-client connect -ns {{ .Values.default.conduit.name }} -t {{ .Values.default.trench.name }} ;
-              ./target-client open -ns {{ .Values.default.conduit.name }} -t {{ .Values.default.trench.name }} -s {{ .Values.default.stream.name }} ;
+            - ./target-client open -t {{ .Values.default.trench.name }} -c {{ .Values.default.conduit.name }} -s {{ .Values.default.stream.name }} ;
               screen -d -m bash -c "./ctraffic -server -address [::]:5000" ; 
               screen -d -m bash -c "./ctraffic -server -address [::]:5001" ; 
               screen -d -m bash -c "./ctraffic -server -address [::]:5002" ; 

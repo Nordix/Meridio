@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,11 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package stream
+package conduit
 
-import "time"
+import "fmt"
 
-const (
-	MaxNumberOfTargets = 100
-	PendingTime        = 15 * time.Second
-)
+func GetNetworkServiceName(conduit string, trench string, namespace string) string {
+	return fmt.Sprintf("%s.%s.%s", conduit, trench, namespace)
+}
+
+func GetNetworkServiceNameWithProxy(conduit string, trench string, namespace string) string {
+	return fmt.Sprintf("%s.%s.%s.%s", proxyPrefix, conduit, trench, namespace)
+}

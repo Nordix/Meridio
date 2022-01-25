@@ -18,34 +18,42 @@ option go_package = "github.com/nordix/meridio/api/v1/ambassador";
 import "google/protobuf/empty.proto";
 import "api/nsp/v1/model.proto";
 
-service Ambassador {
-    // Connect to a conduit, so a new interface will be created.
-    // The Ambassador will also connect to the trench the 
-    // conduit belongs to. And, the VIPs will be added to 
-    // the loopback interface.
-    rpc Connect(nsp.v1.Conduit) returns (google.protobuf.Empty) {}
-    // Disconnect from a conduit, so the interface will be removed.
-    // The Ambassador will also close the streams which are opened
-    // in the conduit. It will disconnect the target from the trench.
-    // And, the VIPs will be removed from the loopback interface.
-    rpc Disconnect(nsp.v1.Conduit) returns (google.protobuf.Empty) {}
-    // WatchConduit will return a list of conduits containing the same 
-    // properties as the one in parameter (nil properties will be 
-    // ignored). On any event (any conduit created/deleted/updated)
-    // the list will be sent again.
-    rpc WatchConduit(nsp.v1.Conduit) returns (stream nsp.v1.ConduitResponse) {}
-
-    // Open a stream, so the identifier will be registered
-    // in the NSP service, the LBs will start load-balancing the
-    // traffic to the target.
+// Target Access Point Ambassador (TAPA) Service
+service Tap {
+    // Open a stream registers the target to the NSP,
+    // If the trench or conduit is not connected to the target, then it will
+    // be connected automatically before registering the target to the NSP.
+    // If any property is not defined (empty name, nil trench/conduit...),
+    // or, if another trench is already connected, an error will be returned.
     rpc Open(nsp.v1.Stream) returns (google.protobuf.Empty) {}
-    // Close a stream, so the identifier will be unregistered
-    // in the NSP service, the LBs will stop load-balancing the
-    // traffic to the target.
+    // Close a stream unregisters the target from the NSP, disconnects
+    // the target from the conduit if no more stream is connected to it,
+    // and disconnects from the trench if no more conduit is connected to it.
+    // If any property is not defined (empty name, nil trench/conduit...),
+    // an error will be returned.
     rpc Close(nsp.v1.Stream) returns (google.protobuf.Empty) {}
-    // WatchStream will return a list of streams containing the same 
-    // properties as the one in parameter (nil properties will be 
-    // ignored). On any event (any stream created/deleted/updated)
+    // WatchStream will return a list of stream status containing 
+    // the same properties as the one in parameter (nil properties 
+    // will be ignored). On any event (any stream created/deleted/updated)
     // the list will be sent again.
-    rpc WatchStream(nsp.v1.Stream) returns (stream nsp.v1.StreamResponse) {}
+    rpc Watch(nsp.v1.Stream) returns (stream StreamResponse) {}
+}
+
+message StreamResponse {
+    repeated StreamStatus streamStatus = 1;
+}
+
+message StreamStatus {
+    enum Status {
+        // Stream is open and ready to carry traffic
+        OPEN = 0;
+        // The stream is requested open, but a stable status is not known yet due to a lengthy transition
+        PENDING = 1;
+        // Stream is not reachable (NSP unreachable, under upgrade, failed etc.)
+        UNAVAILABLE = 2;
+        // The stream is requested open, but it is not defined on the Meridio side
+        UNDEFINED = 3;
+    }
+    Status status = 1;
+    nsp.v1.Stream stream = 2;
 }

@@ -14,11 +14,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package stream
+package types
 
-import "time"
+import (
+	"context"
 
-const (
-	MaxNumberOfTargets = 100
-	PendingTime        = 15 * time.Second
+	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 )
+
+type Registry interface {
+	Add(context.Context, *nspAPI.Stream, ambassadorAPI.StreamStatus_Status) error
+	Remove(context.Context, *nspAPI.Stream) error
+	SetStatus(*nspAPI.Stream, ambassadorAPI.StreamStatus_Status)
+	Watch(context.Context, *nspAPI.Stream) (Watcher, error)
+}
+
+type Watcher interface {
+	Stop()
+	ResultChan() <-chan []*ambassadorAPI.StreamStatus
+}

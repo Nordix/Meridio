@@ -14,11 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package stream
+package registry
 
-import "time"
-
-const (
-	MaxNumberOfTargets = 100
-	PendingTime        = 15 * time.Second
+import (
+	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 )
+
+func Filter(stream *nspAPI.Stream, streams []*ambassadorAPI.StreamStatus) []*ambassadorAPI.StreamStatus {
+	if stream == nil {
+		return streams
+	}
+	result := []*ambassadorAPI.StreamStatus{}
+	for _, s := range streams {
+		if nspAPI.StreamFilter(stream, s.Stream) {
+			result = append(result, s)
+		}
+	}
+	return result
+}

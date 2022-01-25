@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,13 +23,10 @@ import (
 )
 
 type Trench interface {
-	GetName() string
-	GetNamespace() string
 	Delete(ctx context.Context) error
-	AddConduit(context.Context, Conduit) error
-	RemoveConduit(context.Context, Conduit) error
-	GetConduits(conduit *nspAPI.Conduit) []Conduit
-	GetTargetRegistryClient() nspAPI.TargetRegistryClient
-	GetConfigurationManagerClient() nspAPI.ConfigurationManagerClient
+	AddConduit(context.Context, *nspAPI.Conduit) (Conduit, error)
+	RemoveConduit(context.Context, *nspAPI.Conduit) error
+	GetConduits() []Conduit
+	GetConduit(*nspAPI.Conduit) Conduit
 	Equals(*nspAPI.Trench) bool
 }

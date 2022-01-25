@@ -18,17 +18,35 @@ package main
 
 import (
 	"context"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
+	vfiomech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vfio"
+	"github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/mechanisms/vfio"
+	sriovtoken "github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/token"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	tapAPI "github.com/nordix/meridio/api/ambassador/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap"
 	"github.com/nordix/meridio/pkg/health"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	grpcHealth "google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 func main() {
@@ -83,24 +101,57 @@ func main() {
 		RequestTimeout:   config.RequestTimeout,
 		MaxTokenLifetime: config.MaxTokenLifetime,
 	}
+	nsmAPIClient := nsm.NewAPIClient(ctx, apiClientConfig)
 
-	targetConfig := tap.NewConfig(config.ConfigMapName, config.NSPServiceName, config.NSPServicePort, config.Host, netUtils, apiClientConfig)
-	ambassador, err := tap.NewAmbassador(config.Socket, config.Namespace, targetConfig)
-	if err != nil {
-		logrus.Fatalf("Error creating new ambassador: %v", err)
+	additionalFunctionality := []networkservice.NetworkServiceClient{
+		sriovtoken.NewClient(),
+		mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
+			vfiomech.MECHANISM:   chain.NewNetworkServiceClient(vfio.NewClient()),
+			kernelmech.MECHANISM: chain.NewNetworkServiceClient(kernel.NewClient(kernel.WithInterfaceName("nsc"))),
+		}),
+		sendfd.NewClient(),
+		dnscontext.NewClient(dnscontext.WithChainContext(ctx)),
+		// excludedprefixes.NewClient(),
 	}
 
+	networkServiceClient := client.NewClient(ctx,
+		client.WithClientURL(&nsmAPIClient.Config.ConnectTo),
+		client.WithName(config.Name),
+		client.WithAuthorizeClient(authorize.NewClient()),
+		client.WithHealClient(heal.NewClient(ctx)),
+		client.WithAdditionalFunctionality(additionalFunctionality...),
+		client.WithDialTimeout(nsmAPIClient.Config.DialTimeout),
+		client.WithDialOptions(nsmAPIClient.GRPCDialOption...),
+	)
+
+	if err := os.RemoveAll(config.Socket); err != nil {
+		logrus.Fatalf("error removing socket: %v", err)
+	}
+	lis, err := net.Listen("unix", config.Socket)
+	if err != nil {
+		logrus.Fatalf("error listening on unix socket: %v", err)
+	}
+	s := grpc.NewServer()
+	defer s.Stop()
+
+	ambassador, err := tap.New(config.Name, config.Namespace, config.Host, networkServiceClient, config.NSPServiceName, config.NSPServicePort, netUtils)
+	if err != nil {
+		logrus.Fatalf("error creating new tap ambassador: %v", err)
+	}
 	defer func() {
-		err = ambassador.Delete()
+		err = ambassador.Delete(context.TODO())
 		if err != nil {
 			logrus.Fatalf("Error deleting ambassador: %v", err)
 		}
 	}()
 
+	healthServer := grpcHealth.NewServer()
+	grpc_health_v1.RegisterHealthServer(s, healthServer)
+	tapAPI.RegisterTapServer(s, ambassador)
+
 	go func() {
-		err = ambassador.Start(ctx)
-		if err != nil {
-			logrus.Fatalf("Error starting ambassador: %v", err)
+		if err := s.Serve(lis); err != nil {
+			logrus.Errorf("TAP Ambassador: failed to serve: %v", err)
 		}
 	}()
 

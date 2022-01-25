@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,15 +30,10 @@ const (
 type ConduitStatus int
 
 type Conduit interface {
-	GetName() string
 	Connect(ctx context.Context) error
 	Disconnect(ctx context.Context) error
-	AddStream(context.Context, Stream) error
-	RemoveStream(context.Context, Stream) error
-	GetStreams(stream *nspAPI.Stream) []Stream
-	GetTrench() Trench
-	GetIPs() []string
-	SetVIPs(vips []string) error
+	AddStream(context.Context, *nspAPI.Stream) (Stream, error)
+	RemoveStream(context.Context, *nspAPI.Stream) error
+	GetStreams() []Stream
 	Equals(*nspAPI.Conduit) bool
-	GetStatus() ConduitStatus
 }

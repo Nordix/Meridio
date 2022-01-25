@@ -18,6 +18,6 @@ package nsp
 
 import "fmt"
 
-func GetServiceName(prefix string, trench string, namespace string, port int) string {
+func GetService(prefix string, trench string, namespace string, port int) string {
 	return fmt.Sprintf("%s-%s.%s:%d", prefix, trench, namespace, port)
 }
