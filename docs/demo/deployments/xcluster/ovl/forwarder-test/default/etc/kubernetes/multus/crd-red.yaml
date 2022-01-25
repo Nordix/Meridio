@@ -1,0 +1,14 @@
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: meridio-red
+spec:
+  config: '{
+    "cniVersion": "0.4.0",
+    "type": "host-device",
+    "device": "eth2.100",
+    "ipam": {
+      "type": "node-local",
+      "cfg": "red"
+    }
+  }'

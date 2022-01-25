@@ -1,0 +1,165 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: meridio-load-balancer
+  labels:
+    app: meridio-load-balancer
+spec:
+  selector:
+    matchLabels:
+      app: meridio-load-balancer
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: meridio-load-balancer
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - "meridio-load-balancer"
+            topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: sysctl-init
+          image: registry.nordix.org/cloud-native/meridio/busybox:1.29
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: nsm-socket
+              mountPath: /var/lib/networkservicemesh
+              readOnly: false
+          command: ["/bin/sh"]
+          args:
+            - -c
+            - sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1
+      containers:
+        - name: load-balancer
+          image: registry.nordix.org/cloud-native/meridio/load-balancer:latest
+          imagePullPolicy: IfNotPresent
+          startupProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -addr=unix:///tmp/health.sock
+              - -service=
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -addr=unix:///tmp/health.sock
+              - -service=Readiness
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+          livenessProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -addr=unix:///tmp/health.sock
+              - -service=
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NSM_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NSM_SERVICE_NAME
+              value: load-balancer.$NAME.$NAME
+            - name: NSM_CONDUIT_NAME
+              value: load-balancer
+            - name: NSM_TRENCH_NAME
+              value: $NAME
+            - name: NSM_NSP_SERVICE
+              value: meridio-nsp-$NAME:7778
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: nsm-socket
+              mountPath: /var/lib/networkservicemesh
+              readOnly: false
+          securityContext:
+            privileged: true
+        - name: nsc
+          image: ghcr.io/networkservicemesh/ci/cmd-nsc:ffab737
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NSM_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NSM_NETWORK_SERVICES
+              value: kernel://trench-$NAME/nsm-1
+            - name: NSM_DIAL_TIMEOUT
+              value: "30s"
+            - name: NSM_REQUEST_TIMEOUT
+              value: "300s"
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: nsm-socket
+              mountPath: /var/lib/networkservicemesh
+              readOnly: true
+        - name: fe
+          image: registry.nordix.org/cloud-native/meridio/frontend:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NFE_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NFE_LOG_BIRD
+              value: "true"
+            - name: NFE_ECMP
+              value: "false"
+            - name: NFE_NSP_SERVICE
+              value: meridio-nsp-$NAME:7778
+            - name: NFE_CONFIG_MAP_NAME
+              value: meridio-configuration-$NAME
+            - name: NFE_TRENCH_NAME
+              value: $NAME
+            - name: NFE_ATTRACTOR_NAME
+              value: "attractor1"
+            - name: NFE_EXTERNAL_INTERFACE
+              value: "nsm-1"
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+          securityContext:
+            privileged: true
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory
+        - name: nsm-socket
+          hostPath:
+            path: /var/lib/networkservicemesh
+            type: DirectoryOrCreate

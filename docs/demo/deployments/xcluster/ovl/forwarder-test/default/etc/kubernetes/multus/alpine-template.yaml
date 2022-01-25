@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: alpine-$NAME
+spec:
+  selector:
+    matchLabels:
+      app: alpine-$NAME
+  template:
+    metadata:
+      labels:
+        app: alpine-$NAME
+      annotations:
+        k8s.v1.cni.cncf.io/networks: '[
+          { "name" : "meridio-$NAME",
+            "namespace": "default",
+            "interface": "nsm-1" }
+        ]'
+    spec:
+      containers:
+      - name: multus-alpine
+        image: docker.io/library/alpine:latest
+        imagePullPolicy: IfNotPresent
+        command:
+          - /bin/sh
+          - "-c"
+          - "sleep 60m"

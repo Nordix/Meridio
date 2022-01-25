@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: meridio-proxy
+  labels:
+    app: meridio-proxy
+spec:
+  selector:
+    matchLabels:
+      app: meridio-proxy
+  template:
+    metadata:
+      labels:
+        app: meridio-proxy
+    spec:
+      initContainers:
+        - name: sysctl-init
+          image: registry.nordix.org/cloud-native/meridio/busybox:1.29
+          securityContext:
+            privileged: true
+          command: ["/bin/sh"]
+          args:
+            - -c
+            - sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1
+      containers:
+        - name: proxy
+          image: registry.nordix.org/cloud-native/meridio/proxy:latest
+          imagePullPolicy: IfNotPresent
+          startupProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -addr=unix:///tmp/health.sock
+              - -service=
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -addr=unix:///tmp/health.sock
+              - -service=Readiness
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+          livenessProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -addr=unix:///tmp/health.sock
+              - -service=
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NSM_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NSM_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: NSM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NSM_CONFIG_MAP_NAME
+              value: meridio-configuration-$NAME
+            - name: NSM_CONNECT_TO
+              value: unix:///var/lib/networkservicemesh/nsm.io.sock
+            - name: NSM_SERVICE_NAME
+              value: proxy.load-balancer.$NAME.$NAME
+            - name: NSM_SUBNET_POOLS
+              value: 172.16.0.0/16,fd00::172.16.0.0/112
+            - name: NSM_SUBNET_PREFIX_LENGTHS
+              value: "24,120"
+            - name: NSM_IPAM_SERVICE
+              value: meridio-ipam-$NAME:7777
+            - name: NSM_NETWORK_SERVICE_NAME
+              value: load-balancer.$NAME.$NAME
+            - name: NSM_MAX_TOKEN_LIFETIME
+              value: 10m
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: nsm-socket
+              mountPath: /var/lib/networkservicemesh
+              readOnly: true
+          securityContext:
+            privileged: true
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory
+        - name: nsm-socket
+          hostPath:
+            path: /var/lib/networkservicemesh
+            type: DirectoryOrCreate
