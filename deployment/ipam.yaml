@@ -1,3 +1,4 @@
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -17,8 +18,8 @@ spec:
     spec:
       containers:
         - name: ipam
-          image: # to be filled by operator
-          imagePullPolicy: # Kubernetes default according to image tag
+          image:  # to be filled by operator
+          imagePullPolicy:  # Kubernetes default according to image tag
           startupProbe:
             exec:
               command:
@@ -32,7 +33,7 @@ spec:
               timeoutSeconds: 2
               failureThreshold: 30
               successThreshold: 1
-          readinessProbe: # will be filled by operator if not specified
+          readinessProbe:  # will be filled by operator if not specified
             exec:
               command:
                 - /bin/grpc_health_probe
@@ -46,7 +47,7 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
             successThreshold: 1
-          livenessProbe: # will be filled by operator if not specified
+          livenessProbe:  # will be filled by operator if not specified
             exec:
               command:
                 - /bin/grpc_health_probe
@@ -71,23 +72,23 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: IPAM_TRENCH_NAME
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: IPAM_NSP_SERVICE
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: IPAM_PREFIX_IPV4
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: IPAM_PREFIX_IPV6
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: IPAM_CONDUIT_PREFIX_LENGTH_IPV4
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: IPAM_CONDUIT_PREFIX_LENGTH_IPV6
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: IPAM_NODE_PREFIX_LENGTH_IPV4
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: IPAM_NODE_PREFIX_LENGTH_IPV6
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: IPAM_IP_FAMILY
-              value: # to be filled by operator
+              value:  # to be filled by operator
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

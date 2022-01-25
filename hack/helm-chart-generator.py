@@ -55,15 +55,17 @@ for content in contents:
     name = re.findall('(?<=name: )\S+', content)[0]
     filename = kind + "-" + name + ".yaml"
 
+    # fix the identation
+    content = subprocess.run(["yq", "-Y", "."], input=content, stdout=subprocess.PIPE, encoding='utf-8').stdout
     # replace namespace in content
     content = re.sub("meridio-operator-system",
-                     '{{ .Release.Namespace }}', content)
+                     '{{.Release.Namespace}}', content)
     # suffix cluster-scoped resources with namespace
     if kind == "MutatingWebhookConfiguration" or kind == "ValidatingWebhookConfiguration":
-        content = re.sub(name, name + '-{{ .Release.Namespace }}', content)
+        content = re.sub(name, name + '-{{.Release.Namespace}}', content)
     # write contents to the files
     with open(templatedir+"/"+filename, 'w') as f:
-        f.write(content)
+        f.write("---\n" + content)
 
 # copy Chart.yaml to helm chart
 chartfile = "hack/Chart.yaml"

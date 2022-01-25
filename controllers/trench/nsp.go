@@ -56,18 +56,18 @@ func (i *NspStatefulSet) insertParameters(init *appsv1.StatefulSet) *appsv1.Stat
 	// if status nsp statefulset parameters are specified in the cr, use those
 	// else use the default parameters
 	nspStatefulSetName := common.NSPStatefulSetName(i.trench)
-	dep := init.DeepCopy()
-	dep.ObjectMeta.Name = nspStatefulSetName
-	dep.ObjectMeta.Namespace = i.trench.ObjectMeta.Namespace
-	dep.ObjectMeta.Labels["app"] = nspStatefulSetName
-	dep.Spec.Selector.MatchLabels["app"] = nspStatefulSetName
-	dep.Spec.ServiceName = nspStatefulSetName
-	dep.Spec.Template.ObjectMeta.Labels["app"] = nspStatefulSetName
-	dep.Spec.Template.Spec.ServiceAccountName = common.ServiceAccountName(i.trench)
+	ret := init.DeepCopy()
+	ret.ObjectMeta.Name = nspStatefulSetName
+	ret.ObjectMeta.Namespace = i.trench.ObjectMeta.Namespace
+	ret.ObjectMeta.Labels["app"] = nspStatefulSetName
+	ret.Spec.Selector.MatchLabels["app"] = nspStatefulSetName
+	ret.Spec.ServiceName = nspStatefulSetName
+	ret.Spec.Template.ObjectMeta.Labels["app"] = nspStatefulSetName
+	ret.Spec.Template.Spec.ServiceAccountName = common.ServiceAccountName(i.trench)
 
-	dep.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
+	ret.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
 
-	for k, container := range dep.Spec.Template.Spec.Containers {
+	for k, container := range ret.Spec.Template.Spec.Containers {
 		switch name := container.Name; name {
 		case "nsp":
 			if container.Image == "" {
@@ -90,10 +90,10 @@ func (i *NspStatefulSet) insertParameters(init *appsv1.StatefulSet) *appsv1.Stat
 		default:
 			i.exec.LogError(fmt.Errorf("container %s not expected", name), "get container error")
 		}
-		dep.Spec.Template.Spec.Containers[k] = container
+		ret.Spec.Template.Spec.Containers[k] = container
 	}
 
-	return dep
+	return ret
 }
 
 func (i *NspStatefulSet) getModel() error {
