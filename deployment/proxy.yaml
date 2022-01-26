@@ -1,3 +1,4 @@
+---
 # Source: meridio/templates/proxy.yaml
 apiVersion: apps/v1
 kind: DaemonSet
@@ -16,50 +17,50 @@ spec:
     spec:
       initContainers:
         - name: sysctl-init
-          image: # to be filled by operator
-          imagePullPolicy: # Kubernetes default according to image tag
+          image:  # to be filled by operator
+          imagePullPolicy:  # Kubernetes default according to image tag
           securityContext:
             privileged: true
           command: ["/bin/sh"]
-          args: # to be filled by operator according to the Trench
+          args:  # to be filled by operator according to the Trench
       containers:
         - name: proxy
-          image: # to be filled by operator if not specified
-          imagePullPolicy: # Kubernetes default according to image tag
-          startupProbe: # will be filled by operator if not specified
+          image:  # to be filled by operator if not specified
+          imagePullPolicy:  # Kubernetes default according to image tag
+          startupProbe:  # will be filled by operator if not specified
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -addr=unix:///tmp/health.sock
-              - -service=
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             initialDelaySeconds: 0
             periodSeconds: 2
             timeoutSeconds: 2
             failureThreshold: 30
             successThreshold: 1
-          readinessProbe: # will be filled by operator if not specified
+          readinessProbe:  # will be filled by operator if not specified
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -addr=unix:///tmp/health.sock
-              - -service=Readiness
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=Readiness
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             failureThreshold: 5
             initialDelaySeconds: 0
             periodSeconds: 10
             timeoutSeconds: 3
             successThreshold: 1
-          livenessProbe: # will be filled by operator if not specified
+          livenessProbe:  # will be filled by operator if not specified
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -addr=unix:///tmp/health.sock
-              - -service=
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             failureThreshold: 5
             initialDelaySeconds: 0
             periodSeconds: 10
@@ -83,21 +84,21 @@ spec:
             - name: NSM_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: NSM_IPAM_SERVICE
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: NSM_NETWORK_SERVICE_NAME
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: NSM_NSP_SERVICE_NAME
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: NSM_NSP_SERVICE_PORT
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: NSM_TRENCH
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: NSM_CONDUIT
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: NSM_IP_FAMILY
-              value: # to be filled by operator
+              value:  # to be filled by operator
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

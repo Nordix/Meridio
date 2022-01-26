@@ -1,3 +1,4 @@
+---
 # Source: meridio/templates/nse-vlan.yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -16,45 +17,45 @@ spec:
     spec:
       containers:
         - name: nse
-          image: # to be filled by operator
-          imagePullPolicy: # Kubernetes default according to image tag
-          startupProbe: # will be filled by operator if not specified
+          image:  # to be filled by operator
+          imagePullPolicy:  # Kubernetes default according to image tag
+          startupProbe:  # will be filled by operator if not specified
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -spiffe
-              - -addr=unix:///tmp/listen.on
-              - -service=
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -spiffe
+                - -addr=unix:///tmp/listen.on
+                - -service=
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             initialDelaySeconds: 0
             periodSeconds: 2
             timeoutSeconds: 2
             failureThreshold: 30
             successThreshold: 1
-          readinessProbe: # will be filled by operator if not specified
+          readinessProbe:  # will be filled by operator if not specified
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -spiffe
-              - -addr=unix:///tmp/listen.on
-              - -service=
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -spiffe
+                - -addr=unix:///tmp/listen.on
+                - -service=
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             initialDelaySeconds: 0
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 5
             successThreshold: 1
-          livenessProbe: # will be filled by operator if not specified
+          livenessProbe:  # will be filled by operator if not specified
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -spiffe
-              - -addr=unix:///tmp/listen.on
-              - -service=
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -spiffe
+                - -addr=unix:///tmp/listen.on
+                - -service=
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             initialDelaySeconds: 0
             periodSeconds: 10
             timeoutSeconds: 3
@@ -70,15 +71,15 @@ spec:
             - name: NSE_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSE_VLAN_BASE_IFNAME
-              value: # to be filled by operator according to Attractor
+              value:  # to be filled by operator according to Attractor
             - name: NSE_VLAN_ID
-              value: # to be filled by operator according to Attractor
+              value:  # to be filled by operator according to Attractor
             - name: NSE_SERVICE_NAME
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: NSE_CIDR_PREFIX
-              value: # to be filled by operator according to Attractor
+              value:  # to be filled by operator according to Attractor
             - name: NSE_IPV6_PREFIX
-              value: # to be filled by operator according to Attractor
+              value:  # to be filled by operator according to Attractor
             - name: NSE_POINT2POINT
               value: "False"
           volumeMounts:

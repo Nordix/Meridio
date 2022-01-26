@@ -1,3 +1,4 @@
+---
 # Source: meridio/templates/nsp.yaml
 apiVersion: apps/v1
 kind: StatefulSet
@@ -16,46 +17,46 @@ spec:
       labels:
         app: nsp
     spec:
-      serviceAccountName: # to be filled by operator
+      serviceAccountName:  # to be filled by operator
       containers:
         - name: nsp
-          image: # to be filled by operator
-          imagePullPolicy: # Kubernetes default according to image tag
+          image:  # to be filled by operator
+          imagePullPolicy:  # Kubernetes default according to image tag
           startupProbe:
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -addr=unix:///tmp/health.sock
-              - -service=
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             initialDelaySeconds: 0
             periodSeconds: 2
             timeoutSeconds: 2
             failureThreshold: 30
             successThreshold: 1
-          readinessProbe: # will be filled by operator if not specified
+          readinessProbe:  # will be filled by operator if not specified
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -spiffe
-              - -addr=:7778
-              - -service=
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -spiffe
+                - -addr=:7778
+                - -service=
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             failureThreshold: 5
             initialDelaySeconds: 0
             periodSeconds: 10
             timeoutSeconds: 3
             successThreshold: 1
-          livenessProbe: # will be filled by operator if not specified
+          livenessProbe:  # will be filled by operator if not specified
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -addr=unix:///tmp/health.sock
-              - -service=
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             failureThreshold: 5
             initialDelaySeconds: 0
             periodSeconds: 10
@@ -65,13 +66,13 @@ spec:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
             - name: NSP_PORT
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: NSP_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: NSP_CONFIG_MAP_NAME
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: NSP_DATASOURCE
               value: /run/nsp/data/registry.db
           volumeMounts:

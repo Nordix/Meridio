@@ -1,3 +1,4 @@
+---
 # Source: meridio/templates/lb-fe.yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -31,45 +32,45 @@ spec:
           securityContext:
             privileged: true
           command: ["/bin/sh"]
-          args: # to be filled by operator according to trench
+          args:  # to be filled by operator according to trench
       containers:
         - name: load-balancer
-          image: # to be filled by operator
-          imagePullPolicy: # Kubernetes default according to image tag
-          startupProbe: # will be filled by operator if not specified
+          image:  # to be filled by operator
+          imagePullPolicy:  # Kubernetes default according to image tag
+          startupProbe:  # will be filled by operator if not specified
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -addr=unix:///tmp/health.sock
-              - -service=
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             initialDelaySeconds: 0
             periodSeconds: 2
             timeoutSeconds: 2
             failureThreshold: 30
             successThreshold: 1
-          readinessProbe: # will be filled by operator if not specified
+          readinessProbe:  # will be filled by operator if not specified
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -addr=unix:///tmp/health.sock
-              - -service=Readiness
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=Readiness
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             failureThreshold: 5
             initialDelaySeconds: 0
             periodSeconds: 10
             timeoutSeconds: 3
             successThreshold: 1
-          livenessProbe: # will be filled by operator if not specified
+          livenessProbe:  # will be filled by operator if not specified
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -addr=unix:///tmp/health.sock
-              - -service=
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             failureThreshold: 5
             initialDelaySeconds: 0
             periodSeconds: 10
@@ -83,13 +84,13 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: NSM_SERVICE_NAME
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: NSM_CONDUIT_NAME
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: NSM_TRENCH_NAME
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: NSM_NSP_SERVICE
-              value: # to be filled by operator
+              value:  # to be filled by operator
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
@@ -101,8 +102,8 @@ spec:
             capabilities:
               add: ["NET_ADMIN"]
         - name: nsc
-          image: # to be filled by operator if not specified
-          imagePullPolicy: # Kubernetes default according to image tag
+          image:  # to be filled by operator if not specified
+          imagePullPolicy:  # Kubernetes default according to image tag
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
@@ -111,7 +112,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: NSM_NETWORK_SERVICES
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: NSM_DIAL_TIMEOUT
               value: "30s"
             - name: NSM_REQUEST_TIMEOUT
@@ -124,42 +125,42 @@ spec:
               mountPath: /var/lib/networkservicemesh
               readOnly: true
         - name: fe
-          image: # to be filled by operator
-          imagePullPolicy: # Kubernetes default according to image tag
-          startupProbe: # will be filled by operator if not specified
+          image:  # to be filled by operator
+          imagePullPolicy:  # Kubernetes default according to image tag
+          startupProbe:  # will be filled by operator if not specified
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -addr=unix:///tmp/health.sock
-              - -service=
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             initialDelaySeconds: 0
             periodSeconds: 2
             timeoutSeconds: 2
             failureThreshold: 30
             successThreshold: 1
-          readinessProbe: # will be filled by operator if not specified
+          readinessProbe:  # will be filled by operator if not specified
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -addr=unix:///tmp/health.sock
-              - -service=Readiness
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=Readiness
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             initialDelaySeconds: 0
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 5
             successThreshold: 1
-          livenessProbe: # will be filled by operator if not specified
+          livenessProbe:  # will be filled by operator if not specified
             exec:
               command:
-              - /bin/grpc_health_probe
-              - -addr=unix:///tmp/health.sock
-              - -service=
-              - -connect-timeout=100ms
-              - -rpc-timeout=150ms
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=
+                - -connect-timeout=100ms
+                - -rpc-timeout=150ms
             initialDelaySeconds: 0
             periodSeconds: 10
             timeoutSeconds: 3
@@ -177,13 +178,13 @@ spec:
             - name: NFE_ECMP
               value: "true"
             - name: NFE_NSP_SERVICE
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: NFE_CONFIG_MAP_NAME
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: NFE_TRENCH_NAME
-              value: # to be filled by operator
+              value:  # to be filled by operator
             - name: NFE_ATTRACTOR_NAME
-              value: # to be filled by operator
+              value:  # to be filled by operator
           securityContext:
             capabilities:
               add: ["NET_ADMIN"]
