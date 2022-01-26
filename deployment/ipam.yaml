@@ -28,11 +28,11 @@ spec:
                 - -service=
                 - -connect-timeout=100ms
                 - -rpc-timeout=150ms
-              initialDelaySeconds: 0
-              periodSeconds: 2
-              timeoutSeconds: 2
-              failureThreshold: 30
-              successThreshold: 1
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 30
+            successThreshold: 1
           readinessProbe:  # will be filled by operator if not specified
             exec:
               command:
