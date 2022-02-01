@@ -105,11 +105,8 @@ spec:
                   type: string
                 type: array
             required:
-            - destination-ports
             - priority
             - protocols
-            - source-ports
-            - source-subnets
             - vips
             type: object
           status:

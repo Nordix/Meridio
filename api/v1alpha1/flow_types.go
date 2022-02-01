@@ -33,7 +33,7 @@ type FlowSpec struct {
 
 	// Source subnets allowed in the flow.
 	// The subnets should not have overlaps.
-	SourceSubnets []string `json:"source-subnets"`
+	SourceSubnets []string `json:"source-subnets,omitempty"`
 
 	// Source port ranges allowed in the flow.
 	// The ports should not have overlaps.
@@ -41,7 +41,7 @@ type FlowSpec struct {
 	// - a single port, such as 3000;
 	// - a port range, such as 3000-4000;
 	// - "any", which is equivalent to port range 0-65535.
-	SourcePorts []string `json:"source-ports"`
+	SourcePorts []string `json:"source-ports,omitempty"`
 
 	// Destination port ranges allowed in the flow.
 	// The ports should not have overlaps.
@@ -49,7 +49,7 @@ type FlowSpec struct {
 	// - a single port, such as 3000;
 	// - a port range, such as 3000-4000;
 	// - "any", which is equivalent to port range 0-65535.
-	DestinationPorts []string `json:"destination-ports"`
+	DestinationPorts []string `json:"destination-ports,omitempty"`
 
 	// Protocols allowed in this flow.
 	// The protocols should not have overlaps.

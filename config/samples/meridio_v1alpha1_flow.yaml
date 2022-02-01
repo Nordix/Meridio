@@ -9,12 +9,6 @@ spec:
   priority: 2
   vips:
   - vip1
-  source-subnets:
-  - 10.20.30.40/30
-  source-ports:
-  - any
-  destination-ports:
-  - 2000-3000
   protocols:
   - tcp
   - udp

@@ -59,6 +59,7 @@ func (r *Flow) ValidateCreate() error {
 	if err != nil || trench == nil {
 		return fmt.Errorf("unable to find the trench in label, %s cannot be created", r.GroupVersionKind().Kind)
 	}
+
 	return r.validateFlow()
 }
 

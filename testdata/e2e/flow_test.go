@@ -57,7 +57,7 @@ var _ = Describe("Flow", func() {
 		time.Sleep(time.Second)
 	})
 
-	Context("When creating a flow", func() {
+	When("creating a flow", func() {
 		flowB := &meridiov1alpha1.Flow{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "flow-b",
@@ -92,6 +92,7 @@ var _ = Describe("Flow", func() {
 			fw.CleanUpTrenches()
 			fw.CleanUpFlows()
 		})
+
 		Context("without a trench", func() {
 			It("will not be created", func() {
 				Expect(fw.CreateResource(flowA.DeepCopy())).ToNot(Succeed())
@@ -112,7 +113,8 @@ var _ = Describe("Flow", func() {
 				fw.CleanUpFlows()
 			})
 
-			It("will be created successfully", func() {
+			It("be successful creating the following flows", func() {
+				By("adding the 1st flow")
 				Expect(fw.CreateResource(flowA.DeepCopy())).To(Succeed())
 
 				By("checking if the flow exists")
@@ -123,7 +125,7 @@ var _ = Describe("Flow", func() {
 				By("checking flow is in configmap data")
 				assertFlowItemInConfigMap(defaultFlowinCm, configmapName, true)
 
-				By("adding another flow")
+				By("adding the 2nd flow")
 				flowB := &meridiov1alpha1.Flow{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "flow-b",
@@ -161,6 +163,44 @@ var _ = Describe("Flow", func() {
 					DestinationPortRanges: flowB.Spec.DestinationPorts,
 					Vips:                  flowB.Spec.Vips,
 					Priority:              flowB.Spec.Priority,
+				}
+				assertFlowItemInConfigMap(newFlowInCm, configmapName, true)
+
+				By("adding the 3rd flow")
+				flowEmpty := &meridiov1alpha1.Flow{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "flow-empty",
+						Namespace: namespace,
+						Labels: map[string]string{
+							"trench": trenchName,
+						},
+					},
+					Spec: meridiov1alpha1.FlowSpec{
+						Stream:        "stream-b",
+						SourceSubnets: []string{}, // emtpy slice for source subnets, and omit source/destination ports
+						Protocols:     []meridiov1alpha1.TransportProtocol{"tcp"},
+						Vips:          []string{"vip1"},
+						Priority:      1000,
+					},
+				}
+				Expect(fw.CreateResource(flowEmpty.DeepCopy())).To(Succeed())
+
+				By("checking if the flow exists")
+				flow = &meridiov1alpha1.Flow{}
+				err = fw.GetResource(client.ObjectKeyFromObject(flowEmpty), flow)
+				Expect(err).To(BeNil())
+				Expect(flow).NotTo(BeNil())
+
+				By("checking flow is in configmap data")
+				newFlowInCm = reader.Flow{
+					Stream:                flowEmpty.Spec.Stream,
+					Name:                  flowEmpty.ObjectMeta.Name,
+					Protocols:             meridiov1alpha1.TransportProtocolsToStrings(flowEmpty.Spec.Protocols),
+					Vips:                  flowEmpty.Spec.Vips,
+					Priority:              flowEmpty.Spec.Priority,
+					SourceSubnets:         []string{},
+					DestinationPortRanges: []string{},
+					SourcePortRanges:      []string{},
 				}
 				assertFlowItemInConfigMap(newFlowInCm, configmapName, true)
 			})
