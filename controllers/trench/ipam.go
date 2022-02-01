@@ -2,6 +2,7 @@ package trench
 
 import (
 	"fmt"
+	"strconv"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	common "github.com/nordix/meridio-operator/controllers/common"
@@ -39,6 +40,14 @@ func (i *IpamStatefulSet) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	// if envVars are set in the cr, use the values
 	// else return default envVars
 	env := []corev1.EnvVar{
+		{
+			Name:  "IPAM_PORT",
+			Value: strconv.Itoa(common.IpamPort),
+		},
+		{
+			Name:  "IPAM_NAMESPACE",
+			Value: i.trench.ObjectMeta.Namespace,
+		},
 		{
 			Name:  "IPAM_TRENCH_NAME",
 			Value: i.trench.ObjectMeta.GetName(),
@@ -80,8 +89,6 @@ func (i *IpamStatefulSet) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	for _, e := range allEnv {
 		// append all hard coded envVars
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
-			e.Name == "IPAM_PORT" ||
-			e.Name == "IPAM_NAMESPACE" ||
 			e.Name == "IPAM_DATASOURCE" {
 			env = append(env, e)
 		}

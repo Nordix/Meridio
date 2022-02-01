@@ -65,12 +65,15 @@ func (i *NseDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			Name:  nseEnvPrefixV6,
 			Value: i.attractor.Spec.Interface.PrefixIPv6,
 		},
+		{
+			Name:  "NSE_NAME",
+			Value: common.NSEDeploymentName(i.attractor),
+		},
 	}
 
 	for _, e := range allEnv {
 		// append all hard coded envVars
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
-			e.Name == "NSE_NAME" ||
 			e.Name == "NSE_CONNECT_TO" ||
 			e.Name == "NSE_POINT2POINT" {
 			env = append(env, e)

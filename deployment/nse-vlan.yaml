@@ -7,9 +7,17 @@ metadata:
   labels:
     app: nse-vlan
 spec:
+  progressDeadlineSeconds: 600
   selector:
     matchLabels:
       app: nse-vlan
+  replicas: 1
+  revisionHistoryLimit: 10
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
   template:
     metadata:
       labels:
@@ -65,9 +73,7 @@ spec:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
             - name: NSE_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
+              value:  # to be filled by operator
             - name: NSE_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSE_VLAN_BASE_IFNAME
@@ -89,6 +95,8 @@ spec:
             - name: nsm-socket
               mountPath: /var/lib/networkservicemesh
               readOnly: false
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
       volumes:
         - name: spire-agent-socket
           hostPath:

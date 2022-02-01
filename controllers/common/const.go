@@ -62,7 +62,7 @@ func NSPServiceName(trench *meridiov1alpha1.Trench) string {
 	return getTrenchSuffixedName(NspSvcName, trench)
 }
 
-func LoadBalancerDeploymentName(attractor *meridiov1alpha1.Attractor) string {
+func LbFeDeploymentName(attractor *meridiov1alpha1.Attractor) string {
 	return getAttractorSuffixedName(LBName, attractor)
 }
 

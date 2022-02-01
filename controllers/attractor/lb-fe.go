@@ -17,6 +17,8 @@ const (
 	feImage = "frontend"
 )
 
+var lbFeDeploymentName string
+
 type LoadBalancer struct {
 	model     *appsv1.Deployment
 	trench    *meridiov1alpha1.Trench
@@ -39,7 +41,7 @@ func NewLoadBalancer(e *common.Executor, attr *meridiov1alpha1.Attractor, t *mer
 		trench:    t.DeepCopy(),
 		attractor: attr.DeepCopy(),
 	}
-
+	lbFeDeploymentName = common.LbFeDeploymentName(l.attractor)
 	// get model of load balancer
 	if err := l.getModel(); err != nil {
 		return nil, err
@@ -67,12 +69,15 @@ func (l *LoadBalancer) getLbEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			Name:  "NSM_NSP_SERVICE",
 			Value: common.NSPServiceWithPort(l.trench),
 		},
+		{
+			Name:  "NSM_NAME",
+			Value: lbFeDeploymentName,
+		},
 	}
 
 	for _, e := range allEnv {
 		// append all hard coded envVars
-		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
-			e.Name == "NSM_NAME" {
+		if e.Name == "SPIFFE_ENDPOINT_SOCKET" {
 			env = append(env, e)
 		}
 	}
@@ -85,12 +90,15 @@ func (l *LoadBalancer) getNscEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			Name:  "NSM_NETWORK_SERVICES",
 			Value: fmt.Sprintf("vlan://%s/ext-vlan?forwarder=forwarder-vlan", common.VlanNtwkSvcName(l.trench)),
 		},
+		{
+			Name:  "NSM_NAME",
+			Value: lbFeDeploymentName,
+		},
 	}
 
 	for _, e := range allEnv {
 		// append all hard coded envVars
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
-			e.Name == "NSM_NAME" ||
 			e.Name == "NSM_DIAL_TIMEOUT" ||
 			e.Name == "NSM_REQUEST_TIMEOUT" {
 			env = append(env, e)
@@ -117,12 +125,15 @@ func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			Name:  "NFE_ATTRACTOR_NAME",
 			Value: l.attractor.ObjectMeta.Name,
 		},
+		{
+			Name:  "NFE_NAMESPACE",
+			Value: l.attractor.ObjectMeta.Namespace,
+		},
 	}
 
 	for _, e := range allEnv {
 		// append all hard coded envVars
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
-			e.Name == "NFE_NAMESPACE" ||
 			e.Name == "NFE_LOG_BIRD" ||
 			e.Name == "NFE_ECMP" {
 			env = append(env, e)
@@ -134,22 +145,22 @@ func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployment {
 	// if status lb-fe deployment parameters are specified in the cr, use those
 	// else use the default parameters
-	loadBalancerDeploymentName := common.LoadBalancerDeploymentName(l.attractor)
 	ret := dep.DeepCopy()
-	ret.ObjectMeta.Name = loadBalancerDeploymentName
+	ret.ObjectMeta.Name = lbFeDeploymentName
 	ret.ObjectMeta.Namespace = l.trench.ObjectMeta.Namespace
-	ret.ObjectMeta.Labels["app"] = loadBalancerDeploymentName
-	ret.Spec.Selector.MatchLabels["app"] = loadBalancerDeploymentName
+	ret.ObjectMeta.Labels["app"] = lbFeDeploymentName
+	ret.Spec.Selector.MatchLabels["app"] = lbFeDeploymentName
 
 	ret.Spec.Replicas = l.attractor.Spec.Replicas
 
-	ret.Spec.Template.ObjectMeta.Labels["app"] = loadBalancerDeploymentName
-	ret.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchExpressions[0].Values[0] = loadBalancerDeploymentName
+	ret.Spec.Template.ObjectMeta.Labels["app"] = lbFeDeploymentName
+	ret.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchExpressions[0].Values[0] = lbFeDeploymentName
 	ret.Spec.Template.Spec.ServiceAccountName = common.ServiceAccountName(l.trench)
 	ret.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
 
 	if ret.Spec.Template.Spec.InitContainers[0].Image == "" {
 		ret.Spec.Template.Spec.InitContainers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, common.BusyboxImage, common.BusyboxTag)
+		ret.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullIfNotPresent
 	}
 	ret.Spec.Template.Spec.InitContainers[0].Args = []string{
 		"-c",
@@ -179,11 +190,13 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 		case "nsc":
 			if container.Image == "" {
 				container.Image = "registry.nordix.org/cloud-native/nsm/cmd-nsc:latest-dns-fix"
+				container.ImagePullPolicy = corev1.PullAlways
 			}
 			container.Env = l.getNscEnvVars(container.Env)
 		case "fe":
 			if container.Image == "" {
 				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, feImage, common.Tag)
+				container.ImagePullPolicy = corev1.PullAlways
 			}
 			if container.StartupProbe == nil {
 				container.StartupProbe = common.GetProbe(common.StartUpTimer,
@@ -210,7 +223,7 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 func (l *LoadBalancer) getSelector() client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: l.trench.ObjectMeta.Namespace,
-		Name:      common.LoadBalancerDeploymentName(l.attractor),
+		Name:      lbFeDeploymentName,
 	}
 }
 
