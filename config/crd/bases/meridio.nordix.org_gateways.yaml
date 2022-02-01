@@ -61,24 +61,31 @@ spec:
                     description: BFD monitoring of BGP session.
                     properties:
                       min-rx:
-                        description: Min-rx timer of bfd session. Please refere to
+                        description: 'Min-rx timer of bfd session. Please refere to
                           BFD material to understand what this implies. The value
                           must be a valid duration format. For example, 300ms, 90s,
-                          1m, 1h. The duration will be rounded by millisecond
+                          1m, 1h. The duration will be rounded by millisecond. Default:
+                          200ms when protocol is "static"; 300ms when protocol is
+                          "bgp"'
                         type: string
                       min-tx:
-                        description: Min-tx timer of bfd session. Please refere to
+                        description: 'Min-tx timer of bfd session. Please refere to
                           BFD material to understand what this implies. The value
                           must be a valid duration format. For example, 300ms, 90s,
-                          1m, 1h. The duration will be rounded by millisecond
+                          1m, 1h. The duration will be rounded by millisecond. Default:
+                          200ms when protocol is "static; 300ms when protocol is "bgp"'
                         type: string
                       multiplier:
-                        description: Multiplier of bfd session. When this number of
-                          bfd packets failed to receive, bfd session will go down
+                        description: 'Multiplier of bfd session. When this number
+                          of bfd packets failed to receive, bfd session will go down.
+                          Default: 3'
                         type: integer
                       switch:
-                        description: 'BFD monitoring. Valid values are: - false (default):
-                          no BFD monitoring; - true: turns on the BFD monitoring'
+                        description: 'BFD monitoring. Valid values are: - false: no
+                          BFD monitoring; - true: turns on the BFD monitoring When
+                          left empty, the default value is dependent on the protocol.
+                          Default: true when protocol is "static"; false when protocol
+                          is the "bgp".'
                         type: boolean
                     type: object
                   hold-time:
@@ -119,24 +126,31 @@ spec:
                     description: BFD monitoring of Static session.
                     properties:
                       min-rx:
-                        description: Min-rx timer of bfd session. Please refere to
+                        description: 'Min-rx timer of bfd session. Please refere to
                           BFD material to understand what this implies. The value
                           must be a valid duration format. For example, 300ms, 90s,
-                          1m, 1h. The duration will be rounded by millisecond
+                          1m, 1h. The duration will be rounded by millisecond. Default:
+                          200ms when protocol is "static"; 300ms when protocol is
+                          "bgp"'
                         type: string
                       min-tx:
-                        description: Min-tx timer of bfd session. Please refere to
+                        description: 'Min-tx timer of bfd session. Please refere to
                           BFD material to understand what this implies. The value
                           must be a valid duration format. For example, 300ms, 90s,
-                          1m, 1h. The duration will be rounded by millisecond
+                          1m, 1h. The duration will be rounded by millisecond. Default:
+                          200ms when protocol is "static; 300ms when protocol is "bgp"'
                         type: string
                       multiplier:
-                        description: Multiplier of bfd session. When this number of
-                          bfd packets failed to receive, bfd session will go down
+                        description: 'Multiplier of bfd session. When this number
+                          of bfd packets failed to receive, bfd session will go down.
+                          Default: 3'
                         type: integer
                       switch:
-                        description: 'BFD monitoring. Valid values are: - false (default):
-                          no BFD monitoring; - true: turns on the BFD monitoring'
+                        description: 'BFD monitoring. Valid values are: - false: no
+                          BFD monitoring; - true: turns on the BFD monitoring When
+                          left empty, the default value is dependent on the protocol.
+                          Default: true when protocol is "static"; false when protocol
+                          is the "bgp".'
                         type: boolean
                     type: object
                 type: object
