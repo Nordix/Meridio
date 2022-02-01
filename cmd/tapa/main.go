@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -60,10 +60,9 @@ func main() {
 	defer cancel()
 
 	logrus.SetOutput(os.Stdout)
-	logrus.SetLevel(logrus.DebugLevel)
 
 	var config Config
-	err := envconfig.Process("nsm", &config)
+	err := envconfig.Process("meridio", &config)
 	if err != nil {
 		logrus.Fatalf("%v", err)
 	}
@@ -77,6 +76,14 @@ func main() {
 		}
 		if l == logrus.TraceLevel {
 			log.EnableTracing(true) // enable tracing in NSM
+		}
+		return l
+	}())
+
+	logrus.SetLevel(func() logrus.Level {
+		l, err := logrus.ParseLevel(config.LogLevel)
+		if err != nil {
+			logrus.Fatalf("invalid log level %s", config.LogLevel)
 		}
 		return l
 	}())
@@ -96,9 +103,9 @@ func main() {
 
 	apiClientConfig := &nsm.Config{
 		Name:             config.Name,
-		ConnectTo:        config.ConnectTo,
+		ConnectTo:        config.NSMSocket,
 		DialTimeout:      config.DialTimeout,
-		RequestTimeout:   config.RequestTimeout,
+		RequestTimeout:   config.Timeout,
 		MaxTokenLifetime: config.MaxTokenLifetime,
 	}
 	nsmAPIClient := nsm.NewAPIClient(ctx, apiClientConfig)
@@ -134,7 +141,7 @@ func main() {
 	s := grpc.NewServer()
 	defer s.Stop()
 
-	ambassador, err := tap.New(config.Name, config.Namespace, config.Host, networkServiceClient, config.NSPServiceName, config.NSPServicePort, netUtils)
+	ambassador, err := tap.New(config.Name, config.Namespace, config.Node, networkServiceClient, config.NSPServiceName, config.NSPServicePort, netUtils)
 	if err != nil {
 		logrus.Fatalf("error creating new tap ambassador: %v", err)
 	}
