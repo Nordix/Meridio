@@ -85,23 +85,31 @@ type StaticSpec struct {
 type BfdSpec struct {
 	// BFD monitoring.
 	// Valid values are:
-	// - false (default): no BFD monitoring;
+	// - false: no BFD monitoring;
 	// - true: turns on the BFD monitoring
+	// When left empty, the default value is dependent on the protocol.
+	// Default: true when protocol is "static"; false when protocol is the "bgp".
 	// +optional
 	Switch *bool `json:"switch,omitempty"`
 
 	// Min-tx timer of bfd session. Please refere to BFD material to understand what this implies.
 	// The value must be a valid duration format. For example, 300ms, 90s, 1m, 1h.
-	// The duration will be rounded by millisecond
+	// The duration will be rounded by millisecond.
+	// Default: 200ms when protocol is "static; 300ms when protocol is "bgp"
+	// +optional
 	MinTx string `json:"min-tx,omitempty"`
 
 	// Min-rx timer of bfd session. Please refere to BFD material to understand what this implies.
 	// The value must be a valid duration format. For example, 300ms, 90s, 1m, 1h.
-	// The duration will be rounded by millisecond
+	// The duration will be rounded by millisecond.
+	// Default: 200ms when protocol is "static"; 300ms when protocol is "bgp"
+	// +optional
 	MinRx string `json:"min-rx,omitempty"`
 
 	// Multiplier of bfd session.
-	// When this number of bfd packets failed to receive, bfd session will go down
+	// When this number of bfd packets failed to receive, bfd session will go down.
+	// Default: 3
+	// +optional
 	Multiplier *uint16 `json:"multiplier,omitempty"`
 }
 
