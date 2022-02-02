@@ -76,6 +76,10 @@ func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			Name:  "NSM_NSP_SERVICE_PORT",
 			Value: strconv.Itoa(common.NspTargetPort),
 		},
+		{
+			Name:  "NSM_NAMESPACE",
+			Value: i.conduit.ObjectMeta.Namespace,
+		},
 	}
 
 	for _, e := range allEnv {
@@ -83,7 +87,6 @@ func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
 			e.Name == "NSM_NAME" ||
 			e.Name == "NSM_HOST" ||
-			e.Name == "NSM_NAMESPACE" ||
 			e.Name == "NSM_CONNECT_TO" {
 			env = append(env, e)
 		}

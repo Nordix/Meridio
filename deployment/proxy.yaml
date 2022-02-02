@@ -70,7 +70,9 @@ spec:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
             - name: NSM_NAME
-              value:  # to be filled by operator
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: NSM_HOST
               valueFrom:
                 fieldRef:

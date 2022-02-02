@@ -73,7 +73,9 @@ spec:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
             - name: NSE_NAME
-              value:  # to be filled by operator
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: NSE_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSE_VLAN_BASE_IFNAME
