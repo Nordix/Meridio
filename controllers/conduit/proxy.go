@@ -105,7 +105,6 @@ func (i *Proxy) insertParameters(init *appsv1.DaemonSet) *appsv1.DaemonSet {
 	ds.ObjectMeta.Labels["app"] = proxyDeploymentName
 	ds.Spec.Selector.MatchLabels["app"] = proxyDeploymentName
 	ds.Spec.Template.ObjectMeta.Labels["app"] = proxyDeploymentName
-	ds.Spec.Template.Spec.ServiceAccountName = common.ServiceAccountName(i.trench)
 
 	ds.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
 
