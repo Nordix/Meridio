@@ -29,4 +29,5 @@ type Trench interface {
 	GetConduits() []Conduit
 	GetConduit(*nspAPI.Conduit) Conduit
 	Equals(*nspAPI.Trench) bool
+	GetTrench() *nspAPI.Trench
 }

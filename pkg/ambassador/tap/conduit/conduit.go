@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -94,11 +95,10 @@ func New(conduit *nspAPI.Conduit,
 func (c *Conduit) Connect(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	logrus.Infof("Connect to conduit: %v", c.Conduit)
 	if c.isConnected() {
 		return nil
 	}
-
+	logrus.Infof("Attempt to connect conduit: %v", c.Conduit)
 	nsName := conduit.GetNetworkServiceNameWithProxy(c.Conduit.GetName(), c.Conduit.GetTrench().GetName(), c.Namespace)
 	connection, err := c.NetworkServiceClient.Request(ctx,
 		&networkservice.NetworkServiceRequest{
@@ -106,7 +106,7 @@ func (c *Conduit) Connect(ctx context.Context) error {
 				Id:             fmt.Sprintf("%s-%s-%d", c.TargetName, nsName, 0),
 				NetworkService: nsName,
 				Labels: map[string]string{
-					"nodeName": c.NodeName,
+					"nodeName": c.NodeName, // required to connect to the proxy on same node
 				},
 				Payload: payload.Ethernet,
 			},
@@ -120,6 +120,7 @@ func (c *Conduit) Connect(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	logrus.Infof("Conduit connected: %v", c.Conduit)
 	c.connection = connection
 
 	var configurationCtx context.Context
@@ -165,7 +166,7 @@ func (c *Conduit) Disconnect(ctx context.Context) error {
 func (c *Conduit) AddStream(ctx context.Context, strm *nspAPI.Stream) (types.Stream, error) {
 	c.addRemoveStreamMu.Lock()
 	defer c.addRemoveStreamMu.Unlock()
-	logrus.Debugf("Add stream: %v to conduit: %v", strm, c.Conduit)
+	logrus.Infof("Add stream: %v to conduit: %v", strm, c.Conduit)
 	if !c.Equals(strm.GetConduit()) {
 		return nil, errors.New("invalid stream for this conduit")
 	}
@@ -190,11 +191,11 @@ func (c *Conduit) AddStream(ctx context.Context, strm *nspAPI.Stream) (types.Str
 func (c *Conduit) RemoveStream(ctx context.Context, strm *nspAPI.Stream) error {
 	c.addRemoveStreamMu.Lock()
 	defer c.addRemoveStreamMu.Unlock()
-	logrus.Debugf("Remove stream: %v to conduit: %v", strm, c.Conduit)
 	ss := c.streams.get(strm)
 	if ss == nil {
 		return nil
 	}
+	logrus.Infof("Remove stream: %v from conduit: %v", strm, c.Conduit)
 	var errFinal error
 	err := c.StreamRegistry.Remove(ctx, strm)
 	if err != nil {
@@ -217,6 +218,10 @@ func (c *Conduit) GetStreams() []types.Stream {
 		streams = append(streams, s.stream)
 	}
 	return streams
+}
+
+func (c *Conduit) GetConduit() *nspAPI.Conduit {
+	return c.Conduit
 }
 
 // GetStreams returns the local IPs for this conduit
@@ -277,17 +282,18 @@ func (c *Conduit) openStreams(ctx context.Context) {
 		if ctx.Err() != nil {
 			return
 		}
-		for _, stream := range c.streams.getList() {
-			if stream.status == opened {
+		for _, streamStatus := range c.streams.getList() {
+			if streamStatus.status == opened {
 				continue
 			}
-			err := stream.stream.Open(ctx)
+			err := streamStatus.stream.Open(ctx)
 			if err != nil {
-				logrus.Warnf("could not open stream %v, err: %v", stream, err)
+				logrus.Warnf("failing to open stream (%v), err: %v", streamStatus.stream.GetStream(), err)
 				continue
 			}
-			stream.setStatus(opened)
+			streamStatus.setStatus(opened)
 		}
+		time.Sleep(50 * time.Millisecond)
 	}
 }
 
@@ -296,16 +302,16 @@ func (c *Conduit) closeStreams(ctx context.Context) error {
 	defer c.openStreamsMu.Unlock()
 	var errFinal error
 	// todo: retry
-	for _, stream := range c.streams.getList() {
-		err := stream.stream.Close(ctx)
-		if stream.status == closed {
+	for _, streamStatus := range c.streams.getList() {
+		err := streamStatus.stream.Close(ctx)
+		if streamStatus.status == closed {
 			continue
 		}
 		if err != nil {
-			errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+			errFinal = fmt.Errorf("%w; failing to open stream (%v), err: %v", errFinal, streamStatus.stream.GetStream(), err) // todo
 			continue
 		}
-		stream.setStatus(closed)
+		streamStatus.setStatus(closed)
 	}
 	return errFinal
 }
@@ -332,9 +338,10 @@ func (c *Conduit) deleteVIPs(vips []*virtualIP) {
 	}
 }
 
+// TODO: use same gateway as previous version
 func (c *Conduit) getGateways() []string {
 	if c.connection != nil {
-		return c.connection.GetContext().GetIpContext().GetDstIpAddrs()
+		return c.connection.GetContext().GetIpContext().GetExtraPrefixes()
 	}
 	return []string{}
 }

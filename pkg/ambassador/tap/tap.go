@@ -33,6 +33,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Tap implements tapAPI.TapServer
 type Tap struct {
 	TargetName           string
 	Namespace            string
@@ -72,14 +73,20 @@ func (tap *Tap) Open(ctx context.Context, s *nspAPI.Stream) (*empty.Empty, error
 	if err != nil {
 		return &empty.Empty{}, err
 	}
+	// set the trench if tap.currentTrench in nil, get if s.conduit.trench == currentTrench
+	// return an error if s.conduit.trench != currentTrench
 	trench, err := tap.setTrench(s.GetConduit().GetTrench())
 	if err != nil {
 		return &empty.Empty{}, err
 	}
+	// add/get conduit (get if already existing)
+	// will be connected when the trench will be ready
 	conduit, err := trench.AddConduit(context.TODO(), s.GetConduit())
 	if err != nil {
 		return &empty.Empty{}, err
 	}
+	// add/get a stream (get if already existing)
+	// will be opened when the conduit will be ready
 	_, err = conduit.AddStream(context.TODO(), s)
 	if err != nil {
 		return &empty.Empty{}, err
@@ -98,26 +105,29 @@ func (tap *Tap) Close(ctx context.Context, s *nspAPI.Stream) (*empty.Empty, erro
 		if tap.currentTrench == nil || !tap.currentTrench.Equals(s.GetConduit().GetTrench()) {
 			return
 		}
+		// todo: set timeout (the env variable) instead of 10 seconds
 		context, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
 		defer cancel()
 		conduit := tap.currentTrench.GetConduit(s.GetConduit())
 		if conduit == nil {
 			return
 		}
-		err := conduit.RemoveStream(context, s)
+		err := conduit.RemoveStream(context, s) // todo: retry
 		if err != nil {
 			logrus.Errorf("Error removing stream: %v", err)
 		}
 		if len(conduit.GetStreams()) > 0 {
 			return
 		}
-		err = tap.currentTrench.RemoveConduit(context, s.GetConduit())
+		// remove the conduit if it doesn't contain any more stream
+		err = tap.currentTrench.RemoveConduit(context, s.GetConduit()) // todo: retry
 		if err != nil {
 			logrus.Errorf("Error removing conduit: %v", err)
 		}
 		if len(tap.currentTrench.GetConduits()) > 0 {
 			return
 		}
+		// delete the conduit if it doesn't contain any more conduit
 		err = tap.currentTrench.Delete(context)
 		if err != nil {
 			logrus.Errorf("Error deleting trench: %v", err)
@@ -184,6 +194,7 @@ func (tap *Tap) watcher(watcher tapAPI.Tap_WatchServer, ch <-chan []*tapAPI.Stre
 	}
 }
 
+// check if name are not empty and if conduit and trench are not nil
 func checkStream(s *nspAPI.Stream) error {
 	if s == nil {
 		return fmt.Errorf("stream cannot be nil")

@@ -107,6 +107,20 @@ func (mr *MockTrenchMockRecorder) GetConduits() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConduits", reflect.TypeOf((*MockTrench)(nil).GetConduits))
 }
 
+// GetTrench mocks base method.
+func (m *MockTrench) GetTrench() *v1.Trench {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTrench")
+	ret0, _ := ret[0].(*v1.Trench)
+	return ret0
+}
+
+// GetTrench indicates an expected call of GetTrench.
+func (mr *MockTrenchMockRecorder) GetTrench() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTrench", reflect.TypeOf((*MockTrench)(nil).GetTrench))
+}
+
 // RemoveConduit mocks base method.
 func (m *MockTrench) RemoveConduit(arg0 context.Context, arg1 *v1.Conduit) error {
 	m.ctrl.T.Helper()

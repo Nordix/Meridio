@@ -93,6 +93,20 @@ func (mr *MockConduitMockRecorder) Equals(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Equals", reflect.TypeOf((*MockConduit)(nil).Equals), arg0)
 }
 
+// GetConduit mocks base method.
+func (m *MockConduit) GetConduit() *v1.Conduit {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetConduit")
+	ret0, _ := ret[0].(*v1.Conduit)
+	return ret0
+}
+
+// GetConduit indicates an expected call of GetConduit.
+func (mr *MockConduitMockRecorder) GetConduit() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConduit", reflect.TypeOf((*MockConduit)(nil).GetConduit))
+}
+
 // GetStreams mocks base method.
 func (m *MockConduit) GetStreams() []types.Stream {
 	m.ctrl.T.Helper()

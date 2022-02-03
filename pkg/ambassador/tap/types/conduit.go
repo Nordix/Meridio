@@ -36,4 +36,5 @@ type Conduit interface {
 	RemoveStream(context.Context, *nspAPI.Stream) error
 	GetStreams() []Stream
 	Equals(*nspAPI.Conduit) bool
+	GetConduit() *nspAPI.Conduit
 }

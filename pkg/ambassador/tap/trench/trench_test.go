@@ -115,6 +115,7 @@ func Test_AddConduit_RemoveConduit_WhileConnecting(t *testing.T) {
 	conduitA := typesMocks.NewMockConduit(ctrl)
 	conduitFactory.EXPECT().New(gomock.Any()).Return(conduitA, nil)
 	conduitA.EXPECT().Equals(gomock.Any()).Return(true)
+	conduitA.EXPECT().GetConduit().Return(c).AnyTimes()
 
 	connectCtx, connectCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
 	firstConnect := conduitA.EXPECT().Connect(gomock.Any()).DoAndReturn(func(_ context.Context) error {

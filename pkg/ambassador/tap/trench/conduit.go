@@ -19,6 +19,7 @@ package trench
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
 	"github.com/sirupsen/logrus"
@@ -61,9 +62,11 @@ func (cc *conduitConnect) connect() {
 		if ctx.Err() != nil {
 			return
 		}
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second) // todo: configurable timeout
 		err := cc.conduit.Connect(ctx)
+		cancel()
 		if err != nil {
-			logrus.Warnf("error connecting conduit: %v ; %v", cc.conduit, err)
+			logrus.Warnf("error connecting conduit: %v ; %v", cc.conduit.GetConduit(), err)
 			continue
 		}
 		cc.status = connected
@@ -74,7 +77,7 @@ func (cc *conduitConnect) connect() {
 func (cc *conduitConnect) disconnect(ctx context.Context) error {
 	cc.ctxMu.Lock()
 	if cc.cancelCtx != nil {
-		cc.cancelCtx()
+		cc.cancelCtx() // cancel open
 	}
 	cc.ctxMu.Unlock()
 	cc.mu.Lock()

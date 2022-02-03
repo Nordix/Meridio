@@ -96,7 +96,7 @@ func New(trench *nspAPI.Trench,
 func (t *Trench) Delete(ctx context.Context) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	logrus.Infof("Disconnect to trench: %v", t.Trench)
+	logrus.Infof("Disconnect from trench: %v", t.Trench)
 	var errFinal error
 	var err error
 	// close streams
@@ -131,11 +131,11 @@ func (t *Trench) Delete(ctx context.Context) error {
 func (t *Trench) AddConduit(ctx context.Context, cndt *nspAPI.Conduit) (types.Conduit, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	logrus.Debugf("Add conduit: %v to trench: %v", cndt, t.Trench)
 	c := t.getConduit(cndt)
 	if c != nil {
 		return c, nil
 	}
+	logrus.Infof("Add conduit: %v to trench: %v", cndt, t.Trench)
 	c, err := t.ConduitFactory.New(cndt)
 	if err != nil {
 		return nil, err
@@ -153,11 +153,11 @@ func (t *Trench) AddConduit(ctx context.Context, cndt *nspAPI.Conduit) (types.Co
 func (t *Trench) RemoveConduit(ctx context.Context, cndt *nspAPI.Conduit) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	logrus.Debugf("Remove conduit: %v from trench: %v", cndt, t.Trench)
 	index := t.getConduitIndex(cndt)
 	if index < 0 {
 		return nil
 	}
+	logrus.Infof("Remove conduit: %v from trench: %v", cndt, t.Trench)
 	c := t.conduits[index]
 	err := c.disconnect(ctx)
 	t.conduits = append(t.conduits[:index], t.conduits[index+1:]...)
@@ -185,6 +185,10 @@ func (t *Trench) GetConduit(conduit *nspAPI.Conduit) types.Conduit {
 // Equals checks if the trench is equal to the one in parameter.
 func (t *Trench) Equals(trench *nspAPI.Trench) bool {
 	return t.Trench.Equals(trench)
+}
+
+func (t *Trench) GetTrench() *nspAPI.Trench {
+	return t.Trench
 }
 
 func (t *Trench) connectNSPService(ctx context.Context, nspServiceName string, nspServicePort int) (*grpc.ClientConn, error) {

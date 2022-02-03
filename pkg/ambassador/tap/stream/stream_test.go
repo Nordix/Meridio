@@ -38,7 +38,7 @@ func Test_Constructor(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
 
-	pendingChan := make(chan interface{})
+	pendingChan := make(chan interface{}, 1)
 	streamRegistry := registry.New()
 	w, _ := streamRegistry.Watch(context.TODO(), &nspAPI.Stream{})
 	resultChan := w.ResultChan()
@@ -76,7 +76,7 @@ func Test_Open_Close(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
 
-	pendingChan := make(chan interface{})
+	pendingChan := make(chan interface{}, 1)
 	streamRegistry := registry.New()
 	w, _ := streamRegistry.Watch(context.TODO(), &nspAPI.Stream{})
 	resultChan := w.ResultChan()
@@ -171,7 +171,7 @@ func Test_Open_NoIdentifierAvailable(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
 
-	pendingChan := make(chan interface{})
+	pendingChan := make(chan interface{}, 1)
 	streamRegistry := registry.New()
 	w, _ := streamRegistry.Watch(context.TODO(), &nspAPI.Stream{})
 	resultChan := w.ResultChan()
@@ -220,7 +220,7 @@ func Test_Open_Concurrent(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
 
-	pendingChan := make(chan interface{})
+	pendingChan := make(chan interface{}, 1)
 	streamRegistry := registry.New()
 	w, _ := streamRegistry.Watch(context.TODO(), &nspAPI.Stream{})
 	resultChan := w.ResultChan()
@@ -318,7 +318,7 @@ func Test_Open_Concurrent_NoIdentifierAvailable(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
 
-	pendingChan := make(chan interface{})
+	pendingChan := make(chan interface{}, 1)
 	streamRegistry := registry.New()
 	w, _ := streamRegistry.Watch(context.TODO(), &nspAPI.Stream{})
 	resultChan := w.ResultChan()

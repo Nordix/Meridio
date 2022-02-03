@@ -46,7 +46,7 @@ type Stream struct {
 	ips                        []string
 	mu                         sync.Mutex
 	configurationCancel        context.CancelFunc
-	streamExists               bool
+	pendingCancel              context.CancelFunc
 }
 
 // New is the constructor of Stream.
@@ -70,13 +70,14 @@ func New(stream *nspAPI.Stream,
 		MaxNumberOfTargets:         maxNumberOfTargets,
 		identifier:                 -1,
 		targetStatus:               nspAPI.Target_DISABLED,
-		streamExists:               false,
 	}
 	err := s.StreamRegistry.Add(context.TODO(), s.Stream, ambassadorAPI.StreamStatus_PENDING)
 	if err != nil {
 		return nil, err
 	}
-	s.setPendingStatus(pendingTrigger)
+	var cancelPendingCtx context.Context
+	cancelPendingCtx, s.pendingCancel = context.WithCancel(context.TODO())
+	s.setPendingStatus(pendingTrigger, cancelPendingCtx)
 	s.Configuration = newConfigurationImpl(s, s.Stream, s.ConfigurationManagerClient)
 	return s, nil
 }
@@ -90,15 +91,16 @@ func New(stream *nspAPI.Stream,
 func (s *Stream) Open(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	logrus.Infof("Open stream: %v", s.Stream)
 	s.ips = s.Conduit.GetIPs()
 	if len(s.ips) <= 0 {
 		return errors.New("Ips not set")
 	}
+	logrus.Infof("Attempt to open stream: %v", s.Stream)
 	err := s.open(ctx)
 	if err != nil {
 		return err
 	}
+	logrus.Infof("Stream opened (identifier: %v) : %v", strconv.Itoa(s.identifier), s.Stream)
 	var configurationCtx context.Context
 	configurationCtx, s.configurationCancel = context.WithCancel(context.TODO())
 	go s.Configuration.WatchStream(configurationCtx)
@@ -117,6 +119,7 @@ func (s *Stream) Close(ctx context.Context) error {
 	err := s.TargetRegistry.Unregister(ctx, s.getTarget())
 	s.targetStatus = nspAPI.Target_DISABLED
 	s.setStatus(ambassadorAPI.StreamStatus_UNAVAILABLE)
+	s.identifier = -1
 	if err != nil {
 		return err
 	}
@@ -135,6 +138,11 @@ func (s *Stream) GetStream() *nspAPI.Stream {
 
 // StreamExists sets the availability of the stream in the current trench
 func (s *Stream) StreamExists(exists bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.identifier < 0 {
+		return nil
+	}
 	if exists {
 		s.setStatus(ambassadorAPI.StreamStatus_OPEN)
 	} else {
@@ -252,13 +260,17 @@ func (s *Stream) open(ctx context.Context) error {
 	return nil
 }
 
-func (s *Stream) setPendingStatus(pendingTrigger <-chan interface{}) {
+func (s *Stream) setPendingStatus(pendingTrigger <-chan interface{}, cancelPendingCtx context.Context) {
 	go func() {
-		<-pendingTrigger
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		if s.targetStatus == nspAPI.Target_DISABLED {
-			s.setStatus(ambassadorAPI.StreamStatus_UNAVAILABLE)
+		select {
+		case <-cancelPendingCtx.Done():
+			return
+		case <-pendingTrigger:
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			if s.targetStatus == nspAPI.Target_DISABLED {
+				s.setStatus(ambassadorAPI.StreamStatus_UNAVAILABLE)
+			}
 		}
 	}()
 }
@@ -267,11 +279,14 @@ func (s *Stream) setStatus(status ambassadorAPI.StreamStatus_Status) {
 	if s.StreamRegistry == nil {
 		return
 	}
+	if s.pendingCancel != nil {
+		s.pendingCancel()
+	}
 	s.StreamRegistry.SetStatus(s.Stream, status)
 }
 
 func DefaultPendingChan() <-chan interface{} {
-	pendingChan := make(chan interface{})
+	pendingChan := make(chan interface{}, 1)
 	go func() {
 		<-time.After(PendingTime)
 		pendingChan <- struct{}{}
