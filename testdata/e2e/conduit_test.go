@@ -4,6 +4,7 @@ import (
 	"time"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	"github.com/nordix/meridio-operator/controllers/common"
 	"github.com/nordix/meridio-operator/testdata/utils"
 	config "github.com/nordix/meridio/pkg/configuration/reader"
 	. "github.com/onsi/ginkgo"
@@ -11,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -24,7 +26,7 @@ var _ = Describe("Conduit", func() {
 		fw.CleanUpAttractors()
 		fw.CleanUpConduits()
 		// wait for the old instances to be deleted
-		time.Sleep(2 * time.Second)
+		time.Sleep(time.Second)
 	})
 
 	Context("When creating a conduit", func() {
@@ -33,6 +35,7 @@ var _ = Describe("Conduit", func() {
 			fw.CleanUpAttractors()
 			fw.CleanUpConduits()
 		})
+
 		Context("without a trench", func() {
 			It("will failed in creation", func() {
 				Expect(fw.CreateResource(conduit.DeepCopy())).ToNot(Succeed())
@@ -43,6 +46,7 @@ var _ = Describe("Conduit", func() {
 			})
 		})
 
+		// conduit must be created after attractor
 		Context("without an attractor", func() {
 			It("will failed in creation", func() {
 				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
@@ -54,7 +58,7 @@ var _ = Describe("Conduit", func() {
 			})
 		})
 
-		Context("with trench", func() {
+		Context("with trench and attractor", func() {
 			BeforeEach(func() {
 				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 				Expect(fw.CreateResource(attractor.DeepCopy())).To(Succeed())
@@ -80,6 +84,58 @@ var _ = Describe("Conduit", func() {
 
 				By("checking conduit is in configmap data")
 				assertConduitItemInConfigMap(conduit, configmapName, true)
+			})
+		})
+
+		Context("two trenches", func() {
+			BeforeEach(func() {
+				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
+				Expect(fw.CreateResource(
+					&meridiov1alpha1.Trench{
+						ObjectMeta: v1.ObjectMeta{
+							Name:      "trench-b",
+							Namespace: namespace,
+						},
+						Spec: meridiov1alpha1.TrenchSpec{
+							IPFamily: string(meridiov1alpha1.IPv4),
+						},
+					})).To(Succeed())
+			})
+
+			It("needs attractor respectively to create conduits for each trench", func() {
+				By("create attractor for trench-a")
+				Expect(fw.CreateResource(attractor.DeepCopy())).To(Succeed())
+
+				By("create conduit for trench-a")
+				Expect(fw.CreateResource(conduit.DeepCopy())).To(Succeed())
+				assertConduitItemInConfigMap(conduit, configmapName, true)
+
+				By("create conduit will fail without attractor for trench-b")
+				conduitB := &meridiov1alpha1.Conduit{
+					ObjectMeta: v1.ObjectMeta{
+						Name:      "conduit-b",
+						Namespace: namespace,
+						Labels: map[string]string{
+							"trench": "trench-b",
+						},
+					},
+					Spec: meridiov1alpha1.ConduitSpec{
+						Type: "stateless-lb",
+					},
+				}
+				Expect(fw.CreateResource(conduitB)).ToNot(Succeed())
+				assertConduitItemInConfigMap(conduitB, common.CMName+"-trench-b", false)
+
+				By("create attractor for trench-b")
+				attractorB := attractor.DeepCopy()
+				attractorB.ObjectMeta.Name = "attractor-b"
+				attractorB.Labels["trench"] = "trench-b"
+				Expect(fw.CreateResource(attractorB.DeepCopy())).To(Succeed())
+
+				By("create conduit for trench-b")
+				Expect(fw.CreateResource(conduitB)).To(Succeed())
+				assertConduitItemInConfigMap(conduitB, configmapName, false)
+				assertConduitItemInConfigMap(conduitB, common.CMName+"-trench-b", true)
 			})
 		})
 	})
@@ -176,22 +232,6 @@ var _ = Describe("Conduit", func() {
 
 			By("checking conduit item still in the configmap")
 			assertConduitItemInConfigMap(conduit, configmapName, true)
-		})
-	})
-
-	Context("checking meridio pods", func() {
-		BeforeEach(func() {
-			Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
-			Expect(fw.CreateResource(attractor.DeepCopy())).To(Succeed())
-			AssertTrenchReady(trench)
-			AssertAttractorReady(attractor)
-		})
-
-		It("will not trigger restarts in any of the meridio pods", func() {
-			Expect(fw.CreateResource(conduit.DeepCopy())).To(Succeed())
-
-			By("Checking the restarts of meridio pods")
-			AssertMeridioDeploymentsReady(trench, attractor, conduit)
 		})
 	})
 })

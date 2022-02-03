@@ -361,6 +361,56 @@ func AssertTrenchReady(trench *meridiov1alpha1.Trench) {
 	Eventually(func(g Gomega) {
 		g.Expect(assertStatefulSetReady(strings.Join([]string{"nsp", name}, "-"), ns)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
+
+	By("checking nsp service")
+	nspServiceName := fmt.Sprintf("%s-%s", common.NspSvcName, name)
+	service := &corev1.Service{}
+	err := fw.GetResource(client.ObjectKey{
+		Namespace: ns,
+		Name:      nspServiceName,
+	}, service)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(service).ToNot(BeNil())
+
+	By("checking ipam service")
+	ipamServiceName := fmt.Sprintf("%s-%s", common.IpamSvcName, name)
+	ipamService := &corev1.Service{}
+	err = fw.GetResource(client.ObjectKey{
+		Namespace: ns,
+		Name:      ipamServiceName,
+	}, ipamService)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(service).ToNot(BeNil())
+
+	By("checking role")
+	roleName := fmt.Sprintf("%s-%s", common.RlName, name)
+	role := &rbacv1.Role{}
+	err = fw.GetResource(client.ObjectKey{
+		Namespace: ns,
+		Name:      roleName,
+	}, role)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(role).ToNot(BeNil())
+
+	By("checking role binding")
+	roleBindingName := fmt.Sprintf("%s-%s", common.RBName, name)
+	roleBinding := &rbacv1.RoleBinding{}
+	err = fw.GetResource(client.ObjectKey{
+		Namespace: ns,
+		Name:      roleBindingName,
+	}, roleBinding)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(roleBinding).ToNot(BeNil())
+
+	By("checking service account")
+	serviceAccountName := fmt.Sprintf("%s-%s", common.SAName, name)
+	serviceAccount := &corev1.ServiceAccount{}
+	err = fw.GetResource(client.ObjectKey{
+		Namespace: ns,
+		Name:      serviceAccountName,
+	}, serviceAccount)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(serviceAccount).ToNot(BeNil())
 }
 
 func AssertAttractorReady(attractor *meridiov1alpha1.Attractor) {

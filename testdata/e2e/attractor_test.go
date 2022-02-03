@@ -29,7 +29,7 @@ var _ = Describe("Attractor", func() {
 			fw.CleanUpTrenches()
 			fw.CleanUpAttractors()
 			// wait for the old instances to be deleted
-			time.Sleep(2 * time.Second)
+			time.Sleep(time.Second)
 		})
 
 		// operator scope
@@ -58,6 +58,7 @@ var _ = Describe("Attractor", func() {
 				assertAttractorResourcesNotExist(attr)
 			})
 		})
+
 		// attractor controller behavior
 		Context("without a trench", func() {
 			It("will fail in creation", func() {
@@ -80,7 +81,7 @@ var _ = Describe("Attractor", func() {
 			AfterEach(func() {
 				fw.CleanUpAttractors()
 				// wait for the old instances to be deleted
-				time.Sleep(2 * time.Second)
+				time.Sleep(time.Second)
 			})
 
 			When("missing parameters", func() {
@@ -151,58 +152,106 @@ var _ = Describe("Attractor", func() {
 			})
 		})
 
-		When("updating", func() {
+		Context("with two trenches", func() {
+			trenchB := &meridiov1alpha1.Trench{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "trench-b",
+					Namespace: namespace,
+				},
+				Spec: meridiov1alpha1.TrenchSpec{
+					IPFamily: string(meridiov1alpha1.IPv4),
+				},
+			}
+			attractorB := attractor.DeepCopy()
+			attractorB.Labels["trench"] = "trench-b"
+			attractorB.Name = "attractor-b"
 			BeforeEach(func() {
-				// Deep copy to avoid original variables to be overwritten
-				Expect(fw.CreateResource(trench.DeepCopy())).Should(Succeed())
-				Expect(fw.CreateResource(attractor.DeepCopy())).Should(Succeed())
-				AssertAttractorReady(attractor)
+				fw.CreateResource(trench.DeepCopy())
+				fw.CreateResource(trenchB.DeepCopy())
 			})
 
 			AfterEach(func() {
 				fw.CleanUpAttractors()
+				// wait for the old instances to be deleted
+				time.Sleep(time.Second)
 			})
 
-			It("can update the gateways and vips of lb-fe", func() {
-				attr := &meridiov1alpha1.Attractor{}
+			It("controlls resources respectively", func() {
+				// create attractor a
+				Expect(fw.CreateResource(attractor.DeepCopy())).Should(Succeed())
 
-				By("updating attractor spec.gateways and spec.vips")
-				Eventually(func(g Gomega) {
-					err := fw.GetResource(client.ObjectKeyFromObject(attractor), attr)
-					g.Expect(err).ToNot(HaveOccurred())
-					attr.Spec.Gateways = []string{"gateway1"}
-					attr.Spec.Vips = []string{"vip1"}
-					g.Expect(fw.UpdateResource(attr)).To(Succeed())
-				}, timeout, interval).Should(Succeed())
+				By("checking resources created by attractor a")
+				AssertAttractorReady(attractor)
+				assertAttractorItemInConfigMap(attractor, configmapName, true)
 
-				By("checking the configmap")
-				assertAttractorItemInConfigMap(attractor, configmapName, false)
-				assertAttractorItemInConfigMap(attr, configmapName, true)
+				// create attractor b
+				Expect(fw.CreateResource(attractorB)).Should(Succeed())
+				By("checking resources created by attractor b")
+				AssertAttractorReady(attractorB)
+				assertAttractorItemInConfigMap(attractorB, common.ConfigMapName(trenchB), true)
+
+				// delete attractor b
+				Expect(fw.DeleteResource(attractorB)).Should(Succeed())
+				By("checking attractor a is not impacted by attractor b")
+				AssertAttractorReady(attractor)
+				assertAttractorItemInConfigMap(attractor, configmapName, true)
+
+				By("checking attractor b is handled correctly")
+				assertAttractorResourcesNotExist(attractorB)
+				assertAttractorItemInConfigMap(attractorB, common.ConfigMapName(trenchB), false)
 			})
+		})
+	})
 
-			It("can update the replicas of the lb-fe", func() {
-				attr := &meridiov1alpha1.Attractor{}
-				By("checking current replica is 1")
-				deployment := &appsv1.Deployment{}
-				loadBalancerName := fmt.Sprintf("%s-%s", common.LBName, attractorName)
+	When("updating", func() {
+		BeforeEach(func() {
+			fw.CleanUpTrenches()
+			fw.CleanUpAttractors()
+			// Deep copy to avoid original variables to be overwritten
+			Expect(fw.CreateResource(trench.DeepCopy())).Should(Succeed())
+			Expect(fw.CreateResource(attractor.DeepCopy())).Should(Succeed())
+			AssertAttractorReady(attractor)
+		})
+
+		It("can update the gateways and vips of lb-fe", func() {
+			attr := &meridiov1alpha1.Attractor{}
+
+			By("updating attractor spec.gateways and spec.vips")
+			Eventually(func(g Gomega) {
+				err := fw.GetResource(client.ObjectKeyFromObject(attractor), attr)
+				g.Expect(err).ToNot(HaveOccurred())
+				attr.Spec.Gateways = []string{"gateway1"}
+				attr.Spec.Vips = []string{"vip1"}
+				g.Expect(fw.UpdateResource(attr)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			By("checking the configmap")
+			assertAttractorItemInConfigMap(attractor, configmapName, false)
+			assertAttractorItemInConfigMap(attr, configmapName, true)
+		})
+
+		It("can update the replicas of the lb-fe", func() {
+			attr := &meridiov1alpha1.Attractor{}
+			By("checking current replica is 1")
+			deployment := &appsv1.Deployment{}
+			loadBalancerName := fmt.Sprintf("%s-%s", common.LBName, attractorName)
+			Expect(fw.GetResource(client.ObjectKey{Name: loadBalancerName, Namespace: namespace}, deployment)).To(Succeed())
+			Expect(*deployment.Spec.Replicas).To(Equal(int32(1)))
+
+			By("updating attractor spec.replicas to be 2")
+			Eventually(func(g Gomega) {
+				err := fw.GetResource(client.ObjectKeyFromObject(attractor), attr)
+				g.Expect(err).ToNot(HaveOccurred())
+				*attr.Spec.Replicas = 2
+				g.Expect(fw.UpdateResource(attr)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+
+			By("checking the lb-fe replicas to be 2")
+			Eventually(func() int32 {
 				Expect(fw.GetResource(client.ObjectKey{Name: loadBalancerName, Namespace: namespace}, deployment)).To(Succeed())
-				Expect(*deployment.Spec.Replicas).To(Equal(int32(1)))
-
-				By("updating attractor spec.replicas to be 2")
-				Eventually(func(g Gomega) {
-					err := fw.GetResource(client.ObjectKeyFromObject(attractor), attr)
-					g.Expect(err).ToNot(HaveOccurred())
-					*attr.Spec.Replicas = 2
-					g.Expect(fw.UpdateResource(attr)).To(Succeed())
-				}, timeout, interval).Should(Succeed())
-
-				By("checking the lb-fe replicas to be 2")
-				Eventually(func() int32 {
-					Expect(fw.GetResource(client.ObjectKey{Name: loadBalancerName, Namespace: namespace}, deployment)).To(Succeed())
-					By(fmt.Sprintf("current replicas: %v", *deployment.Spec.Replicas))
-					return *deployment.Spec.Replicas
-				}, timeout, interval).Should(Equal(int32(2)))
-			})
+				By(fmt.Sprintf("current replicas: %v", *deployment.Spec.Replicas))
+				return *deployment.Spec.Replicas
+			}, timeout, interval).Should(Equal(int32(2)))
 		})
 	})
 
@@ -211,8 +260,9 @@ var _ = Describe("Attractor", func() {
 			fw.CleanUpTrenches()
 			fw.CleanUpAttractors()
 			// Deep copy to avoid original variables to be overwritten
-			Expect(fw.CreateResource(trench.DeepCopy())).Should(Succeed())
-			Expect(fw.CreateResource(attractor.DeepCopy())).Should(Succeed())
+			fw.CreateResource(trench.DeepCopy())
+			fw.CreateResource(attractor.DeepCopy())
+			time.Sleep(time.Second)
 		})
 
 		AfterEach(func() {
@@ -240,44 +290,26 @@ var _ = Describe("Attractor", func() {
 			assertAttractorResourcesNotExist(attractor)
 		})
 	})
-
-	Context("checking meridio pods", func() {
-		conduit := conduit(namespace)
-
-		BeforeEach(func() {
-			Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
-			AssertTrenchReady(trench)
-		})
-
-		AfterEach(func() {
-			fw.CleanUpTrenches()
-			fw.CleanUpAttractors()
-			fw.CleanUpConduits()
-		})
-
-		It("will not trigger restarts in any of the meridio pods", func() {
-			Expect(fw.CreateResource(attractor.DeepCopy())).To(Succeed())
-			Expect(fw.CreateResource(conduit.DeepCopy())).To(Succeed())
-
-			By("Checking the restarts of meridio pods")
-			AssertMeridioDeploymentsReady(trench, attractor, conduit)
-		})
-	})
 })
 
 func assertAttractorResourcesNotExist(attr *meridiov1alpha1.Attractor) {
 	namespace := attr.ObjectMeta.Namespace
 	By("checking there is no load balancer deployments")
-	loadBalancerName := fmt.Sprintf("%s-%s", common.LBName, trenchName)
 	Eventually(func() bool {
-		err := fw.GetResource(client.ObjectKey{Name: loadBalancerName, Namespace: namespace}, &appsv1.Deployment{})
+		err := fw.GetResource(client.ObjectKey{
+			Name:      common.LbFeDeploymentName(attr),
+			Namespace: attr.ObjectMeta.Namespace,
+		}, &appsv1.Deployment{})
 		return err != nil && apierrors.IsNotFound(err)
 	}, 5*time.Second).Should(BeTrue())
 
 	By("checking there is no nse-vlan deployments")
-	nseVLANName := fmt.Sprintf("%s-%s", common.NseName, attractorName)
+	nseVLANName := common.NSEDeploymentName(attr)
 	Eventually(func(g Gomega) {
-		g.Expect(fw.GetResource(client.ObjectKey{Name: nseVLANName, Namespace: namespace}, &appsv1.Deployment{})).ToNot(Succeed())
+		g.Expect(fw.GetResource(client.ObjectKey{
+			Name:      nseVLANName,
+			Namespace: namespace,
+		}, &appsv1.Deployment{})).ToNot(Succeed())
 	}, 5*time.Second).Should(Succeed())
 }
 

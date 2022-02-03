@@ -4,6 +4,7 @@ import (
 	"time"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	"github.com/nordix/meridio-operator/controllers/common"
 	"github.com/nordix/meridio-operator/testdata/utils"
 	"github.com/nordix/meridio/pkg/configuration/reader"
 	. "github.com/onsi/ginkgo"
@@ -53,10 +54,40 @@ var _ = Describe("Flow", func() {
 		fw.CleanUpAttractors()
 		fw.CleanUpFlows()
 		// wait for the old instances to be deleted
-		time.Sleep(2 * time.Second)
+		time.Sleep(time.Second)
 	})
 
 	Context("When creating a flow", func() {
+		flowB := &meridiov1alpha1.Flow{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "flow-b",
+				Namespace: namespace,
+				Labels: map[string]string{
+					"trench": trenchName,
+				},
+			},
+			Spec: meridiov1alpha1.FlowSpec{
+				Stream:           "stream-b",
+				Protocols:        []meridiov1alpha1.TransportProtocol{meridiov1alpha1.TCP},
+				SourceSubnets:    []string{"10.0.0.0/28"},
+				SourcePorts:      []string{"any"},
+				DestinationPorts: []string{"2000"},
+				Vips:             []string{"vip1"},
+				Priority:         1000,
+			},
+		}
+
+		newFlowInCm := reader.Flow{
+			Stream:                flowB.Spec.Stream,
+			Name:                  flowB.ObjectMeta.Name,
+			Protocols:             meridiov1alpha1.TransportProtocolsToStrings(flowB.Spec.Protocols),
+			SourcePortRanges:      []string{"0-65535"},
+			SourceSubnets:         flowB.Spec.SourceSubnets,
+			DestinationPortRanges: flowB.Spec.DestinationPorts,
+			Vips:                  flowB.Spec.Vips,
+			Priority:              flowB.Spec.Priority,
+		}
+
 		AfterEach(func() {
 			fw.CleanUpTrenches()
 			fw.CleanUpFlows()
@@ -71,7 +102,7 @@ var _ = Describe("Flow", func() {
 			})
 		})
 
-		Context("with trench", func() {
+		Context("with one trench", func() {
 			BeforeEach(func() {
 				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 			})
@@ -132,6 +163,39 @@ var _ = Describe("Flow", func() {
 					Priority:              flowB.Spec.Priority,
 				}
 				assertFlowItemInConfigMap(newFlowInCm, configmapName, true)
+			})
+		})
+
+		Context("with two trenches", func() {
+			BeforeEach(func() {
+				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
+				Expect(fw.CreateResource(
+					&meridiov1alpha1.Trench{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "trench-b",
+							Namespace: namespace,
+						},
+						Spec: meridiov1alpha1.TrenchSpec{
+							IPFamily: string(meridiov1alpha1.IPv4),
+						},
+					})).To(Succeed())
+			})
+
+			It("go to its own configmap", func() {
+				By("create flow for trench-a")
+				Expect(fw.CreateResource(flowA.DeepCopy())).To(Succeed())
+				assertFlowItemInConfigMap(defaultFlowinCm, common.CMName+"-trench-a", true)
+
+				By("create flow for trench-b")
+				flowB.ObjectMeta.Labels["trench"] = "trench-b"
+				Expect(fw.CreateResource(flowB)).To(Succeed())
+
+				By("checking flow b in configmap a")
+				// flow b should not be found in the configmap of trench a
+				assertFlowItemInConfigMap(newFlowInCm, common.CMName+"-trench-a", false)
+				By("checking flow b in configmap b")
+				// flow b should be found in the configmap of trench b
+				assertFlowItemInConfigMap(newFlowInCm, common.CMName+"-trench-b", true)
 			})
 		})
 	})

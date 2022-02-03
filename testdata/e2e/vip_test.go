@@ -38,10 +38,22 @@ var _ = Describe("Vip", func() {
 		fw.CleanUpAttractors()
 		fw.CleanUpVips()
 		// wait for the old instances to be deleted
-		time.Sleep(2 * time.Second)
+		time.Sleep(time.Second)
 	})
 
 	Context("When creating a vip", func() {
+		vipB := &meridiov1alpha1.Vip{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "vip-b",
+				Namespace: namespace,
+				Labels: map[string]string{
+					"trench": trenchName,
+				},
+			},
+			Spec: meridiov1alpha1.VipSpec{
+				Address: "20.0.0.0/28",
+			},
+		}
 
 		AfterEach(func() {
 			fw.CleanUpTrenches()
@@ -57,7 +69,7 @@ var _ = Describe("Vip", func() {
 			})
 		})
 
-		Context("with trench", func() {
+		Context("with one trench", func() {
 			BeforeEach(func() {
 				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 			})
@@ -82,22 +94,44 @@ var _ = Describe("Vip", func() {
 			})
 
 			It("will update the configmap if another vip is added", func() {
-				vipB := &meridiov1alpha1.Vip{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "vip-b",
-						Namespace: namespace,
-						Labels: map[string]string{
-							"trench": trenchName,
-						},
-					},
-					Spec: meridiov1alpha1.VipSpec{
-						Address: "20.0.0.0/28",
-					},
-				}
-
 				By("checking another vip created after trench is in configmap")
 				Expect(fw.CreateResource(vipB.DeepCopy())).To(Succeed())
 				assertVipItemInConfigMap(vipB, configmapName, true)
+			})
+		})
+
+		Context("with two trenches", func() {
+			newVip := vipB.DeepCopy()
+			newVip.ObjectMeta.Labels["trench"] = "trench-b"
+
+			BeforeEach(func() {
+				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
+				Expect(fw.CreateResource(
+					&meridiov1alpha1.Trench{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "trench-b",
+							Namespace: namespace,
+						},
+						Spec: meridiov1alpha1.TrenchSpec{
+							IPFamily: string(meridiov1alpha1.IPv4),
+						},
+					})).To(Succeed())
+			})
+
+			It("go to its own configmap", func() {
+				By("create vip for trench-a")
+				Expect(fw.CreateResource(vipA.DeepCopy())).To(Succeed())
+				assertVipItemInConfigMap(vipA, configmapName, true)
+
+				By("create vip for trench-b")
+				Expect(fw.CreateResource(newVip)).To(Succeed())
+
+				By("checking vip b in configmap a")
+				// vip b should not be found in the configmap of trench a
+				assertVipItemInConfigMap(newVip, configmapName, false)
+				By("checking vip b in configmap b")
+				// vip b should be found in the configmap of trench b
+				assertVipItemInConfigMap(newVip, common.CMName+"-trench-b", true)
 			})
 		})
 	})
