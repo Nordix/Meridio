@@ -113,7 +113,7 @@ func (t *Trench) RemoveConduit(ctx context.Context, conduit types.Conduit) error
 	}
 	err := conduit.Disconnect(ctx)
 	if err != nil {
-		return nil
+		return err
 	}
 	t.conduits = append(t.conduits[:index], t.conduits[index+1:]...)
 	return nil
@@ -173,7 +173,7 @@ func (t *Trench) connectNSPService() error {
 			grpc.WaitForReady(true),
 		))
 	if err != nil {
-		return nil
+		return err
 	}
 
 	t.TargetRegistryClient = nspAPI.NewTargetRegistryClient(t.nspConn)
