@@ -22,6 +22,7 @@ spec:
     metadata:
       labels:
         app: lb-fe
+        "spiffe.io/spiffe-id": "true"
     spec:
       affinity:
         podAntiAffinity:
@@ -101,6 +102,10 @@ spec:
               value:  # to be filled by operator
             - name: NSM_NSP_SERVICE
               value:  # to be filled by operator
+            - name: NSM_MAX_TOKEN_LIFETIME
+              value: "10m"
+            - name: NSM_LOG_LEVEL
+              value: "DEBUG"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
@@ -129,6 +134,10 @@ spec:
               value: "30s"
             - name: NSM_REQUEST_TIMEOUT
               value: "300s"
+            - name: NSM_MAX_TOKEN_LIFETIME
+              value: "10m"
+            - name: NSM_LOG_LEVEL
+              value: "DEBUG"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
@@ -189,6 +198,8 @@ spec:
               value: "true"
             - name: NFE_ECMP
               value: "true"
+            - name: NFE_EXTERNAL_INTERFACE
+              value:  # to be filled by operator
             - name: NFE_NSP_SERVICE
               value:  # to be filled by operator
             - name: NFE_CONFIG_MAP_NAME
@@ -197,6 +208,8 @@ spec:
               value:  # to be filled by operator
             - name: NFE_ATTRACTOR_NAME
               value:  # to be filled by operator
+            - name: NFE_LOG_LEVEL
+              value: "DEBUG"
           securityContext:
             capabilities:
               add: ["NET_ADMIN"]

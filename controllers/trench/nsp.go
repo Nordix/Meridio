@@ -45,7 +45,7 @@ func (i *NspStatefulSet) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			env.Value = common.ConfigMapName(i.trench)
 		case "NSP_NAMESPACE":
 			env.Value = i.trench.ObjectMeta.Namespace
-		case "SPIFFE_ENDPOINT_SOCKET", "NSP_DATASOURCE":
+		case "SPIFFE_ENDPOINT_SOCKET", "NSP_DATASOURCE", "NSP_LOG_LEVEL":
 		default:
 			i.exec.LogError(fmt.Errorf("env %s not expected", env.Name), "get env var error")
 		}

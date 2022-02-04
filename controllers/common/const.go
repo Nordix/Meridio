@@ -35,6 +35,7 @@ const (
 	NspTargetPort  = 7778
 	IpamPort       = 7777
 	IpamTargetPort = 7777
+	VlanNsePort    = 5003
 
 	IpamSvcName = "ipam-service"
 	NspSvcName  = "nsp-service"
@@ -140,4 +141,8 @@ func GetImagePullSecrets() []corev1.LocalObjectReference {
 
 func NsName(meta metav1.ObjectMeta) string {
 	return fmt.Sprintf("%s/%s", meta.Namespace, meta.Name)
+}
+
+func GetExternalInterfaceName(attractor *meridiov1alpha1.Attractor) string {
+	return fmt.Sprintf("ext-vlan.%d", *attractor.Spec.Interface.NSMVlan.VlanID)
 }

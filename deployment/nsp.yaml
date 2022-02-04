@@ -18,6 +18,7 @@ spec:
     metadata:
       labels:
         app: nsp
+        "spiffe.io/spiffe-id": "true"
     spec:
       serviceAccountName:  # to be filled by operator
       containers:
@@ -75,6 +76,8 @@ spec:
               value:  # to be filled by operator
             - name: NSP_DATASOURCE
               value: /run/nsp/data/registry.db
+            - name: NSP_LOG_LEVEL
+              value: "DEBUG"
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:

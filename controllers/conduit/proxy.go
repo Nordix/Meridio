@@ -87,7 +87,9 @@ func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
 			e.Name == "NSM_NAME" ||
 			e.Name == "NSM_HOST" ||
-			e.Name == "NSM_CONNECT_TO" {
+			e.Name == "NSM_CONNECT_TO" ||
+			e.Name == "NSM_MAX_TOKEN_LIFETIME" ||
+			e.Name == "NSM_LOG_LEVEL" {
 			env = append(env, e)
 		}
 	}

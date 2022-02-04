@@ -13,12 +13,11 @@ import (
 )
 
 const (
-	nseImage       = "nse-vlan"
-	nseEnvItf      = "NSE_VLAN_BASE_IFNAME"
-	nseEnvID       = "NSE_VLAN_ID"
-	nseEnvSerive   = "NSE_SERVICE_NAME"
-	nseEnvPrefixV4 = "NSE_CIDR_PREFIX"
-	nseEnvPrefixV6 = "NSE_IPV6_PREFIX"
+	nseImage       = "cmd-nse-remote-vlan"
+	nseImageTag    = "v1.2.0-rc.1"
+	nseEnvServices = "NSM_SERVICES"
+	nseEnvPrefixV4 = "NSM_CIDR_PREFIX"
+	nseEnvPrefixV6 = "NSM_IPV6_PREFIX"
 )
 
 type NseDeployment struct {
@@ -46,16 +45,11 @@ func (i *NseDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	// else return default envVars
 	env := []corev1.EnvVar{
 		{
-			Name:  nseEnvItf,
-			Value: i.attractor.Spec.Interface.NSMVlan.BaseInterface,
-		},
-		{
-			Name:  nseEnvID,
-			Value: fmt.Sprint(*i.attractor.Spec.Interface.NSMVlan.VlanID),
-		},
-		{
-			Name:  nseEnvSerive,
-			Value: common.VlanNtwkSvcName(i.trench),
+			Name: nseEnvServices,
+			Value: fmt.Sprintf("%s { vlan: %d; via: %s }",
+				common.VlanNtwkSvcName(i.trench),
+				*i.attractor.Spec.Interface.NSMVlan.VlanID,
+				i.attractor.Spec.Interface.NSMVlan.BaseInterface),
 		},
 		{
 			Name:  nseEnvPrefixV4,
@@ -70,9 +64,16 @@ func (i *NseDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	for _, e := range allEnv {
 		// append all hard coded envVars
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
-			e.Name == "NSE_NAME" ||
-			e.Name == "NSE_CONNECT_TO" ||
-			e.Name == "NSE_POINT2POINT" {
+			e.Name == "NSM_NAME" ||
+			e.Name == "NSM_CONNECT_TO" ||
+			e.Name == "NSM_POINT2POINT" ||
+			e.Name == "NSM_REGISTER_SERVICE" ||
+			e.Name == "NSM_LISTEN_ON" ||
+			e.Name == "NSM_MAX_TOKEN_LIFETIME" ||
+			e.Name == "NSM_LOG_LEVEL" {
+			if e.Name == "NSM_LISTEN_ON" && e.Value == "" {
+				e.Value = fmt.Sprintf("tcp://:%v", common.VlanNsePort)
+			}
 			env = append(env, e)
 		}
 	}
@@ -94,20 +95,23 @@ func (i *NseDeployment) insertParameters(dep *appsv1.Deployment) *appsv1.Deploym
 		switch name := container.Name; name {
 		case "nse":
 			if container.Image == "" {
-				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.OrganizationNsm, nseImage, common.Tag)
+				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.OrganizationNsm, nseImage, nseImageTag)
 				container.ImagePullPolicy = corev1.PullAlways
 			}
 			if container.StartupProbe == nil {
 				container.StartupProbe = common.GetProbe(common.StartUpTimer,
-					common.GetProbeCommand(true, "unix:///tmp/listen.on", ""))
+					common.GetProbeCommand(true, fmt.Sprintf(":%d", common.VlanNsePort), ""))
 			}
 			if container.ReadinessProbe == nil {
 				container.ReadinessProbe = common.GetProbe(common.ReadinessTimer,
-					common.GetProbeCommand(true, "unix:///tmp/listen.on", ""))
+					common.GetProbeCommand(true, fmt.Sprintf(":%d", common.VlanNsePort), ""))
 			}
 			if container.LivenessProbe == nil {
 				container.LivenessProbe = common.GetProbe(common.LivenessTimer,
-					common.GetProbeCommand(true, "unix:///tmp/listen.on", ""))
+					common.GetProbeCommand(true, fmt.Sprintf(":%d", common.VlanNsePort), ""))
+			}
+			if len(container.Ports) == 0 {
+				container.Ports = append([]corev1.ContainerPort{}, corev1.ContainerPort{HostPort: common.VlanNsePort, ContainerPort: common.VlanNsePort})
 			}
 			container.Env = i.getEnvVars(container.Env)
 		default:

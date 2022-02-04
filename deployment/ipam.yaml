@@ -17,6 +17,7 @@ spec:
     metadata:
       labels:
         app: ipam
+        "spiffe.io/spiffe-id": "true"
     spec:
       containers:
         - name: ipam
@@ -89,6 +90,8 @@ spec:
               value:  # to be filled by operator
             - name: IPAM_IP_FAMILY
               value:  # to be filled by operator
+            - name: IPAM_LOG_LEVEL
+              value: "DEBUG"
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:

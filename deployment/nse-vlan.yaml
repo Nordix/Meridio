@@ -22,6 +22,7 @@ spec:
     metadata:
       labels:
         app: nse-vlan
+        "spiffe.io/spiffe-id": "true"
     spec:
       containers:
         - name: nse
@@ -32,7 +33,7 @@ spec:
               command:
                 - /bin/grpc_health_probe
                 - -spiffe
-                - -addr=unix:///tmp/listen.on
+                - -addr=:5003
                 - -service=
                 - -connect-timeout=100ms
                 - -rpc-timeout=150ms
@@ -46,7 +47,7 @@ spec:
               command:
                 - /bin/grpc_health_probe
                 - -spiffe
-                - -addr=unix:///tmp/listen.on
+                - -addr=:5003
                 - -service=
                 - -connect-timeout=100ms
                 - -rpc-timeout=150ms
@@ -60,7 +61,7 @@ spec:
               command:
                 - /bin/grpc_health_probe
                 - -spiffe
-                - -addr=unix:///tmp/listen.on
+                - -addr=:5003
                 - -service=
                 - -connect-timeout=100ms
                 - -rpc-timeout=150ms
@@ -69,27 +70,34 @@ spec:
             timeoutSeconds: 3
             failureThreshold: 5
             successThreshold: 1
+          ports:  # will be filled by operator if not specified
+            - containerPort: 5003
+              hostPort: 5003
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
-            - name: NSE_NAME
+            - name: NSM_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: NSE_CONNECT_TO
-              value: unix:///var/lib/networkservicemesh/nsm.io.sock
-            - name: NSE_VLAN_BASE_IFNAME
-              value:  # to be filled by operator according to Attractor
-            - name: NSE_VLAN_ID
-              value:  # to be filled by operator according to Attractor
-            - name: NSE_SERVICE_NAME
+            - name: NSM_CONNECT_TO
+              value: nsm-registry-svc.nsm:5002
+            - name: NSM_SERVICES
               value:  # to be filled by operator
-            - name: NSE_CIDR_PREFIX
+            - name: NSM_CIDR_PREFIX
               value:  # to be filled by operator according to Attractor
-            - name: NSE_IPV6_PREFIX
+            - name: NSM_IPV6_PREFIX
               value:  # to be filled by operator according to Attractor
             - name: NSE_POINT2POINT
               value: "False"
+            - name: NSM_REGISTER_SERVICE
+              value: "True"
+            - name: NSM_LISTEN_ON  # will be filled by operator if not specified
+              value: "tcp://:5003"
+            - name: NSM_MAX_TOKEN_LIFETIME
+              value: "10m"
+            - name: NSM_LOG_LEVEL
+              value: "DEBUG"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

@@ -89,7 +89,8 @@ func (i *IpamStatefulSet) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	for _, e := range allEnv {
 		// append all hard coded envVars
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
-			e.Name == "IPAM_DATASOURCE" {
+			e.Name == "IPAM_DATASOURCE" ||
+			e.Name == "IPAM_LOG_LEVEL" {
 			env = append(env, e)
 		}
 	}

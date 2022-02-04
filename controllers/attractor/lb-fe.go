@@ -74,7 +74,9 @@ func (l *LoadBalancer) getLbEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	for _, e := range allEnv {
 		// append all hard coded envVars
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
-			e.Name == "NSM_NAME" {
+			e.Name == "NSM_NAME" ||
+			e.Name == "NSM_MAX_TOKEN_LIFETIME" ||
+			e.Name == "NSM_LOG_LEVEL" {
 			env = append(env, e)
 		}
 	}
@@ -85,7 +87,7 @@ func (l *LoadBalancer) getNscEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	env := []corev1.EnvVar{
 		{
 			Name:  "NSM_NETWORK_SERVICES",
-			Value: fmt.Sprintf("vlan://%s/ext-vlan?forwarder=forwarder-vlan", common.VlanNtwkSvcName(l.trench)),
+			Value: fmt.Sprintf("kernel://%s/%s", common.VlanNtwkSvcName(l.trench), common.GetExternalInterfaceName(l.attractor)),
 		},
 	}
 
@@ -94,7 +96,9 @@ func (l *LoadBalancer) getNscEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
 			e.Name == "NSM_NAME" ||
 			e.Name == "NSM_DIAL_TIMEOUT" ||
-			e.Name == "NSM_REQUEST_TIMEOUT" {
+			e.Name == "NSM_REQUEST_TIMEOUT" ||
+			e.Name == "NSM_MAX_TOKEN_LIFETIME" ||
+			e.Name == "NSM_LOG_LEVEL" {
 			env = append(env, e)
 		}
 	}
@@ -123,13 +127,18 @@ func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			Name:  "NFE_NAMESPACE",
 			Value: l.attractor.ObjectMeta.Namespace,
 		},
+		{
+			Name:  "NFE_EXTERNAL_INTERFACE",
+			Value: common.GetExternalInterfaceName(l.attractor),
+		},
 	}
 
 	for _, e := range allEnv {
 		// append all hard coded envVars
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
 			e.Name == "NFE_LOG_BIRD" ||
-			e.Name == "NFE_ECMP" {
+			e.Name == "NFE_ECMP" ||
+			e.Name == "NFE_LOG_LEVEL" {
 			env = append(env, e)
 		}
 	}
@@ -182,7 +191,7 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 			container.Env = l.getLbEnvVars(container.Env)
 		case "nsc":
 			if container.Image == "" {
-				container.Image = "registry.nordix.org/cloud-native/nsm/cmd-nsc:latest-dns-fix"
+				container.Image = "registry.nordix.org/cloud-native/nsm/cmd-nsc:v1.2.0-rc.1"
 				container.ImagePullPolicy = corev1.PullAlways
 			}
 			container.Env = l.getNscEnvVars(container.Env)

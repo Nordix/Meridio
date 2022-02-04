@@ -14,6 +14,7 @@ spec:
     metadata:
       labels:
         app: proxy
+        "spiffe.io/spiffe-id": "true"
     spec:
       initContainers:
         - name: sysctl-init
@@ -97,6 +98,10 @@ spec:
               value:  # to be filled by operator
             - name: NSM_IP_FAMILY
               value:  # to be filled by operator
+            - name: NSM_MAX_TOKEN_LIFETIME
+              value: "10m"
+            - name: NSM_LOG_LEVEL
+              value: "DEBUG"
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:
