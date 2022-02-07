@@ -19,7 +19,7 @@ package types
 import (
 	"context"
 
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 )
 
 const (
@@ -32,9 +32,9 @@ type ConduitStatus int
 type Conduit interface {
 	Connect(ctx context.Context) error
 	Disconnect(ctx context.Context) error
-	AddStream(context.Context, *nspAPI.Stream) (Stream, error)
-	RemoveStream(context.Context, *nspAPI.Stream) error
+	AddStream(context.Context, *ambassadorAPI.Stream) (Stream, error)
+	RemoveStream(context.Context, *ambassadorAPI.Stream) error
 	GetStreams() []Stream
-	Equals(*nspAPI.Conduit) bool
-	GetConduit() *nspAPI.Conduit
+	Equals(*ambassadorAPI.Conduit) bool
+	GetConduit() *ambassadorAPI.Conduit
 }

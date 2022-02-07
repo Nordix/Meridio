@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	v1 "github.com/nordix/meridio/api/nsp/v1"
+	v1 "github.com/nordix/meridio/api/ambassador/v1"
 )
 
 // MockStream is a mock of Stream interface.

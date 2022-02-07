@@ -21,7 +21,6 @@ import (
 	"sync"
 
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
 )
 
@@ -39,7 +38,7 @@ func New() *Registry {
 	return r
 }
 
-func (r *Registry) Add(ctx context.Context, stream *nspAPI.Stream, status ambassadorAPI.StreamStatus_Status) error {
+func (r *Registry) Add(ctx context.Context, stream *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	strmStatus := r.getStream(stream)
@@ -54,7 +53,7 @@ func (r *Registry) Add(ctx context.Context, stream *nspAPI.Stream, status ambass
 	return nil
 }
 
-func (r *Registry) Remove(ctx context.Context, stream *nspAPI.Stream) error {
+func (r *Registry) Remove(ctx context.Context, stream *ambassadorAPI.Stream) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	index := r.getStreamIndex(stream)
@@ -66,7 +65,7 @@ func (r *Registry) Remove(ctx context.Context, stream *nspAPI.Stream) error {
 	return nil
 }
 
-func (r *Registry) SetStatus(stream *nspAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
+func (r *Registry) SetStatus(stream *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	strmStatus := r.getStream(stream)
@@ -77,7 +76,7 @@ func (r *Registry) SetStatus(stream *nspAPI.Stream, status ambassadorAPI.StreamS
 	r.notifyAllWatchers()
 }
 
-func (r *Registry) Watch(ctx context.Context, stream *nspAPI.Stream) (types.Watcher, error) {
+func (r *Registry) Watch(ctx context.Context, stream *ambassadorAPI.Stream) (types.Watcher, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	watcher := NewRegistryWatcher(stream)
@@ -86,16 +85,16 @@ func (r *Registry) Watch(ctx context.Context, stream *nspAPI.Stream) (types.Watc
 	return watcher, nil
 }
 
-func (r *Registry) getStreamIndex(stream *nspAPI.Stream) int {
+func (r *Registry) getStreamIndex(stream *ambassadorAPI.Stream) int {
 	for i, s := range r.streams {
-		if streamEquals(s.GetStream(), stream) { // todo: common replace
+		if stream.Equals(s.GetStream()) {
 			return i
 		}
 	}
 	return -1
 }
 
-func (r *Registry) getStream(stream *nspAPI.Stream) *ambassadorAPI.StreamStatus {
+func (r *Registry) getStream(stream *ambassadorAPI.Stream) *ambassadorAPI.StreamStatus {
 	index := r.getStreamIndex(stream)
 	if index < 0 {
 		return nil
@@ -125,16 +124,4 @@ func (r *Registry) copy() []*ambassadorAPI.StreamStatus {
 		streams = append(streams, ns)
 	}
 	return streams
-}
-
-func streamEquals(s1 *nspAPI.Stream, s2 *nspAPI.Stream) bool {
-	return s1 != nil && s2 != nil && s1.GetName() == s2.GetName() && conduitEquals(s1.GetConduit(), s2.GetConduit())
-}
-
-func conduitEquals(c1 *nspAPI.Conduit, c2 *nspAPI.Conduit) bool {
-	return c1 != nil && c2 != nil && c1.GetName() == c2.GetName() && trenchEquals(c1.GetTrench(), c2.GetTrench())
-}
-
-func trenchEquals(t1 *nspAPI.Trench, t2 *nspAPI.Trench) bool {
-	return t1 != nil && t2 != nil && t1.GetName() == t2.GetName()
 }

@@ -34,7 +34,7 @@ import (
 
 // Stream implements types.Stream
 type Stream struct {
-	Stream                     *nspAPI.Stream
+	Stream                     *ambassadorAPI.Stream
 	TargetRegistry             TargetRegistry
 	StreamRegistry             types.Registry
 	ConfigurationManagerClient nspAPI.ConfigurationManagerClient
@@ -53,7 +53,7 @@ type Stream struct {
 // The constructor will add the stream to the stream registry and update its status.
 // If the status is still disabled after the pendingTrigger chan has received a value,
 // the status will become unavailable.
-func New(stream *nspAPI.Stream,
+func New(stream *ambassadorAPI.Stream,
 	targetRegistryClient nspAPI.TargetRegistryClient,
 	configurationManagerClient nspAPI.ConfigurationManagerClient,
 	streamRegistry types.Registry,
@@ -78,7 +78,7 @@ func New(stream *nspAPI.Stream,
 	var cancelPendingCtx context.Context
 	cancelPendingCtx, s.pendingCancel = context.WithCancel(context.TODO())
 	s.setPendingStatus(pendingTrigger, cancelPendingCtx)
-	s.Configuration = newConfigurationImpl(s, s.Stream, s.ConfigurationManagerClient)
+	s.Configuration = newConfigurationImpl(s, s.Stream.ToNSP(), s.ConfigurationManagerClient)
 	return s, nil
 }
 
@@ -127,12 +127,12 @@ func (s *Stream) Close(ctx context.Context) error {
 }
 
 // Equals checks if the stream is equal to the one in parameter
-func (s *Stream) Equals(stream *nspAPI.Stream) bool {
+func (s *Stream) Equals(stream *ambassadorAPI.Stream) bool {
 	return s.Stream.Equals(stream)
 }
 
 // GetStream returns the current Stream (NSP API struct)
-func (s *Stream) GetStream() *nspAPI.Stream {
+func (s *Stream) GetStream() *ambassadorAPI.Stream {
 	return s.Stream
 }
 
@@ -185,7 +185,7 @@ func (s *Stream) getIdentifiersInUse(ctx context.Context) ([]string, error) {
 		Status: nspAPI.Target_ANY,
 		Type:   nspAPI.Target_DEFAULT,
 		Stream: &nspAPI.Stream{
-			Conduit: s.Stream.GetConduit(),
+			Conduit: s.Stream.GetConduit().ToNSP(),
 		},
 	})
 	if err != nil {
@@ -204,7 +204,7 @@ func (s *Stream) getTarget() *nspAPI.Target {
 			lbTypes.IdentifierKey: strconv.Itoa(s.identifier),
 		},
 		Status: s.targetStatus,
-		Stream: s.Stream,
+		Stream: s.Stream.ToNSP(),
 	}
 }
 

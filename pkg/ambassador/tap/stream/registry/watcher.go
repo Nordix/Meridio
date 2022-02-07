@@ -20,7 +20,6 @@ import (
 	"sync"
 
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 )
 
 const (
@@ -28,13 +27,13 @@ const (
 )
 
 type RegistryWatcher struct {
-	streamSelector *nspAPI.Stream
+	streamSelector *ambassadorAPI.Stream
 	c              chan []*ambassadorAPI.StreamStatus
 	stopped        bool
 	mu             sync.Mutex
 }
 
-func NewRegistryWatcher(stream *nspAPI.Stream) *RegistryWatcher {
+func NewRegistryWatcher(stream *ambassadorAPI.Stream) *RegistryWatcher {
 	rw := &RegistryWatcher{
 		streamSelector: stream,
 		c:              make(chan []*ambassadorAPI.StreamStatus, channelBufferSize),

@@ -38,7 +38,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	tapAPI "github.com/nordix/meridio/api/ambassador/v1"
+	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap"
 	"github.com/nordix/meridio/pkg/health"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
@@ -154,7 +154,7 @@ func main() {
 
 	healthServer := grpcHealth.NewServer()
 	grpc_health_v1.RegisterHealthServer(s, healthServer)
-	tapAPI.RegisterTapServer(s, ambassador)
+	ambassadorAPI.RegisterTapServer(s, ambassador)
 
 	go func() {
 		if err := s.Serve(lis); err != nil {

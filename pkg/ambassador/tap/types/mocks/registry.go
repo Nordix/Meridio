@@ -9,8 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	ambassador "github.com/nordix/meridio/api/ambassador/v1"
-	v1 "github.com/nordix/meridio/api/nsp/v1"
+	v1 "github.com/nordix/meridio/api/ambassador/v1"
 	types "github.com/nordix/meridio/pkg/ambassador/tap/types"
 )
 
@@ -38,7 +37,7 @@ func (m *MockRegistry) EXPECT() *MockRegistryMockRecorder {
 }
 
 // Add mocks base method.
-func (m *MockRegistry) Add(arg0 context.Context, arg1 *v1.Stream, arg2 ambassador.StreamStatus_Status) error {
+func (m *MockRegistry) Add(arg0 context.Context, arg1 *v1.Stream, arg2 v1.StreamStatus_Status) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Add", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
@@ -66,7 +65,7 @@ func (mr *MockRegistryMockRecorder) Remove(arg0, arg1 interface{}) *gomock.Call 
 }
 
 // SetStatus mocks base method.
-func (m *MockRegistry) SetStatus(arg0 *v1.Stream, arg1 ambassador.StreamStatus_Status) {
+func (m *MockRegistry) SetStatus(arg0 *v1.Stream, arg1 v1.StreamStatus_Status) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetStatus", arg0, arg1)
 }
@@ -116,10 +115,10 @@ func (m *MockWatcher) EXPECT() *MockWatcherMockRecorder {
 }
 
 // ResultChan mocks base method.
-func (m *MockWatcher) ResultChan() <-chan []*ambassador.StreamStatus {
+func (m *MockWatcher) ResultChan() <-chan []*v1.StreamStatus {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ResultChan")
-	ret0, _ := ret[0].(<-chan []*ambassador.StreamStatus)
+	ret0, _ := ret[0].(<-chan []*v1.StreamStatus)
 	return ret0
 }
 

@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/trench"
 	"github.com/nordix/meridio/pkg/ambassador/tap/trench/mocks"
 	typesMocks "github.com/nordix/meridio/pkg/ambassador/tap/types/mocks"
@@ -35,14 +35,14 @@ import (
 func Test_Equals(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	c := &nspAPI.Conduit{
+	c := &ambassadorAPI.Conduit{
 		Name: "conduit-a",
-		Trench: &nspAPI.Trench{
+		Trench: &ambassadorAPI.Trench{
 			Name: "trench-a",
 		},
 	}
 	trnch := c.GetTrench()
-	trnchB := &nspAPI.Trench{
+	trnchB := &ambassadorAPI.Trench{
 		Name: "trench-b",
 	}
 
@@ -57,9 +57,9 @@ func Test_AddConduit_RemoveConduit(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
 
-	c := &nspAPI.Conduit{
+	c := &ambassadorAPI.Conduit{
 		Name: "conduit-a",
-		Trench: &nspAPI.Trench{
+		Trench: &ambassadorAPI.Trench{
 			Name: "trench-a",
 		},
 	}
@@ -101,9 +101,9 @@ func Test_AddConduit_RemoveConduit_WhileConnecting(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
 
-	c := &nspAPI.Conduit{
+	c := &ambassadorAPI.Conduit{
 		Name: "conduit-a",
-		Trench: &nspAPI.Trench{
+		Trench: &ambassadorAPI.Trench{
 			Name: "trench-a",
 		},
 	}

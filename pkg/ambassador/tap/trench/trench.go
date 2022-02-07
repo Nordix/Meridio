@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
 	"github.com/nordix/meridio/pkg/networking"
@@ -34,7 +35,7 @@ import (
 
 // Trench implements types.Trench
 type Trench struct {
-	Trench                     *nspAPI.Trench
+	Trench                     *ambassadorAPI.Trench
 	TargetName                 string
 	Namespace                  string
 	NodeName                   string
@@ -52,7 +53,7 @@ type Trench struct {
 // New is the constructor of Trench.
 // The constructor will create a new conduit factory, connect to the
 // NSP service (Configuration and Target registry).
-func New(trench *nspAPI.Trench,
+func New(trench *ambassadorAPI.Trench,
 	targetName string,
 	namespace string,
 	nodeName string,
@@ -128,7 +129,7 @@ func (t *Trench) Delete(ctx context.Context) error {
 }
 
 // AddConduit creates a conduit based on its factory and will connect it (in another goroutine)
-func (t *Trench) AddConduit(ctx context.Context, cndt *nspAPI.Conduit) (types.Conduit, error) {
+func (t *Trench) AddConduit(ctx context.Context, cndt *ambassadorAPI.Conduit) (types.Conduit, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	c := t.getConduit(cndt)
@@ -150,7 +151,7 @@ func (t *Trench) AddConduit(ctx context.Context, cndt *nspAPI.Conduit) (types.Co
 // TODO: If the conduit still has streams, they will not be removed from stream registry:
 // 1. return an error
 // 2. Remove them
-func (t *Trench) RemoveConduit(ctx context.Context, cndt *nspAPI.Conduit) error {
+func (t *Trench) RemoveConduit(ctx context.Context, cndt *ambassadorAPI.Conduit) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	index := t.getConduitIndex(cndt)
@@ -176,18 +177,18 @@ func (t *Trench) GetConduits() []types.Conduit {
 }
 
 // GetConduit returns the conduit corresponding to the one in parameter if it exists.
-func (t *Trench) GetConduit(conduit *nspAPI.Conduit) types.Conduit {
+func (t *Trench) GetConduit(conduit *ambassadorAPI.Conduit) types.Conduit {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	return t.getConduit(conduit)
 }
 
 // Equals checks if the trench is equal to the one in parameter.
-func (t *Trench) Equals(trench *nspAPI.Trench) bool {
+func (t *Trench) Equals(trench *ambassadorAPI.Trench) bool {
 	return t.Trench.Equals(trench)
 }
 
-func (t *Trench) GetTrench() *nspAPI.Trench {
+func (t *Trench) GetTrench() *ambassadorAPI.Trench {
 	return t.Trench
 }
 
@@ -248,7 +249,7 @@ func (t *Trench) disconnectConduits(ctx context.Context) error {
 	return errFinal
 }
 
-func (t *Trench) getConduitIndex(cndt *nspAPI.Conduit) int {
+func (t *Trench) getConduitIndex(cndt *ambassadorAPI.Conduit) int {
 	for i, c := range t.conduits {
 		equal := c.conduit.Equals(cndt)
 		if equal {
@@ -258,7 +259,7 @@ func (t *Trench) getConduitIndex(cndt *nspAPI.Conduit) int {
 	return -1
 }
 
-func (t *Trench) getConduit(cndt *nspAPI.Conduit) types.Conduit {
+func (t *Trench) getConduit(cndt *ambassadorAPI.Conduit) types.Conduit {
 	index := t.getConduitIndex(cndt)
 	if index < 0 {
 		return nil

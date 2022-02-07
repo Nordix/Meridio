@@ -40,14 +40,14 @@ func Test_Constructor(t *testing.T) {
 
 	pendingChan := make(chan interface{}, 1)
 	streamRegistry := registry.New()
-	w, _ := streamRegistry.Watch(context.TODO(), &nspAPI.Stream{})
+	w, _ := streamRegistry.Watch(context.TODO(), &ambassadorAPI.Stream{})
 	resultChan := w.ResultChan()
 
-	s := &nspAPI.Stream{
+	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
-		Conduit: &nspAPI.Conduit{
+		Conduit: &ambassadorAPI.Conduit{
 			Name: "conduit-a",
-			Trench: &nspAPI.Trench{
+			Trench: &ambassadorAPI.Trench{
 				Name: "trench-a",
 			},
 		},
@@ -78,17 +78,17 @@ func Test_Open_Close(t *testing.T) {
 
 	pendingChan := make(chan interface{}, 1)
 	streamRegistry := registry.New()
-	w, _ := streamRegistry.Watch(context.TODO(), &nspAPI.Stream{})
+	w, _ := streamRegistry.Watch(context.TODO(), &ambassadorAPI.Stream{})
 	resultChan := w.ResultChan()
 	streamStatus := <-resultChan
 	assert.NotNil(t, streamStatus)
 	assert.Len(t, streamStatus, 0)
 
-	s := &nspAPI.Stream{
+	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
-		Conduit: &nspAPI.Conduit{
+		Conduit: &ambassadorAPI.Conduit{
 			Name: "conduit-a",
-			Trench: &nspAPI.Trench{
+			Trench: &ambassadorAPI.Trench{
 				Name: "trench-a",
 			},
 		},
@@ -131,7 +131,7 @@ func Test_Open_Close(t *testing.T) {
 	tr.EXPECT().Unregister(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) error {
 		assert.NotNil(t, target)
 		assert.Equal(t, target.Ips, ips)
-		assert.Equal(t, target.Stream, s)
+		assert.Equal(t, target.Stream, s.ToNSP())
 		return nil
 	})
 
@@ -173,18 +173,18 @@ func Test_Open_NoIdentifierAvailable(t *testing.T) {
 
 	pendingChan := make(chan interface{}, 1)
 	streamRegistry := registry.New()
-	w, _ := streamRegistry.Watch(context.TODO(), &nspAPI.Stream{})
+	w, _ := streamRegistry.Watch(context.TODO(), &ambassadorAPI.Stream{})
 	resultChan := w.ResultChan()
 
 	streamStatus := <-resultChan
 	assert.NotNil(t, streamStatus)
 	assert.Len(t, streamStatus, 0)
 
-	s := &nspAPI.Stream{
+	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
-		Conduit: &nspAPI.Conduit{
+		Conduit: &ambassadorAPI.Conduit{
 			Name: "conduit-a",
-			Trench: &nspAPI.Trench{
+			Trench: &ambassadorAPI.Trench{
 				Name: "trench-a",
 			},
 		},
@@ -222,17 +222,17 @@ func Test_Open_Concurrent(t *testing.T) {
 
 	pendingChan := make(chan interface{}, 1)
 	streamRegistry := registry.New()
-	w, _ := streamRegistry.Watch(context.TODO(), &nspAPI.Stream{})
+	w, _ := streamRegistry.Watch(context.TODO(), &ambassadorAPI.Stream{})
 	resultChan := w.ResultChan()
 	streamStatus := <-resultChan
 	assert.NotNil(t, streamStatus)
 	assert.Len(t, streamStatus, 0)
 
-	s := &nspAPI.Stream{
+	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
-		Conduit: &nspAPI.Conduit{
+		Conduit: &ambassadorAPI.Conduit{
 			Name: "conduit-a",
-			Trench: &nspAPI.Trench{
+			Trench: &ambassadorAPI.Trench{
 				Name: "trench-a",
 			},
 		},
@@ -320,17 +320,17 @@ func Test_Open_Concurrent_NoIdentifierAvailable(t *testing.T) {
 
 	pendingChan := make(chan interface{}, 1)
 	streamRegistry := registry.New()
-	w, _ := streamRegistry.Watch(context.TODO(), &nspAPI.Stream{})
+	w, _ := streamRegistry.Watch(context.TODO(), &ambassadorAPI.Stream{})
 	resultChan := w.ResultChan()
 	streamStatus := <-resultChan
 	assert.NotNil(t, streamStatus)
 	assert.Len(t, streamStatus, 0)
 
-	s := &nspAPI.Stream{
+	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
-		Conduit: &nspAPI.Conduit{
+		Conduit: &ambassadorAPI.Conduit{
 			Name: "conduit-a",
-			Trench: &nspAPI.Trench{
+			Trench: &ambassadorAPI.Trench{
 				Name: "trench-a",
 			},
 		},

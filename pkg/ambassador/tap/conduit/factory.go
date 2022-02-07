@@ -17,6 +17,7 @@ limitations under the License.
 package conduit
 
 import (
+	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/stream"
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
@@ -25,7 +26,7 @@ import (
 type PendingChanFunc func() <-chan interface{}
 
 type StreamFactory interface {
-	New(*nspAPI.Stream, stream.Conduit) (types.Stream, error)
+	New(*ambassadorAPI.Stream, stream.Conduit) (types.Stream, error)
 }
 
 type streamFactoryImpl struct {
@@ -51,6 +52,6 @@ func newStreamFactoryImpl(targetRegistryClient nspAPI.TargetRegistryClient,
 	return sfi
 }
 
-func (sfi *streamFactoryImpl) New(strm *nspAPI.Stream, cndt stream.Conduit) (types.Stream, error) {
+func (sfi *streamFactoryImpl) New(strm *ambassadorAPI.Stream, cndt stream.Conduit) (types.Stream, error) {
 	return stream.New(strm, sfi.TargetRegistryClient, sfi.ConfigurationManagerClient, sfi.StreamRegistry, sfi.MaxNumberOfTargets, sfi.PendingChanFunc(), cndt)
 }

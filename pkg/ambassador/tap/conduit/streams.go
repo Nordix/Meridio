@@ -19,7 +19,7 @@ package conduit
 import (
 	"sync"
 
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
 )
 
@@ -60,7 +60,7 @@ func (sl *streamList) add(ss *streamStatus) {
 	sl.streams = append(sl.streams, ss)
 }
 
-func (sl *streamList) del(strm *nspAPI.Stream) {
+func (sl *streamList) del(strm *ambassadorAPI.Stream) {
 	sl.mu.Lock()
 	defer sl.mu.Unlock()
 	for i, s := range sl.streams {
@@ -72,7 +72,7 @@ func (sl *streamList) del(strm *nspAPI.Stream) {
 	}
 }
 
-func (sl *streamList) get(strm *nspAPI.Stream) *streamStatus {
+func (sl *streamList) get(strm *ambassadorAPI.Stream) *streamStatus {
 	sl.mu.Lock()
 	defer sl.mu.Unlock()
 	for _, s := range sl.streams {

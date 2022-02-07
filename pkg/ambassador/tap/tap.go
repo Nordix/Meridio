@@ -24,8 +24,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	tapAPI "github.com/nordix/meridio/api/ambassador/v1"
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/stream/registry"
 	"github.com/nordix/meridio/pkg/ambassador/tap/trench"
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
@@ -33,7 +32,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Tap implements tapAPI.TapServer
+// Tap implements ambassadorAPI.TapServer
 type Tap struct {
 	TargetName           string
 	Namespace            string
@@ -66,7 +65,7 @@ func New(targetName string,
 	return tap, nil
 }
 
-func (tap *Tap) Open(ctx context.Context, s *nspAPI.Stream) (*empty.Empty, error) {
+func (tap *Tap) Open(ctx context.Context, s *ambassadorAPI.Stream) (*empty.Empty, error) {
 	tap.mu.Lock()
 	defer tap.mu.Unlock()
 	err := checkStream(s)
@@ -94,7 +93,7 @@ func (tap *Tap) Open(ctx context.Context, s *nspAPI.Stream) (*empty.Empty, error
 	return &empty.Empty{}, err
 }
 
-func (tap *Tap) Close(ctx context.Context, s *nspAPI.Stream) (*empty.Empty, error) {
+func (tap *Tap) Close(ctx context.Context, s *ambassadorAPI.Stream) (*empty.Empty, error) {
 	err := checkStream(s)
 	if err != nil {
 		return &empty.Empty{}, err
@@ -138,7 +137,7 @@ func (tap *Tap) Close(ctx context.Context, s *nspAPI.Stream) (*empty.Empty, erro
 	return &empty.Empty{}, nil
 }
 
-func (tap *Tap) Watch(filter *nspAPI.Stream, watcher tapAPI.Tap_WatchServer) error {
+func (tap *Tap) Watch(filter *ambassadorAPI.Stream, watcher ambassadorAPI.Tap_WatchServer) error {
 	targetWatcher, err := tap.StreamRegistry.Watch(context.TODO(), filter)
 	if err != nil {
 		return err
@@ -148,7 +147,7 @@ func (tap *Tap) Watch(filter *nspAPI.Stream, watcher tapAPI.Tap_WatchServer) err
 	return nil
 }
 
-func (tap *Tap) setTrench(t *nspAPI.Trench) (types.Trench, error) {
+func (tap *Tap) setTrench(t *ambassadorAPI.Trench) (types.Trench, error) {
 	if tap.currentTrench != nil {
 		if tap.currentTrench.Equals(t) {
 			return tap.currentTrench, nil
@@ -178,11 +177,11 @@ func (tap *Tap) Delete(ctx context.Context) error {
 	return tap.currentTrench.Delete(ctx)
 }
 
-func (tap *Tap) watcher(watcher tapAPI.Tap_WatchServer, ch <-chan []*tapAPI.StreamStatus) {
+func (tap *Tap) watcher(watcher ambassadorAPI.Tap_WatchServer, ch <-chan []*ambassadorAPI.StreamStatus) {
 	for {
 		select {
 		case event := <-ch:
-			err := watcher.Send(&tapAPI.StreamResponse{
+			err := watcher.Send(&ambassadorAPI.StreamResponse{
 				StreamStatus: event,
 			})
 			if err != nil {
@@ -195,7 +194,7 @@ func (tap *Tap) watcher(watcher tapAPI.Tap_WatchServer, ch <-chan []*tapAPI.Stre
 }
 
 // check if name are not empty and if conduit and trench are not nil
-func checkStream(s *nspAPI.Stream) error {
+func checkStream(s *ambassadorAPI.Stream) error {
 	if s == nil {
 		return fmt.Errorf("stream cannot be nil")
 	}

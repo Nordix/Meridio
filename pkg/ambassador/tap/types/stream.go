@@ -19,7 +19,7 @@ package types
 import (
 	"context"
 
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 )
 
 const (
@@ -37,7 +37,7 @@ type Stream interface {
 	// Close the stream in the conduit by unregistering target from the NSP service.
 	Close(ctx context.Context) error
 	//
-	Equals(*nspAPI.Stream) bool
+	Equals(*ambassadorAPI.Stream) bool
 	//
-	GetStream() *nspAPI.Stream
+	GetStream() *ambassadorAPI.Stream
 }

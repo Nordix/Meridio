@@ -20,14 +20,13 @@ import (
 	"context"
 
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 )
 
 type Registry interface {
-	Add(context.Context, *nspAPI.Stream, ambassadorAPI.StreamStatus_Status) error
-	Remove(context.Context, *nspAPI.Stream) error
-	SetStatus(*nspAPI.Stream, ambassadorAPI.StreamStatus_Status)
-	Watch(context.Context, *nspAPI.Stream) (Watcher, error)
+	Add(context.Context, *ambassadorAPI.Stream, ambassadorAPI.StreamStatus_Status) error
+	Remove(context.Context, *ambassadorAPI.Stream) error
+	SetStatus(*ambassadorAPI.Stream, ambassadorAPI.StreamStatus_Status)
+	Watch(context.Context, *ambassadorAPI.Stream) (Watcher, error)
 }
 
 type Watcher interface {

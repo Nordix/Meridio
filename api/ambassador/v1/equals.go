@@ -14,21 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package registry
+package v1
 
-import (
-	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
-)
+func (t1 *Trench) Equals(t2 *Trench) bool {
+	return t1.GetName() == t2.GetName()
+}
 
-func Filter(stream *ambassadorAPI.Stream, streams []*ambassadorAPI.StreamStatus) []*ambassadorAPI.StreamStatus {
-	if stream == nil {
-		return streams
-	}
-	result := []*ambassadorAPI.StreamStatus{}
-	for _, s := range streams {
-		if ambassadorAPI.StreamFilter(stream, s.Stream) {
-			result = append(result, s)
-		}
-	}
-	return result
+func (c1 *Conduit) Equals(c2 *Conduit) bool {
+	return c1.GetName() == c2.GetName() && c1.GetTrench().Equals(c2.GetTrench())
+}
+
+func (s1 *Stream) Equals(s2 *Stream) bool {
+	return s1.GetName() == s2.GetName() && s1.GetConduit().Equals(s2.GetConduit())
 }

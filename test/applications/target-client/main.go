@@ -25,8 +25,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	tapAPI "github.com/nordix/meridio/api/ambassador/v1"
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	"google.golang.org/grpc"
 )
 
@@ -108,11 +107,11 @@ func open(stream string, networkService string, trench string) error {
 	if err != nil {
 		return err
 	}
-	_, err = client.Open(context.Background(), &nspAPI.Stream{
+	_, err = client.Open(context.Background(), &ambassadorAPI.Stream{
 		Name: stream,
-		Conduit: &nspAPI.Conduit{
+		Conduit: &ambassadorAPI.Conduit{
 			Name: networkService,
-			Trench: &nspAPI.Trench{
+			Trench: &ambassadorAPI.Trench{
 				Name: trench,
 			},
 		},
@@ -125,11 +124,11 @@ func close(stream string, networkService string, trench string) error {
 	if err != nil {
 		return err
 	}
-	_, err = client.Close(context.Background(), &nspAPI.Stream{
+	_, err = client.Close(context.Background(), &ambassadorAPI.Stream{
 		Name: stream,
-		Conduit: &nspAPI.Conduit{
+		Conduit: &ambassadorAPI.Conduit{
 			Name: networkService,
-			Trench: &nspAPI.Trench{
+			Trench: &ambassadorAPI.Trench{
 				Name: trench,
 			},
 		},
@@ -150,7 +149,7 @@ func watch() error {
 	if err != nil {
 		return err
 	}
-	streamToWatch := &nspAPI.Stream{}
+	streamToWatch := &ambassadorAPI.Stream{}
 	watchStreamClient, err := client.Watch(ctx, streamToWatch)
 	if err != nil {
 		return err
@@ -178,7 +177,7 @@ func watch() error {
 	return nil
 }
 
-func getClient() (tapAPI.TapClient, error) {
+func getClient() (ambassadorAPI.TapClient, error) {
 	conn, err := grpc.Dial(os.Getenv("MERIDIO_AMBASSADOR_SOCKET"), grpc.WithInsecure(),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
@@ -186,5 +185,5 @@ func getClient() (tapAPI.TapClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return tapAPI.NewTapClient(conn), nil
+	return ambassadorAPI.NewTapClient(conn), nil
 }

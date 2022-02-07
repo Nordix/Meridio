@@ -14,21 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package registry
+package v1
 
 import (
-	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 )
 
-func Filter(stream *ambassadorAPI.Stream, streams []*ambassadorAPI.StreamStatus) []*ambassadorAPI.StreamStatus {
-	if stream == nil {
-		return streams
+func (t *Trench) ToNSP() *nspAPI.Trench {
+	return &nspAPI.Trench{
+		Name: t.GetName(),
 	}
-	result := []*ambassadorAPI.StreamStatus{}
-	for _, s := range streams {
-		if ambassadorAPI.StreamFilter(stream, s.Stream) {
-			result = append(result, s)
-		}
+}
+
+func (c *Conduit) ToNSP() *nspAPI.Conduit {
+	return &nspAPI.Conduit{
+		Name:   c.GetName(),
+		Trench: c.GetTrench().ToNSP(),
 	}
-	return result
+}
+
+func (s *Stream) ToNSP() *nspAPI.Stream {
+	return &nspAPI.Stream{
+		Name:    s.GetName(),
+		Conduit: s.GetConduit().ToNSP(),
+	}
 }

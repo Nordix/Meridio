@@ -14,9 +14,8 @@ limitations under the License.
 syntax = "proto3";
 
 package ambassador.v1;
-option go_package = "github.com/nordix/meridio/api/v1/ambassador";
+option go_package = "github.com/nordix/meridio/api/ambassador/v1";
 import "google/protobuf/empty.proto";
-import "api/nsp/v1/model.proto";
 
 // Target Access Point Ambassador (TAPA) Service
 service Tap {
@@ -25,18 +24,18 @@ service Tap {
     // be connected automatically before registering the target to the NSP.
     // If any property is not defined (empty name, nil trench/conduit...),
     // or, if another trench is already connected, an error will be returned.
-    rpc Open(nsp.v1.Stream) returns (google.protobuf.Empty) {}
+    rpc Open(Stream) returns (google.protobuf.Empty) {}
     // Close a stream unregisters the target from the NSP, disconnects
     // the target from the conduit if no more stream is connected to it,
     // and disconnects from the trench if no more conduit is connected to it.
     // If any property is not defined (empty name, nil trench/conduit...),
     // an error will be returned.
-    rpc Close(nsp.v1.Stream) returns (google.protobuf.Empty) {}
+    rpc Close(Stream) returns (google.protobuf.Empty) {}
     // WatchStream will return a list of stream status containing 
     // the same properties as the one in parameter (nil properties 
     // will be ignored). On any event (any stream created/deleted/updated)
     // the list will be sent again.
-    rpc Watch(nsp.v1.Stream) returns (stream StreamResponse) {}
+    rpc Watch(Stream) returns (stream StreamResponse) {}
 }
 
 message StreamResponse {
@@ -55,5 +54,24 @@ message StreamStatus {
         UNDEFINED = 3;
     }
     Status status = 1;
-    nsp.v1.Stream stream = 2;
+    Stream stream = 2;
+}
+
+message Trench {
+    // Name of the trench
+    string name = 1;
+}
+
+message Conduit {
+    // Name of the conduit
+    string name = 1;
+    // Trench the conduit belongs to
+    Trench trench = 2;
+}
+
+message Stream {
+    // Name of the stream
+    string name = 1;
+    // Conduit the stream belongs to
+    Conduit conduit = 2;
 }

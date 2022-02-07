@@ -18,6 +18,7 @@ package trench
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/conduit"
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
@@ -25,7 +26,7 @@ import (
 )
 
 type ConduitFactory interface {
-	New(*nspAPI.Conduit) (types.Conduit, error)
+	New(*ambassadorAPI.Conduit) (types.Conduit, error)
 }
 
 type conduitFactoryImpl struct {
@@ -61,7 +62,7 @@ func newConduitFactoryImpl(
 	return cfi
 }
 
-func (cfi *conduitFactoryImpl) New(cndt *nspAPI.Conduit) (types.Conduit, error) {
+func (cfi *conduitFactoryImpl) New(cndt *ambassadorAPI.Conduit) (types.Conduit, error) {
 	return conduit.New(cndt,
 		cfi.TargetName,
 		cfi.Namespace,

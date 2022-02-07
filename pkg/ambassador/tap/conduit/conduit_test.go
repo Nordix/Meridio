@@ -23,7 +23,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/conduit"
 	"github.com/nordix/meridio/pkg/ambassador/tap/conduit/mocks"
 	"github.com/nordix/meridio/pkg/ambassador/tap/stream"
@@ -41,9 +41,9 @@ func Test_Constructor(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
 
-	c := &nspAPI.Conduit{
+	c := &ambassadorAPI.Conduit{
 		Name: "conduit-a",
-		Trench: &nspAPI.Trench{
+		Trench: &ambassadorAPI.Trench{
 			Name: "trench-a",
 		},
 	}
@@ -64,9 +64,9 @@ func Test_Connect_Disconnect(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
 
-	c := &nspAPI.Conduit{
+	c := &ambassadorAPI.Conduit{
 		Name: "conduit-a",
-		Trench: &nspAPI.Trench{
+		Trench: &ambassadorAPI.Trench{
 			Name: "trench-a",
 		},
 	}
@@ -123,11 +123,11 @@ func Test_AddStream_While_Disconnected(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
 
-	s := &nspAPI.Stream{
+	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
-		Conduit: &nspAPI.Conduit{
+		Conduit: &ambassadorAPI.Conduit{
 			Name: "conduit-a",
-			Trench: &nspAPI.Trench{
+			Trench: &ambassadorAPI.Trench{
 				Name: "trench-a",
 			},
 		},
@@ -152,7 +152,7 @@ func Test_AddStream_While_Disconnected(t *testing.T) {
 	cndt.StreamFactory = streamFactory
 	cndt.Configuration = configuration
 
-	streamFactory.EXPECT().New(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *nspAPI.Stream, c stream.Conduit) (types.Stream, error) {
+	streamFactory.EXPECT().New(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, c stream.Conduit) (types.Stream, error) {
 		assert.Equal(t, cndt, c)
 		assert.Equal(t, s, strm)
 		return streamA, nil
@@ -185,11 +185,11 @@ func Test_AddStream_While_Connected(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
 
-	s := &nspAPI.Stream{
+	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
-		Conduit: &nspAPI.Conduit{
+		Conduit: &ambassadorAPI.Conduit{
 			Name: "conduit-a",
-			Trench: &nspAPI.Trench{
+			Trench: &ambassadorAPI.Trench{
 				Name: "trench-a",
 			},
 		},
@@ -214,7 +214,7 @@ func Test_AddStream_While_Connected(t *testing.T) {
 	cndt.StreamFactory = streamFactory
 	cndt.Configuration = configuration
 
-	streamFactory.EXPECT().New(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *nspAPI.Stream, c stream.Conduit) (types.Stream, error) {
+	streamFactory.EXPECT().New(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, c stream.Conduit) (types.Stream, error) {
 		assert.Equal(t, cndt, c)
 		assert.Equal(t, s, strm)
 		return streamA, nil
@@ -248,18 +248,18 @@ func Test_AddStream_Invalid(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
 
-	s := &nspAPI.Stream{
+	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
-		Conduit: &nspAPI.Conduit{
+		Conduit: &ambassadorAPI.Conduit{
 			Name: "conduit-a",
-			Trench: &nspAPI.Trench{
+			Trench: &ambassadorAPI.Trench{
 				Name: "trench-a",
 			},
 		},
 	}
-	c := &nspAPI.Conduit{
+	c := &ambassadorAPI.Conduit{
 		Name: "conduit-b",
-		Trench: &nspAPI.Trench{
+		Trench: &ambassadorAPI.Trench{
 			Name: "trench-a",
 		},
 	}
@@ -286,11 +286,11 @@ func Test_AddStream_Existing(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
 
-	s := &nspAPI.Stream{
+	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
-		Conduit: &nspAPI.Conduit{
+		Conduit: &ambassadorAPI.Conduit{
 			Name: "conduit-a",
-			Trench: &nspAPI.Trench{
+			Trench: &ambassadorAPI.Trench{
 				Name: "trench-a",
 			},
 		},
@@ -312,7 +312,7 @@ func Test_AddStream_Existing(t *testing.T) {
 	assert.NotNil(t, cndt)
 	cndt.StreamFactory = streamFactory
 
-	streamFactory.EXPECT().New(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *nspAPI.Stream, c stream.Conduit) (types.Stream, error) {
+	streamFactory.EXPECT().New(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, c stream.Conduit) (types.Stream, error) {
 		assert.Equal(t, cndt, c)
 		assert.Equal(t, s, strm)
 		return streamA, nil
@@ -335,11 +335,11 @@ func Test_RemoveStream_While_Disconnected(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
 
-	s := &nspAPI.Stream{
+	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
-		Conduit: &nspAPI.Conduit{
+		Conduit: &ambassadorAPI.Conduit{
 			Name: "conduit-a",
-			Trench: &nspAPI.Trench{
+			Trench: &ambassadorAPI.Trench{
 				Name: "trench-a",
 			},
 		},
@@ -368,7 +368,7 @@ func Test_RemoveStream_While_Disconnected(t *testing.T) {
 	cndt.StreamFactory = streamFactory
 	cndt.Configuration = configuration
 
-	streamFactory.EXPECT().New(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *nspAPI.Stream, c stream.Conduit) (types.Stream, error) {
+	streamFactory.EXPECT().New(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, c stream.Conduit) (types.Stream, error) {
 		assert.Equal(t, cndt, c)
 		assert.Equal(t, s, strm)
 		return streamA, nil
@@ -393,11 +393,11 @@ func Test_RemoveStream_While_Connected(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
 
-	s := &nspAPI.Stream{
+	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
-		Conduit: &nspAPI.Conduit{
+		Conduit: &ambassadorAPI.Conduit{
 			Name: "conduit-a",
-			Trench: &nspAPI.Trench{
+			Trench: &ambassadorAPI.Trench{
 				Name: "trench-a",
 			},
 		},
@@ -425,7 +425,7 @@ func Test_RemoveStream_While_Connected(t *testing.T) {
 	cndt.StreamFactory = streamFactory
 	cndt.Configuration = configuration
 
-	streamFactory.EXPECT().New(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *nspAPI.Stream, c stream.Conduit) (types.Stream, error) {
+	streamFactory.EXPECT().New(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, c stream.Conduit) (types.Stream, error) {
 		assert.Equal(t, cndt, c)
 		assert.Equal(t, s, strm)
 		return streamA, nil

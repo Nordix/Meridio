@@ -27,6 +27,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
+	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/stream"
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
@@ -39,7 +40,7 @@ import (
 type Conduit struct {
 	TargetName                 string
 	Namespace                  string
-	Conduit                    *nspAPI.Conduit
+	Conduit                    *ambassadorAPI.Conduit
 	NodeName                   string
 	ConfigurationManagerClient nspAPI.ConfigurationManagerClient
 	TargetRegistryClient       nspAPI.TargetRegistryClient
@@ -61,7 +62,7 @@ type Conduit struct {
 
 // New is the constructor of Conduit.
 // The constructor will create a new stream factory and a VIP configuration watcher
-func New(conduit *nspAPI.Conduit,
+func New(conduit *ambassadorAPI.Conduit,
 	targetName string,
 	namespace string,
 	nodeName string,
@@ -86,7 +87,7 @@ func New(conduit *nspAPI.Conduit,
 		tableID:                    1,
 	}
 	c.StreamFactory = newStreamFactoryImpl(c.TargetRegistryClient, c.ConfigurationManagerClient, c.StreamRegistry, stream.MaxNumberOfTargets, stream.DefaultPendingChan)
-	c.Configuration = newConfigurationImpl(c, c.Conduit.GetTrench(), c.ConfigurationManagerClient)
+	c.Configuration = newConfigurationImpl(c, c.Conduit.GetTrench().ToNSP(), c.ConfigurationManagerClient)
 	return c, nil
 }
 
@@ -163,7 +164,7 @@ func (c *Conduit) Disconnect(ctx context.Context) error {
 }
 
 // AddStream creates a stream based on its factory and will open it (in another goroutine)
-func (c *Conduit) AddStream(ctx context.Context, strm *nspAPI.Stream) (types.Stream, error) {
+func (c *Conduit) AddStream(ctx context.Context, strm *ambassadorAPI.Stream) (types.Stream, error) {
 	c.addRemoveStreamMu.Lock()
 	defer c.addRemoveStreamMu.Unlock()
 	logrus.Infof("Add stream: %v to conduit: %v", strm, c.Conduit)
@@ -188,7 +189,7 @@ func (c *Conduit) AddStream(ctx context.Context, strm *nspAPI.Stream) (types.Str
 
 // RemoveStream closes and removes the stream (if existing), and removes it from the
 // stream registry.
-func (c *Conduit) RemoveStream(ctx context.Context, strm *nspAPI.Stream) error {
+func (c *Conduit) RemoveStream(ctx context.Context, strm *ambassadorAPI.Stream) error {
 	c.addRemoveStreamMu.Lock()
 	defer c.addRemoveStreamMu.Unlock()
 	ss := c.streams.get(strm)
@@ -220,7 +221,7 @@ func (c *Conduit) GetStreams() []types.Stream {
 	return streams
 }
 
-func (c *Conduit) GetConduit() *nspAPI.Conduit {
+func (c *Conduit) GetConduit() *ambassadorAPI.Conduit {
 	return c.Conduit
 }
 
@@ -271,7 +272,7 @@ func (c *Conduit) SetVIPs(vips []string) error {
 }
 
 // Equals checks if the conduit is equal to the one in parameter
-func (c *Conduit) Equals(conduit *nspAPI.Conduit) bool {
+func (c *Conduit) Equals(conduit *ambassadorAPI.Conduit) bool {
 	return c.Conduit.Equals(conduit)
 }
 

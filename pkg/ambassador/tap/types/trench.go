@@ -19,15 +19,15 @@ package types
 import (
 	"context"
 
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 )
 
 type Trench interface {
 	Delete(ctx context.Context) error
-	AddConduit(context.Context, *nspAPI.Conduit) (Conduit, error)
-	RemoveConduit(context.Context, *nspAPI.Conduit) error
+	AddConduit(context.Context, *ambassadorAPI.Conduit) (Conduit, error)
+	RemoveConduit(context.Context, *ambassadorAPI.Conduit) error
 	GetConduits() []Conduit
-	GetConduit(*nspAPI.Conduit) Conduit
-	Equals(*nspAPI.Trench) bool
-	GetTrench() *nspAPI.Trench
+	GetConduit(*ambassadorAPI.Conduit) Conduit
+	Equals(*ambassadorAPI.Trench) bool
+	GetTrench() *ambassadorAPI.Trench
 }
