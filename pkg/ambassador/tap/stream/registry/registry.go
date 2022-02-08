@@ -38,41 +38,29 @@ func New() *Registry {
 	return r
 }
 
-func (r *Registry) Add(ctx context.Context, stream *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	strmStatus := r.getStream(stream)
-	if strmStatus != nil {
-		return nil
-	}
-	r.streams = append(r.streams, &ambassadorAPI.StreamStatus{
-		Status: status,
-		Stream: stream,
-	})
-	r.notifyAllWatchers()
-	return nil
-}
-
-func (r *Registry) Remove(ctx context.Context, stream *ambassadorAPI.Stream) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	index := r.getStreamIndex(stream)
-	if index < 0 {
-		return nil
-	}
-	r.streams = append(r.streams[:index], r.streams[index+1:]...)
-	r.notifyAllWatchers()
-	return nil
-}
-
 func (r *Registry) SetStatus(stream *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	strmStatus := r.getStream(stream)
 	if strmStatus == nil {
-		return
+		strmStatus = &ambassadorAPI.StreamStatus{
+			Status: status,
+			Stream: stream,
+		}
+		r.streams = append(r.streams, strmStatus)
 	}
 	strmStatus.Status = status
+	r.notifyAllWatchers()
+}
+
+func (r *Registry) Remove(stream *ambassadorAPI.Stream) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	index := r.getStreamIndex(stream)
+	if index < 0 {
+		return
+	}
+	r.streams = append(r.streams[:index], r.streams[index+1:]...)
 	r.notifyAllWatchers()
 }
 

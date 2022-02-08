@@ -25,6 +25,8 @@ import (
 	"github.com/nordix/meridio/pkg/networking"
 )
 
+// The factory gathers common properties to simplify the
+// instanciation of new conduits. Mostly useful for the tests.
 type ConduitFactory interface {
 	New(*ambassadorAPI.Conduit) (types.Conduit, error)
 }

@@ -14,21 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package types
+package stream
 
 import (
 	"context"
 
-	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 )
 
-type Registry interface {
-	SetStatus(*ambassadorAPI.Stream, ambassadorAPI.StreamStatus_Status)
-	Remove(*ambassadorAPI.Stream)
-	Watch(context.Context, *ambassadorAPI.Stream) (Watcher, error)
+type Conduit interface {
+	GetIPs() []string
 }
 
-type Watcher interface {
-	Stop()
-	ResultChan() <-chan []*ambassadorAPI.StreamStatus
+type TargetRegistry interface {
+	Register(context.Context, *nspAPI.Target) error
+	Unregister(context.Context, *nspAPI.Target) error
+	GetTargets(context.Context, *nspAPI.Target) ([]*nspAPI.Target, error)
 }

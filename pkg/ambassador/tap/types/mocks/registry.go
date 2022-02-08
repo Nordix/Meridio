@@ -36,32 +36,16 @@ func (m *MockRegistry) EXPECT() *MockRegistryMockRecorder {
 	return m.recorder
 }
 
-// Add mocks base method.
-func (m *MockRegistry) Add(arg0 context.Context, arg1 *v1.Stream, arg2 v1.StreamStatus_Status) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Add", arg0, arg1, arg2)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Add indicates an expected call of Add.
-func (mr *MockRegistryMockRecorder) Add(arg0, arg1, arg2 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockRegistry)(nil).Add), arg0, arg1, arg2)
-}
-
 // Remove mocks base method.
-func (m *MockRegistry) Remove(arg0 context.Context, arg1 *v1.Stream) error {
+func (m *MockRegistry) Remove(arg0 *v1.Stream) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Remove", arg0, arg1)
-	ret0, _ := ret[0].(error)
-	return ret0
+	m.ctrl.Call(m, "Remove", arg0)
 }
 
 // Remove indicates an expected call of Remove.
-func (mr *MockRegistryMockRecorder) Remove(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockRegistryMockRecorder) Remove(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Remove", reflect.TypeOf((*MockRegistry)(nil).Remove), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Remove", reflect.TypeOf((*MockRegistry)(nil).Remove), arg0)
 }
 
 // SetStatus mocks base method.

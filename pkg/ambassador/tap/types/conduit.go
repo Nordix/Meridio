@@ -29,12 +29,20 @@ const (
 
 type ConduitStatus int
 
+// Responsible for requesting/closing the NSM Connection to the conduit,
+// managing the streams and configuring the VIPs.
 type Conduit interface {
+	// Connect requests the connection to NSM and, if success, open all streams added
+	// and confiure the VIPs
 	Connect(ctx context.Context) error
+	// Disconnect closes the connection from NSM, closes all streams
+	// and removes the VIP configuration
 	Disconnect(ctx context.Context) error
-	AddStream(context.Context, *ambassadorAPI.Stream) (Stream, error)
+	// AddStream creates a stream and will open it in background
+	AddStream(context.Context, *ambassadorAPI.Stream) error
+	// RemoveStream closes and removes the stream (if existing)
 	RemoveStream(context.Context, *ambassadorAPI.Stream) error
-	GetStreams() []Stream
+	GetStreams() []*ambassadorAPI.Stream
 	Equals(*ambassadorAPI.Conduit) bool
 	GetConduit() *ambassadorAPI.Conduit
 }

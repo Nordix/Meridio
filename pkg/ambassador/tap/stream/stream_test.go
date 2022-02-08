@@ -20,69 +20,21 @@ import (
 	"context"
 	"strconv"
 	"testing"
-	"time"
 
 	"github.com/golang/mock/gomock"
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/stream"
 	"github.com/nordix/meridio/pkg/ambassador/tap/stream/mocks"
-	"github.com/nordix/meridio/pkg/ambassador/tap/stream/registry"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
 
-func Test_Constructor(t *testing.T) {
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
-
-	pendingChan := make(chan interface{}, 1)
-	streamRegistry := registry.New()
-	w, _ := streamRegistry.Watch(context.TODO(), &ambassadorAPI.Stream{})
-	resultChan := w.ResultChan()
-
-	s := &ambassadorAPI.Stream{
-		Name: "stream-a",
-		Conduit: &ambassadorAPI.Conduit{
-			Name: "conduit-a",
-			Trench: &ambassadorAPI.Trench{
-				Name: "trench-a",
-			},
-		},
-	}
-	maxNumberOfTargets := 2
-
-	strm, err := stream.New(s, nil, nil, streamRegistry, maxNumberOfTargets, pendingChan, nil)
-	assert.Nil(t, err)
-	assert.NotNil(t, strm)
-
-	streamStatus := <-resultChan
-	assert.NotNil(t, streamStatus)
-	assert.Len(t, streamStatus, 1)
-	assert.True(t, strm.Equals(streamStatus[0].Stream))
-	assert.Equal(t, ambassadorAPI.StreamStatus_PENDING, streamStatus[0].Status)
-
-	pendingChan <- struct{}{}
-	streamStatus = <-resultChan
-	assert.NotNil(t, streamStatus)
-	assert.Len(t, streamStatus, 1)
-	assert.True(t, strm.Equals(streamStatus[0].Stream))
-	assert.Equal(t, ambassadorAPI.StreamStatus_UNAVAILABLE, streamStatus[0].Status)
-}
-
 func Test_Open_Close(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
-
-	pendingChan := make(chan interface{}, 1)
-	streamRegistry := registry.New()
-	w, _ := streamRegistry.Watch(context.TODO(), &ambassadorAPI.Stream{})
-	resultChan := w.ResultChan()
-	streamStatus := <-resultChan
-	assert.NotNil(t, streamStatus)
-	assert.Len(t, streamStatus, 0)
 
 	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
@@ -102,8 +54,6 @@ func Test_Open_Close(t *testing.T) {
 	cndt := mocks.NewMockConduit(ctrl)
 	tr := mocks.NewMockTargetRegistry(ctrl)
 	cndt.EXPECT().GetIPs().Return(ips).AnyTimes()
-	configuration := mocks.NewMockConfiguration(ctrl)
-	configurationCtx, configurationCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
 	tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return(getTargets([]string{"1"}), nil).AnyTimes()
 	firstRegister := tr.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) error {
 		assert.NotNil(t, target)
@@ -135,50 +85,21 @@ func Test_Open_Close(t *testing.T) {
 		return nil
 	})
 
-	strm, err := stream.New(s, nil, nil, streamRegistry, maxNumberOfTargets, pendingChan, cndt)
+	strm, err := stream.New(s, nil, maxNumberOfTargets, cndt)
 	assert.Nil(t, err)
 	assert.NotNil(t, strm)
 	strm.TargetRegistry = tr
-	strm.Configuration = configuration
-	configuration.EXPECT().WatchStream(gomock.Any()).DoAndReturn(func(ctx context.Context) {
-		err := strm.StreamExists(true)
-		assert.Nil(t, err)
-		<-ctx.Done()
-		configurationCancel()
-	})
-
-	streamStatus = <-resultChan
-	assert.Equal(t, ambassadorAPI.StreamStatus_PENDING, streamStatus[0].Status)
 
 	err = strm.Open(context.TODO())
 	assert.Nil(t, err)
 
-	pendingChan <- struct{}{}
-
-	streamStatus = <-resultChan
-	assert.Equal(t, ambassadorAPI.StreamStatus_OPEN, streamStatus[0].Status)
-
-	<-configurationCtx.Done()
-
 	err = strm.Close(context.TODO())
 	assert.Nil(t, err)
-
-	streamStatus = <-resultChan
-	assert.Equal(t, ambassadorAPI.StreamStatus_UNAVAILABLE, streamStatus[0].Status)
 }
 
 func Test_Open_NoIdentifierAvailable(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
-
-	pendingChan := make(chan interface{}, 1)
-	streamRegistry := registry.New()
-	w, _ := streamRegistry.Watch(context.TODO(), &ambassadorAPI.Stream{})
-	resultChan := w.ResultChan()
-
-	streamStatus := <-resultChan
-	assert.NotNil(t, streamStatus)
-	assert.Len(t, streamStatus, 0)
 
 	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
@@ -199,34 +120,18 @@ func Test_Open_NoIdentifierAvailable(t *testing.T) {
 	cndt.EXPECT().GetIPs().Return(ips).AnyTimes()
 	tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return(getTargets([]string{"1", "2"}), nil).AnyTimes()
 
-	strm, err := stream.New(s, nil, nil, streamRegistry, maxNumberOfTargets, pendingChan, cndt)
+	strm, err := stream.New(s, nil, maxNumberOfTargets, cndt)
 	assert.Nil(t, err)
 	assert.NotNil(t, strm)
 	strm.TargetRegistry = tr
 
 	err = strm.Open(context.TODO())
 	assert.NotNil(t, err)
-
-	streamStatus = <-resultChan
-	assert.Equal(t, ambassadorAPI.StreamStatus_PENDING, streamStatus[0].Status)
-
-	pendingChan <- struct{}{}
-
-	streamStatus = <-resultChan
-	assert.Equal(t, ambassadorAPI.StreamStatus_UNAVAILABLE, streamStatus[0].Status)
 }
 
 func Test_Open_Concurrent(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
-
-	pendingChan := make(chan interface{}, 1)
-	streamRegistry := registry.New()
-	w, _ := streamRegistry.Watch(context.TODO(), &ambassadorAPI.Stream{})
-	resultChan := w.ResultChan()
-	streamStatus := <-resultChan
-	assert.NotNil(t, streamStatus)
-	assert.Len(t, streamStatus, 0)
 
 	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
@@ -247,8 +152,6 @@ func Test_Open_Concurrent(t *testing.T) {
 	cndt := mocks.NewMockConduit(ctrl)
 	tr := mocks.NewMockTargetRegistry(ctrl)
 	cndt.EXPECT().GetIPs().Return(ips).AnyTimes()
-	configuration := mocks.NewMockConfiguration(ctrl)
-	configuration.EXPECT().WatchStream(gomock.Any()).Return().AnyTimes()
 	firstGet := tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return(getTargets([]string{"1"}), nil)
 	secondGet := tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) ([]*nspAPI.Target, error) {
 		concurrentIdentifier = identifierSelected
@@ -294,37 +197,18 @@ func Test_Open_Concurrent(t *testing.T) {
 		return nil
 	}).After(secondRegister)
 
-	strm, err := stream.New(s, nil, nil, streamRegistry, maxNumberOfTargets, pendingChan, cndt)
+	strm, err := stream.New(s, nil, maxNumberOfTargets, cndt)
 	assert.Nil(t, err)
 	assert.NotNil(t, strm)
 	strm.TargetRegistry = tr
-	strm.Configuration = configuration
-
-	streamStatus = <-resultChan
-	assert.Equal(t, ambassadorAPI.StreamStatus_PENDING, streamStatus[0].Status)
 
 	err = strm.Open(context.TODO())
 	assert.Nil(t, err)
-
-	_ = strm.StreamExists(true) // should come from the configuration
-
-	pendingChan <- struct{}{}
-
-	streamStatus = <-resultChan
-	assert.Equal(t, ambassadorAPI.StreamStatus_OPEN, streamStatus[0].Status)
 }
 
 func Test_Open_Concurrent_NoIdentifierAvailable(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
-
-	pendingChan := make(chan interface{}, 1)
-	streamRegistry := registry.New()
-	w, _ := streamRegistry.Watch(context.TODO(), &ambassadorAPI.Stream{})
-	resultChan := w.ResultChan()
-	streamStatus := <-resultChan
-	assert.NotNil(t, streamStatus)
-	assert.Len(t, streamStatus, 0)
 
 	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
@@ -372,21 +256,13 @@ func Test_Open_Concurrent_NoIdentifierAvailable(t *testing.T) {
 		return nil
 	})
 
-	strm, err := stream.New(s, nil, nil, streamRegistry, maxNumberOfTargets, pendingChan, cndt)
+	strm, err := stream.New(s, nil, maxNumberOfTargets, cndt)
 	assert.Nil(t, err)
 	assert.NotNil(t, strm)
 	strm.TargetRegistry = tr
 
-	streamStatus = <-resultChan
-	assert.Equal(t, ambassadorAPI.StreamStatus_PENDING, streamStatus[0].Status)
-
 	err = strm.Open(context.TODO())
 	assert.NotNil(t, err)
-
-	pendingChan <- struct{}{}
-
-	streamStatus = <-resultChan
-	assert.Equal(t, ambassadorAPI.StreamStatus_UNAVAILABLE, streamStatus[0].Status)
 }
 
 func getTargets(identifiers []string) []*nspAPI.Target {

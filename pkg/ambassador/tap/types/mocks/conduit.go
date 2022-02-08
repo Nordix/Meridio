@@ -10,7 +10,6 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	v1 "github.com/nordix/meridio/api/ambassador/v1"
-	types "github.com/nordix/meridio/pkg/ambassador/tap/types"
 )
 
 // MockConduit is a mock of Conduit interface.
@@ -37,12 +36,11 @@ func (m *MockConduit) EXPECT() *MockConduitMockRecorder {
 }
 
 // AddStream mocks base method.
-func (m *MockConduit) AddStream(arg0 context.Context, arg1 *v1.Stream) (types.Stream, error) {
+func (m *MockConduit) AddStream(arg0 context.Context, arg1 *v1.Stream) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddStream", arg0, arg1)
-	ret0, _ := ret[0].(types.Stream)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
 // AddStream indicates an expected call of AddStream.
@@ -108,10 +106,10 @@ func (mr *MockConduitMockRecorder) GetConduit() *gomock.Call {
 }
 
 // GetStreams mocks base method.
-func (m *MockConduit) GetStreams() []types.Stream {
+func (m *MockConduit) GetStreams() []*v1.Stream {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetStreams")
-	ret0, _ := ret[0].([]types.Stream)
+	ret0, _ := ret[0].([]*v1.Stream)
 	return ret0
 }
 

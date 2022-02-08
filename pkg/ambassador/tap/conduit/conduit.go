@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -36,28 +35,26 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Conduit implements types.Conduit
+// Conduit implements types.Conduit (/pkg/ambassador/tap/types)
+// Responsible for requesting/closing the NSM Connection to the conduit,
+// managing the streams and configuring the VIPs.
 type Conduit struct {
-	TargetName                 string
-	Namespace                  string
-	Conduit                    *ambassadorAPI.Conduit
-	NodeName                   string
-	ConfigurationManagerClient nspAPI.ConfigurationManagerClient
-	TargetRegistryClient       nspAPI.TargetRegistryClient
-	NetworkServiceClient       networkservice.NetworkServiceClient
-	Configuration              Configuration
-	StreamRegistry             types.Registry
-	NetUtils                   networking.Utils
-	StreamFactory              StreamFactory
-	connection                 *networkservice.Connection
-	streams                    *streamList
-	mu                         sync.Mutex
-	vips                       []*virtualIP
-	tableID                    int
-	configurationCancel        context.CancelFunc
-	openStreamsCancel          context.CancelFunc
-	openStreamsMu              sync.Mutex
-	addRemoveStreamMu          sync.Mutex
+	// Should be a unique name
+	TargetName string
+	// Namespace of the trench
+	Namespace string
+	Conduit   *ambassadorAPI.Conduit
+	// Node name the pod is running on
+	NodeName             string
+	NetworkServiceClient networkservice.NetworkServiceClient
+	Configuration        Configuration
+	StreamManager        StreamManager
+	NetUtils             networking.Utils
+	StreamFactory        StreamFactory
+	connection           *networkservice.Connection
+	mu                   sync.Mutex
+	vips                 []*virtualIP
+	tableID              int
 }
 
 // New is the constructor of Conduit.
@@ -72,22 +69,19 @@ func New(conduit *ambassadorAPI.Conduit,
 	streamRegistry types.Registry,
 	netUtils networking.Utils) (*Conduit, error) {
 	c := &Conduit{
-		TargetName:                 targetName,
-		Namespace:                  namespace,
-		Conduit:                    conduit,
-		NodeName:                   nodeName,
-		ConfigurationManagerClient: configurationManagerClient,
-		TargetRegistryClient:       targetRegistryClient,
-		NetworkServiceClient:       networkServiceClient,
-		StreamRegistry:             streamRegistry,
-		NetUtils:                   netUtils,
-		connection:                 nil,
-		streams:                    newStreamList(),
-		vips:                       []*virtualIP{},
-		tableID:                    1,
+		TargetName:           targetName,
+		Namespace:            namespace,
+		Conduit:              conduit,
+		NodeName:             nodeName,
+		NetworkServiceClient: networkServiceClient,
+		NetUtils:             netUtils,
+		connection:           nil,
+		vips:                 []*virtualIP{},
+		tableID:              1,
 	}
-	c.StreamFactory = newStreamFactoryImpl(c.TargetRegistryClient, c.ConfigurationManagerClient, c.StreamRegistry, stream.MaxNumberOfTargets, stream.DefaultPendingChan)
-	c.Configuration = newConfigurationImpl(c, c.Conduit.GetTrench().ToNSP(), c.ConfigurationManagerClient)
+	c.StreamFactory = stream.NewFactory(targetRegistryClient, stream.MaxNumberOfTargets, c)
+	c.StreamManager = NewStreamManager(configurationManagerClient, targetRegistryClient, streamRegistry, c.StreamFactory, PendingTime)
+	c.Configuration = newConfigurationImpl(c.SetVIPs, c.StreamManager.SetStreams, c.Conduit.ToNSP(), configurationManagerClient)
 	return c, nil
 }
 
@@ -124,13 +118,9 @@ func (c *Conduit) Connect(ctx context.Context) error {
 	logrus.Infof("Conduit connected: %v", c.Conduit)
 	c.connection = connection
 
-	var configurationCtx context.Context
-	configurationCtx, c.configurationCancel = context.WithCancel(context.TODO())
-	go c.Configuration.WatchVIPs(configurationCtx)
+	c.Configuration.Watch()
 
-	var openStreamCtx context.Context
-	openStreamCtx, c.openStreamsCancel = context.WithCancel(context.TODO())
-	go c.openStreams(openStreamCtx)
+	c.StreamManager.Run()
 	return nil
 }
 
@@ -140,85 +130,41 @@ func (c *Conduit) Disconnect(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	logrus.Infof("Disconnect from conduit: %v", c.Conduit)
-	if c.configurationCancel != nil {
-		c.configurationCancel()
-	}
-	if c.openStreamsCancel != nil {
-		c.openStreamsCancel()
-	}
+	// Stops the configuration
+	c.Configuration.Stop()
+	// reset the VIPs related configuration
+	c.deleteVIPs(c.vips)
+	c.tableID = 1
 	var errFinal error
-	err := c.closeStreams(ctx)
+	// Stop the stream manager (close the streams)
+	errFinal = c.StreamManager.Stop(ctx)
+	// Close the NSM connection
+	_, err := c.NetworkServiceClient.Close(ctx, c.connection)
 	if err != nil {
 		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 	}
-	if c.isConnected() {
-		_, err = c.NetworkServiceClient.Close(ctx, c.connection)
-		if err != nil {
-			errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
-		}
-		c.connection = nil
-	}
-	c.deleteVIPs(c.vips)
-	c.tableID = 1
+	c.connection = nil
 	return errFinal
 }
 
 // AddStream creates a stream based on its factory and will open it (in another goroutine)
-func (c *Conduit) AddStream(ctx context.Context, strm *ambassadorAPI.Stream) (types.Stream, error) {
-	c.addRemoveStreamMu.Lock()
-	defer c.addRemoveStreamMu.Unlock()
+func (c *Conduit) AddStream(ctx context.Context, strm *ambassadorAPI.Stream) error {
 	logrus.Infof("Add stream: %v to conduit: %v", strm, c.Conduit)
 	if !c.Equals(strm.GetConduit()) {
-		return nil, errors.New("invalid stream for this conduit")
+		return errors.New("invalid stream for this conduit")
 	}
-	ss := c.streams.get(strm)
-	if ss != nil {
-		return ss.stream, nil
-	}
-	s, err := c.StreamFactory.New(strm, c)
-	if err != nil {
-		return nil, err
-	}
-	streamStatus := &streamStatus{
-		stream: s,
-		status: closed,
-	}
-	c.streams.add(streamStatus)
-	return s, nil
+	return c.StreamManager.AddStream(strm)
 }
 
 // RemoveStream closes and removes the stream (if existing), and removes it from the
 // stream registry.
 func (c *Conduit) RemoveStream(ctx context.Context, strm *ambassadorAPI.Stream) error {
-	c.addRemoveStreamMu.Lock()
-	defer c.addRemoveStreamMu.Unlock()
-	ss := c.streams.get(strm)
-	if ss == nil {
-		return nil
-	}
-	logrus.Infof("Remove stream: %v from conduit: %v", strm, c.Conduit)
-	var errFinal error
-	err := c.StreamRegistry.Remove(ctx, strm)
-	if err != nil {
-		errFinal = err
-	}
-	c.streams.del(strm)
-	err = ss.stream.Close(ctx) // todo: retry
-	if err != nil {
-		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
-	}
-	return errFinal
+	return c.StreamManager.RemoveStream(ctx, strm)
 }
 
 // GetStreams returns all streams previously added to this conduit
-func (c *Conduit) GetStreams() []types.Stream {
-	c.addRemoveStreamMu.Lock()
-	defer c.addRemoveStreamMu.Unlock()
-	streams := []types.Stream{}
-	for _, s := range c.streams.getList() {
-		streams = append(streams, s.stream)
-	}
-	return streams
+func (c *Conduit) GetStreams() []*ambassadorAPI.Stream {
+	return c.StreamManager.GetStreams()
 }
 
 func (c *Conduit) GetConduit() *ambassadorAPI.Conduit {
@@ -276,47 +222,6 @@ func (c *Conduit) Equals(conduit *ambassadorAPI.Conduit) bool {
 	return c.Conduit.Equals(conduit)
 }
 
-func (c *Conduit) openStreams(ctx context.Context) {
-	c.openStreamsMu.Lock()
-	defer c.openStreamsMu.Unlock()
-	for { // todo: retry
-		if ctx.Err() != nil {
-			return
-		}
-		for _, streamStatus := range c.streams.getList() {
-			if streamStatus.status == opened {
-				continue
-			}
-			err := streamStatus.stream.Open(ctx)
-			if err != nil {
-				logrus.Warnf("failing to open stream (%v), err: %v", streamStatus.stream.GetStream(), err)
-				continue
-			}
-			streamStatus.setStatus(opened)
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-}
-
-func (c *Conduit) closeStreams(ctx context.Context) error {
-	c.openStreamsMu.Lock()
-	defer c.openStreamsMu.Unlock()
-	var errFinal error
-	// todo: retry
-	for _, streamStatus := range c.streams.getList() {
-		err := streamStatus.stream.Close(ctx)
-		if streamStatus.status == closed {
-			continue
-		}
-		if err != nil {
-			errFinal = fmt.Errorf("%w; failing to open stream (%v), err: %v", errFinal, streamStatus.stream.GetStream(), err) // todo
-			continue
-		}
-		streamStatus.setStatus(closed)
-	}
-	return errFinal
-}
-
 func (c *Conduit) isConnected() bool {
 	return c.connection != nil
 }
@@ -339,7 +244,8 @@ func (c *Conduit) deleteVIPs(vips []*virtualIP) {
 	}
 }
 
-// TODO: use same gateway as previous version
+// TODO: Requires the IPs of the bridge
+// GetDstIpAddrs doesn't work in IPv6
 func (c *Conduit) getGateways() []string {
 	if c.connection != nil {
 		return c.connection.GetContext().GetIpContext().GetExtraPrefixes()

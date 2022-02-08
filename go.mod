@@ -23,6 +23,7 @@ require (
 	github.com/vishvananda/netlink v1.1.1-0.20220118170537-d6b03fdeb845
 	go.uber.org/goleak v1.1.12
 	golang.org/x/sys v0.0.0-20211029165221-6e7872819dc8
+	golang.org/x/tools v0.1.9 // indirect
 	google.golang.org/grpc v1.42.0
 	google.golang.org/protobuf v1.27.1
 	gopkg.in/yaml.v2 v2.4.0

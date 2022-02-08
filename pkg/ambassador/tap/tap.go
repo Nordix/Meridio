@@ -86,7 +86,7 @@ func (tap *Tap) Open(ctx context.Context, s *ambassadorAPI.Stream) (*empty.Empty
 	}
 	// add/get a stream (get if already existing)
 	// will be opened when the conduit will be ready
-	_, err = conduit.AddStream(context.TODO(), s)
+	err = conduit.AddStream(context.TODO(), s)
 	if err != nil {
 		return &empty.Empty{}, err
 	}

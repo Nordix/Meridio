@@ -14,21 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package types
+package v1
 
-import (
-	"context"
+import "fmt"
 
-	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
-)
-
-type Registry interface {
-	SetStatus(*ambassadorAPI.Stream, ambassadorAPI.StreamStatus_Status)
-	Remove(*ambassadorAPI.Stream)
-	Watch(context.Context, *ambassadorAPI.Stream) (Watcher, error)
+func (t *Trench) FullName() string {
+	return t.GetName()
 }
 
-type Watcher interface {
-	Stop()
-	ResultChan() <-chan []*ambassadorAPI.StreamStatus
+func (c *Conduit) FullName() string {
+	return fmt.Sprintf("%s.%s", c.GetName(), c.GetTrench().FullName())
+}
+
+func (s *Stream) FullName() string {
+	return fmt.Sprintf("%s.%s", s.GetName(), s.GetConduit().FullName())
 }

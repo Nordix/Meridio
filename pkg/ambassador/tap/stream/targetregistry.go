@@ -22,12 +22,6 @@ import (
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 )
 
-type TargetRegistry interface {
-	Register(context.Context, *nspAPI.Target) error
-	Unregister(context.Context, *nspAPI.Target) error
-	GetTargets(context.Context, *nspAPI.Target) ([]*nspAPI.Target, error)
-}
-
 type targetRegistryImpl struct {
 	TargetRegistryClient nspAPI.TargetRegistryClient
 }

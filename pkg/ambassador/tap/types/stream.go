@@ -36,8 +36,6 @@ type Stream interface {
 	Open(ctx context.Context) error
 	// Close the stream in the conduit by unregistering target from the NSP service.
 	Close(ctx context.Context) error
-	//
 	Equals(*ambassadorAPI.Stream) bool
-	//
 	GetStream() *ambassadorAPI.Stream
 }

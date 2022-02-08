@@ -22,11 +22,16 @@ import (
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 )
 
+// Responsible for connection/disconnecting the conduits, and providing
+// a NSP connection to the trench.
 type Trench interface {
 	Delete(ctx context.Context) error
+	// AddConduit creates a conduit and will connect it in background
 	AddConduit(context.Context, *ambassadorAPI.Conduit) (Conduit, error)
+	// RemoveConduit disconnects and removes the conduit (if existing).
 	RemoveConduit(context.Context, *ambassadorAPI.Conduit) error
 	GetConduits() []Conduit
+	// GetConduit returns the conduit matching to the one in parameter if it exists.
 	GetConduit(*ambassadorAPI.Conduit) Conduit
 	Equals(*ambassadorAPI.Trench) bool
 	GetTrench() *ambassadorAPI.Trench

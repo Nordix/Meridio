@@ -103,9 +103,7 @@ mocks:
 	mockgen -source=./pkg/ambassador/tap/types/trench.go -destination=./pkg/ambassador/tap/types/mocks/trench.go -package=mocks
 	mockgen -source=./pkg/ambassador/tap/types/registry.go -destination=./pkg/ambassador/tap/types/mocks/registry.go -package=mocks
 	mockgen -source=./pkg/ambassador/tap/trench/factory.go -destination=./pkg/ambassador/tap/trench/mocks/factory.go -package=mocks
-	mockgen -source=./pkg/ambassador/tap/conduit/factory.go -destination=./pkg/ambassador/tap/conduit/mocks/factory.go -package=mocks
 	mockgen -source=./pkg/ambassador/tap/conduit/configuration.go -destination=./pkg/ambassador/tap/conduit/mocks/configuration.go -package=mocks
-	mockgen -source=./pkg/ambassador/tap/stream/conduit.go -destination=./pkg/ambassador/tap/stream/mocks/conduit.go -package=mocks
-	mockgen -source=./pkg/ambassador/tap/stream/targetregistry.go -destination=./pkg/ambassador/tap/stream/mocks/targetregistry.go -package=mocks
-	mockgen -source=./pkg/ambassador/tap/stream/configuration.go -destination=./pkg/ambassador/tap/stream/mocks/configuration.go -package=mocks
+	mockgen -source=./pkg/ambassador/tap/conduit/types.go -destination=./pkg/ambassador/tap/conduit/mocks/types.go -package=mocks
+	mockgen -source=./pkg/ambassador/tap/stream/types.go -destination=./pkg/ambassador/tap/stream/mocks/types.go -package=mocks
 	mockgen -source=./pkg/nsm/client.go -destination=./pkg/nsm/mocks/client.go -package=mocks

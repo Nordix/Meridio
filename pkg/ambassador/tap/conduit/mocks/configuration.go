@@ -5,7 +5,6 @@
 package mocks
 
 import (
-	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -34,51 +33,26 @@ func (m *MockConfiguration) EXPECT() *MockConfigurationMockRecorder {
 	return m.recorder
 }
 
-// WatchVIPs mocks base method.
-func (m *MockConfiguration) WatchVIPs(ctx context.Context) {
+// Stop mocks base method.
+func (m *MockConfiguration) Stop() {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "WatchVIPs", ctx)
+	m.ctrl.Call(m, "Stop")
 }
 
-// WatchVIPs indicates an expected call of WatchVIPs.
-func (mr *MockConfigurationMockRecorder) WatchVIPs(ctx interface{}) *gomock.Call {
+// Stop indicates an expected call of Stop.
+func (mr *MockConfigurationMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WatchVIPs", reflect.TypeOf((*MockConfiguration)(nil).WatchVIPs), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockConfiguration)(nil).Stop))
 }
 
-// Mockwatcher is a mock of watcher interface.
-type Mockwatcher struct {
-	ctrl     *gomock.Controller
-	recorder *MockwatcherMockRecorder
-}
-
-// MockwatcherMockRecorder is the mock recorder for Mockwatcher.
-type MockwatcherMockRecorder struct {
-	mock *Mockwatcher
-}
-
-// NewMockwatcher creates a new mock instance.
-func NewMockwatcher(ctrl *gomock.Controller) *Mockwatcher {
-	mock := &Mockwatcher{ctrl: ctrl}
-	mock.recorder = &MockwatcherMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *Mockwatcher) EXPECT() *MockwatcherMockRecorder {
-	return m.recorder
-}
-
-// SetVIPs mocks base method.
-func (m *Mockwatcher) SetVIPs(arg0 []string) error {
+// Watch mocks base method.
+func (m *MockConfiguration) Watch() {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetVIPs", arg0)
-	ret0, _ := ret[0].(error)
-	return ret0
+	m.ctrl.Call(m, "Watch")
 }
 
-// SetVIPs indicates an expected call of SetVIPs.
-func (mr *MockwatcherMockRecorder) SetVIPs(arg0 interface{}) *gomock.Call {
+// Watch indicates an expected call of Watch.
+func (mr *MockConfigurationMockRecorder) Watch() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetVIPs", reflect.TypeOf((*Mockwatcher)(nil).SetVIPs), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Watch", reflect.TypeOf((*MockConfiguration)(nil).Watch))
 }

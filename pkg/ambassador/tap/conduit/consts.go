@@ -14,8 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package stream
+package conduit
 
-type Conduit interface {
-	GetIPs() []string
-}
+import "time"
+
+const (
+	PendingTime = 15 * time.Second
+)

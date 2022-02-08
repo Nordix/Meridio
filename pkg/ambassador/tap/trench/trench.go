@@ -33,11 +33,16 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Trench implements types.Trench
+// Trench implements types.Trench (/pkg/ambassador/tap/types)
+// Responsible for connection/disconnecting the conduits, and providing
+// a NSP connection to the trench.
 type Trench struct {
-	Trench                     *ambassadorAPI.Trench
-	TargetName                 string
-	Namespace                  string
+	Trench *ambassadorAPI.Trench
+	// unique name (to be used in the NSM connection IDs)
+	TargetName string
+	// namespace of the current trench
+	Namespace string
+	// node the pod is running on
 	NodeName                   string
 	ConfigurationManagerClient nspAPI.ConfigurationManagerClient
 	TargetRegistryClient       nspAPI.TargetRegistryClient
@@ -205,7 +210,7 @@ func (t *Trench) connectNSPService(ctx context.Context, nspServiceName string, n
 }
 
 func (t *Trench) closeStreams(ctx context.Context) error {
-	streams := []types.Stream{}
+	streams := []*ambassadorAPI.Stream{}
 	for _, c := range t.conduits {
 		streams = append(streams, c.conduit.GetStreams()...)
 	}
@@ -215,9 +220,9 @@ func (t *Trench) closeStreams(ctx context.Context) error {
 	var mu sync.Mutex
 	for _, c := range t.conduits {
 		for _, s := range c.conduit.GetStreams() {
-			go func(stream types.Stream) {
+			go func(stream *ambassadorAPI.Stream) {
 				defer wg.Done()
-				err := c.conduit.RemoveStream(ctx, stream.GetStream()) // todo: retry
+				err := c.conduit.RemoveStream(ctx, stream) // todo: retry
 				if err != nil {
 					mu.Lock()
 					errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
