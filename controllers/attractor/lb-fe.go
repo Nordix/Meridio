@@ -69,15 +69,12 @@ func (l *LoadBalancer) getLbEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			Name:  "NSM_NSP_SERVICE",
 			Value: common.NSPServiceWithPort(l.trench),
 		},
-		{
-			Name:  "NSM_NAME",
-			Value: lbFeDeploymentName,
-		},
 	}
 
 	for _, e := range allEnv {
 		// append all hard coded envVars
-		if e.Name == "SPIFFE_ENDPOINT_SOCKET" {
+		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
+			e.Name == "NSM_NAME" {
 			env = append(env, e)
 		}
 	}
@@ -90,15 +87,12 @@ func (l *LoadBalancer) getNscEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			Name:  "NSM_NETWORK_SERVICES",
 			Value: fmt.Sprintf("vlan://%s/ext-vlan?forwarder=forwarder-vlan", common.VlanNtwkSvcName(l.trench)),
 		},
-		{
-			Name:  "NSM_NAME",
-			Value: lbFeDeploymentName,
-		},
 	}
 
 	for _, e := range allEnv {
 		// append all hard coded envVars
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
+			e.Name == "NSM_NAME" ||
 			e.Name == "NSM_DIAL_TIMEOUT" ||
 			e.Name == "NSM_REQUEST_TIMEOUT" {
 			env = append(env, e)
@@ -155,7 +149,6 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 
 	ret.Spec.Template.ObjectMeta.Labels["app"] = lbFeDeploymentName
 	ret.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchExpressions[0].Values[0] = lbFeDeploymentName
-	ret.Spec.Template.Spec.ServiceAccountName = common.ServiceAccountName(l.trench)
 	ret.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
 
 	if ret.Spec.Template.Spec.InitContainers[0].Image == "" {
