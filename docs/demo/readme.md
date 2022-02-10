@@ -17,30 +17,16 @@ kind create cluster --config docs/demo/kind.yaml
 
 Deploy Spire
 ```
-helm install docs/demo/deployments/spire/ --generate-name
-```
-
-Configure Spire
-```
-./docs/demo/scripts/spire-config.sh
+kubectl apply -k docs/demo/deployments/spire
 ```
 
 Deploy NSM
 ```
-helm install docs/demo/deployments/nsm-vlan/ --generate-name
+helm install docs/demo/deployments/nsm --generate-name --create-namespace --namespace nsm
 ```
 
 ### Meridio
 
-Configure Spire for trenches in namespace red
-```
-./docs/demo/scripts/spire.sh default red
-```
-
-Configure Spire for trench-a
-```
-./docs/demo/scripts/spire.sh meridio-trench-a red
-```
 
 Install Meridio trench-a
 ```
@@ -50,11 +36,6 @@ helm install deployments/helm/ --generate-name --create-namespace --namespace re
 helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-a --set vlan.id=100 --set ipFamily=ipv6 --set vlan.fe.gateway[0]="100:100::150/64"
 # dualstack
 helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-a --set ipFamily=dualstack ---set vlan.fe.gateway[0]="169.254.100.150/24" --set vlan.fe.gateway[1]="100:100::150/64"
-```
-
-Configure Spire for trench-b
-```
-./docs/demo/scripts/spire.sh meridio-trench-b red
 ```
 
 Install Meridio trench-b

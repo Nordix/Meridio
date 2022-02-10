@@ -1,11 +1,11 @@
-FROM ubuntu:20.10
+FROM ubuntu:21.04
 
 RUN apt-get update -y --fix-missing
-RUN apt-get install -y iproute2 tcpdump iptables net-tools iputils-ping ipvsadm netcat wget bird2
+RUN apt-get install -y iproute2 tcpdump iptables net-tools iputils-ping ipvsadm netcat wget bird2 ethtool
 
 WORKDIR /root/
 
-RUN wget https://github.com/Nordix/ctraffic/releases/download/v1.6.0/ctraffic.gz
+RUN wget https://github.com/Nordix/ctraffic/releases/download/v1.7.0/ctraffic.gz
 RUN gunzip ctraffic.gz 
 RUN chmod u+x ctraffic
 RUN mv ctraffic /usr/bin/
