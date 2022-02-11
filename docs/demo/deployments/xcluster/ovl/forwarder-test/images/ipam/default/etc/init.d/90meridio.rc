@@ -1,0 +1,3 @@
+#! /bin/sh
+test "$NO_START" = "yes" && exec sleep 3600
+exec /bin/ipam

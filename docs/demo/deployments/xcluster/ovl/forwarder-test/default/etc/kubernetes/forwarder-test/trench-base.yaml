@@ -1,0 +1,201 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: meridio-ipam
+spec:
+  selector:
+    app: meridio-ipam
+  ports:
+    - port: 7777
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: meridio-ipam
+  labels:
+    app: meridio-ipam
+spec:
+  replicas: 2
+  serviceName: meridio-ipam
+  selector:
+    matchLabels:
+      app: meridio-ipam
+  template:
+    metadata:
+      labels:
+        app: meridio-ipam
+    spec:
+      containers:
+        - name: ipam
+          image: registry.nordix.org/cloud-native/meridio/ipam:latest
+          imagePullPolicy: IfNotPresent
+          startupProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -addr=unix:///tmp/health.sock
+              - -service=
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -spiffe
+              - -addr=:7777
+              - -service=
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+          livenessProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -addr=unix:///tmp/health.sock
+              - -service=
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: IPAM_PORT
+              value: "7777"
+            - name: IPAM_DATASOURCE
+              value: /run/ipam/data/registry.db
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: ipam-data
+              mountPath: /run/ipam/data
+              readOnly: false
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory
+  volumeClaimTemplates:
+    - metadata:
+        name: ipam-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10M
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: meridio-nsp-$NAME
+spec:
+  selector:
+    app: meridio-nsp
+  ports:
+    - port: 7778
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: meridio-nsp
+  labels:
+    app: meridio-nsp
+spec:
+  replicas: 1
+  serviceName: meridio-nsp
+  selector:
+    matchLabels:
+      app: meridio-nsp
+  template:
+    metadata:
+      labels:
+        app: meridio-nsp
+    spec:
+      containers:
+        - name: nsp
+          image: registry.nordix.org/cloud-native/meridio/nsp:latest
+          imagePullPolicy: IfNotPresent
+          startupProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -addr=unix:///tmp/health.sock
+              - -service=
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -spiffe
+              - -addr=:7778
+              - -service=
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+          livenessProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -addr=unix:///tmp/health.sock
+              - -service=
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NSP_PORT
+              value: "7778"
+            - name: NSP_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NSP_CONFIG_MAP_NAME
+              value: meridio-configuration-$NAME
+            - name: NSP_DATASOURCE
+              value: /run/nsp/data/registry.db
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: nsp-data
+              mountPath: /run/nsp/data
+              readOnly: false
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory
+  volumeClaimTemplates:
+    - metadata:
+        name: nsp-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10M
+---

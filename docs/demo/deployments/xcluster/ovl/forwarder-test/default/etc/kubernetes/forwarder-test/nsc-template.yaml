@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: vlan-nsc
+  labels:
+    app: vlan-nsc
+spec:
+  selector:
+    matchLabels:
+      app: vlan-nsc
+  template:
+    metadata:
+      labels:
+        app: vlan-nsc
+    spec:
+      containers:
+        - name: nsc
+          securityContext:
+            privileged: true
+          image: ghcr.io/networkservicemesh/ci/cmd-nsc:ffab737
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NSM_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NSM_NETWORK_SERVICES
+              value: $NSC_NETWORK_SERVICES
+            - name: NSM_DIAL_TIMEOUT
+              value: "30s"
+            - name: NSM_REQUEST_TIMEOUT
+              value: "300s"
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: nsm-socket
+              mountPath: /var/lib/networkservicemesh
+              readOnly: true
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory
+        - name: nsm-socket
+          hostPath:
+            path: /var/lib/networkservicemesh
+            type: DirectoryOrCreate

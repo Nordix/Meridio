@@ -1,0 +1,9 @@
+interfaces:
+  - name: eth2
+    matches:
+       - labelSelector:
+           - via: service.domain.2
+  - name: eth3
+    matches:
+       - labelSelector:
+           - via: service.domain.3

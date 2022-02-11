@@ -1,0 +1,10 @@
+apiVersion: spiffeid.spiffe.io/v1beta1
+kind: SpiffeID
+metadata:
+  name: $NAME-spiffeid
+spec:
+  parentId: "spiffe://example.org/spire/server"
+  selector:
+    namespace: default
+    serviceAccount: default
+  spiffeId: "spiffe://example.org/ns/$NAME/sa/default"
