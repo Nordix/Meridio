@@ -54,17 +54,23 @@ cmd_tcase_multus_setup() {
 	kubectl -n kube-system apply -f $multusd/multus-crd-bridge.yaml || tdie
 }
 
+configure_trench() {
+	test -n "$1" || tdie "No trench"
+	local f=$yamld/$1.conf
+	test -r $f || tdie "Not readable [$f]"
+	. $f
+	test "$NS" != "default" && kubectl="kubectl -n $NS"
+}
+
 cmd_tcase_trench() {
 	local p
 	test "$__local" = "yes" && p=-local
 	tcase "Start trench [$1] ($p)"
-	test -n "$1" || tdie "No trench"
-	local f=$yamld/$1.conf
-	test -r $f || tdie "Not readable [$f]"
-	kubectl create namespace $1 || tdie "create namespace"
-	kubectl="kubectl -n $1"
-	. $f
-	envsubst < $yamld/spire-template.yaml | kubectl apply -f - || tdie
+	configure_trench $1
+	if test "$NS" != "default"; then
+		kubectl create namespace $NS || tdie "create namespace"
+		envsubst < $yamld/spire-template.yaml | kubectl apply -f - || tdie
+	fi
 	envsubst < $yamld$p/trench-base.yaml | $kubectl apply -f - || tdie
 	envsubst < $yamld/conf-template.yaml | $kubectl apply -f - || tdie
 	envsubst < $yamld/nse-template.yaml | $kubectl apply -f - || tdie
@@ -83,13 +89,11 @@ cmd_tcase_trench_multus() {
 	local p
 	test "$__local" = "yes" && p=-local
 	tcase "Start trench using Multus [$1] ($p)"
-	test -n "$1" || tdie "No trench"
-	local f=$yamld/$1.conf
-	test -r $f || tdie "Not readable [$f]"
-	kubectl apply -f /etc/kubernetes/multus/crd-$1.yaml
-	kubectl create namespace $1 || tdie "create namespace"
-	kubectl="kubectl -n $1"
-	. $f
+	configure_trench $1
+	if test "$NS" != "default"; then
+		kubectl create namespace $NS || tdie "create namespace"
+		kubectl apply -f /etc/kubernetes/multus/crd-$NAME.yaml
+	fi
 	envsubst < $yamld/spire-template.yaml | kubectl apply -f - || tdie
 	envsubst < $yamld$p/trench-base.yaml | $kubectl apply -f - || tdie
 	envsubst < $yamld/conf-template.yaml | $kubectl apply -f - || tdie
@@ -105,12 +109,11 @@ cmd_tcase_trench_multus() {
 
 cmd_tcase_nsm() {
 	tcase "Start nse/nsc in [$1]"
-	test -n "$1" || tdie "No namespace"
-	local f=$yamld/$1.conf
-	test -r $f || tdie "Not readable [$f]"
-	kubectl create namespace $1 || tdie "create namespace"
-	. $f
-	kubectl="kubectl -n $1"
+	configure_trench $1
+	if test "$NS" != "default"; then
+		kubectl create namespace $NS || tdie "create namespace"
+		kubectl="kubectl -n $NS"
+	fi
 	envsubst < $yamld/nse-template.yaml | $kubectl apply -f - || tdie
 	test_deployment meridio-nse 120 || tdie
 	envsubst < $yamld/nsc-template.yaml | $kubectl apply -f - || tdie
@@ -120,15 +123,15 @@ cmd_tcase_nsm() {
 cmd_tcase_multus() {
 	tcase "Start an Alpine POD with Multus interfaces in [$1]"
 	test -n "$1" || tdie "No namespace"
+	export NAME=$1
 	local multusd=/etc/kubernetes/multus
-	local f=$yamld/$1.conf
-	test -r $f || tdie "Not readable [$f]"
-	kubectl apply -f /etc/kubernetes/multus/crd-$1.yaml
-	kubectl create namespace $1 || tdie "create namespace"
-	. $f
-	kubectl="kubectl -n $1"
+	kubectl apply -f $multusd/crd-$1.yaml
+	if test "$NAME" != "default"; then
+		kubectl create namespace $NAME || tdie "create namespace"
+		kubectl="kubectl -n $NAME"
+	fi
 	envsubst < $multusd/alpine-template.yaml | $kubectl apply -f - || tdie
-	test_daemonset alpine-$1 120 || tdie
+	test_daemonset alpine-$NAME 120 || tdie
 }
 cmd_tcase_collect_alpine_addresses() {
 	tcase "Collect nsm-1 addresses from Alpine in namespace [$1]"
@@ -238,15 +241,14 @@ cmd_tcase_ping_nsc_addresses() {
 
 cmd_tcase_collect_lb_addresses() {
 	tcase "Collect load-balancer addresses for trench [$1]"
-	test -n "$1" || die 'No trench'
-	local ns=$1
-	local out=/tmp/meridio-load-balancer-$ns
+	configure_trench $1
+	local out=/tmp/meridio-load-balancer-$NAME
 	local pod
-	for pod in $(kubectl get pod -n $ns -l app=meridio-load-balancer -o name); do
+	for pod in $(kubectl get pod -n $NS -l app=meridio-load-balancer -o name); do
 		pushv 60
-		tex kubectl exec -n $ns $pod -c load-balancer -- ip addr show nsm-1 || die nsm-1
+		tex kubectl exec -n $NS $pod -c load-balancer -- ip addr show nsm-1 || die nsm-1
 		popv
-		kubectl exec -n $ns $pod -c load-balancer -- ip addr show nsm-1 >> $out-raw
+		kubectl exec -n $NS $pod -c load-balancer -- ip addr show nsm-1 >> $out-raw
 	done
 	cat $out-raw
 	grep -o -E 'inet 169[0-9\.]+' $out-raw | cut -d' ' -f2 >> $out-ip4
@@ -295,10 +297,22 @@ cmd_tcase_mconnect() {
 		*) die "Unknown trench";;
 	esac
 	# timeout retries interval
-	pushv 120 6 20
+	local begin=$(date +%s)
+	pushv 300 15 20
 	tex "do_mconnect $vip4:5001" || tdie "$vip4:5001"
 	tex "do_mconnect [$ipv6prefix:$vip4]:5001" || tdie "[$ipv6prefix:$vip4]:5001"
 	popv
+	local end=$(date +%s)
+	tlog "Mconnect on [$1] succeful after $((end - begin)) sec"
+}
+
+cmd_tcase_scale() {
+	local replicas=4
+	test -n "$2" && replicas=$2
+	tcase "Scale application in trench [$1], replicas $replicas"
+	configure_trench $1
+	$kubectl scale deployment --replicas=$replicas meridio-app || tdie scale
+	test_deployment meridio-app 60
 }
 
 

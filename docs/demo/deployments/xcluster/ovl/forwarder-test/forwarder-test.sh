@@ -65,7 +65,7 @@ cmd_env() {
 }
 
 ##   test --list
-##   test [--xterm] [--local] [--nsm-local] [test...] > logfile
+##   test [--xterm] [--no-stop] [--local] [--nsm-local] [test...] > logfile
 ##     Exec tests
 ##
 cmd_test() {
@@ -113,6 +113,8 @@ test_start_empty() {
 	otc 1 check_nodes
 }
 
+##   test start
+##     Start the cluster with NSM. Default; xcluster_NSM_FORWARDER=vpp
 test_start() {
 	tcase "Start with NSM, forwarder=$xcluster_NSM_FORWARDER"
 	test_start_empty $@
@@ -131,7 +133,7 @@ test_start() {
 	unset otcprog
 }
 
-##   test [--trenches=red,blue,green] trench (default)
+##   test [--trenches=red,...] [--use-multus] trench (default)
 ##     Test trenches. The default is to test all 3 trenches
 test_trench() {
 	local x
@@ -247,20 +249,17 @@ test_multus() {
 }
 
 ##
-##   generate_manifests [--meridio-dir=dir] [--dst=/tmp/$USER/meridio-manifests]
+##   generate_manifests [--dst=/tmp/$USER/meridio-manifests]
 ##     Generate manifests from Meridio helm charts.
 cmd_generate_manifests() {
 	unset KUBECONFIG
 	test -n "$__dst" || __dst=/tmp/$USER/meridio-manifests
 	mkdir -p $__dst
-	test -n "$__meridio_dir" || __meridio_dir=$GOPATH/src/github.com/Nordix/Meridio
+	test -n "$__meridio_dir" || __meridio_dir=$(readlink -f ../../../../../..)
 	local m
 	m=$__meridio_dir/deployments/helm
 	test -d $m || die "Not a directory [$m]"
 	helm template --generate-name $m > $__dst/meridio.yaml
-	m=$__meridio_dir/docs/demo/deployments/nsm-vlan
-	test -d $m || die "Not a directory [$m]"
-	helm template --generate-name $m > $__dst/nsm-vlan.yaml
 	m=$__meridio_dir/examples/target/helm
 	test -d $m || die "Not a directory [$m]"
 	helm template --generate-name $m > $__dst/target.yaml

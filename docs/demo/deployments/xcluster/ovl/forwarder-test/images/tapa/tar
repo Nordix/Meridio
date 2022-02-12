@@ -25,8 +25,8 @@ chmod a+x $tmp/bin/grpc_health_probe
 test -n "$MERIDIODIR" || MERIDIODIR=$GOPATH/src/github.com/Nordix/Meridio
 test -d $MERIDIODIR/cmd/load-balancer || die "Meridio src not found"
 cd $MERIDIODIR
-go build -o $tmp/bin/target ./cmd/target 1>&2 || die "go build"
-strip $tmp/bin/target
+go build -o $tmp/bin/tapa ./cmd/tapa 1>&2 || die "go build"
+strip $tmp/bin/tapa
 cd $dir
 
 cd $tmp

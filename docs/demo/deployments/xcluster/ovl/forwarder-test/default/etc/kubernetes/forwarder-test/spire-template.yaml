@@ -7,4 +7,4 @@ spec:
   selector:
     namespace: default
     serviceAccount: default
-  spiffeId: "spiffe://example.org/ns/$NAME/sa/default"
+  spiffeId: "spiffe://example.org/ns/$NS/sa/default"

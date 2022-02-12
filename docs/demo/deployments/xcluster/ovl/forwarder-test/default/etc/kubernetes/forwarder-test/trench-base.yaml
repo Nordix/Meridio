@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: meridio-ipam
+  name: meridio-ipam-$NAME
 spec:
   selector:
     app: meridio-ipam
@@ -16,7 +16,7 @@ metadata:
   labels:
     app: meridio-ipam
 spec:
-  replicas: 2
+  replicas: 1
   serviceName: meridio-ipam
   selector:
     matchLabels:
@@ -74,6 +74,26 @@ spec:
               value: "7777"
             - name: IPAM_DATASOURCE
               value: /run/ipam/data/registry.db
+            - name: IPAM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: IPAM_TRENCH_NAME
+              value: $NAME
+            - name: IPAM_NSP_SERVICE
+              value: meridio-nsp-$NAME:7778
+            - name: IPAM_PREFIX_IPV4
+              value: "$POD_CIDR/16"
+            - name: IPAM_PREFIX_IPV6
+              value: "fd00::$POD_CIDR/112"
+            - name: IPAM_CONDUIT_PREFIX_LENGTH_IPV4
+              value: "20"
+            - name: IPAM_CONDUIT_PREFIX_LENGTH_IPV6
+              value: "116"
+            - name: IPAM_NODE_PREFIX_LENGTH_IPV4
+              value: "24"
+            - name: IPAM_NODE_PREFIX_LENGTH_IPV6
+              value: "120"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

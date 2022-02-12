@@ -21,7 +21,7 @@ spec:
           command: ["/bin/sh"]
           args:
             - -c
-            - sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1
+            - sysctl -w net.ipv4.conf.all.forwarding=1 ;sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1
       containers:
         - name: proxy
           image: registry.nordix.org/cloud-native/meridio/proxy:latest
@@ -77,22 +77,26 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: NSM_CONFIG_MAP_NAME
-              value: meridio-configuration-$NAME
             - name: NSM_CONNECT_TO
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
             - name: NSM_SERVICE_NAME
-              value: proxy.load-balancer.$NAME.$NAME
-            - name: NSM_SUBNET_POOLS
-              value: 172.16.0.0/16,fd00::172.16.0.0/112
-            - name: NSM_SUBNET_PREFIX_LENGTHS
-              value: "24,120"
+              value: proxy.$CONDUIT1.$NAME.$NS
             - name: NSM_IPAM_SERVICE
               value: meridio-ipam-$NAME:7777
             - name: NSM_NETWORK_SERVICE_NAME
-              value: load-balancer.$NAME.$NAME
+              value: $CONDUIT1.$NAME.$NS
+            - name: NSM_TRENCH
+              value: $NAME
+            - name: NSM_CONDUIT
+              value: $CONDUIT1
+            - name: NSM_NSP_SERVICE_NAME
+              value: meridio-nsp
+            - name: NSM_NSP_SERVICE_PORT
+              value: "7778"
             - name: NSM_MAX_TOKEN_LIFETIME
               value: 10m
+            - name: NSM_LOG_LEVEL
+              value: "DEBUG"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

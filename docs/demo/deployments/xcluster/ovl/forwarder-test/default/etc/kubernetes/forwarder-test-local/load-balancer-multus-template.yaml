@@ -42,9 +42,9 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: NSM_SERVICE_NAME
-              value: load-balancer.$NAME.$NAME
+              value: $CONDUIT1.$NAME.$NS
             - name: NSM_CONDUIT_NAME
-              value: load-balancer
+              value: $CONDUIT1
             - name: NSM_TRENCH_NAME
               value: $NAME
             - name: NSM_NSP_SERVICE
