@@ -35,18 +35,6 @@ const (
 	BGP Protocol = "bgp"
 )
 
-// IsValid returns true if the receiver is a valid ipFamily type
-func (p Protocol) IsValid() bool {
-	switch p {
-	case BGP, Static:
-		return true
-	default:
-		return false
-	}
-}
-
-// +kubebuilder:validation:Enum=ipv4;ipv6;dualstack
-
 // IPFamily describes the traffic type in the trench
 // Only one of the following ip family can be specified.
 // If the traffic is IPv4 only, use IPv4, similarly,
@@ -60,16 +48,7 @@ const (
 	Dualstack IPFamily = "dualstack"
 )
 
-// IsValid returns true if the receiver is a valid ipFamily type
-func (f IPFamily) IsValid() bool {
-	switch f {
-	case IPv4, IPv6, Dualstack:
-		return true
-	default:
-		return false
-	}
-}
-
+// +kubebuilder:validation:Enum=tcp;udp
 type TransportProtocol string
 
 const (
@@ -77,14 +56,12 @@ const (
 	UDP TransportProtocol = "udp"
 )
 
-// IsValid returns true if the receiver is a valid TransportProtocol type
-func (p TransportProtocol) IsValid() bool {
-	switch p {
-	case TCP, UDP:
-		return true
-	default:
-		return false
+func TransportProtocolsToStrings(proto []TransportProtocol) []string {
+	var ret []string
+	for _, p := range proto {
+		ret = append(ret, string(p))
 	}
+	return ret
 }
 
 type NetworkServiceType string
@@ -92,16 +69,6 @@ type NetworkServiceType string
 const (
 	StatelessLB = "stateless-lb"
 )
-
-// IsValid returns true if the receiver is a valid network service type
-func (t NetworkServiceType) IsValid() bool {
-	switch t {
-	case StatelessLB:
-		return true
-	default:
-		return false
-	}
-}
 
 func validatePrefix(p string) (*net.IPNet, error) {
 	ip, n, err := net.ParseCIDR(p)
@@ -119,15 +86,6 @@ type InterfaceType string
 const (
 	NSMVlan = "nsm-vlan"
 )
-
-func (i InterfaceType) IsValid() bool {
-	switch i {
-	case NSMVlan:
-		return true
-	default:
-		return false
-	}
-}
 
 func subnetsOverlap(a, b *net.IPNet) bool {
 	return subnetContainsSubnet(a, b) || subnetContainsSubnet(b, a)

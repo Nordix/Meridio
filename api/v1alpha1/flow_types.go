@@ -53,7 +53,7 @@ type FlowSpec struct {
 
 	// Protocols allowed in this flow.
 	// The protocols should not have overlaps.
-	Protocols []string `json:"protocols"`
+	Protocols []TransportProtocol `json:"protocols"`
 
 	// Priority of the flow
 	Priority int32 `json:"priority"`

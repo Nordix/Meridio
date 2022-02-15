@@ -86,23 +86,8 @@ rules:
   verbs:
   - get
   - list
-  - patch
   - update
   - watch
-- apiGroups:
-  - meridio.nordix.org
-  resources:
-  - attractors/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - meridio.nordix.org
-  resources:
-  - attractors/status
-  verbs:
-  - get
-  - patch
-  - update
 - apiGroups:
   - meridio.nordix.org
   resources:
@@ -110,23 +95,8 @@ rules:
   verbs:
   - get
   - list
-  - patch
   - update
   - watch
-- apiGroups:
-  - meridio.nordix.org
-  resources:
-  - conduits/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - meridio.nordix.org
-  resources:
-  - conduits/status
-  verbs:
-  - get
-  - patch
-  - update
 - apiGroups:
   - meridio.nordix.org
   resources:
@@ -134,23 +104,8 @@ rules:
   verbs:
   - get
   - list
-  - patch
   - update
   - watch
-- apiGroups:
-  - meridio.nordix.org
-  resources:
-  - flows/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - meridio.nordix.org
-  resources:
-  - flows/status
-  verbs:
-  - get
-  - patch
-  - update
 - apiGroups:
   - meridio.nordix.org
   resources:
@@ -158,23 +113,8 @@ rules:
   verbs:
   - get
   - list
-  - patch
   - update
   - watch
-- apiGroups:
-  - meridio.nordix.org
-  resources:
-  - gateways/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - meridio.nordix.org
-  resources:
-  - gateways/status
-  verbs:
-  - get
-  - patch
-  - update
 - apiGroups:
   - meridio.nordix.org
   resources:
@@ -182,23 +122,8 @@ rules:
   verbs:
   - get
   - list
-  - patch
   - update
   - watch
-- apiGroups:
-  - meridio.nordix.org
-  resources:
-  - streams/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - meridio.nordix.org
-  resources:
-  - streams/status
-  verbs:
-  - get
-  - patch
-  - update
 - apiGroups:
   - meridio.nordix.org
   resources:
@@ -206,23 +131,8 @@ rules:
   verbs:
   - get
   - list
-  - patch
   - update
   - watch
-- apiGroups:
-  - meridio.nordix.org
-  resources:
-  - trenches/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - meridio.nordix.org
-  resources:
-  - trenches/status
-  verbs:
-  - get
-  - patch
-  - update
 - apiGroups:
   - meridio.nordix.org
   resources:
@@ -230,23 +140,8 @@ rules:
   verbs:
   - get
   - list
-  - patch
   - update
   - watch
-- apiGroups:
-  - meridio.nordix.org
-  resources:
-  - vips/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - meridio.nordix.org
-  resources:
-  - vips/status
-  verbs:
-  - get
-  - patch
-  - update
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:

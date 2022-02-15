@@ -100,13 +100,15 @@ spec:
                         type: integer
                     type: object
                   type:
-                    description: 'interface choice. Supported choice: "nsm-vlan"'
+                    default: nsm-vlan
+                    description: interface choice.
+                    enum:
+                    - nsm-vlan
                     type: string
                 required:
                 - ipv4-prefix
                 - ipv6-prefix
                 - name
-                - type
                 type: object
               replicas:
                 default: 1

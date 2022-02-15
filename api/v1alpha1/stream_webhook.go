@@ -40,15 +40,6 @@ func (r *Stream) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/mutate-meridio-nordix-org-v1alpha1-stream,mutating=true,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=streams,verbs=create;update,versions=v1alpha1,name=mstream.kb.io,admissionReviewVersions=v1
-
-var _ webhook.Defaulter = &Stream{}
-
-// Default implements webhook.Defaulter so a webhook will be registered for the type
-func (r *Stream) Default() {
-	streamlog.Info("default", "name", r.Name)
-}
-
 //+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1alpha1-stream,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=streams,verbs=create;update,versions=v1alpha1,name=vstream.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &Stream{}

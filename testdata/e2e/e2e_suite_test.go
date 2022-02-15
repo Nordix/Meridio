@@ -57,7 +57,6 @@ type Operator struct {
 	Service                   *corev1.Service        // meridio-operator-webhook-service
 	// certificate.cert-manager.io/meridio-operator-serving-cert
 	// issuer.cert-manager.io/meridio-operator-selfsigned-issuer
-	// mutatingwebhookconfiguration.admissionregistration.k8s.io/meridio-operator-mutating-webhook-configuration
 	// validatingwebhookconfiguration.admissionregistration.k8s.io/meridio-operator-validating-webhook-configuration
 }
 
@@ -77,7 +76,7 @@ func trench(namespace string) *meridiov1alpha1.Trench {
 			Namespace: namespace,
 		},
 		Spec: meridiov1alpha1.TrenchSpec{
-			IPFamily: "DualStack",
+			IPFamily: "dualstack",
 		},
 	}
 }
@@ -100,7 +99,6 @@ func attractor(namespace string) *meridiov1alpha1.Attractor {
 				Name:       "eth.100",
 				PrefixIPv4: "169.254.100.0/24",
 				PrefixIPv6: "100:100::/64",
-				Type:       meridiov1alpha1.NSMVlan,
 				NSMVlan: meridiov1alpha1.NSMVlanSpec{
 					VlanID:        pointer.Int32(100),
 					BaseInterface: "eth0",
@@ -118,6 +116,9 @@ func conduit(namespace string) *meridiov1alpha1.Conduit {
 			Labels: map[string]string{
 				"trench": trenchName,
 			},
+		},
+		Spec: meridiov1alpha1.ConduitSpec{
+			Type: "stateless-lb",
 		},
 	}
 }
@@ -168,12 +169,7 @@ func NewFramework() *Framework {
 
 func (fw *Framework) tryCreateTrench() {
 	// test webhook connectivity by creating a trench
-	trench := &meridiov1alpha1.Trench{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      trenchName,
-			Namespace: namespace,
-		},
-	}
+	trench := trench(namespace)
 
 	Eventually(func(g Gomega) {
 		fw.CleanUpTrenches()
@@ -373,19 +369,19 @@ func AssertAttractorReady(attractor *meridiov1alpha1.Attractor) {
 		g.Expect(assertDeploymentReady(strings.Join([]string{"nse-vlan", attractor.ObjectMeta.Name}, "-"), ns)).Should(Succeed())
 	}, timeout, interval).Should(Succeed())
 
-	By("checking lb-fe deployment")
-	Eventually(func(g Gomega) {
-		g.Expect(assertDeploymentReady(strings.Join([]string{"lb-fe", attractor.ObjectMeta.Name}, "-"), ns)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
+	// By("checking lb-fe deployment")
+	// Eventually(func(g Gomega) {
+	// 	g.Expect(assertDeploymentReady(strings.Join([]string{"lb-fe", attractor.ObjectMeta.Name}, "-"), ns)).Should(Succeed())
+	// }, timeout, interval).Should(Succeed())
 }
 
 func AssertConduitReady(conduit *meridiov1alpha1.Conduit) {
-	ns := conduit.ObjectMeta.Namespace
+	// ns := conduit.ObjectMeta.Namespace
 
-	By("checking proxy deployment")
-	Eventually(func(g Gomega) {
-		g.Expect(assertDaemonsetReady(strings.Join([]string{"proxy", trenchName}, "-"), ns)).Should(Succeed())
-	}, timeout, interval).Should(Succeed())
+	// By("checking proxy deployment")
+	// Eventually(func(g Gomega) {
+	// 	g.Expect(assertDaemonsetReady(strings.Join([]string{"proxy", trenchName}, "-"), ns)).Should(Succeed())
+	// }, timeout, interval).Should(Succeed())
 }
 
 func AssertMeridioDeploymentsReady(trench *meridiov1alpha1.Trench,

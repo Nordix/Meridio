@@ -46,8 +46,14 @@ spec:
                 default: dualstack
                 description: 'Defines the IP family of the trench. It should be set
                   according to what type of traffic is expected in the trench. Valid
-                  values: - dualstack (default) - ipv4 - ipv6'
+                  values: dualstack (default), ipv4, ipv6'
+                enum:
+                - dualstack
+                - ipv4
+                - ipv6
                 type: string
+            required:
+            - ip-family
             type: object
           status:
             description: TrenchStatus defines the observed state of Trench

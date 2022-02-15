@@ -17,7 +17,6 @@ spec:
     name: eth0.100
     ipv4-prefix: 169.254.100.0/24
     ipv6-prefix: 100:100::/64
-    type: nsm-vlan
     nsm-vlan:
       vlan-id: 100
       base-interface: eth0

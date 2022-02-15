@@ -42,21 +42,6 @@ func (r *Conduit) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/mutate-meridio-nordix-org-v1alpha1-conduit,mutating=true,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=conduits,verbs=create;update,versions=v1alpha1,name=mconduit.kb.io,admissionReviewVersions=v1
-
-var _ webhook.Defaulter = &Conduit{}
-
-// Default implements webhook.Defaulter so a webhook will be registered for the type
-func (r *Conduit) Default() {
-	conduitlog.Info("default", "name", r.Name)
-
-	if r.Spec.Type == "" {
-		r.Spec.Type = string(StatelessLB)
-	} else {
-		r.Spec.Type = strings.ToLower(r.Spec.Type)
-	}
-}
-
 //+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1alpha1-conduit,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=conduits,verbs=create;update,versions=v1alpha1,name=vconduit.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &Conduit{}
@@ -131,11 +116,9 @@ func (r *Conduit) validateConduit() error {
 		err := fmt.Errorf("%s must have a trench label", r.GroupVersionKind().Kind)
 		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("labels"), r.ObjectMeta.Labels, err.Error()))
 	}
-	if !NetworkServiceType(r.Spec.Type).IsValid() {
-		err := fmt.Errorf("invalid value")
-		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("spec").Child("lb-network-service"), r.Spec.Type, err.Error()))
+	if r.Spec.Type == "" {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("spec").Child("type"), r.Spec.Type, "cannot be empty"))
 	}
-
 	if len(allErrs) == 0 {
 		return nil
 	}

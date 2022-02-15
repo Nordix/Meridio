@@ -43,8 +43,6 @@ func (r *Gateway) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/mutate-meridio-nordix-org-v1alpha1-gateway,mutating=true,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=gateways,verbs=create;update,versions=v1alpha1,name=mgateway.kb.io,admissionReviewVersions=v1
-
 var _ webhook.Defaulter = &Gateway{}
 
 // Default implements webhook.Defaulter so a webhook will be registered for the type
@@ -177,23 +175,28 @@ func (r *Gateway) validateSpec() field.ErrorList {
 
 	proto := Protocol(r.Spec.Protocol)
 
-	if !proto.IsValid() {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("protocol"), r.Spec.Protocol, "supported protocols: bgp/static"))
-	}
 	ip := net.ParseIP(r.Spec.Address)
 	if ip == nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("address"), r.Spec.Address, "invalid IP format"))
 	}
+	bfdEmty := BfdSpec{}
 	// if protocol is BGP
 	switch proto {
 	case BGP:
-		// remote-asn cannot be nil
 		if r.Spec.Bgp.RemoteASN == nil {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("bgp").Child("remote-asn"), r.Spec.Bgp.RemoteASN, "mandatory parameter is missing"))
 		}
-		// local-asn cannot be nil
 		if r.Spec.Bgp.LocalASN == nil {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("bgp").Child("local-asn"), r.Spec.Bgp.LocalASN, "mandatory parameter is missing"))
+		}
+		if r.Spec.Bgp.RemotePort == nil {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("bgp").Child("remote-port"), r.Spec.Bgp.RemotePort, "mandatory parameter is missing"))
+		}
+		if r.Spec.Bgp.LocalPort == nil {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("bgp").Child("local-port"), r.Spec.Bgp.LocalPort, "mandatory parameter is missing"))
+		}
+		if r.Spec.Bgp.BFD != bfdEmty {
+			allErrs = append(allErrs, bfdValidation("bgp", r.Spec.Bgp.BFD)...)
 		}
 		// hold-time must be no less than 3 seconds
 		if err := timeInBound(r.Spec.Bgp.HoldTime, 3*time.Second); err != nil {
@@ -203,16 +206,14 @@ func (r *Gateway) validateSpec() field.ErrorList {
 		if r.Spec.Static != emp {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("static"), r.Spec.Static, "must be empty when protocol is bgp"))
 		}
+	// if protocol is static
 	case Static:
 		emp := BgpSpec{}
 		if r.Spec.Bgp != emp {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("bgp"), r.Spec.Bgp, "must be empty when protocol is static"))
 		}
-		if err := timeInBound(r.Spec.Static.BFD.MinRx, 0*time.Second); err != nil {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("static").Child("bfd").Child("min-rx"), r.Spec.Static.BFD.MinRx, err.Error()))
-		}
-		if err := timeInBound(r.Spec.Static.BFD.MinTx, 0*time.Second); err != nil {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("static").Child("bfd").Child("min-tx"), r.Spec.Static.BFD.MinTx, err.Error()))
+		if r.Spec.Static.BFD != bfdEmty {
+			allErrs = append(allErrs, bfdValidation("static", r.Spec.Static.BFD)...)
 		}
 	}
 	if len(allErrs) == 0 {
@@ -221,11 +222,39 @@ func (r *Gateway) validateSpec() field.ErrorList {
 	return allErrs
 }
 
+func bfdValidation(proto string, bfd BfdSpec) field.ErrorList {
+	var allErrs field.ErrorList
+	if bfd.Switch == nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child(proto).Child("bfd").Child("switch"), nil, "switch must be specified"))
+		return allErrs
+	}
+	if !*bfd.Switch {
+		return allErrs
+	}
+	if bfd.MinRx == "" {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child(proto).Child("bfd").Child("min-rx"), bfd.MinRx, "min-rx must be specified"))
+	}
+	if bfd.MinTx == "" {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child(proto).Child("bfd").Child("min-tx"), bfd.MinTx, "min-tx must be specified"))
+	}
+	if bfd.Multiplier == nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child(proto).Child("bfd").Child("multiplier"), bfd.Multiplier, "multiplier must be specified"))
+	}
+
+	if err := timeInBound(bfd.MinRx, 0*time.Second); err != nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child(proto).Child("bfd").Child("min-rx"), bfd.MinRx, err.Error()))
+	}
+	if err := timeInBound(bfd.MinTx, 0*time.Second); err != nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child(proto).Child("bfd").Child("min-tx"), bfd.MinTx, err.Error()))
+	}
+	return allErrs
+}
+
 // validate if the timer is above the lower bound
 func timeInBound(t string, bound time.Duration) error {
 	d, err := time.ParseDuration(t)
 	if err != nil {
-		return fmt.Errorf("invalid time duration format, must be a decimal number with time unit s/m/h")
+		return fmt.Errorf("invalid time duration format, must be a decimal number with time unit ms/s/m/h")
 	} else {
 		rounded := int64(d.Milliseconds())
 		if rounded < bound.Milliseconds() {

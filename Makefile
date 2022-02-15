@@ -139,11 +139,14 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 namespace: ## Edit the namespace of operator to be deployed
 	cd config/default && $(KUSTOMIZE) edit set namespace ${NAMESPACE}
 
-deploy: manifests kustomize namespace## Deploy controller to the K8s cluster specified in ~/.kube/config.
+configure-webhook:
+	ENABLE_MUTATING_WEBHOOK=$(ENABLE_MUTATING_WEBHOOK) hack/webhook-switch.sh
+
+deploy: manifests kustomize namespace configure-webhook ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | kubectl apply -f -
 
-undeploy: namespace ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+undeploy: namespace  configure-webhook ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f - --ignore-not-found=true
 
 apply-samples: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
@@ -155,7 +158,7 @@ apply-samples: ## Undeploy controller from the K8s cluster specified in ~/.kube/
 	kubectl apply -f config/samples/meridio_v1alpha1_stream.yaml -n ${NAMESPACE}
 	kubectl apply -f config/samples/meridio_v1alpha1_flow.yaml -n ${NAMESPACE}
 
-print-manifests: manifests kustomize namespace ## Generate manifests to be deployed in the cluster
+print-manifests: manifests kustomize namespace  configure-webhook ## Generate manifests to be deployed in the cluster
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default
 

@@ -369,7 +369,7 @@ func (in *FlowSpec) DeepCopyInto(out *FlowSpec) {
 	}
 	if in.Protocols != nil {
 		in, out := &in.Protocols, &out.Protocols
-		*out = make([]string, len(*in))
+		*out = make([]TransportProtocol, len(*in))
 		copy(*out, *in)
 	}
 }

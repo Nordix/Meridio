@@ -39,9 +39,7 @@ type AttractorReconciler struct {
 	Log    logr.Logger
 }
 
-//+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=attractors,verbs=get;list;watch;update;patch
-//+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=attractors/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=attractors/finalizers,verbs=update
+//+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=attractors,verbs=get;list;watch;update
 //+kubebuilder:rbac:groups=apps,resources=deployments,namespace=system,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to

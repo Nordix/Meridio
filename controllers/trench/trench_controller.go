@@ -43,9 +43,7 @@ type TrenchReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=trenches,verbs=get;list;watch;update;patch
-//+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=trenches/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=trenches/finalizers,verbs=update
+//+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=trenches,verbs=get;list;watch;update
 //+kubebuilder:rbac:groups=apps,resources=deployments,namespace=system,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=apps,resources=statefulsets,namespace=system,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=apps,resources=daemonsets,namespace=system,verbs=get;list;watch;create;update;patch;delete

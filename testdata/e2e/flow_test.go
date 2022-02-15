@@ -28,7 +28,7 @@ var _ = Describe("Flow", func() {
 		},
 		Spec: meridiov1alpha1.FlowSpec{
 			Stream:           "stream-a",
-			Protocols:        []string{"tcp"},
+			Protocols:        []meridiov1alpha1.TransportProtocol{meridiov1alpha1.TCP, meridiov1alpha1.UDP},
 			SourceSubnets:    []string{"10.0.0.0/28"},
 			SourcePorts:      []string{"3000"},
 			DestinationPorts: []string{"2000"},
@@ -42,7 +42,7 @@ var _ = Describe("Flow", func() {
 		SourceSubnets:         flowA.Spec.SourceSubnets,
 		SourcePortRanges:      flowA.Spec.SourcePorts,
 		DestinationPortRanges: flowA.Spec.DestinationPorts,
-		Protocols:             flowA.Spec.Protocols,
+		Protocols:             meridiov1alpha1.TransportProtocolsToStrings(flowA.Spec.Protocols),
 		Vips:                  flowA.Spec.Vips,
 		Stream:                flowA.Spec.Stream,
 		Priority:              1,
@@ -103,7 +103,7 @@ var _ = Describe("Flow", func() {
 					},
 					Spec: meridiov1alpha1.FlowSpec{
 						Stream:           "stream-b",
-						Protocols:        []string{"tcp"},
+						Protocols:        []meridiov1alpha1.TransportProtocol{meridiov1alpha1.TCP},
 						SourceSubnets:    []string{"10.0.0.0/28"},
 						SourcePorts:      []string{"any"},
 						DestinationPorts: []string{"2000"},
@@ -124,7 +124,7 @@ var _ = Describe("Flow", func() {
 				newFlowInCm := reader.Flow{
 					Stream:                flowB.Spec.Stream,
 					Name:                  flowB.ObjectMeta.Name,
-					Protocols:             flowB.Spec.Protocols,
+					Protocols:             []string{"tcp"},
 					SourcePortRanges:      []string{"0-65535"},
 					SourceSubnets:         flowB.Spec.SourceSubnets,
 					DestinationPortRanges: flowB.Spec.DestinationPorts,
@@ -150,7 +150,7 @@ var _ = Describe("Flow", func() {
 				s.Spec.DestinationPorts = []string{"40000"}
 				s.Spec.SourcePorts = []string{"50000"}
 				s.Spec.SourceSubnets = []string{"1000::/128"}
-				s.Spec.Protocols = []string{"udp"}
+				s.Spec.Protocols = []meridiov1alpha1.TransportProtocol{meridiov1alpha1.UDP}
 				s.Spec.Priority = flowA.Spec.Priority
 				g.Expect(fw.UpdateResource(s)).To(Succeed())
 			}).Should(Succeed())
@@ -161,7 +161,7 @@ var _ = Describe("Flow", func() {
 				SourceSubnets:         s.Spec.SourceSubnets,
 				SourcePortRanges:      s.Spec.SourcePorts,
 				DestinationPortRanges: s.Spec.DestinationPorts,
-				Protocols:             s.Spec.Protocols,
+				Protocols:             []string{"udp"},
 				Vips:                  s.Spec.Vips,
 				Priority:              s.Spec.Priority,
 				Stream:                s.Spec.Stream,
@@ -193,7 +193,7 @@ var _ = Describe("Flow", func() {
 				SourceSubnets:         f.Spec.SourceSubnets,
 				SourcePortRanges:      f.Spec.SourcePorts,
 				DestinationPortRanges: f.Spec.DestinationPorts,
-				Protocols:             f.Spec.Protocols,
+				Protocols:             []string{"tcp", "udp"},
 				Vips:                  f.Spec.Vips,
 				Priority:              f.Spec.Priority,
 				Stream:                f.Spec.Stream,
