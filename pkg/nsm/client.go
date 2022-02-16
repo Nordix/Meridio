@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/edwarnicke/grpcfd"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
@@ -34,6 +35,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
+
+type NetworkServiceClient interface {
+	networkservice.NetworkServiceClient
+}
 
 // APIClient -
 type APIClient struct {

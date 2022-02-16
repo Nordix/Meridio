@@ -4,27 +4,17 @@ Ambassador client testing application
 
 ## Default trench (namespace of the target)
 
-Connect to a conduit
+Open a stream
 ```
-./target-client connect -ns load-balancer -t trench-a
-```
-
-Disconnect from a conduit
-```
-./target-client disconnect -ns load-balancer -t trench-a
-```
-
-Request a stream
-```
-./target-client request -ns load-balancer -t trench-a -s stream-a
+./target-client open -t trench-a -c load-balancer -s stream-a
 ```
 
 Close a stream
 ```
-./target-client close -ns load-balancer -t trench-a -s stream-a
+./target-client close -t trench-a -c load-balancer -s stream-a
 ```
 
-Watch conduit connection/disconnect events and stream request/close events
+Watch stream events (on each event the full list is sent with the status of each stream)
 ```
 ./target-client watch
 ```

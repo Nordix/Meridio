@@ -1,7 +1,7 @@
 VERSION ?= latest
 VERSION_LOAD_BALANCER ?= $(VERSION)
 VERSION_PROXY ?= $(VERSION)
-VERSION_TARGET ?= $(VERSION)
+VERSION_TAPA ?= $(VERSION)
 VERSION_IPAM ?= $(VERSION)
 VERSION_NSP ?= $(VERSION)
 VERSION_CTRAFFIC ?= $(VERSION)
@@ -33,9 +33,9 @@ load-balancer:
 proxy:
 	VERSION=$(VERSION_PROXY) IMAGE=proxy $(MAKE) build tag push
 
-.PHONY: target
-target:
-	VERSION=$(VERSION_TARGET) IMAGE=target $(MAKE) build tag push
+.PHONY: tapa
+tapa:
+	VERSION=$(VERSION_TAPA) IMAGE=tapa $(MAKE) build tag push
 
 .PHONY: ipam
 ipam:
@@ -61,18 +61,18 @@ ipam-proto:
 nsp-proto:
 	protoc --go_out=plugins=grpc:. --go_opt=paths=source_relative api/nsp/**/*.proto 
 
-.PHONY: target-proto
-target-proto:
-	protoc --go_out=plugins=grpc:. --go_opt=paths=source_relative api/target/**/*.proto
+.PHONY: ambassador-proto
+ambassador-proto:
+	protoc --go_out=plugins=grpc:. --go_opt=paths=source_relative api/ambassador/**/*.proto
 
 .PHONY: proto
-proto: ipam-proto nsp-proto target-proto
+proto: ipam-proto nsp-proto ambassador-proto
 
 .PHONY: clear
 clear:
 
 .PHONY: default
-default: load-balancer proxy target ipam nsp ctraffic frontend
+default: load-balancer proxy tapa ipam nsp ctraffic frontend
 
 .PHONY: lint
 lint: 
@@ -88,5 +88,22 @@ e2e:
 test: 
 	go test -race -cover -short ./... 
 
+.PHONY: cover
+cover: 
+	go test -race -coverprofile cover.out -short ./... 
+	go tool cover -html=cover.out -o cover.html
+
 .PHONY: check
 check: lint test
+
+.PHONY: mocks
+mocks:
+	mockgen -source=./pkg/ambassador/tap/types/stream.go -destination=./pkg/ambassador/tap/types/mocks/stream.go -package=mocks
+	mockgen -source=./pkg/ambassador/tap/types/conduit.go -destination=./pkg/ambassador/tap/types/mocks/conduit.go -package=mocks
+	mockgen -source=./pkg/ambassador/tap/types/trench.go -destination=./pkg/ambassador/tap/types/mocks/trench.go -package=mocks
+	mockgen -source=./pkg/ambassador/tap/types/registry.go -destination=./pkg/ambassador/tap/types/mocks/registry.go -package=mocks
+	mockgen -source=./pkg/ambassador/tap/trench/factory.go -destination=./pkg/ambassador/tap/trench/mocks/factory.go -package=mocks
+	mockgen -source=./pkg/ambassador/tap/conduit/configuration.go -destination=./pkg/ambassador/tap/conduit/mocks/configuration.go -package=mocks
+	mockgen -source=./pkg/ambassador/tap/conduit/types.go -destination=./pkg/ambassador/tap/conduit/mocks/types.go -package=mocks
+	mockgen -source=./pkg/ambassador/tap/stream/types.go -destination=./pkg/ambassador/tap/stream/mocks/types.go -package=mocks
+	mockgen -source=./pkg/nsm/client.go -destination=./pkg/nsm/mocks/client.go -package=mocks

@@ -21,8 +21,7 @@ spec:
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ctraffic.image }}:{{ .Values.ctraffic.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           args:
-            - ./target-client connect -ns {{ .Values.default.conduit.name }} -t {{ .Values.default.trench.name }} ;
-              ./target-client open -ns {{ .Values.default.conduit.name }} -t {{ .Values.default.trench.name }} -s {{ .Values.default.stream.name }} ;
+            - ./target-client open -t {{ .Values.default.trench.name }} -c {{ .Values.default.conduit.name }} -s {{ .Values.default.stream.name }} ;
               screen -d -m bash -c "./ctraffic -server -address [::]:5000" ; 
               screen -d -m bash -c "./ctraffic -server -address [::]:5001" ; 
               screen -d -m bash -c "./ctraffic -server -address [::]:5002" ; 
@@ -41,8 +40,8 @@ spec:
             - name: meridio-socket
               mountPath: /var/lib/meridio
               readOnly: true
-        - name: target
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.target.image }}:{{ .Values.target.version }}
+        - name: tapa
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.tapa.image }}:{{ .Values.tapa.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           startupProbe:
 {{ toYaml .Values.startupProbe | indent 12 }}
@@ -53,27 +52,25 @@ spec:
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
-            - name: NSM_NAME
+            - name: MERIDIO_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: NSM_HOST
+            - name: MERIDIO_NODE
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: NSM_NAMESPACE
+            - name: MERIDIO_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: NSM_CONFIG_MAP_NAME
-              value: {{ .Values.configMapName }}
-            - name: NSM_CONNECT_TO
+            - name: MERIDIO_NSM_SOCKET
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
-            - name: NSM_NSP_SERVICE_NAME
+            - name: MERIDIO_NSP_SERVICE_NAME
               value: {{ .Values.nsp.serviceName }}
-            - name: NSM_NSP_SERVICE_PORT
+            - name: MERIDIO_NSP_SERVICE_PORT
               value: "{{ .Values.nsp.targetPort }}"
-            - name: NSM_SOCKET
+            - name: MERIDIO_SOCKET
               value: "{{ .Values.default.ambassadorSock }}"
             - name: NSM_MAX_TOKEN_LIFETIME
               value: {{ .Values.default.maxTokenLifetime }}

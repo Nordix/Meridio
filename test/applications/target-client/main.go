@@ -25,45 +25,32 @@ import (
 	"os/signal"
 	"syscall"
 
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
-	targetAPI "github.com/nordix/meridio/api/target/v1"
+	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	"google.golang.org/grpc"
 )
 
 const (
 	usage = `usage: 
-  connect [arguments]
-      Connect to a specific network service (conduit)
-  disconnect [arguments]
-      Disconnect from a specific network service (conduit)
   open [arguments]
       open a stream
   close [arguments]
       Close a stream
   watch 
-      Watch conduit connection/disconnect events and stream open/close events
+      Watch stream changes
 `
 )
 
 func main() {
-	connectCommand := flag.NewFlagSet("connect", flag.ExitOnError)
-	disconnectCommand := flag.NewFlagSet("disconnect", flag.ExitOnError)
-	openCommand := flag.NewFlagSet("oper", flag.ExitOnError)
+	openCommand := flag.NewFlagSet("open", flag.ExitOnError)
 	closeCommand := flag.NewFlagSet("close", flag.ExitOnError)
 	watchCommand := flag.NewFlagSet("watch", flag.ExitOnError)
 
-	networkServiceConnect := connectCommand.String("ns", "load-balancer", "Network Service to connect conduit")
-	trenchConnect := connectCommand.String("t", "", "Trench of the network Service to connect conduit")
-
-	networkServiceDisconnect := disconnectCommand.String("ns", "load-balancer", "Network Service to disconnect conduit")
-	trenchDisconnect := disconnectCommand.String("t", "", "Trench of the network Service to disconnect conduit")
-
 	streamOpen := openCommand.String("s", "", "Name of the stream to open")
-	networkServiceOpen := openCommand.String("ns", "", "Network Service of the stream to open")
+	networkServiceOpen := openCommand.String("c", "", "Network Service of the stream to open")
 	trenchOpen := openCommand.String("t", "", "Trench of the network Service of the stream to open")
 
 	streamClose := closeCommand.String("s", "", "Name of the stream to close")
-	networkServiceClose := closeCommand.String("ns", "load-balancer", "Network Service of the stream to close")
+	networkServiceClose := closeCommand.String("c", "load-balancer", "Network Service of the stream to close")
 	trenchClose := closeCommand.String("t", "", "Trench of the network Service of the stream to close")
 
 	flag.Usage = func() {
@@ -79,26 +66,6 @@ func main() {
 
 	switch os.Args[1] {
 	case "connect":
-		err := connectCommand.Parse(os.Args[2:])
-		if err != nil {
-			fmt.Printf("Error connect Parse: %v\n", err.Error())
-			os.Exit(1)
-		}
-		err = connect(*networkServiceConnect, *trenchConnect)
-		if err != nil {
-			fmt.Printf("Error connect: %v\n", err.Error())
-			os.Exit(1)
-		}
-	case "disconnect":
-		err := disconnectCommand.Parse(os.Args[2:])
-		if err != nil {
-			fmt.Printf("Error disconnect Parse: %v\n", err.Error())
-			os.Exit(1)
-		}
-		err = disconnect(*networkServiceDisconnect, *trenchDisconnect)
-		if err != nil {
-			fmt.Printf("Error disconnect: %v\n", err.Error())
-		}
 	case "open":
 		err := openCommand.Parse(os.Args[2:])
 		if err != nil {
@@ -133,35 +100,6 @@ func main() {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
-
-}
-
-func connect(networkService string, trench string) error {
-	client, err := getClient()
-	if err != nil {
-		return err
-	}
-	_, err = client.Connect(context.Background(), &nspAPI.Conduit{
-		Name: networkService,
-		Trench: &nspAPI.Trench{
-			Name: trench,
-		},
-	})
-	return err
-}
-
-func disconnect(networkService string, trench string) error {
-	client, err := getClient()
-	if err != nil {
-		return err
-	}
-	_, err = client.Disconnect(context.Background(), &nspAPI.Conduit{
-		Name: networkService,
-		Trench: &nspAPI.Trench{
-			Name: trench,
-		},
-	})
-	return err
 }
 
 func open(stream string, networkService string, trench string) error {
@@ -169,11 +107,11 @@ func open(stream string, networkService string, trench string) error {
 	if err != nil {
 		return err
 	}
-	_, err = client.Open(context.Background(), &nspAPI.Stream{
+	_, err = client.Open(context.Background(), &ambassadorAPI.Stream{
 		Name: stream,
-		Conduit: &nspAPI.Conduit{
+		Conduit: &ambassadorAPI.Conduit{
 			Name: networkService,
-			Trench: &nspAPI.Trench{
+			Trench: &ambassadorAPI.Trench{
 				Name: trench,
 			},
 		},
@@ -186,11 +124,11 @@ func close(stream string, networkService string, trench string) error {
 	if err != nil {
 		return err
 	}
-	_, err = client.Close(context.Background(), &nspAPI.Stream{
+	_, err = client.Close(context.Background(), &ambassadorAPI.Stream{
 		Name: stream,
-		Conduit: &nspAPI.Conduit{
+		Conduit: &ambassadorAPI.Conduit{
 			Name: networkService,
-			Trench: &nspAPI.Trench{
+			Trench: &ambassadorAPI.Trench{
 				Name: trench,
 			},
 		},
@@ -211,31 +149,11 @@ func watch() error {
 	if err != nil {
 		return err
 	}
-	conduitToWatch := &nspAPI.Conduit{}
-	watchConduitClient, err := client.WatchConduit(ctx, conduitToWatch)
+	streamToWatch := &ambassadorAPI.Stream{}
+	watchStreamClient, err := client.Watch(ctx, streamToWatch)
 	if err != nil {
 		return err
 	}
-	streamToWatch := &nspAPI.Stream{}
-	watchStreamClient, err := client.WatchStream(ctx, streamToWatch)
-	if err != nil {
-		return err
-	}
-	go func() {
-		for {
-			conduitResponse, err := watchConduitClient.Recv()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				break
-			}
-			fmt.Printf("New conduit list:\n")
-			for _, conduit := range conduitResponse.GetConduits() {
-				fmt.Printf("%v - %v\n", conduit.GetName(), conduit.GetTrench().GetName())
-			}
-		}
-	}()
 	go func() {
 		for {
 			streamResponse, err := watchStreamClient.Recv()
@@ -246,8 +164,12 @@ func watch() error {
 				break
 			}
 			fmt.Printf("New stream list:\n")
-			for _, stream := range streamResponse.GetStreams() {
-				fmt.Printf("%v - %v - %v\n", stream.GetName(), stream.GetConduit().GetName(), stream.GetConduit().GetTrench().GetName())
+			for _, stream := range streamResponse.GetStreamStatus() {
+				fmt.Printf("%v - %v - %v - %v\n",
+					stream.GetStatus(),
+					stream.GetStream().GetName(),
+					stream.GetStream().GetConduit().GetName(),
+					stream.GetStream().GetConduit().GetTrench().GetName())
 			}
 		}
 	}()
@@ -255,7 +177,7 @@ func watch() error {
 	return nil
 }
 
-func getClient() (targetAPI.AmbassadorClient, error) {
+func getClient() (ambassadorAPI.TapClient, error) {
 	conn, err := grpc.Dial(os.Getenv("MERIDIO_AMBASSADOR_SOCKET"), grpc.WithInsecure(),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
@@ -263,5 +185,5 @@ func getClient() (targetAPI.AmbassadorClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	return targetAPI.NewAmbassadorClient(conn), nil
+	return ambassadorAPI.NewTapClient(conn), nil
 }
