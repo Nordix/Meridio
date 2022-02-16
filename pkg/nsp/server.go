@@ -48,11 +48,6 @@ func (s *Server) Unregister(ctx context.Context, target *nspAPI.Target) (*empty.
 	return &empty.Empty{}, s.TargetRegistry.Remove(ctx, target)
 }
 
-func (s *Server) Update(ctx context.Context, target *nspAPI.Target) (*empty.Empty, error) {
-	logrus.Infof("Update: %v", target)
-	return &empty.Empty{}, s.TargetRegistry.Set(ctx, target)
-}
-
 func (s *Server) Watch(t *nspAPI.Target, watcher nspAPI.TargetRegistry_WatchServer) error {
 	targetWatcher, err := s.TargetRegistry.Watch(context.TODO(), t)
 	if err != nil {

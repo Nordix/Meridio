@@ -24,7 +24,6 @@ import "api/nsp/v1/model.proto";
 service TargetRegistry {
     rpc Register(Target) returns (google.protobuf.Empty) {}
     rpc Unregister(Target) returns (google.protobuf.Empty) {}
-    rpc Update(Target) returns (google.protobuf.Empty) {}
     rpc Watch(Target) returns (stream TargetResponse) {}
 }
 
