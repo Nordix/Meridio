@@ -21,11 +21,13 @@ import (
 	"io"
 	"os"
 	"sync"
+	"time"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
+	"github.com/nordix/meridio/pkg/retry"
 	"github.com/sirupsen/logrus"
 )
 
@@ -52,18 +54,26 @@ type FrontendNetworkService struct {
 
 // Start -
 func (fns *FrontendNetworkService) Start() {
-	var err error
-	fns.targetRegistryStream, err = fns.targetRegistryClient.Watch(context.Background(), &nspAPI.Target{
-		Status: nspAPI.Target_ANY,
-		Type:   nspAPI.Target_FRONTEND,
-	})
+	err := retry.Do(func() error {
+		var err error
+		fns.targetRegistryStream, err = fns.targetRegistryClient.Watch(context.Background(), &nspAPI.Target{
+			Status: nspAPI.Target_ANY,
+			Type:   nspAPI.Target_FRONTEND,
+		})
+		if err != nil {
+			logrus.Errorf("FrontendNetworkService: err MonitorType(%v): %v", nspAPI.Target_FRONTEND, err)
+			return err
+		}
+		return fns.recv()
+	}, retry.WithContext(fns.ctx),
+		retry.WithDelay(500*time.Millisecond),
+		retry.WithErrorIngnored())
 	if err != nil {
-		logrus.Errorf("FrontendNetworkService: err MonitorType(%v): %v", nspAPI.Target_FRONTEND, err)
+		logrus.Fatalf("frontendNetworkService start err: %v", err)
 	}
-	go fns.recv()
 }
 
-func (fns *FrontendNetworkService) recv() {
+func (fns *FrontendNetworkService) recv() error {
 	for {
 		targetResponse, err := fns.targetRegistryStream.Recv()
 		if err == io.EOF {
@@ -71,7 +81,7 @@ func (fns *FrontendNetworkService) recv() {
 		}
 		if err != nil {
 			logrus.Errorf("SimpleNetworkService: event err: %v", err)
-			break
+			return err
 		}
 
 		target := fns.getLocal(targetResponse.GetTargets())
@@ -113,6 +123,7 @@ func (fns *FrontendNetworkService) recv() {
 			}
 		}
 	}
+	return nil
 }
 
 func (fns *FrontendNetworkService) getLocal(targets []*nspAPI.Target) *nspAPI.Target {
