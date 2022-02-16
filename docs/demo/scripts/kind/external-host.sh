@@ -31,4 +31,6 @@ do
     docker exec -it $container_name ip addr add $ip dev $vlan_if_name
     docker exec -it $container_name ip addr add $ip6 dev $vlan_if_name
 
+    docker exec -it $container_name ethtool -K $parent_if_name tx off
+
 done
