@@ -8,12 +8,12 @@ data:
     name: $NAME
   conduits: |
     items:
-    - name: load-balancer
+    - name: $CONDUIT1
       trench: $NAME
   streams: |
     items:
-    - name: stream1
-      conduit: load-balancer
+    - name: $STREAM1
+      conduit: $CONDUIT1
   flows: |
     items:
     - name: flow1
@@ -29,7 +29,7 @@ data:
         - 5000-5003
       protocols:
         - tcp
-      stream: stream1
+      stream: $STREAM1
   vips: |
     items:
     - name: vip1

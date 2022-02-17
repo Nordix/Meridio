@@ -24,9 +24,9 @@ spec:
             - name: TRENCH
               value: $NAME
             - name: NSM_SERVICE
-              value: load-balancer
+              value: $CONDUIT1
             - name: STREAM
-              value: stream1
+              value: $STREAM1
             - name: MERIDIO_AMBASSADOR_SOCKET
               value: unix:///var/lib/meridio/ambassador.sock
             - name: NO_START
@@ -40,35 +40,62 @@ spec:
             - name: meridio-socket
               mountPath: /var/lib/meridio
               readOnly: false
-        - name: target
-          image: registry.nordix.org/cloud-native/meridio/target:latest
+        - name: tapa
+          image: registry.nordix.org/cloud-native/meridio/tapa:latest
           imagePullPolicy: IfNotPresent
+          startupProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -addr=unix:///tmp/health.sock
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            failureThreshold: 30
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            timeoutSeconds: 2
+          readinessProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -addr=unix:///var/lib/meridio/ambassador.sock
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            initialDelaySeconds: 0
+          livenessProbe:
+            exec:
+              command:
+              - /bin/grpc_health_probe
+              - -addr=unix:///tmp/health.sock
+              - -connect-timeout=100ms
+              - -rpc-timeout=150ms
+            failureThreshold: 3
+            initialDelaySeconds: 3
+            timeoutSeconds: 3
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
-            - name: NSM_NAME
+            - name: MERIDIO_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: NSM_HOST
+            - name: MERIDIO_NODE
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
-            - name: NSM_NAMESPACE
+            - name: MERIDIO_NAMESPACE
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: NSM_CONFIG_MAP_NAME
-              value: meridio-configuration
-            - name: NSM_CONNECT_TO
+            - name: MERIDIO_NSM_SOCKET
               value: unix:///var/lib/networkservicemesh/nsm.io.sock
-            - name: NSM_NSP_SERVICE_NAME
+            - name: MERIDIO_NSP_SERVICE_NAME
               value: meridio-nsp
-            - name: NSM_NSP_SERVICE_PORT
+            - name: MERIDIO_NSP_SERVICE_PORT
               value: "7778"
-            - name: NSM_SOCKET
+            - name: MERIDIO_SOCKET
               value: "/var/lib/meridio/ambassador.sock"
-            - name: NSM_MAX_TOKEN_LIFETIME
+            - name: MERIDIO_MAX_TOKEN_LIFETIME
               value: 10m
             - name: NO_START
               value: "no"
