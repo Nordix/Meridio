@@ -297,8 +297,8 @@ cmd_tcase_mconnect() {
 		*) die "Unknown trench";;
 	esac
 	# timeout retries interval
-	local begin=$(date +%s)
 	pushv 300 15 20
+	local begin=$(date +%s)
 	tex "do_mconnect $vip4:5001" || tdie "$vip4:5001"
 	tex "do_mconnect [$ipv6prefix:$vip4]:5001" || tdie "[$ipv6prefix:$vip4]:5001"
 	popv
@@ -313,6 +313,82 @@ cmd_tcase_scale() {
 	configure_trench $1
 	$kubectl scale deployment --replicas=$replicas meridio-app || tdie scale
 	test_deployment meridio-app 60
+}
+
+cmd_tcase_check_targets() {
+	local targets=4
+	test -n "$2" && targets=$2
+	tcase "Check targets in trench [$1], expected $targets"
+	configure_trench $1
+	tex "target_check $targets" || tdie "targets $(target_count)"
+}
+target_count() {
+	local pod=$($kubectl get pods -l app=meridio-load-balancer -o name | head -1)
+	$kubectl exec -c load-balancer $pod -- nfqlb show --shm=tshm-stream1 | grep Active: | tr -cd '(' | wc -c
+}
+target_check() {
+	test $(target_count) -eq $1
+}
+
+cmd_tcase_disconnect_targets() {
+	tcase "Disconnect $2 targets in trench [$1]"
+	test -n "$2" || tdie "No count"
+	configure_trench $1
+	local cnt=$2
+	local f=/tmp/targets
+	$kubectl get pods -l app=meridio-app -o name | head -$cnt | shuf > $f
+	local pod
+	for pod in $(cat $f); do
+		tlog "Disconnect $pod"
+		$kubectl exec $pod -c meridio-app -- sh -c 'target-client close -c $NSM_SERVICE -t $TRENCH -s $STREAM' || tdie exec
+	done
+}
+cmd_tcase_reconnect_targets() {
+	local f=/tmp/targets
+	local cnt=$(cat $f | wc -l)
+	tcase "Reconnect $cnt targets in trench [$1]"
+	configure_trench $1
+	local pod
+	for pod in $(cat $f); do
+		tlog "Disconnect $pod"
+		$kubectl exec $pod -c meridio-app -- sh -c 'target-client open -c $NSM_SERVICE -t $TRENCH -s $STREAM' || tdie exec
+	done
+}
+
+cmd_tcase_check_connections() {
+	local targets=4
+	test -n "$2" && targets=$2
+	tcase "Check connects to trench [$1], expected targets $targets"
+	configure_trench $1
+	local vip4
+	case $NAME in
+		red) vip4=10.0.0.1;;
+		blue) vip4=10.0.0.2;;
+		green) vip4=10.0.0.3;;
+		*) die "Unknown trench";;
+	esac
+	# timeout retries interval
+	pushv 180 12 15
+	tex "check_connections $vip4 $targets" || tdie $ipv4
+	tex "check_connections [$ipv6prefix:$vip4] $targets" || tdie $ipv6prefix:$ipv4
+	popv
+}
+check_connections() {
+	mkdir -p $tmp
+	local out=$tmp/out
+	if ! mconnect -address $1:5001 -nconn 120 -output json > $out; then
+		cat $out | jq
+		return 1
+	fi
+	cat $out | jq
+	local v
+	for v in failed_connects failed_reads; do
+		v=$(cat $out | jq .$v)
+		test $v -eq 0 || return 1
+	done
+	v=$(cat $out | jq '.hosts|length')
+	test $v -eq $2 || return 1
+	return 0
 }
 
 

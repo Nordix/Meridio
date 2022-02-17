@@ -67,7 +67,7 @@ spec:
             - name: MERIDIO_SOCKET
               value: "/var/lib/meridio/ambassador.sock"
             - name: MERIDIO_LOG_LEVEL
-              value: "TRACE"
+              value: "DEBUG"
             - name: NO_START
               value: "no"
           volumeMounts:

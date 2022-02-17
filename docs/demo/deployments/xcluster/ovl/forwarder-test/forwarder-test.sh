@@ -198,6 +198,35 @@ trench_test() {
 	otc 202 "mconnect $1"
 }
 
+##   test [--cnt=n] scale
+##     Scaling targets. By changing replicas and by disconnect targets
+##     from the stream.
+test_scale() {
+	if test "$__local" = "yes"; then
+		x="images:local"
+		export __local
+	fi
+	test -n "$__cnt" || __cnt=1
+	tlog "=== forwarder-test: Scale target cnt=$__cnt $x"
+	test_start
+	local trench=red
+	trench_test red
+	otc 1 "scale $trench 8"
+	otc 1 "check_targets $trench 8"
+	while test $__cnt -gt 0; do
+		tlog "cnt=$__cnt"
+		__cnt=$((__cnt - 1))
+		otc 1 "disconnect_targets $trench 3"
+		otc 1 "check_targets $trench 5"
+		otc 202 "check_connections $trench 5"
+		otc 1 "reconnect_targets $trench"
+		otc 1 "check_targets $trench 8"
+		otc 202 "check_connections $trench 8"
+	done
+	otc 1 "scale $trench 4"
+	otc 1 "check_targets $trench 4"
+	xcluster_stop
+}
 
 
 ##   test [--nsm-local] nsm
