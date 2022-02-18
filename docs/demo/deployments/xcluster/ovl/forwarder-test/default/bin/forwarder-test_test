@@ -297,7 +297,8 @@ cmd_tcase_mconnect() {
 		*) die "Unknown trench";;
 	esac
 	# timeout retries interval
-	pushv 300 15 20
+	conntrack -F > /dev/null 2>&1
+	pushv 60 10 5
 	local begin=$(date +%s)
 	tex "do_mconnect $vip4:5001" || tdie "$vip4:5001"
 	tex "do_mconnect [$ipv6prefix:$vip4]:5001" || tdie "[$ipv6prefix:$vip4]:5001"
@@ -368,7 +369,7 @@ cmd_tcase_check_connections() {
 		*) die "Unknown trench";;
 	esac
 	# timeout retries interval
-	pushv 180 12 15
+	pushv 120 12 10
 	tex "check_connections $vip4 $targets" || tdie $ipv4
 	tex "check_connections [$ipv6prefix:$vip4] $targets" || tdie $ipv6prefix:$ipv4
 	popv
@@ -376,6 +377,7 @@ cmd_tcase_check_connections() {
 check_connections() {
 	mkdir -p $tmp
 	local out=$tmp/out
+	conntrack -F > /dev/null 2>&1
 	if ! mconnect -address $1:5001 -nconn 120 -output json > $out; then
 		cat $out | jq
 		return 1
@@ -391,6 +393,10 @@ check_connections() {
 	return 0
 }
 
+cmd_tcase_conntrack() {
+	tcase "Set conntrack size to $1"
+	echo $1 > /proc/sys/net/nf_conntrack_max
+}
 
 . /etc/profile
 . /usr/lib/xctest
