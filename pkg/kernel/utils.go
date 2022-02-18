@@ -17,9 +17,15 @@ limitations under the License.
 package kernel
 
 import (
+	"context"
+
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/vishvananda/netlink"
 )
+
+type contextKeyType string
+
+const interfaceMonitorKey contextKeyType = "interfaceMonitor"
 
 type KernelUtils struct {
 }
@@ -46,6 +52,25 @@ func (ku *KernelUtils) NewSourceBasedRoute(tableID int, prefix string) (networki
 
 func (ku *KernelUtils) NewInterfaceMonitor() (networking.InterfaceMonitor, error) {
 	return NewInterfaceMonitor()
+}
+
+// WithInterfaceMonitor -
+// Stores InterfaceMonitor in Context
+func (ku *KernelUtils) WithInterfaceMonitor(parent context.Context, monitor networking.InterfaceMonitor) context.Context {
+	if parent == nil {
+		parent = context.Background()
+	}
+	return context.WithValue(parent, interfaceMonitorKey, monitor)
+}
+
+// GetInterfaceMonitor -
+// Returns InterfaceMonitor from Context
+func (ku *KernelUtils) GetInterfaceMonitor(ctx context.Context) networking.InterfaceMonitor {
+	rv, ok := ctx.Value(interfaceMonitorKey).(networking.InterfaceMonitor)
+	if ok && rv != nil {
+		return rv
+	}
+	return nil
 }
 
 // func (ku *KernelUtils) IfaceByName(name string) (networking.Iface, error) {

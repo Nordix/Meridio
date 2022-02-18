@@ -121,12 +121,14 @@ func main() {
 			Name: config.TrenchName,
 		},
 	}
-	sns := NewSimpleNetworkService(ctx, targetRegistryClient, configurationManagerClient, conduit, netUtils)
 
 	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
 	if err != nil {
 		logrus.Fatalf("Error creating link monitor: %+v", err)
 	}
+	sns := NewSimpleNetworkService(netUtils.WithInterfaceMonitor(ctx, interfaceMonitor),
+		targetRegistryClient, configurationManagerClient, conduit, netUtils)
+
 	interfaceMonitorEndpoint := interfacemonitor.NewServer(interfaceMonitor, sns, netUtils)
 
 	// Note: naming the interface is left to NSM (refer to getNameFromConnection())

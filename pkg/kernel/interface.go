@@ -25,6 +25,7 @@ import (
 
 type Interface struct {
 	index         int
+	name          string
 	LocalIPs      []string
 	NeighborIPs   []string
 	Gateways      []string
@@ -40,6 +41,9 @@ func (intf *Interface) GetIndex() int {
 }
 
 func (intf *Interface) GetName() string {
+	if intf.name != "" {
+		return intf.name
+	}
 	i, err := intf.getLink()
 	if err != nil {
 		return ""
@@ -116,13 +120,30 @@ func (intf *Interface) Equals(iface networking.Iface) bool {
 	return reflect.DeepEqual(intf, iface)
 }
 
-func NewInterface(index int) *Interface {
+func NewInterface(index int, options ...InterfaceOption) *Interface {
+	opts := &interfaceOptions{}
+	for _, opt := range options {
+		opt(opts)
+	}
 	intf := &Interface{
 		index:         index,
+		name:          opts.name,
 		LocalIPs:      []string{},
 		NeighborIPs:   []string{},
 		Gateways:      []string{},
 		InterfaceType: -1,
 	}
 	return intf
+}
+
+type InterfaceOption func(o *interfaceOptions)
+
+type interfaceOptions struct {
+	name string
+}
+
+func WithInterfaceName(name string) InterfaceOption {
+	return func(o *interfaceOptions) {
+		o.name = name
+	}
 }
