@@ -118,6 +118,8 @@ test_start_empty() {
 test_start() {
 	tcase "Start with NSM, forwarder=$xcluster_NSM_FORWARDER"
 	test_start_empty $@
+	otc 202 "conntrack 20000"
+	otcw "conntrack 20000"
 	test "$__use_multus" = "yes" && otc 1 multus_setup
 	otcprog=spire_test
 	otc 1 start_spire_registrar
