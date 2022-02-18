@@ -54,7 +54,7 @@ func (im *InterfaceMonitor) interfaceCreated(link netlink.Link) {
 
 func (im *InterfaceMonitor) interfaceDeleted(link netlink.Link) {
 	for _, subscriber := range im.subscribers {
-		intf := NewInterface(link.Attrs().Index)
+		intf := NewInterface(link.Attrs().Index, WithInterfaceName(link.Attrs().Name))
 		subscriber.InterfaceDeleted(intf)
 	}
 }

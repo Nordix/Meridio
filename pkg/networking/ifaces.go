@@ -16,6 +16,8 @@ limitations under the License.
 
 package networking
 
+import "context"
+
 const (
 	NSE = iota // Interface linked to a NSC (e.g. target)
 	NSC        // Interface linked to a NSE (e.g. Load balancer)
@@ -52,6 +54,8 @@ type Utils interface {
 	NewSourceBasedRoute(tableID int, prefix string) (SourceBasedRoute, error)
 
 	NewInterfaceMonitor() (InterfaceMonitor, error)
+	WithInterfaceMonitor(parent context.Context, monitor InterfaceMonitor) context.Context
+	GetInterfaceMonitor(ctx context.Context) InterfaceMonitor
 
 	GetIndexFromName(name string) (int, error)
 	AddVIP(vip string) error

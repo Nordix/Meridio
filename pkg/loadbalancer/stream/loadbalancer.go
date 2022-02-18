@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -49,6 +50,7 @@ type LoadBalancer struct {
 	cancel                     context.CancelFunc
 	pendingTargets             map[int]types.Target // key: Identifier
 	defrag                     *Defrag
+	pendingCh                  chan struct{} // trigger pending Targets processing
 }
 
 func New(stream *nspAPI.Stream, targetRegistryClient nspAPI.TargetRegistryClient, configurationManagerClient nspAPI.ConfigurationManagerClient, m int, n int, nfqueue int, netUtils networking.Utils) (types.Stream, error) {
@@ -66,6 +68,7 @@ func New(stream *nspAPI.Stream, targetRegistryClient nspAPI.TargetRegistryClient
 		netUtils:                   netUtils,
 		nfqueue:                    nfqueue,
 		pendingTargets:             make(map[int]types.Target),
+		pendingCh:                  make(chan struct{}, 10),
 	}
 	// first enable kernel's IP defrag except for the interfaces facing targets
 	// (defrag is needed by Flows to match rules with L4 information)
@@ -85,6 +88,11 @@ func New(stream *nspAPI.Stream, targetRegistryClient nspAPI.TargetRegistryClient
 
 func (lb *LoadBalancer) Start(ctx context.Context) error {
 	lb.ctx, lb.cancel = context.WithCancel(ctx)
+	if interfaceMonitor := lb.netUtils.GetInterfaceMonitor(lb.ctx); interfaceMonitor != nil {
+		// register receiving interface events to trigger processing of pending Targets
+		// whenever new NSM interfaces show up (to address race between NSP and NSM)
+		interfaceMonitor.Subscribe(lb)
+	}
 	go func() { // todo
 		logrus.Debugf("Stream '%v' Start watchTargets", lb.GetName())
 		err := retry.Do(func() error {
@@ -349,19 +357,51 @@ func (lb *LoadBalancer) setTargets(targets []*nspAPI.Target) error {
 	return errFinal
 }
 
-// todo: find a better way to detect when the routes are available for the pending targets
+// TODO: revisit if timeout based periodic check can be removed
 func (lb *LoadBalancer) processPendingTargets(ctx context.Context) {
+	checkf := func() {
+		lb.mu.Lock()
+		lb.verifyTargets()
+		lb.retryPendingTargets()
+		lb.mu.Unlock()
+	}
+	drainf := func(ctx context.Context) bool {
+		// drain pendingCh for 100 ms to be protected against bursts
+		for {
+			select {
+			case <-lb.pendingCh:
+			case <-time.After(100 * time.Millisecond):
+				return true
+			case <-ctx.Done():
+				return false
+			}
+		}
+	}
+
 	for {
 		select {
 		case <-time.After(10 * time.Second):
-			lb.mu.Lock()
-			lb.verifyTargets()
-			lb.retryPendingTargets()
-			lb.mu.Unlock()
+			checkf()
+		case <-lb.pendingCh:
+			if drainf(ctx) {
+				checkf()
+			}
 		case <-ctx.Done():
 			return
 		}
 	}
+}
+
+// triggerPendingTargets -
+// Sends trigger to processPendingTargets()
+func (lb *LoadBalancer) triggerPendingTargets() {
+	lb.mu.Lock()
+	if !lb.isStreamRunning() {
+		return
+	}
+	lb.mu.Unlock()
+
+	lb.pendingCh <- struct{}{}
 }
 
 func (lb *LoadBalancer) verifyTargets() {
@@ -406,4 +446,24 @@ func (lb *LoadBalancer) removeFromPendingTarget(target types.Target) {
 
 func (lb *LoadBalancer) isStreamRunning() bool {
 	return lb.ctx != nil && lb.ctx.Err() == nil
+}
+
+// InterfaceCreated -
+// When a new NSM interface of interest appears trigger processPendingTargets()
+// to attempt configuring pending Targets (missing route could have become available)
+func (lb *LoadBalancer) InterfaceCreated(intf networking.Iface) {
+	if strings.HasPrefix(intf.GetName(), GetInterfaceNamePrefix()) { // load-balancer NSE interface
+		logrus.Tracef("Stream '%v' InterfaceCreated %v", lb.GetName(), intf.GetName())
+		lb.triggerPendingTargets()
+	}
+}
+
+// InterfaceDeleted -
+// When a NSM interface of interest disappears trigger processPendingTargets()
+// to verify if configured Targets still have working routes
+func (lb *LoadBalancer) InterfaceDeleted(intf networking.Iface) {
+	if strings.HasPrefix(intf.GetName(), GetInterfaceNamePrefix()) { // load-balancer NSE interface
+		logrus.Tracef("Stream '%v' InterfaceDeleted %v", lb.GetName(), intf.GetName())
+		lb.triggerPendingTargets()
+	}
 }
