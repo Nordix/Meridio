@@ -137,6 +137,9 @@ test_start() {
 
 ##   test [--trenches=red,...] [--use-multus] trench (default)
 ##     Test trenches. The default is to test all 3 trenches
+##     Problems has been observed "after some time" so if
+##     "--reconnect-delay=sec" is specified the Re-test connectivity
+##     is delayed.
 test_trench() {
 	local x
 	test "$__use_multus" = "yes" && export __use_multus
@@ -152,6 +155,10 @@ test_trench() {
 	for trench in $(echo $__trenches | tr , ' '); do
 		trench_test $trench
 	done
+	if test -n "$__reconnect_delay"; then
+		tcase "Delay before reconnect $__reconnect_delay sec..."
+		sleep $__reconnect_delay
+	fi
 	tcase "Re-test connectivity with all trenches"
 	for trench in $(echo $__trenches | tr , ' '); do
 		otc 202 "mconnect $trench"

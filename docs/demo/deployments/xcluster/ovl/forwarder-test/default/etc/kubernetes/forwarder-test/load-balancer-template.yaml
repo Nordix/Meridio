@@ -105,7 +105,7 @@ spec:
             capabilities:
               add: ["NET_ADMIN"]
         - name: nsc
-          image: ghcr.io/networkservicemesh/ci/cmd-nsc:ffab737
+          image: ghcr.io/networkservicemesh/cmd-nsc:v1.3.0-rc.1
           imagePullPolicy: IfNotPresent
           env:
             - name: SPIFFE_ENDPOINT_SOCKET

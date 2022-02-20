@@ -38,7 +38,7 @@ if test -x $nfqlb; then
 else
 	nfqlb=nfqlb-0.8.0
 	log "Using $nfqlb"
-	ar=$ARCHIVE/Downloads/$nfqlb.tar.xz
+	ar=$ARCHIVE/$nfqlb.tar.xz
 	test -r $ar || ar=$HOME/Downloads/$nfqlb.tar.xz
 	test -r $ar || die "Not readable [$ar]"
 	tar -C $tmp --strip-components=1 -xf $ar $nfqlb/bin
