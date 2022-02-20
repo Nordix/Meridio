@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: nse
-          image: ghcr.io/networkservicemesh/ci/cmd-nse-remote-vlan:3af92c7
+          image: ghcr.io/networkservicemesh/cmd-nse-remote-vlan:v1.3.0-rc.1
           imagePullPolicy: IfNotPresent
           env:
             - name: SPIFFE_ENDPOINT_SOCKET

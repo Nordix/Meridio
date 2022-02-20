@@ -1,6 +1,7 @@
 # Xcluster/ovl - forwarder-test
 
-Tests Meridio with different NSM forwarders.
+Tests Meridio in `xcluster`. Originally this ovl was testing different NSM
+forwarders only, but it has evolved to generic e2e tests with `xcluster`.
 
 The [ovl/nsm-ovs](https://github.com/Nordix/nsm-test/tree/master/ovl/nsm-ovs)
 is used for NSM setup and the same network setup is used;
@@ -20,8 +21,17 @@ Add "1000::1" for ipv6, e.g. 169.254.101.0/24 -> 1000::1:169.254.101.0/120
 
 ## Usage
 
+Pre-load the local registry if necessary;
+```
+images lreg_preload k8s-pv
+images lreg_preload spire
+images lreg_preload nsm-ovs
+images lreg_preload forwarder-test
+```
 
-Test;
+The default test ("trench") starts three trenches and test external
+connectivity from `vm-202` using [mconnect](https://github.com/Nordix/mconnect).
+
 ```
 #images lreg_preload .               # Load local registry if necessary
 #export xcluster_NSM_FORWARDER=ovs   # default "vpp"
@@ -29,6 +39,16 @@ Test;
 ./forwarder-test.sh test > $log
 # Or
 xcadmin k8s_test --cni=calico forwarder-test > $log
+```
+
+#### Scaling test
+
+The scaling is tested by changing the `replica` count for the targets
+and by disconnect/reconnect targets from the stream. An optional `--cnt`
+parameter can be set to repeat the disconnect/reconnect test.
+
+```
+./forwarder-test.sh test --cnt=5 scale > $log
 ```
 
 
@@ -50,6 +70,9 @@ easier individual configurations are used. This it the one for trench "red";
 
 ```bash
 export NAME=red
+export NS=red
+export CONDUIT1=load-balancer
+export STREAM1=stream1
 export VIP1=10.0.0.1/32
 export VIP2=1000::1:10.0.0.1/128
 export NSM_SERVICES="trench-red { vlan: 100; via: service.domain.2}"
@@ -58,6 +81,7 @@ export NSM_IPV6_PREFIX="1000::1:169.254.101.0/120"
 export NSC_NETWORK_SERVICES="kernel://trench-red/nsm-1"
 export GATEWAY4=169.254.101.254
 export GATEWAY6=1000::1:169.254.101.254
+export POD_CIDR=172.16.0.0
 ```
 
 The configuration is then used with a template to produce the final
@@ -74,10 +98,12 @@ manifest to be loaded with `kubectl`. Test manually with;
 
 ## Local images
 
-For development local built images can be used. Build the images with;
+For development local built images can be used. The images are *not*
+built in the same way as with `make` in the Meridio top
+directory. They contain the same binaries, but start-up is simplified
+to make debug easier.
 
 ```
-#export MERIDIODIR=$GOPATH/src/github.com/Nordix/Meridio
 ./forwarder-test.sh build_image
 #./forwarder-test.sh build_image ipam    # To build just one
 ```
@@ -108,7 +134,7 @@ This let you login to the POD and start the program manually.
 
 ## Multus
 
-The external interface in the `load-balancer` POD (the `fe` actually)
+The external interface in the `load-balancer` POD (the `fe` POD actually)
 can be injected using Multus instead of NSM with vlan. This may be
 more mainstream in some deployments and gives the opportunity so use
 any inteface type supported by Multus (except `ipvlan` which can't
@@ -120,7 +146,7 @@ nodes and then Multus "host-device" is used to move the interface to
 the `load-balancer` POD and rename it "nsm-1".
 
 ```
-./forwarder-test.sh test --local --use-multus trench > $log
+./forwarder-test.sh test --use-multus > $log
 ```
 
 We must assign addresses to the external interface in the
@@ -131,7 +157,7 @@ something else.
 
 #### Multus stand-alone test
 
-To configure Multus can be tricky to you can test the Multus setup
+To configure Multus can be tricky so you can test the Multus setup
 without NSM and Meridio;
 
 ```
