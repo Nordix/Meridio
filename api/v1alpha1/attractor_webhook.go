@@ -42,18 +42,7 @@ func (r *Attractor) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/mutate-meridio-nordix-org-v1alpha1-attractor,mutating=true,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=attractors,verbs=create;update,versions=v1alpha1,name=mattractor.kb.io,admissionReviewVersions=v1
-
-var _ webhook.Defaulter = &Attractor{}
 var attractorClient client.Client
-
-// Default implements webhook.Defaulter so a webhook will be registered for the type
-func (r *Attractor) Default() {
-	attractorlog.Info("default", "name", r.Name)
-
-	// convert interface type to lower case
-	r.Spec.Interface.Type = strings.ToLower(r.Spec.Interface.Type)
-}
 
 //+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1alpha1-attractor,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=attractors,verbs=create;update,versions=v1alpha1,name=vattractor.kb.io,admissionReviewVersions=v1
 

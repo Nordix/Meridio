@@ -24,14 +24,10 @@ import (
 // TrenchSpec defines the desired state of Trench
 type TrenchSpec struct {
 	// +kubebuilder:default=dualstack
-
+	// +kubebuilder:validation:Enum=dualstack;ipv4;ipv6
 	// Defines the IP family of the trench. It should be set according to what type of traffic is expected in the trench.
-	// Valid values:
-	// - dualstack (default)
-	// - ipv4
-	// - ipv6
-	// +optional
-	IPFamily string `json:"ip-family,omitempty"`
+	// Valid values: dualstack (default), ipv4, ipv6
+	IPFamily string `json:"ip-family"`
 }
 
 // TrenchStatus defines the observed state of Trench

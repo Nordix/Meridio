@@ -10,6 +10,9 @@ spec:
     remote-asn: 2000
     local-asn: 2001
     hold-time: 24s
+    remote-port: 179
+    local-port: 179
+# no bfd configuration, no bfd monitoring
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Gateway
@@ -22,8 +25,15 @@ spec:
   bgp:
     remote-asn: 3000
     local-asn: 2001
+    hold-time: 4m
+    remote-port: 10179
+    local-port: 10179
+# if bfd is defined, every parameter under bfd must be defined
     bfd:
       switch: true
+      min-tx: 300ms
+      min-rx: 300ms
+      multiplier: 3
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Gateway
@@ -34,4 +44,11 @@ metadata:
 spec:
   address: 1.2.3.4
   protocol: static
+  static:
+# if bfd is defined, every parameter under bfd must be defined
+    bfd:
+      switch: true
+      min-tx: 200ms
+      min-rx: 200ms
+      multiplier: 5
 

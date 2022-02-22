@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	"fmt"
-	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,20 +34,6 @@ func (r *Trench) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
 		Complete()
-}
-
-//+kubebuilder:webhook:path=/mutate-meridio-nordix-org-v1alpha1-trench,mutating=true,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=trenches,verbs=create;update,versions=v1alpha1,name=mtrench.kb.io,admissionReviewVersions=v1
-
-var _ webhook.Defaulter = &Trench{}
-
-// Default implements webhook.Defaulter so a webhook will be registered for the type
-func (r *Trench) Default() {
-	trenchlog.Info("default", "name", r.Name)
-	if r.Spec.IPFamily == "" {
-		r.Spec.IPFamily = string(Dualstack)
-	} else {
-		r.Spec.IPFamily = strings.ToLower(r.Spec.IPFamily)
-	}
 }
 
 //+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1alpha1-trench,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=trenches,verbs=create;update,versions=v1alpha1,name=vtrench.kb.io,admissionReviewVersions=v1
@@ -73,7 +58,6 @@ func (r *Trench) ValidateUpdate(old runtime.Object) error {
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (r *Trench) ValidateDelete() error {
-	trenchlog.Info("validate delete", "name", r.Name)
 	return nil
 }
 
@@ -93,8 +77,8 @@ func (r *Trench) validateTrench() error {
 
 func (r *Trench) validateSpec() field.ErrorList {
 	var allErrs field.ErrorList
-	if !IPFamily(r.Spec.IPFamily).IsValid() {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("ip-family"), r.Spec.IPFamily, "invalid IP family"))
+	if r.Spec.IPFamily == "" {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("ip-family"), r.Spec.IPFamily, "cannot be empty"))
 	}
 	if len(allErrs) == 0 {
 		return nil
@@ -110,7 +94,7 @@ func (r *Trench) validateUpdate(old runtime.Object) error {
 
 	if r.Spec.IPFamily != typedOld.Spec.IPFamily {
 		return apierrors.NewForbidden(r.GroupResource(),
-			r.Name, field.Forbidden(field.NewPath("spec", "ip-family"), "update on ip-family is forbidden"))
+			r.Name, field.Forbidden(field.NewPath("spec", "ip-family"), "updating on ip-family is forbidden"))
 	}
 	return nil
 }

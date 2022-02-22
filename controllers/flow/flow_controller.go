@@ -38,9 +38,7 @@ type FlowReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=meridio.nordix.org,resources=flows,namespace=system,verbs=get;list;watch;update;patch
-//+kubebuilder:rbac:groups=meridio.nordix.org,resources=flows/status,namespace=system,verbs=get;update;patch
-//+kubebuilder:rbac:groups=meridio.nordix.org,resources=flows/finalizers,namespace=system,verbs=update
+//+kubebuilder:rbac:groups=meridio.nordix.org,resources=flows,namespace=system,verbs=get;list;watch;update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.

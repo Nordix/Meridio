@@ -23,6 +23,9 @@ var _ = Describe("Trench", func() {
 				Name:      trenchName,
 				Namespace: namespace,
 			},
+			Spec: meridiov1alpha1.TrenchSpec{
+				IPFamily: "dualstack",
+			},
 		}
 
 		BeforeEach(func() {

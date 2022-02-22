@@ -47,7 +47,11 @@ spec:
               type:
                 default: stateless-lb
                 description: Type is the type of network service for this conduit
+                enum:
+                - stateless-lb
                 type: string
+            required:
+            - type
             type: object
           status:
             description: ConduitStatus defines the observed state of Conduit

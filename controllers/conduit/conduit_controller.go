@@ -40,9 +40,7 @@ type ConduitReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=meridio.nordix.org,resources=conduits,namespace=system,verbs=get;list;watch;update;patch
-//+kubebuilder:rbac:groups=meridio.nordix.org,resources=conduits/status,namespace=system,verbs=get;update;patch
-//+kubebuilder:rbac:groups=meridio.nordix.org,resources=conduits/finalizers,namespace=system,verbs=update
+//+kubebuilder:rbac:groups=meridio.nordix.org,resources=conduits,namespace=system,verbs=get;list;watch;update
 //+kubebuilder:rbac:groups=apps,resources=daemonsets,namespace=system,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to

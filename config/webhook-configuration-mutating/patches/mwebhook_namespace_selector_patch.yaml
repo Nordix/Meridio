@@ -1,0 +1,5 @@
+- op: add
+  path: /webhooks/0/namespaceSelector
+  value:
+    matchLabels:
+      kubernetes.io/metadata.name: $(SERVICE_NAMESPACE)

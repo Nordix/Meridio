@@ -61,38 +61,32 @@ spec:
                     description: BFD monitoring of BGP session.
                     properties:
                       min-rx:
-                        description: 'Min-rx timer of bfd session. Please refere to
+                        description: Min-rx timer of bfd session. Please refere to
                           BFD material to understand what this implies. The value
                           must be a valid duration format. For example, 300ms, 90s,
-                          1m, 1h. The duration will be rounded by millisecond. Default:
-                          200ms when protocol is "static"; 300ms when protocol is
-                          "bgp"'
+                          1m, 1h. The duration will be rounded by millisecond.
                         type: string
                       min-tx:
-                        description: 'Min-tx timer of bfd session. Please refere to
+                        description: Min-tx timer of bfd session. Please refere to
                           BFD material to understand what this implies. The value
                           must be a valid duration format. For example, 300ms, 90s,
-                          1m, 1h. The duration will be rounded by millisecond. Default:
-                          200ms when protocol is "static; 300ms when protocol is "bgp"'
+                          1m, 1h. The duration will be rounded by millisecond.
                         type: string
                       multiplier:
-                        description: 'Multiplier of bfd session. When this number
-                          of bfd packets failed to receive, bfd session will go down.
-                          Default: 3'
+                        description: Multiplier of bfd session. When this number of
+                          bfd packets failed to receive, bfd session will go down.
                         type: integer
                       switch:
                         description: 'BFD monitoring. Valid values are: - false: no
-                          BFD monitoring; - true: turns on the BFD monitoring When
-                          left empty, the default value is dependent on the protocol.
-                          Default: true when protocol is "static"; false when protocol
-                          is the "bgp".'
+                          BFD monitoring; - true: turns on the BFD monitoring. When
+                          left empty, there is no BFD monitoring.'
                         type: boolean
                     type: object
                   hold-time:
-                    description: 'Hold timer of the BGP session. Please refere to
-                      BGP material to understand what this implies. The value must
-                      be a valid duration format. For example, 90s, 1m, 1h. The duration
-                      will be rounded by second Minimum duration is 3s. Default: 240s'
+                    description: Hold timer of the BGP session. Please refere to BGP
+                      material to understand what this implies. The value must be
+                      a valid duration format. For example, 90s, 1m, 1h. The duration
+                      will be rounded by second Minimum duration is 3s.
                     type: string
                   local-asn:
                     description: The ASN number of the system where the Attractor
@@ -100,22 +94,23 @@ spec:
                     format: int32
                     type: integer
                   local-port:
-                    description: BGP listening port of the Attractor FrontEnds. Default
-                      179
+                    description: BGP listening port of the Attractor FrontEnds.
                     type: integer
                   remote-asn:
                     description: The ASN number of the Gateway Router
                     format: int32
                     type: integer
                   remote-port:
-                    description: BGP listening port of the Gateway Router. Default
-                      179
+                    description: BGP listening port of the Gateway Router.
                     type: integer
                 type: object
               protocol:
                 default: bgp
                 description: The routing choice between the Gateway Router and Attractor
                   FrontEnds.
+                enum:
+                - bgp
+                - static
                 type: string
               static:
                 description: Parameters to work with the static routing configured
@@ -126,31 +121,25 @@ spec:
                     description: BFD monitoring of Static session.
                     properties:
                       min-rx:
-                        description: 'Min-rx timer of bfd session. Please refere to
+                        description: Min-rx timer of bfd session. Please refere to
                           BFD material to understand what this implies. The value
                           must be a valid duration format. For example, 300ms, 90s,
-                          1m, 1h. The duration will be rounded by millisecond. Default:
-                          200ms when protocol is "static"; 300ms when protocol is
-                          "bgp"'
+                          1m, 1h. The duration will be rounded by millisecond.
                         type: string
                       min-tx:
-                        description: 'Min-tx timer of bfd session. Please refere to
+                        description: Min-tx timer of bfd session. Please refere to
                           BFD material to understand what this implies. The value
                           must be a valid duration format. For example, 300ms, 90s,
-                          1m, 1h. The duration will be rounded by millisecond. Default:
-                          200ms when protocol is "static; 300ms when protocol is "bgp"'
+                          1m, 1h. The duration will be rounded by millisecond.
                         type: string
                       multiplier:
-                        description: 'Multiplier of bfd session. When this number
-                          of bfd packets failed to receive, bfd session will go down.
-                          Default: 3'
+                        description: Multiplier of bfd session. When this number of
+                          bfd packets failed to receive, bfd session will go down.
                         type: integer
                       switch:
                         description: 'BFD monitoring. Valid values are: - false: no
-                          BFD monitoring; - true: turns on the BFD monitoring When
-                          left empty, the default value is dependent on the protocol.
-                          Default: true when protocol is "static"; false when protocol
-                          is the "bgp".'
+                          BFD monitoring; - true: turns on the BFD monitoring. When
+                          left empty, there is no BFD monitoring.'
                         type: boolean
                     type: object
                 type: object

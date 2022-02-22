@@ -24,10 +24,10 @@ import (
 // ConduitSpec defines the desired state of Conduit
 type ConduitSpec struct {
 	// +kubebuilder:default=stateless-lb
+	// +kubebuilder:validation:Enum=stateless-lb
 
 	// Type is the type of network service for this conduit
-	// +optional
-	Type string `json:"type,omitempty"`
+	Type string `json:"type"`
 }
 
 // ConduitStatus defines the observed state of Conduit

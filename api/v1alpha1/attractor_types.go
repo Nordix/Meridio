@@ -54,8 +54,10 @@ type InterfaceSpec struct {
 	// (immutable) ipv6 prefix of the interface, which is used for frontend to set up communication with the ipv6 gateways
 	PrefixIPv6 string `json:"ipv6-prefix"`
 
-	// interface choice. Supported choice: "nsm-vlan"
-	Type string `json:"type"`
+	// interface choice.
+	// +kubebuilder:default=nsm-vlan
+	// +kubebuilder:validation:Enum=nsm-vlan
+	Type string `json:"type,omitempty"`
 
 	// if the type is "nsm-vlan", this information must be specified
 	NSMVlan NSMVlanSpec `json:"nsm-vlan,omitempty"`

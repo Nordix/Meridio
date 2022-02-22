@@ -75,6 +75,9 @@ spec:
                 description: Protocols allowed in this flow. The protocols should
                   not have overlaps.
                 items:
+                  enum:
+                  - tcp
+                  - udp
                   type: string
                 type: array
               source-ports:

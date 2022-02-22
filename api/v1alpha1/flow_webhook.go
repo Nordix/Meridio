@@ -41,15 +41,6 @@ func (r *Flow) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/mutate-meridio-nordix-org-v1alpha1-flow,mutating=true,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=flows,verbs=create;update,versions=v1alpha1,name=mflow.kb.io,admissionReviewVersions=v1
-
-var _ webhook.Defaulter = &Flow{}
-
-// Default implements webhook.Defaulter so a webhook will be registered for the type
-func (r *Flow) Default() {
-	flowlog.Info("default", "name", r.Name)
-}
-
 //+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1alpha1-flow,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=flows,verbs=create;update,versions=v1alpha1,name=vflow.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &Flow{}
@@ -101,13 +92,6 @@ func (r *Flow) validateFlow() error {
 	} else if len(r.Spec.Protocols) == 2 {
 		if r.Spec.Protocols[0] == r.Spec.Protocols[1] {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("spec").Child("protocols"), r.Spec.Protocols, "duplicated protocols"))
-		}
-	}
-
-	for i, p := range r.Spec.Protocols {
-		if !TransportProtocol(p).IsValid() {
-			err := fmt.Errorf("protocol[%d]: %s is invalid", i, p)
-			allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("spec").Child("protocols"), p, err.Error()))
 		}
 	}
 

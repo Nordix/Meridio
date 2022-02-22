@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -166,7 +167,12 @@ var _ = Describe("Gateway", func() {
 			var gw = &meridiov1alpha1.Gateway{}
 			Eventually(func(g Gomega) {
 				g.Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
-				*gw.Spec.Bgp.BFD.Switch = true
+				gw.Spec.Bgp.BFD = &meridiov1alpha1.BfdSpec{
+					Switch:     pointer.Bool(true),
+					MinRx:      "300ms",
+					MinTx:      "300ms",
+					Multiplier: uint16pointer(3),
+				}
 				g.Expect(fw.UpdateResource(gw)).To(Succeed())
 			}).Should(Succeed())
 
@@ -192,7 +198,15 @@ var _ = Describe("Gateway", func() {
 			By("checking update succeed when protocol is static and bgp section is removed")
 			Eventually(func(g Gomega) {
 				g.Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
-				gw.Spec.Protocol = string(meridiov1alpha1.Static)
+				gw.Spec.Protocol = "static"
+				gw.Spec.Static = meridiov1alpha1.StaticSpec{
+					BFD: &meridiov1alpha1.BfdSpec{
+						Switch:     pointer.Bool(true),
+						MinRx:      "200ms",
+						MinTx:      "200ms",
+						Multiplier: uint16pointer(5),
+					},
+				}
 				gw.Spec.Bgp = meridiov1alpha1.BgpSpec{}
 				g.Expect(fw.UpdateResource(gw)).To(Succeed())
 			}).Should(Succeed())
@@ -206,8 +220,27 @@ var _ = Describe("Gateway", func() {
 				BFD:        true,
 				MinTx:      200,
 				MinRx:      200,
-				Multiplier: 3,
+				Multiplier: 5,
 				Trench:     trenchName,
+			}
+			assertGatewayItemInConfigMap(newItem, configmapName, true)
+
+			By("checking update succeed when protocol is static and bfd section is removed")
+			Eventually(func(g Gomega) {
+				g.Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
+				gw.Spec.Protocol = "static"
+				gw.Spec.Static = meridiov1alpha1.StaticSpec{}
+				gw.Spec.Bgp = meridiov1alpha1.BgpSpec{}
+				g.Expect(fw.UpdateResource(gw)).To(Succeed())
+			}).Should(Succeed())
+
+			By("checking new item is in configmap")
+			newItem = reader.Gateway{
+				Name:     gw.ObjectMeta.Name,
+				Address:  "1.2.3.4",
+				IPFamily: "ipv4",
+				Protocol: "static",
+				Trench:   trenchName,
 			}
 			assertGatewayItemInConfigMap(newItem, configmapName, true)
 

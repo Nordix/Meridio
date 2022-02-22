@@ -215,10 +215,10 @@ func (c *ConfigMap) getGatewaysData() ([]byte, error) {
 			ipFamily = "ipv6"
 		}
 
-		item := &reader.Gateway{
+		cmGw := &reader.Gateway{
 			Name:     gw.ObjectMeta.Name,
 			Address:  gw.Spec.Address,
-			Protocol: string(gw.Spec.Protocol),
+			Protocol: gw.Spec.Protocol,
 			IPFamily: ipFamily,
 			Trench:   c.trench.ObjectMeta.Name,
 		}
@@ -227,33 +227,35 @@ func (c *ConfigMap) getGatewaysData() ([]byte, error) {
 			{
 				ht := parseHoldTime(gw.Spec.Bgp.HoldTime, time.Second)
 
-				item.RemoteASN = *gw.Spec.Bgp.RemoteASN
-				item.LocalASN = *gw.Spec.Bgp.LocalASN
-				item.RemotePort = *gw.Spec.Bgp.RemotePort
-				item.LocalPort = *gw.Spec.Bgp.LocalPort
-				item.HoldTime = ht
+				cmGw.RemoteASN = *gw.Spec.Bgp.RemoteASN
+				cmGw.LocalASN = *gw.Spec.Bgp.LocalASN
+				cmGw.RemotePort = *gw.Spec.Bgp.RemotePort
+				cmGw.LocalPort = *gw.Spec.Bgp.LocalPort
+				cmGw.HoldTime = ht
 
-				writBfdInGateway(item, gw.Spec.Bgp.BFD)
+				cmGw.BFD, cmGw.MinRx, cmGw.MinTx, cmGw.Multiplier = writBfdInGateway(gw.Spec.Bgp.BFD)
+
 			}
 		case "static":
 			{
-				writBfdInGateway(item, gw.Spec.Static.BFD)
+				cmGw.BFD, cmGw.MinRx, cmGw.MinTx, cmGw.Multiplier = writBfdInGateway(gw.Spec.Static.BFD)
 			}
 		}
-		config.Gateways = append(config.Gateways, item)
+		config.Gateways = append(config.Gateways, cmGw)
 	}
 	return yaml.Marshal(config)
 }
 
-func writBfdInGateway(item *reader.Gateway, bfd meridiov1alpha1.BfdSpec) {
-	item.BFD = *bfd.Switch
-	if item.BFD {
+// convert the BFD parameters to the same unit when writing it to configmap
+func writBfdInGateway(bfd meridiov1alpha1.BfdSpec) (bool, uint, uint, uint) {
+	// if bfd is configured and switch is true, populate the gateway items in the configmap with the bfd parameters
+	if bfd.Switch != nil && *bfd.Switch {
 		rx := parseHoldTime(bfd.MinRx, time.Millisecond)
 		tx := parseHoldTime(bfd.MinTx, time.Millisecond)
 
-		item.MinRx = uint(rx)
-		item.MinTx = uint(tx)
-		item.Multiplier = uint(*bfd.Multiplier)
+		return *bfd.Switch, uint(rx), uint(tx), uint(*bfd.Multiplier)
+	} else {
+		return false, 0, 0, 0
 	}
 }
 
@@ -348,7 +350,7 @@ func (c *ConfigMap) getFlowsData() ([]byte, error) {
 			SourcePortRanges:      srcPorts,
 			DestinationPortRanges: dstPorts,
 			Vips:                  cr.Spec.Vips,
-			Protocols:             cr.Spec.Protocols,
+			Protocols:             meridiov1alpha1.TransportProtocolsToStrings(cr.Spec.Protocols),
 			Priority:              cr.Spec.Priority,
 		})
 	}
