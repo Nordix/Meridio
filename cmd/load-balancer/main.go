@@ -25,6 +25,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -47,6 +48,7 @@ import (
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
+	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -170,7 +172,7 @@ func main() {
 	sns.Start()
 	// monitor availibilty of frontends; if no feasible FE don't advertise NSE to proxies
 	fns := NewFrontendNetworkService(ctx, targetRegistryClient, ep, NewServiceControlDispatcher(sns))
-	fns.Start()
+	go fns.Start()
 
 	<-ctx.Done()
 }
@@ -296,7 +298,11 @@ func (sns *SimpleNetworkService) startStreamWatcher() {
 	var ctx context.Context
 	ctx, sns.cancelStreamWatcher = context.WithCancel(sns.ctx)
 	go func() {
-		err := sns.watchStreams(ctx)
+		err := retry.Do(func() error {
+			return sns.watchStreams(ctx)
+		}, retry.WithContext(ctx),
+			retry.WithDelay(500*time.Millisecond),
+			retry.WithErrorIngnored())
 		if err != nil {
 			logrus.Errorf("watchStreams err: %v", err)
 		}

@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	nested "github.com/antonfisher/nested-logrus-formatter"
 	"github.com/kelseyhightower/envconfig"
@@ -32,6 +33,7 @@ import (
 	"github.com/nordix/meridio/cmd/frontend/internal/env"
 	"github.com/nordix/meridio/cmd/frontend/internal/frontend"
 	"github.com/nordix/meridio/pkg/health"
+	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/security/credentials"
 )
 
@@ -149,7 +151,16 @@ func watchConfig(ctx context.Context, cancel context.CancelFunc, c *env.Config, 
 			Name: c.TrenchName,
 		},
 	}
-	if err := watchAttractor(ctx, configurationManagerClient, attractorToWatch, fe); err != nil {
+
+	err = retry.Do(func() error {
+		return watchAttractor(ctx, configurationManagerClient, attractorToWatch, fe)
+	}, retry.WithContext(ctx),
+		retry.WithDelay(500*time.Millisecond),
+		retry.WithErrorIngnored())
+	if err != nil {
+		logrus.Fatalf("WatchVip err: %v", err)
+	}
+	if err != nil {
 		logrus.Errorf("Attractor watcher: %v", err)
 		cancel()
 	}

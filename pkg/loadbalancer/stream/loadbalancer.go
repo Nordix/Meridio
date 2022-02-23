@@ -30,6 +30,7 @@ import (
 	"github.com/nordix/meridio/pkg/loadbalancer/nfqlb"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/networking"
+	"github.com/nordix/meridio/pkg/retry"
 	"github.com/sirupsen/logrus"
 )
 
@@ -86,13 +87,21 @@ func (lb *LoadBalancer) Start(ctx context.Context) error {
 	lb.ctx, lb.cancel = context.WithCancel(ctx)
 	go func() { // todo
 		logrus.Debugf("Stream '%v' Start watchTargets", lb.GetName())
-		err := lb.watchTargets(lb.ctx)
+		err := retry.Do(func() error {
+			return lb.watchTargets(lb.ctx)
+		}, retry.WithContext(lb.ctx),
+			retry.WithDelay(500*time.Millisecond),
+			retry.WithErrorIngnored())
 		if err != nil {
 			logrus.Errorf("Stream '%v' watch Targets err: %v", lb.GetName(), err)
 		}
 	}()
 	go lb.processPendingTargets(lb.ctx)
-	err := lb.watchFlows(lb.ctx)
+	err := retry.Do(func() error {
+		return lb.watchFlows(lb.ctx)
+	}, retry.WithContext(lb.ctx),
+		retry.WithDelay(500*time.Millisecond),
+		retry.WithErrorIngnored())
 	if err != nil {
 		return err
 	}

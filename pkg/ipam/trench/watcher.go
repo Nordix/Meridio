@@ -19,9 +19,11 @@ package trench
 import (
 	"context"
 	"io"
+	"time"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ipam/types"
+	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -62,10 +64,7 @@ func NewConduitWatcher(ctx context.Context, nspService string, trenchName string
 }
 
 func (cw *ConduitWatcher) Start() {
-	for {
-		if cw.Ctx.Err() != nil {
-			break
-		}
+	err := retry.Do(func() error {
 		toWatch := &nspAPI.Conduit{
 			Trench: &nspAPI.Trench{
 				Name: cw.TrenchName,
@@ -73,8 +72,7 @@ func (cw *ConduitWatcher) Start() {
 		}
 		watchConduitClient, err := cw.ConfigurationManagerClient.WatchConduit(cw.Ctx, toWatch)
 		if err != nil {
-			logrus.Warnf("err WatchConduit: %v", err) // todo
-			continue
+			return err
 		}
 		for {
 			conduitResponse, err := watchConduitClient.Recv()
@@ -82,8 +80,7 @@ func (cw *ConduitWatcher) Start() {
 				break
 			}
 			if err != nil {
-				logrus.Warnf("err watchConduitClient.Recv: %v", err) // todo
-				break
+				return err
 			}
 			for _, conduit := range conduitResponse.Conduits { // todo: add and remove conduits by checking the existing ones
 				for _, w := range cw.TrenchWatchers {
@@ -94,5 +91,11 @@ func (cw *ConduitWatcher) Start() {
 				}
 			}
 		}
+		return nil
+	}, retry.WithContext(cw.Ctx),
+		retry.WithDelay(500*time.Millisecond),
+		retry.WithErrorIngnored())
+	if err != nil {
+		logrus.Fatalf("ConduitWatcher err: %v", err)
 	}
 }

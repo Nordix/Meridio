@@ -20,8 +20,10 @@ import (
 	"context"
 	"io"
 	"sync"
+	"time"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/retry"
 	"github.com/sirupsen/logrus"
 )
 
@@ -74,17 +76,13 @@ func (c *configurationImpl) Stop() {
 func (c *configurationImpl) watchVIPs(ctx context.Context) {
 	c.wg.Add(1)
 	defer c.wg.Done()
-	for { // Todo: retry
-		if ctx.Err() != nil {
-			return
-		}
+	err := retry.Do(func() error {
 		vipsToWatch := &nspAPI.Vip{
 			Trench: c.Conduit.GetTrench(),
 		}
 		watchVIPClient, err := c.ConfigurationManagerClient.WatchVip(ctx, vipsToWatch)
 		if err != nil {
-			logrus.Warnf("err watchVIPClient.Recv: %v", err) // todo
-			continue
+			return err
 		}
 		for {
 			vipResponse, err := watchVIPClient.Recv()
@@ -92,31 +90,32 @@ func (c *configurationImpl) watchVIPs(ctx context.Context) {
 				break
 			}
 			if err != nil {
-				logrus.Warnf("err watchVIPClient.Recv: %v", err) // todo
-				break
+				return err
 			}
 			err = c.SetVips(vipResponse.ToSlice())
 			if err != nil {
 				logrus.Warnf("err set vips: %v", err) // todo
 			}
 		}
+		return nil
+	}, retry.WithContext(ctx),
+		retry.WithDelay(500*time.Millisecond),
+		retry.WithErrorIngnored())
+	if err != nil {
+		logrus.Warnf("err watchVIPs: %v", err) // todo
 	}
 }
 
 func (c *configurationImpl) watchStreams(ctx context.Context) {
 	c.wg.Add(1)
 	defer c.wg.Done()
-	for { // Todo: retry
-		if ctx.Err() != nil {
-			return
-		}
+	err := retry.Do(func() error {
 		vipsToWatch := &nspAPI.Stream{
 			Conduit: c.Conduit,
 		}
 		watchStreamClient, err := c.ConfigurationManagerClient.WatchStream(ctx, vipsToWatch)
 		if err != nil {
-			logrus.Warnf("err watchVIPClient.Recv: %v", err) // todo
-			continue
+			return err
 		}
 		for {
 			streamResponse, err := watchStreamClient.Recv()
@@ -124,14 +123,15 @@ func (c *configurationImpl) watchStreams(ctx context.Context) {
 				break
 			}
 			if err != nil {
-				logrus.Warnf("err watchVIPClient.Recv: %v", err) // todo
-				break
+				return err
 			}
 			c.SetStreams(streamResponse.GetStreams())
-			// err = c.Watcher.SetVIPs(vipResponse.ToSlice())
-			// if err != nil {
-			// 	logrus.Warnf("err set vips: %v", err) // todo
-			// }
 		}
+		return nil
+	}, retry.WithContext(ctx),
+		retry.WithDelay(500*time.Millisecond),
+		retry.WithErrorIngnored())
+	if err != nil {
+		logrus.Warnf("err watchStreams: %v", err) // todo
 	}
 }

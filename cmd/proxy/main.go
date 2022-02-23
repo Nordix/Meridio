@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -54,6 +55,7 @@ import (
 	"github.com/nordix/meridio/pkg/nsm/ipcontext"
 	"github.com/nordix/meridio/pkg/nsm/service"
 	"github.com/nordix/meridio/pkg/nsp"
+	"github.com/nordix/meridio/pkg/retry"
 
 	"github.com/nordix/meridio/pkg/proxy"
 	proxyHealth "github.com/nordix/meridio/pkg/proxy/health"
@@ -181,26 +183,37 @@ func main() {
 	}
 
 	configurationManagerClient := nspAPI.NewConfigurationManagerClient(nspConn)
-	vipWatcher, err := configurationManagerClient.WatchVip(configurationContext, &nspAPI.Vip{
-		Trench: &nspAPI.Trench{
-			Name: config.Trench,
-		},
-	})
 	if err != nil {
 		logrus.Fatalf("WatchVip err: %v", err)
 	}
 	logrus.Debugf("Connected to NSP")
 	health.SetServingStatus(ctx, health.NSPCliSvc, true)
-	for {
-		vipResponse, err := vipWatcher.Recv()
-		if err == io.EOF {
-			break
-		}
+
+	err = retry.Do(func() error {
+		vipWatcher, err := configurationManagerClient.WatchVip(configurationContext, &nspAPI.Vip{
+			Trench: &nspAPI.Trench{
+				Name: config.Trench,
+			},
+		})
 		if err != nil {
-			logrus.Warnf("err vipWatcher.Recv: %v", err) // todo
-			break
+			return err
 		}
-		p.SetVIPs(vipResponse.ToSlice())
+		for {
+			vipResponse, err := vipWatcher.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return err
+			}
+			p.SetVIPs(vipResponse.ToSlice())
+		}
+		return nil
+	}, retry.WithContext(ctx),
+		retry.WithDelay(500*time.Millisecond),
+		retry.WithErrorIngnored())
+	if err != nil {
+		logrus.Fatalf("WatchVip err: %v", err)
 	}
 	<-ctx.Done()
 }

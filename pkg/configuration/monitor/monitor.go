@@ -18,8 +18,10 @@ package monitor
 
 import (
 	"context"
+	"time"
 
 	"github.com/nordix/meridio/pkg/configuration/reader"
+	"github.com/nordix/meridio/pkg/retry"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,16 +57,22 @@ func New(configMapName string, namespace string, ConfigurationRegistry Configura
 	return configMapMonitor, nil
 }
 
-func (cmm *ConfigMapMonitor) Start(context context.Context) {
-	for context.Err() == nil {
+func (cmm *ConfigMapMonitor) Start(ctx context.Context) {
+	err := retry.Do(func() error {
 		var err error
 		objectMeta := metav1.ObjectMeta{Name: cmm.ConfigMapName, Namespace: cmm.Namespace}
-		cmm.watcher, err = cmm.Clientset.CoreV1().ConfigMaps(cmm.Namespace).Watch(context, metav1.SingleObject(objectMeta))
+		cmm.watcher, err = cmm.Clientset.CoreV1().ConfigMaps(cmm.Namespace).Watch(ctx, metav1.SingleObject(objectMeta))
 		if err != nil {
 			logrus.Errorf("Unable to watch configmap: %v", err)
-			return
+			return err
 		}
 		cmm.watchEvent(cmm.watcher.ResultChan())
+		return nil
+	}, retry.WithContext(ctx),
+		retry.WithDelay(500*time.Millisecond),
+		retry.WithErrorIngnored())
+	if err != nil {
+		logrus.Errorf("ConfigMapMonitor start err: %v", err)
 	}
 }
 
