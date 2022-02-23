@@ -4,55 +4,62 @@
 
 ## Build
 
+The following parameters can be configured when building the operator image:
+* IMG: specify the image tag, default is "controller:0.0.1"
+* BUILDER: specifiy the image used in the binary compling phase, default is "golang:1.16"
+* BASE_IMG: the final base image, default is "ubuntu:18.04"
+
 ```bash
 # build the image
-# use IMG to specify the image tag, default is "controller:0.0.1"
-make docker-build IMG="<meridio-operator-tag>"
-
-# change:
-# - image tag by setting IMG
-# - builder image by setting BUILDER, default is "golang:1.16"
-# - base image by setting BASE_IMG, default is "ubuntu:18.04"
-make docker-build IMG="<meridio-operator-tag>" BUILDER="<builder>" BASE_IMG="<base-image>"
-
+make docker-build
 # Make the image available for the cluster to use. The following commands are alternative
-make docker-push IMG="<meridio-operator-tag>"  # Push the image to a registry
-make kind-load IMG="<meridio-operator-tag>"  # Load the image to kind cluster
-```
-
-### Run tests
-
-The e2e tests expect the meridio operator is already running in the cluster.
-The e2e test suite can be run in an arbitrary namespace by specifying NAMESPACE
-as the following example shows.
-
-```bash
-# If meridio operator is not deployed yet, run the following commented command first:
-# make deploy NAMESPACE="red"
-make e2e NAMESPACE="red"
+make docker-push  # Push the image to a registry
+make kind-load  # Load the image to kind cluster
 ```
 
 ## Deploy
 
-### Deploy cert manager
+### Deploy spire
+
+Spire is used by Meridio-Operator for provisioning tHe TLS certificates for the kubeapi server.
 
 ```bash
-kubectl apply -f https://github.com/jetstack/cert-manager/releases/latest/download/cert-manager.yaml
+kubectl apply -k <Meridio>/docs/demo/deployments/spire
 ```
+
+Spire will be deployed in "spire" namespace. Wait until the spire server and agent pods are running to continue deploying Meridio-Operator.
+
+**Note**: certmanager can also be used for the same purpose. To switch from spire to certmanager, you need to comment out all the sections with "[SPIRE]" comment and uncomment all the sections with "[CERTMANAGER]" comment in *config* directory.
 
 ### Deploy Meridio-Operator
 
 Meridio-Operator is a namespace-scoped operator, which watches and manages custom resources in a single namespace where the operator is deployed.
 
+The following parameters can be set when you deploy Meridio-Operator:
+* NAMESPACE: specify the namespace where the Meridio-Operator resources will be deployed, default is "meridio-operator-system".
+* ENABLE_MUTATING_WEBHOOK: enable the mutating webhook to mutate the Cutstom Resources which will be created to configure Meridio-Operator, so that specific fields can be left out and use default values, default is true.
+* IMG: specify the image that Meridio-Operator deployment will use, default is controller:0.0.1
+
 ```bash
-make deploy \
-IMG="localhost:5000/meridio/meridio-operator:v0.0.1" \ # If the image is built with a specific tag
-NAMESPACE="default" # specifies the namespace where the operator will be deployed, "meridio-operator-system" is used by default
+make deploy
+```
+
+### Run tests
+
+Running e2e tests requires the Meridio-Operator already deployed in the cluster.
+
+The following parameters are expected to be the same as what are configured when Meridio-Operator is deployed:
+* NAMESPACE: specify the namespace where the Meridio-Operator resources will be deployed, default is "meridio-operator-system".
+* ENABLE_MUTATING_WEBHOOK: enable the mutating webhook to mutate the Cutstom Resources which will be created to configure Meridio-Operator, so that specific fields can be left out and use default values, default is true.
+
+```bash
+# Run e2e test in the namespace "red"
+make e2e NAMESPACE="red"
 ```
 
 ## Configuration
 
-**The meridio operator is deployed in the "default" namespace in the examples below.**
+**The Meridio-Operator is deployed in the "default" namespace in the examples below.**
 
 ### Trench
 

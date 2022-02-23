@@ -20,16 +20,21 @@ parser.add_argument('--image', type=str, nargs='?', default='controller',
                     help='operator image full path without version')
 parser.add_argument('--version', type=str, nargs='?', default='0.0.1',
                     help='version of the helm chart, must follow semver 2')
+parser.add_argument('--mutating', type=str, nargs='?', default='false',
+                    help='enable mutating webhook or not')
 
 args = parser.parse_args()
 print("operator image: " + args.image)
 # check if version is valid
 semver.VersionInfo.parse(args.version)
 print("operator version: " + args.version)
+print("mutating webhook enabled: " + args.mutating)
 
 # silent mode to supress the echo of make command
-out = subprocess.run(["make", "-s", "print-manifests", 'IMG=' + args.image +
-                     ":" + args.version], capture_output=True).stdout.decode("utf-8")
+out = subprocess.run(["make", "-s", "print-manifests",
+ 'IMG=' + args.image + ":" + args.version,
+ "ENABLE_MUTATING_WEBHOOK=" + args.mutating],
+                     capture_output=True).stdout.decode("utf-8")
 # split the output
 contents = out.split('---\n')
 
