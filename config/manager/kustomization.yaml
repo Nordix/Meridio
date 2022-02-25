@@ -1,6 +1,10 @@
 resources:
 - manager.yaml
 
+patchesStrategicMerge:
+# - patches/manager_webhook_patch_certmanager.yaml # [CERTMANAGER] To enable cert-manager, you need to uncomment all the sections with [CERTMANAGER]
+- patches/manager_webhook_patch_spire.yaml # [SPIRE] To enable spire, you need to uncomment all the sections with [SPIRE]
+
 generatorOptions:
   disableNameSuffixHash: true
 

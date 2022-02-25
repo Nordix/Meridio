@@ -1,9 +1,6 @@
 resources:
 - manifests.yaml
 
-patchesStrategicMerge:
-- patches/webhookcainjection_patch.yaml
-
 configurations:
 - kustomizeconfig.yaml
 
