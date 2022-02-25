@@ -94,15 +94,14 @@ var _ = Describe("Gateway", func() {
 			BeforeEach(func() {
 				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 			})
-			JustBeforeEach(func() {
-				Expect(fw.CreateResource(gateway.DeepCopy())).To(Succeed())
-			})
 
 			AfterEach(func() {
 				fw.CleanUpTrenches()
 			})
 
 			It("will be created successfully", func() {
+				Expect(fw.CreateResource(gateway.DeepCopy())).To(Succeed())
+
 				By("checking if the gateway exists")
 				gw := &meridiov1alpha1.Gateway{}
 				Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
@@ -111,6 +110,66 @@ var _ = Describe("Gateway", func() {
 				By("checking gateway is in configmap data")
 
 				assertGatewayItemInConfigMap(defaultGwInCm, configmapName, true)
+			})
+
+			Context("mutating webhook", func() {
+				gatewayIncomplete := &meridiov1alpha1.Gateway{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "gateway-a",
+						Namespace: namespace,
+						Labels: map[string]string{
+							"trench": trenchName,
+						},
+					},
+					Spec: meridiov1alpha1.GatewaySpec{
+						Address:  "1.2.3.4",
+						Protocol: "bgp",
+						Bgp: meridiov1alpha1.BgpSpec{
+							RemoteASN: uint32pointer(1234),
+							LocalASN:  uint32pointer(4321),
+							HoldTime:  "30s",
+							BFD: meridiov1alpha1.BfdSpec{
+								Switch: pointer.Bool(true),
+							},
+						},
+					},
+				}
+
+				gwInCm := reader.Gateway{
+					Name:       gateway.ObjectMeta.Name,
+					Address:    "1.2.3.4",
+					Protocol:   "bgp",
+					RemoteASN:  1234,
+					LocalASN:   4321,
+					RemotePort: 179,
+					LocalPort:  179,
+					HoldTime:   30,
+					BFD:        true,
+					MinTx:      300,
+					MinRx:      300,
+					Multiplier: 3,
+					IPFamily:   "ipv4",
+					Trench:     trenchName,
+				}
+
+				It("will have different result", func() {
+					if mutating {
+						By("if mutating webhook is enabled, gateway will be created successfully")
+						Expect(fw.CreateResource(gatewayIncomplete.DeepCopy())).To(Succeed())
+
+						By("checking if the gateway exists")
+						gw := &meridiov1alpha1.Gateway{}
+						Expect(fw.GetResource(client.ObjectKeyFromObject(gatewayIncomplete), gw)).To(Succeed())
+						Expect(gw).NotTo(BeNil())
+
+						By("checking gateway is in configmap data")
+
+						assertGatewayItemInConfigMap(gwInCm, configmapName, true)
+					} else {
+						By("if mutating webhook is disabled, gateway will fail to be created")
+						Expect(fw.CreateResource(gatewayIncomplete.DeepCopy())).ToNot(Succeed())
+					}
+				})
 			})
 		})
 	})
@@ -167,7 +226,7 @@ var _ = Describe("Gateway", func() {
 			var gw = &meridiov1alpha1.Gateway{}
 			Eventually(func(g Gomega) {
 				g.Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
-				gw.Spec.Bgp.BFD = &meridiov1alpha1.BfdSpec{
+				gw.Spec.Bgp.BFD = meridiov1alpha1.BfdSpec{
 					Switch:     pointer.Bool(true),
 					MinRx:      "300ms",
 					MinTx:      "300ms",
@@ -200,7 +259,7 @@ var _ = Describe("Gateway", func() {
 				g.Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
 				gw.Spec.Protocol = "static"
 				gw.Spec.Static = meridiov1alpha1.StaticSpec{
-					BFD: &meridiov1alpha1.BfdSpec{
+					BFD: meridiov1alpha1.BfdSpec{
 						Switch:     pointer.Bool(true),
 						MinRx:      "200ms",
 						MinTx:      "200ms",
@@ -235,13 +294,30 @@ var _ = Describe("Gateway", func() {
 			}).Should(Succeed())
 
 			By("checking new item is in configmap")
-			newItem = reader.Gateway{
-				Name:     gw.ObjectMeta.Name,
-				Address:  "1.2.3.4",
-				IPFamily: "ipv4",
-				Protocol: "static",
-				Trench:   trenchName,
+			// if mutating webhook is enabled, BFD is turned on for static protocol by default
+			if mutating {
+				newItem = reader.Gateway{
+					Name:       gw.ObjectMeta.Name,
+					Address:    "1.2.3.4",
+					IPFamily:   "ipv4",
+					Protocol:   "static",
+					BFD:        true,
+					MinRx:      200,
+					MinTx:      200,
+					Multiplier: 3,
+					Trench:     trenchName,
+				}
+			} else {
+				newItem = reader.Gateway{
+					Name:     gw.ObjectMeta.Name,
+					Address:  "1.2.3.4",
+					IPFamily: "ipv4",
+					Protocol: "static",
+					Trench:   trenchName,
+					BFD:      false,
+				}
 			}
+
 			assertGatewayItemInConfigMap(newItem, configmapName, true)
 
 			By("checking old item is not in configmap")

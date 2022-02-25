@@ -61,9 +61,11 @@ type Operator struct {
 }
 
 var namespace string
+var mutating bool
 
 func init() {
 	flag.StringVar(&namespace, "namespace", "default", "specify the namespace for the tests to run")
+	flag.BoolVar(&mutating, "mutating", true, "specify the namespace for the tests to run")
 }
 
 var fw = NewFramework()

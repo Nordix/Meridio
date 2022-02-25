@@ -106,7 +106,7 @@ test: manifests generate fmt vet envtest ginkgo ## Run tests.
 E2E_FOCUS?=""
 .PHONY: e2e
 e2e: ginkgo
-	$(GINKGO) -v --focus=$(E2E_FOCUS) ./testdata/e2e/... -- -namespace=${NAMESPACE}
+	$(GINKGO) -v --focus=$(E2E_FOCUS) ./testdata/e2e/... -- -namespace=${NAMESPACE} -mutating=${ENABLE_MUTATING_WEBHOOK}
 
 ENVTEST = $(shell pwd)/bin/setup-envtest
 envtest: ## Download envtest-setup locally if necessary.
@@ -139,6 +139,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 namespace: ## Edit the namespace of operator to be deployed
 	cd config/default && $(KUSTOMIZE) edit set namespace ${NAMESPACE}
 
+ENABLE_MUTATING_WEBHOOK?=true
 configure-webhook:
 	ENABLE_MUTATING_WEBHOOK=$(ENABLE_MUTATING_WEBHOOK) hack/webhook-switch.sh
 
