@@ -150,7 +150,7 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 	// else use the default parameters
 	ret := dep.DeepCopy()
 	ret.ObjectMeta.Name = lbFeDeploymentName
-	ret.ObjectMeta.Namespace = l.trench.ObjectMeta.Namespace
+	ret.ObjectMeta.Namespace = l.attractor.ObjectMeta.Namespace
 	ret.ObjectMeta.Labels["app"] = lbFeDeploymentName
 	ret.Spec.Selector.MatchLabels["app"] = lbFeDeploymentName
 

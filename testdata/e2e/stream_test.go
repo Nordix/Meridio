@@ -4,6 +4,7 @@ import (
 	"time"
 
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	"github.com/nordix/meridio-operator/controllers/common"
 	"github.com/nordix/meridio-operator/testdata/utils"
 	config "github.com/nordix/meridio/pkg/configuration/reader"
 	. "github.com/onsi/ginkgo"
@@ -35,7 +36,7 @@ var _ = Describe("Stream", func() {
 		fw.CleanUpAttractors()
 		fw.CleanUpStreams()
 		// wait for the old instances to be deleted
-		time.Sleep(2 * time.Second)
+		time.Sleep(time.Second)
 	})
 
 	Context("When creating a stream", func() {
@@ -53,7 +54,7 @@ var _ = Describe("Stream", func() {
 			})
 		})
 
-		Context("with trench", func() {
+		Context("with one trench", func() {
 			BeforeEach(func() {
 				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 			})
@@ -75,6 +76,43 @@ var _ = Describe("Stream", func() {
 
 				By("checking stream is in configmap data")
 				assertStreamItemInConfigMap(streamA, configmapName, true)
+			})
+		})
+
+		Context("with two trenches", func() {
+			streamB := streamA.DeepCopy()
+			streamB.ObjectMeta.Name = "stream-b"
+			streamB.ObjectMeta.Labels["trench"] = "trench-b"
+			streamB.Spec.Conduit = "conduit-b"
+
+			BeforeEach(func() {
+				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
+				Expect(fw.CreateResource(
+					&meridiov1alpha1.Trench{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "trench-b",
+							Namespace: namespace,
+						},
+						Spec: meridiov1alpha1.TrenchSpec{
+							IPFamily: string(meridiov1alpha1.IPv4),
+						},
+					})).To(Succeed())
+			})
+
+			It("go to its own configmap", func() {
+				By("create stream for trench-a")
+				Expect(fw.CreateResource(streamA.DeepCopy())).To(Succeed())
+				assertStreamItemInConfigMap(streamA, configmapName, true)
+
+				By("create stream for trench-b")
+				Expect(fw.CreateResource(streamB)).To(Succeed())
+
+				By("checking stream b in configmap a")
+				// stream b should not be found in the configmap of trench a
+				assertStreamItemInConfigMap(streamB, configmapName, false)
+				By("checking stream b in configmap b")
+				// stream b should be found in the configmap of trench b
+				assertStreamItemInConfigMap(streamB, common.CMName+"-trench-b", true)
 			})
 		})
 	})

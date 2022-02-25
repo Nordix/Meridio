@@ -52,47 +52,47 @@ const (
 )
 
 func ServiceAccountName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(SAName, trench)
+	return getSuffixedName(SAName, trench.ObjectMeta.Name)
 }
 
 func IPAMServiceName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(IpamSvcName, trench)
+	return getSuffixedName(IpamSvcName, trench.ObjectMeta.Name)
 }
 
 func NSPServiceName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(NspSvcName, trench)
+	return getSuffixedName(NspSvcName, trench.ObjectMeta.Name)
 }
 
 func LbFeDeploymentName(attractor *meridiov1alpha1.Attractor) string {
-	return getAttractorSuffixedName(LBName, attractor)
+	return getSuffixedName(LBName, attractor.ObjectMeta.Name)
 }
 
 func ProxyDeploymentName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(ProxyName, trench)
+	return getSuffixedName(ProxyName, trench.ObjectMeta.Name)
 }
 
 func IPAMStatefulSetName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(IpamName, trench)
+	return getSuffixedName(IpamName, trench.ObjectMeta.Name)
 }
 
 func NSEDeploymentName(attractor *meridiov1alpha1.Attractor) string {
-	return getAttractorSuffixedName(NseName, attractor)
+	return getSuffixedName(NseName, attractor.ObjectMeta.Name)
 }
 
 func NSPStatefulSetName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(NspName, trench)
+	return getSuffixedName(NspName, trench.ObjectMeta.Name)
 }
 
 func RoleName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(RlName, trench)
+	return getSuffixedName(RlName, trench.ObjectMeta.Name)
 }
 
 func RoleBindingName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(RBName, trench)
+	return getSuffixedName(RBName, trench.ObjectMeta.Name)
 }
 
 func ConfigMapName(trench *meridiov1alpha1.Trench) string {
-	return getTrenchSuffixedName(CMName, trench)
+	return getSuffixedName(CMName, trench.ObjectMeta.Name)
 }
 
 func NSPServiceWithPort(cr *meridiov1alpha1.Trench) string {
@@ -103,12 +103,8 @@ func IPAMServiceWithPort(cr *meridiov1alpha1.Trench) string {
 	return fmt.Sprintf("%s:%d", IPAMServiceName(cr), IpamTargetPort)
 }
 
-func getTrenchSuffixedName(resourceName string, cr *meridiov1alpha1.Trench) string {
-	return fmt.Sprintf("%s%s-%s", getResourceNamePrefix(), resourceName, cr.ObjectMeta.Name)
-}
-
-func getAttractorSuffixedName(resourceName string, cr *meridiov1alpha1.Attractor) string {
-	return fmt.Sprintf("%s%s-%s", getResourceNamePrefix(), resourceName, cr.ObjectMeta.Name)
+func getSuffixedName(resourceName, suffix string) string {
+	return fmt.Sprintf("%s%s-%s", getResourceNamePrefix(), resourceName, suffix)
 }
 
 func ProxyNtwkSvcNsName(cr *meridiov1alpha1.Conduit) string {

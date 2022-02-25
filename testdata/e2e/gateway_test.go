@@ -73,7 +73,7 @@ var _ = Describe("Gateway", func() {
 		fw.CleanUpTrenches()
 		fw.CleanUpGateways()
 		// wait for the old instances to be deleted
-		time.Sleep(2 * time.Second)
+		time.Sleep(time.Second)
 	})
 
 	Context("When creating a gateway", func() {
@@ -90,7 +90,7 @@ var _ = Describe("Gateway", func() {
 			})
 		})
 
-		Context("with trench", func() {
+		Context("with one trench", func() {
 			BeforeEach(func() {
 				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 			})
@@ -170,6 +170,57 @@ var _ = Describe("Gateway", func() {
 						Expect(fw.CreateResource(gatewayIncomplete.DeepCopy())).ToNot(Succeed())
 					}
 				})
+			})
+		})
+
+		Context("with two trenches", func() {
+			gatewayB := gateway.DeepCopy()
+			gatewayB.ObjectMeta.Name = "new-gw"
+			gatewayB.ObjectMeta.Labels["trench"] = "trench-b"
+			gatewayB.Spec.Address = "10.20.30.40"
+
+			newGatewayInCm := reader.Gateway{
+				Name:       gatewayB.ObjectMeta.Name,
+				Address:    gatewayB.Spec.Address,
+				Protocol:   "bgp",
+				RemoteASN:  1234,
+				LocalASN:   4321,
+				RemotePort: 10179,
+				LocalPort:  10179,
+				HoldTime:   30,
+				BFD:        false,
+				IPFamily:   "ipv4",
+				Trench:     "trench-b",
+			}
+
+			BeforeEach(func() {
+				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
+				Expect(fw.CreateResource(
+					&meridiov1alpha1.Trench{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "trench-b",
+							Namespace: namespace,
+						},
+						Spec: meridiov1alpha1.TrenchSpec{
+							IPFamily: string(meridiov1alpha1.IPv4),
+						},
+					})).To(Succeed())
+			})
+
+			It("go to its own configmap", func() {
+				By("create gateway for trench-a")
+				Expect(fw.CreateResource(gateway.DeepCopy())).To(Succeed())
+				assertGatewayItemInConfigMap(defaultGwInCm, configmapName, true)
+
+				By("create gateway for trench-b")
+				Expect(fw.CreateResource(gatewayB)).To(Succeed())
+
+				By("checking gateway b in configmap a")
+				// gateway b should not be found in the configmap of trench a
+				assertGatewayItemInConfigMap(newGatewayInCm, common.CMName+"-trench-a", false)
+				By("checking gateway b in configmap b")
+				// gateway b should be found in the configmap of trench b
+				assertGatewayItemInConfigMap(newGatewayInCm, common.CMName+"-trench-b", true)
 			})
 		})
 	})
