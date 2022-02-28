@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -114,4 +114,45 @@ func (vr *VipResponse) ToSlice() []string {
 		vipSlice = append(vipSlice, vip.Address)
 	}
 	return vipSlice
+}
+
+func (f *Flow) DeepEquals(f2 *Flow) bool {
+	vipsToSlice := func(vips []*Vip) []string {
+		vipSlice := []string{}
+		for _, vip := range vips {
+			vipSlice = append(vipSlice, vip.Address)
+		}
+		return vipSlice
+	}
+	return f.Equals(f2) &&
+		f.Priority == f2.Priority &&
+		compareSlice(f.GetDestinationPortRanges(), f2.GetDestinationPortRanges()) &&
+		compareSlice(f.GetProtocols(), f2.GetProtocols()) &&
+		compareSlice(f.GetSourcePortRanges(), f2.GetSourcePortRanges()) &&
+		compareSlice(f.GetSourceSubnets(), f2.GetSourceSubnets()) &&
+		compareSlice(vipsToSlice(f.GetVips()), vipsToSlice(f2.GetVips()))
+}
+
+// compareSlice -
+// Returns false if the two slices are not equal by content
+func compareSlice(a, b []string) bool {
+	m := make(map[string]bool)
+	for _, item := range b {
+		// items in b
+		m[item] = true
+	}
+	for _, item := range a {
+		if _, ok := m[item]; !ok {
+			return false //  not in b
+		} else {
+			m[item] = false // both in a and b; mark that it's not unique to b
+		}
+	}
+	for _, v := range m {
+		if v {
+			return false // unique to b (not in a)
+		}
+	}
+
+	return true
 }

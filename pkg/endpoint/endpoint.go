@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/edwarnicke/grpcfd"
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -34,7 +35,6 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
-	"github.com/networkservicemesh/api/pkg/api/registry"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
@@ -54,7 +54,7 @@ type Endpoint struct {
 	networkServiceRegistryClient         registryapi.NetworkServiceRegistryClient
 	networkServiceEndpointRegistryClient registryapi.NetworkServiceEndpointRegistryClient
 
-	nse *registry.NetworkServiceEndpoint
+	nse *registryapi.NetworkServiceEndpoint
 }
 
 // Start -
@@ -120,8 +120,14 @@ func (e *Endpoint) errorHandler(errCh <-chan error) {
 
 // Delete -
 func (e *Endpoint) Delete() {
-	if err := e.unregister(); err != nil {
-		logrus.Warn(err)
+	logrus.Infof("Endpoint: Delete")
+	ctx, cancel := context.WithTimeout(e.context, time.Duration(time.Second*3))
+	defer cancel()
+
+	if err := e.unregister(ctx); err != nil {
+		logrus.Warnf("Endpoint: unregister err: %v", err)
+	} else {
+		logrus.Infof("Endpoint: unregistered")
 	}
 	_ = os.Remove(e.tmpDir)
 }
@@ -159,7 +165,7 @@ func (e *Endpoint) register() error {
 	return err
 }
 
-func (e *Endpoint) unregister() error {
+func (e *Endpoint) unregister(ctx context.Context) error {
 	e.nse.ExpirationTime = &timestamp.Timestamp{
 		Seconds: -1,
 	}
@@ -178,7 +184,7 @@ func (e *Endpoint) Announce() error {
 }
 
 func (e *Endpoint) Denounce() error {
-	return e.unregister()
+	return e.unregister(e.context)
 }
 
 func (e *Endpoint) GetUrl() string {
@@ -186,6 +192,9 @@ func (e *Endpoint) GetUrl() string {
 }
 
 // NewEndpoint -
+//
+// Note: on teardown if endpoint is expected to explicitly unregister,
+// then the context shall not be cancelled/closed before Delete() is called
 func NewEndpoint(
 	context context.Context,
 	config *Config,

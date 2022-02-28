@@ -14,28 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package types
+package nfqlb
 
-import (
-	"context"
-
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+const (
+	ownfw          = 0
+	qlength        = 1024
+	nfqlbCmd       = "nfqlb"
+	NFQueues       = "0:3"
+	tableName      = "meridio-nfqlb"
+	chainName      = "nfqlb"
+	localChainName = "nfqlb-local"
+	ipv4VIPSetName = "ipv4-vips"
+	ipv6VIPSetName = "ipv6-vips"
+	MAXPORTRANGE   = "0-65535"
 )
-
-type NFQueueLoadBalancer interface {
-	Activate(identifier int) error
-	Deactivate(identifier int) error
-	Start() error
-	Delete() error
-	SetFlow(flow *nspAPI.Flow) error
-	DeleteFlow(flow *nspAPI.Flow) error
-}
-
-type NFQueueLoadBalancerFactory interface {
-	Start(ctx context.Context) context.Context
-	New(name string, m int, n int) (NFQueueLoadBalancer, error)
-}
-
-type NFAdaptor interface {
-	SetDestinationIPs(vips []*nspAPI.Vip) error
-}

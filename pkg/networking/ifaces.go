@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -50,7 +50,6 @@ type Utils interface {
 	NewInterface(index int) Iface
 	NewBridge(name string) (Bridge, error)
 	NewFWMarkRoute(ip string, fwmark int, tableID int) (FWMarkRoute, error)
-	NFQueueFactory
 	NewSourceBasedRoute(tableID int, prefix string) (SourceBasedRoute, error)
 
 	NewInterfaceMonitor() (InterfaceMonitor, error)
@@ -71,15 +70,6 @@ type Bridge interface {
 type FWMarkRoute interface {
 	Verify() bool
 	Delete() error
-}
-
-type NFQueue interface {
-	Update(protocols []string, sourceIPs []string, destinationIPs []string, sourcePorts []string, destinationPorts []string) error
-	Delete() error
-}
-
-type NFQueueFactory interface {
-	NewNFQueue(name string, nfqueueNumber uint16, protocols []string, sourceIPs []string, destinationIPs []string, sourcePorts []string, destinationPorts []string, priority int32) (NFQueue, error)
 }
 
 type SourceBasedRoute interface {

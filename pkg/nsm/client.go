@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ type NetworkServiceClient interface {
 // APIClient -
 type APIClient struct {
 	context                              context.Context
+	cancel                               context.CancelFunc
 	GRPCClient                           *grpc.ClientConn
 	Config                               *Config
 	x509source                           *workloadapi.X509Source
@@ -148,10 +149,21 @@ func (apiClient *APIClient) dialOptions() {
 	)
 }
 
+// Delete -
+// Cancels the context to tear down apiClient
+func (apiClient *APIClient) Delete() {
+	if apiClient.cancel != nil {
+		logrus.Infof("apiClient: Delete")
+		apiClient.cancel()
+	}
+}
+
 // NewAPIClient -
 func NewAPIClient(ctx context.Context, config *Config) *APIClient {
+	ctx, cancel := context.WithCancel(ctx)
 	apiClient := &APIClient{
 		context:        ctx,
+		cancel:         cancel,
 		Config:         config,
 		GRPCDialOption: []grpc.DialOption{},
 	}
