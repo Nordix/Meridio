@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,67 +17,50 @@ limitations under the License.
 package flow
 
 import (
-	"fmt"
-
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
-	"github.com/nordix/meridio/pkg/networking"
 	"github.com/sirupsen/logrus"
 )
 
 type Flow struct {
 	*nspAPI.Flow
-	NFQueue networking.NFQueue
+	nfqueueLoadBalancer types.NFQueueLoadBalancer
 }
 
-func New(flow *nspAPI.Flow, nfqueueNumber int, nfqueueFactory networking.NFQueueFactory) (types.Flow, error) {
+func New(flow *nspAPI.Flow, options ...Option) (types.Flow, error) {
+	opts := &flowOptions{}
+	for _, opt := range options {
+		opt(opts)
+	}
+
 	f := &Flow{
-		Flow: flow,
+		Flow:                flow,
+		nfqueueLoadBalancer: opts.nfqueueLoadBalancer,
 	}
-	nfqueue, err := nfqueueFactory.NewNFQueue(
-		f.getNFQueueName(),
-		uint16(nfqueueNumber),
-		f.GetProtocols(),
-		f.GetSourceSubnets(),
-		f.getVipAddresses(),
-		f.GetSourcePortRanges(),
-		f.GetDestinationPortRanges(),
-		f.Priority)
-	logrus.Infof("New flow: %v - %v", flow, err)
-	if err != nil {
-		return nil, err
+
+	var err error
+	if f.nfqueueLoadBalancer != nil {
+		err = f.nfqueueLoadBalancer.SetFlow(flow)
 	}
-	f.NFQueue = nfqueue
+	logrus.Infof("New flow: %v - err: %v", flow, err)
 	return f, nil
 }
 
 func (f *Flow) Update(flow *nspAPI.Flow) error {
-	f.Flow = flow
-	logrus.Infof("Update flow: %v", f.Flow)
-	return f.NFQueue.Update(
-		f.GetProtocols(),
-		f.GetSourceSubnets(),
-		f.getVipAddresses(),
-		f.GetSourcePortRanges(),
-		f.GetDestinationPortRanges())
+	if f.Flow == nil || !f.Flow.DeepEquals(flow) {
+		f.Flow = flow
+		logrus.Infof("Update flow: %v", f.Flow)
+		if f.nfqueueLoadBalancer != nil {
+			return f.nfqueueLoadBalancer.SetFlow(f.Flow)
+		}
+	}
+	return nil
 }
 
 func (f *Flow) Delete() error {
 	logrus.Infof("Delete flow: %v", f.Flow)
-	return f.NFQueue.Delete()
-}
-
-func (f *Flow) getVipAddresses() []string {
-	vips := []string{}
-	for _, vip := range f.GetVips() {
-		vips = append(vips, vip.Address)
+	if f.nfqueueLoadBalancer != nil {
+		return f.nfqueueLoadBalancer.DeleteFlow(f.Flow)
 	}
-	return vips
-}
-
-func (f *Flow) getNFQueueName() string {
-	// Concatenate flow name + stream name to avoid nfqueue conflicts when
-	// a flow is move from one stream to another (the receiving flow could
-	// create the nfqueue before the old one is removed).
-	return fmt.Sprintf("%s-%s", f.GetName(), f.GetStream().GetName())
+	return nil
 }

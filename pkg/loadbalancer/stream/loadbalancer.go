@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,7 +28,6 @@ import (
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/loadbalancer/flow"
-	"github.com/nordix/meridio/pkg/loadbalancer/nfqlb"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/retry"
@@ -53,8 +52,17 @@ type LoadBalancer struct {
 	pendingCh                  chan struct{} // trigger pending Targets processing
 }
 
-func New(stream *nspAPI.Stream, targetRegistryClient nspAPI.TargetRegistryClient, configurationManagerClient nspAPI.ConfigurationManagerClient, m int, n int, nfqueue int, netUtils networking.Utils) (types.Stream, error) {
-	nfqlb, err := nfqlb.New(stream.GetName(), m, n, nfqueue)
+func New(
+	stream *nspAPI.Stream,
+	targetRegistryClient nspAPI.TargetRegistryClient,
+	configurationManagerClient nspAPI.ConfigurationManagerClient,
+	m int,
+	n int,
+	nfqueue int,
+	netUtils networking.Utils,
+	lbFactory types.NFQueueLoadBalancerFactory,
+) (types.Stream, error) {
+	nfqlb, err := lbFactory.New(stream.GetName(), m, n)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +157,7 @@ func (lb *LoadBalancer) AddTarget(target types.Target) error {
 	if exists {
 		return errors.New("the target is already registered")
 	}
-	err := target.Configure()
+	err := target.Configure() // TODO: avoid multiple identical ip rule entries (e.g. after container crash)
 	if err != nil {
 		lb.addPendingTarget(target)
 		returnErr := err
@@ -260,7 +268,7 @@ func (lb *LoadBalancer) setFlows(flows []*nspAPI.Flow) error {
 	for _, f := range flows {
 		fl, exists := lb.flows[f.GetName()]
 		if !exists { // create
-			newFlow, err := flow.New(f, lb.nfqueue, lb.netUtils)
+			newFlow, err := flow.New(f, flow.WithNFQueueLoadBalancer(lb.nfqlb))
 			if err != nil {
 				errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 				continue

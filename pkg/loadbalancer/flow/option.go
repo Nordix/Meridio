@@ -14,28 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package types
+package flow
 
 import (
-	"context"
-
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/loadbalancer/types"
 )
 
-type NFQueueLoadBalancer interface {
-	Activate(identifier int) error
-	Deactivate(identifier int) error
-	Start() error
-	Delete() error
-	SetFlow(flow *nspAPI.Flow) error
-	DeleteFlow(flow *nspAPI.Flow) error
+type Option func(o *flowOptions)
+
+type flowOptions struct {
+	nfqueueLoadBalancer types.NFQueueLoadBalancer
 }
 
-type NFQueueLoadBalancerFactory interface {
-	Start(ctx context.Context) context.Context
-	New(name string, m int, n int) (NFQueueLoadBalancer, error)
-}
-
-type NFAdaptor interface {
-	SetDestinationIPs(vips []*nspAPI.Vip) error
+func WithNFQueueLoadBalancer(nfqueueLoadBalancer types.NFQueueLoadBalancer) Option {
+	return func(o *flowOptions) {
+		o.nfqueueLoadBalancer = nfqueueLoadBalancer
+	}
 }

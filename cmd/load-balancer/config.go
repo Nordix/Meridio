@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,7 +18,10 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -34,6 +37,8 @@ type Config struct {
 	ConduitName      string        `default:"load-balancer" desc:"Name of the conduit" split_words:"true"`
 	TrenchName       string        `default:"default" desc:"Trench the pod is running on" split_words:"true"`
 	LogLevel         string        `default:"DEBUG" desc:"Log level" split_words:"true"`
+	Nfqueue          string        `default:"0:3" desc:"netfilter queue(s) to be used by nfqlb" split_words:"true"`
+	NfqueueFanout    bool          `default:"false" desc:"enable fanout nfqueue option" split_words:"true"`
 }
 
 // IsValid checks if the configuration is valid
@@ -41,5 +46,16 @@ func (c *Config) IsValid() error {
 	if c.ConnectTo.String() == "" {
 		return errors.New("no NSMGr ConnectTO URL are specified")
 	}
+
+	nfq := strings.Split(c.Nfqueue, ":")
+	if _, err := strconv.ParseUint(nfq[0], 10, 16); err != nil {
+		return fmt.Errorf("wrong Nfqueue format; %v (%v)", nfq[0], err)
+	}
+	if len(nfq) >= 2 {
+		if _, err := strconv.ParseUint(nfq[1], 10, 16); err != nil {
+			return fmt.Errorf("wrong Nfqueue format; %v (%v)", nfq[1], err)
+		}
+	}
+
 	return nil
 }

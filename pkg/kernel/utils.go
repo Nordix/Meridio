@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -40,10 +40,6 @@ func (ku *KernelUtils) NewBridge(name string) (networking.Bridge, error) {
 
 func (ku *KernelUtils) NewFWMarkRoute(ip string, fwmark int, tableID int) (networking.FWMarkRoute, error) {
 	return NewFWMarkRoute(ip, fwmark, tableID)
-}
-
-func (ku *KernelUtils) NewNFQueue(name string, nfqueueNumber uint16, protocols []string, sourceIPs []string, destinationIPs []string, sourcePorts []string, destinationPorts []string, priority int32) (networking.NFQueue, error) {
-	return NewNFQueue(name, nfqueueNumber, protocols, sourceIPs, destinationIPs, sourcePorts, destinationPorts, priority)
 }
 
 func (ku *KernelUtils) NewSourceBasedRoute(tableID int, prefix string) (networking.SourceBasedRoute, error) {

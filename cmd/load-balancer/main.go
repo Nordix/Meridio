@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ import (
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/health/probe"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
+	"github.com/nordix/meridio/pkg/loadbalancer/nfqlb"
 	"github.com/nordix/meridio/pkg/loadbalancer/stream"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/networking"
@@ -79,6 +80,9 @@ func main() {
 		logrus.Fatalf("%v", err)
 	}
 	logrus.Infof("rootConf: %+v", config)
+	if err := config.IsValid(); err != nil {
+		logrus.Fatalf("invalid config - %v", err)
+	}
 
 	logrus.SetLevel(func() logrus.Level {
 
@@ -122,12 +126,24 @@ func main() {
 		},
 	}
 
+	lbFactory := nfqlb.NewLbFactory(nfqlb.WithNFQueue(config.Nfqueue))
+	nfa, err := nfqlb.NewNetfilterAdaptor(nfqlb.WithNFQueue(config.Nfqueue), nfqlb.WithNFQueueFanout(config.NfqueueFanout))
+	if err != nil {
+		logrus.Fatalf("Netfilter adaptor err: %v", err)
+	}
 	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
 	if err != nil {
 		logrus.Fatalf("Error creating link monitor: %+v", err)
 	}
-	sns := NewSimpleNetworkService(netUtils.WithInterfaceMonitor(ctx, interfaceMonitor),
-		targetRegistryClient, configurationManagerClient, conduit, netUtils)
+	sns := NewSimpleNetworkService(
+		netUtils.WithInterfaceMonitor(ctx, interfaceMonitor),
+		targetRegistryClient,
+		configurationManagerClient,
+		conduit,
+		netUtils,
+		lbFactory, // to spawn nfqlb instance for each Stream created
+		nfa,       // netfilter kernel configuration to steer VIP traffic to nfqlb process
+	)
 
 	interfaceMonitorEndpoint := interfacemonitor.NewServer(interfaceMonitor, sns, netUtils)
 
@@ -150,7 +166,8 @@ func main() {
 		RequestTimeout:   config.RequestTimeout,
 		MaxTokenLifetime: config.MaxTokenLifetime,
 	}
-	nsmAPIClient := nsm.NewAPIClient(ctx, apiClientConfig)
+	nsmAPIClient := nsm.NewAPIClient(context.Background(), apiClientConfig) // background context to allow endpoint unregistration on tear down
+	defer nsmAPIClient.Delete()
 
 	endpointConfig := &endpoint.Config{
 		Name:             config.Name,
@@ -158,19 +175,25 @@ func main() {
 		Labels:           make(map[string]string),
 		MaxTokenLifetime: config.MaxTokenLifetime,
 	}
-	ep, err := endpoint.NewEndpoint(ctx, endpointConfig, nsmAPIClient.NetworkServiceRegistryClient, nsmAPIClient.NetworkServiceEndpointRegistryClient)
+	ep, err := endpoint.NewEndpoint(
+		context.Background(), // background context to allow endpoint unregistration on tear down
+		endpointConfig,
+		nsmAPIClient.NetworkServiceRegistryClient,
+		nsmAPIClient.NetworkServiceEndpointRegistryClient,
+	)
 	if err != nil {
 		logrus.Fatalf("unable to create a new nse %+v", err)
 	}
 
+	defer ep.Delete() // let endpoint unregister with NSM to inform proxies in time
 	err = ep.StartWithoutRegister(responderEndpoint...)
 	if err != nil {
 		logrus.Fatalf("unable to start nse %+v", err)
 	}
 
-	defer ep.Delete()
 	probe.CreateAndRunGRPCHealthProbe(ctx, health.NSMEndpointSvc, probe.WithAddress(ep.GetUrl()), probe.WithSpiffe())
 
+	ctx = lbFactory.Start(ctx) // start nfqlb process in background
 	sns.Start()
 	// monitor availibilty of frontends; if no feasible FE don't advertise NSE to proxies
 	fns := NewFrontendNetworkService(ctx, targetRegistryClient, ep, NewServiceControlDispatcher(sns))
@@ -194,6 +217,8 @@ type SimpleNetworkService struct {
 	mu                          sync.Mutex
 	cancelStreamWatcher         context.CancelFunc
 	streamWatcherRunning        bool
+	lbFactory                   types.NFQueueLoadBalancerFactory
+	nfa                         types.NFAdaptor
 }
 
 /* // Request checks if allowed to serve the request
@@ -221,7 +246,15 @@ func (sns *SimpleNetworkService) Close(ctx context.Context, conn *networkservice
 } */
 
 // NewSimpleNetworkService -
-func NewSimpleNetworkService(ctx context.Context, targetRegistryClient nspAPI.TargetRegistryClient, configurationManagerClient nspAPI.ConfigurationManagerClient, conduit *nspAPI.Conduit, netUtils networking.Utils) *SimpleNetworkService {
+func NewSimpleNetworkService(
+	ctx context.Context,
+	targetRegistryClient nspAPI.TargetRegistryClient,
+	configurationManagerClient nspAPI.ConfigurationManagerClient,
+	conduit *nspAPI.Conduit,
+	netUtils networking.Utils,
+	lbFactory types.NFQueueLoadBalancerFactory,
+	nfa types.NFAdaptor,
+) *SimpleNetworkService {
 	simpleNetworkService := &SimpleNetworkService{
 		Conduit:                     conduit,
 		targetRegistryClient:        targetRegistryClient,
@@ -233,12 +266,15 @@ func NewSimpleNetworkService(ctx context.Context, targetRegistryClient nspAPI.Ta
 		serviceCtrCh:                make(chan bool),
 		simpleNetworkServiceBlocked: true,
 		streamWatcherRunning:        false,
+		lbFactory:                   lbFactory,
+		nfa:                         nfa,
 	}
 	return simpleNetworkService
 }
 
 // Start -
 func (sns *SimpleNetworkService) Start() {
+	go sns.watchVips(sns.ctx)
 	go func() {
 		for {
 			select {
@@ -393,7 +429,16 @@ func (sns *SimpleNetworkService) addStream(strm *nspAPI.Stream) error {
 	if exists {
 		return errors.New("this stream already exists")
 	}
-	s, err := stream.New(strm, sns.targetRegistryClient, sns.ConfigurationManagerClient, M, N, sns.nfqueueIndex, sns.netUtils)
+	s, err := stream.New(
+		strm,
+		sns.targetRegistryClient,
+		sns.ConfigurationManagerClient,
+		M,
+		N,
+		sns.nfqueueIndex,
+		sns.netUtils,
+		sns.lbFactory,
+	)
 	if err != nil {
 		return err
 	}
@@ -463,4 +508,45 @@ func (sns *SimpleNetworkService) disableInterface(intf networking.Iface) {
 	if err != nil {
 		logrus.Warnf("SimpleNetworkService: err Disable Intf (%v): %v", la.Index, err)
 	}
+}
+
+// watchVips -
+// Monitors VIP changes in Trench via NSP
+func (sns *SimpleNetworkService) watchVips(ctx context.Context) {
+	logrus.Infof("SimpleNetworkService: Watch VIPs")
+	err := retry.Do(func() error {
+		vipsToWatch := &nspAPI.Vip{
+			Trench: sns.Conduit.GetTrench(),
+		}
+		watchVip, err := sns.ConfigurationManagerClient.WatchVip(ctx, vipsToWatch)
+		if err != nil {
+			return err
+		}
+		for {
+			vipResponse, err := watchVip.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return err
+			}
+			err = sns.updateVips(vipResponse.GetVips())
+			if err != nil {
+				logrus.Errorf("updateVips err: %v", err)
+			}
+		}
+		return nil
+	}, retry.WithContext(ctx),
+		retry.WithDelay(500*time.Millisecond),
+		retry.WithErrorIngnored())
+	if err != nil {
+		logrus.Warnf("err watchVIPs: %v", err) // todo
+	}
+}
+
+// updateVips -
+// Sends list of VIPs to Netfilter Adaptor to adjust kerner based rules
+func (sns *SimpleNetworkService) updateVips(vips []*nspAPI.Vip) error {
+	logrus.Debugf("SimpleNetworkService: updateVips %v", vips)
+	return sns.nfa.SetDestinationIPs(vips)
 }
