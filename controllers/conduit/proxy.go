@@ -70,7 +70,7 @@ func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 		},
 		{
 			Name:  "NSM_NSP_SERVICE_NAME",
-			Value: common.NspSvcName,
+			Value: common.GetPrefixedName(common.NspSvcName),
 		},
 		{
 			Name:  "NSM_NSP_SERVICE_PORT",
