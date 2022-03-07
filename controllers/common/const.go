@@ -104,7 +104,7 @@ func IPAMServiceWithPort(cr *meridiov1alpha1.Trench) string {
 }
 
 func GetSuffixedName(resourceName, suffix string) string {
-	return fmt.Sprintf("%s-%s", GetSuffixedName(getResourceNamePrefix(), resourceName), suffix)
+	return fmt.Sprintf("%s-%s", GetPrefixedName(resourceName), suffix)
 }
 
 func GetPrefixedName(resourceName string) string {
