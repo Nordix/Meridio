@@ -2,7 +2,7 @@
 This is a script to generate a helm chart if helm is prefered over make.
 
 How to use:
-$ python3 ./hack/helm-chart-generator.py [--image <full-operator-image-path>] [--version <version>]
+$ python3 ./hack/helm-chart-generator.py [--image <full-operator-image-path>] [--version <version>] [--mutating <boolean>]
 
 The --image arguement should be specified without option, if not specified, it's "controller" by default.
 The version arguement should fulfill Semantic Versioning 2.0.0. The default value is 0.0.1
@@ -61,7 +61,7 @@ for content in contents:
     filename = kind + "-" + name + ".yaml"
 
     # fix the identation
-    content = subprocess.run(["yq", "-Y", "."], input=content, stdout=subprocess.PIPE, encoding='utf-8').stdout
+    # content = subprocess.run(["yq", "-Y", "."], input=content, stdout=subprocess.PIPE, encoding='utf-8').stdout
     # replace namespace in content
     content = re.sub("meridio-operator-system",
                      '{{.Release.Namespace}}', content)
