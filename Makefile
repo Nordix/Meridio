@@ -79,10 +79,9 @@ lint:
 	golangci-lint run ./...
 
 NAMESPACE ?= red
-TEST_WITH_OPERATOR ?= false
 .PHONY: e2e
 e2e: 
-	ginkgo -v --focus=$(E2E_FOCUS) ./test/e2e/... -- -traffic-generator-cmd=$(TRAFFIC_GENERATOR_CMD) -namespace=${NAMESPACE} -test-with-operator=${TEST_WITH_OPERATOR}
+	ginkgo -v --focus=$(E2E_FOCUS) ./test/e2e/... -- -traffic-generator-cmd=$(TRAFFIC_GENERATOR_CMD) -namespace=${NAMESPACE}
 
 .PHONY: test
 test: 

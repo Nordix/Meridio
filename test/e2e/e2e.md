@@ -49,8 +49,7 @@
 7. Install targets connected to trench-a
 
    ```bash
-   # <conduit-name> is load-balancer if testing with helm, and lb-fe if testing with the operator
-   helm install examples/target/helm/ --generate-name --create-namespace --namespace $ns --set applicationName=target-a --set default.trench.name=trench-a --set default.conduit.name=<conduit-name>
+   helm install examples/target/helm/ --generate-name --create-namespace --namespace $ns --set applicationName=target-a --set default.trench.name=trench-a --set default.conduit.name=load-balancer
    ```
 
 8. Deploy External host / External connectivity
@@ -58,51 +57,6 @@
    ```bash
    ./docs/demo/scripts/kind/external-host.sh
    ```
-
-The following steps depends whether the tests are running with or without the meridio operator.
-
-### Testing with Meridio Operator
-
-Meridio should test with the operator before each release to ensure the compatibility.
-
-9. Install the operator
-
-- Install certificate manager
-
-    ```bash
-    kubectl apply -f https://github.com/jetstack/cert-manager/releases/latest/download/cert-manager.yaml
-    ```
-
-- Build operator image and make it available for cluster
-
-    ```bash
-    # update the Meridio Operator submodule
-    git pull
-    git submodule sync --recursive
-    git submodule update --init --recursive
-    # run at the git root directory
-    cd Meridio-Operator
-    make generate manifests docker-build kind-load
-    ```
-
-- Deploy operator and all the instances for e2e test
-
-    ```bash
-    make deploy NAMESPACE=$ns
-    # go back to git root directory
-    cd ..
-    kubectl apply -f ./test/e2e/manifest/meridio-trench-a.yaml
-    kubectl apply -f ./test/e2e/manifest/meridio-trench-b.yaml
-    ```
-
-10. To run the e2e tests with Meridio Operator
-
-    ```bash
-    # at meridio git base directory
-    make e2e NAMESPACE=$ns TEST_WITH_OPERATOR=true
-    ```
-
-### Testing without Meridio Operator
 
 9. Install Merido by helm chart
 

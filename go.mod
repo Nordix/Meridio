@@ -13,7 +13,6 @@ require (
 	github.com/networkservicemesh/api v1.2.0
 	github.com/networkservicemesh/sdk v1.2.0
 	github.com/networkservicemesh/sdk-sriov v1.2.0
-	github.com/nordix/meridio-operator v0.0.0-20211110154001-ee8264246a47
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
 	github.com/pkg/errors v0.9.1
@@ -30,14 +29,16 @@ require (
 	gorm.io/driver/sqlite v1.2.6
 	gorm.io/gorm v1.22.3
 	k8s.io/api v0.23.0
-	k8s.io/apiextensions-apiserver v0.23.0
 	k8s.io/apimachinery v0.23.0
 	k8s.io/client-go v0.23.0
 	sigs.k8s.io/controller-runtime v0.11.0
 )
 
 require (
+	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/jinzhu/now v1.1.3 // indirect
-	github.com/prometheus/procfs v0.7.3 // indirect
+	github.com/open-policy-agent/opa v0.30.1 // indirect
+	go.uber.org/atomic v1.8.0 // indirect
+	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 	k8s.io/klog/v2 v2.40.1 // indirect
 )
