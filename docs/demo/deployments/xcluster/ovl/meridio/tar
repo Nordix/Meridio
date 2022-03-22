@@ -43,10 +43,12 @@ if test -n $XCLUSTER_INSTALL_MULTUS; then
        log "Copy multus-cni to $tmp/etc/kubernetes/"
        mkdir -p $tmp/etc/kubernetes/
        test -d $XCLUSTER_WORKSPACE/multus-cni && cp -r $XCLUSTER_WORKSPACE/multus-cni $tmp/etc/kubernetes/
-       if test -d $tmp/etc/kubernetes/multus-cni -a -f $tmp/etc/kubernetes/multus-cni/images/multus-daemonset.yml; then
-       	# make sure multus tolerates all the effects (so that it starts on tainted nodes as well)
-       	sed -i -e "/^\( *\)tolerations:/{n;n;/effect:/d;}" $tmp/etc/kubernetes/multus-cni/images/multus-daemonset.yml
-       fi
+       # Note: multus v3.8 by default tolerates NoSchedule taints, so there's no need for further modifications,
+       # unless taints with other effects (e.g.: NoExecute) had been applied on the router nodes
+       #if test -d $tmp/etc/kubernetes/multus-cni -a -f $tmp/etc/kubernetes/multus-cni/images/multus-daemonset.yml; then
+       #	# make sure multus tolerates all the effects (so that it starts on tainted nodes as well)
+       #	sed -i -e "/^\( *\)tolerations:/{n;n;/effect:/d;}" $tmp/etc/kubernetes/multus-cni/images/multus-daemonset.yml
+       #fi
        log "Copy CNI plugins to $tmp/opt/cni/bin"
        test -f $XCLUSTER_WORKSPACE/cni-plugins/bin/vlan && mkdir -p $tmp/opt/cni/bin && cp $XCLUSTER_WORKSPACE/cni-plugins/bin/vlan $tmp/opt/cni/bin/
        test -f $XCLUSTER_WORKSPACE/cni-plugins/bin/static && mkdir -p $tmp/opt/cni/bin && cp $XCLUSTER_WORKSPACE/cni-plugins/bin/static $tmp/opt/cni/bin/

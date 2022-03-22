@@ -47,7 +47,7 @@ run_kubelet() {
 	else
 		kubelet --address=:: $CRI_OPTS --node-ip=$NODE_IP \
                         --register-node=true --kubeconfig $KUBECONFIG \
-                        --register-with-taints gw=true:NoSchedule,gw=true:NoExecute,gw=true:PreferNoSchedule \
+                        --register-with-taints gw=true:NoSchedule \
                         --node-labels gw=true \
                         --feature-gates $FEATURE_GATES \
                         --network-plugin=cni \
