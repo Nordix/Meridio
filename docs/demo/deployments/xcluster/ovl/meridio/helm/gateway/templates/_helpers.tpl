@@ -22,6 +22,14 @@
 {{- end -}}
 {{- end -}}
 
+{{- define "tg.tgLabel" -}}
+{{- if .Values.postfix -}}
+{{- printf "tg-%s" .Values.postfix -}}
+{{ else }}
+{{- printf "tg" -}}
+{{- end -}}
+{{- end -}}
+
 {{- define "gw.gw1" -}}
 {{- if .Values.postfix -}}
 {{- printf "gateway-1-%s" .Values.postfix -}}

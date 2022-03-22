@@ -299,7 +299,7 @@ spec:
                 operator: In
                 values:
                 - "{{ template "gw.gwLabel" . }}"
-                - "tg"
+                - "{{ template "tg.tgLabel" . }}"
             topologyKey: kubernetes.io/hostname
       initContainers:
         - name: sysctl-init
@@ -359,7 +359,7 @@ spec:
                 operator: In
                 values:
                 - "{{ template "gw.gwLabel" . }}"
-                - "tg"
+                - "{{ template "tg.tgLabel" . }}"
             topologyKey: kubernetes.io/hostname
       initContainers:
         - name: sysctl-init

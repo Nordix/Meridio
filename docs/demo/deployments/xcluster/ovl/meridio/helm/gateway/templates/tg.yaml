@@ -24,7 +24,7 @@ kind: Pod
 metadata:
   name: {{ template "tg.tg" . }}
   labels:
-    app: tg
+    app: {{ template "tg.tgLabel" . }}
   annotations:
       k8s.v1.cni.cncf.io/networks: '[
         { "name": "{{ template "tg.tgConf" . }}",

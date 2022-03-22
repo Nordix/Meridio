@@ -12,7 +12,6 @@ die() {
 # --tg4_addr=[IPv4 addr]
 # --tg6_addr=[IPv6 addr]
 # --bird_conf=[/etc/bird/FILE.conf]
-# --rt=[routing table id]
 # "unlabelled" options are passed to BIRD
 
 while echo "$1" | grep -q '^--'; do

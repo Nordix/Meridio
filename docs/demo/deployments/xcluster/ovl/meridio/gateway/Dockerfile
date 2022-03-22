@@ -1,13 +1,6 @@
-FROM debian:bullseye-slim
+FROM alpine:edge
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get update && \
-	apt-get install -y net-tools && \
-	apt-get install -y iproute2 && \
-	apt-get install -y procps && \
-	apt-get install -y vim && \
-	apt-get install -y tcpdump && \
-	apt-get install iputils-ping && \
-	apt-get install -y bird2
+RUN apk update && apk add bash net-tools iproute2 procps vim less tcpdump iputils bird
 
 RUN mkdir -p /run/bird \
 	mkdir -p /etc/bird \
