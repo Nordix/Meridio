@@ -300,6 +300,8 @@ cmd_generate_manifests() {
 ##   build_image [images...]
 ##     Build local images and upload to the local registry.
 cmd_build_image() {
+	export meridio_version=$(git describe --dirty --tags)
+	echo "meridio_version=$meridio_version"
 	local images=$($XCLUSTER ovld images)/images.sh
 	test -x $images || dir "Can't find ovl/images/images.sh"
 	local tagbase=registry.nordix.org/cloud-native/meridio

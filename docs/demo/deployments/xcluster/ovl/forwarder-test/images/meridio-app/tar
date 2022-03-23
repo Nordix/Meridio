@@ -20,7 +20,7 @@ cp -R $dir/default/* $tmp
 
 mkdir -p $tmp/bin
 
-test -n "$MERIDIODIR" || MERIDIODIR=$GOPATH/src/github.com/Nordix/Meridio
+test -n "$MERIDIODIR" || MERIDIODIR=$(readlink -f $dir/../../../../../../../..)
 test -d $MERIDIODIR/cmd/load-balancer || die "Meridio src not found"
 cd $MERIDIODIR
 go build -o $tmp/bin/target-client ./test/applications/target-client 1>&2 || die "go build"

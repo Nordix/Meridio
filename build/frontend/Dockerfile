@@ -4,6 +4,7 @@ ENV GO111MODULE=on
 ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GOBIN=/bin
+ARG meridio_version=0.0.0-unknown
 
 WORKDIR /app
 COPY go.mod .
@@ -11,7 +12,7 @@ RUN go mod tidy
 RUN go mod download
 RUN go get github.com/grpc-ecosystem/grpc-health-probe@v0.4.2
 COPY . .
-RUN go build -ldflags '-extldflags "-static"' -o frontend ./cmd/frontend
+RUN go build -ldflags "-extldflags -static -X main.version=${meridio_version}" -o frontend ./cmd/frontend
 
 
 FROM alpine:edge

@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -40,7 +41,29 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
+func printHelp() {
+	fmt.Println(`
+nsp --
+  The nsp (Network Service Platform) process in https://github.com/Nordix/Meridio
+  handles notifications on (un)registration.
+  This program shall be started in a Kubernetes container.`)
+}
+
+var version = "(unknown)"
+
 func main() {
+	ver := flag.Bool("version", false, "Print version and quit")
+	help := flag.Bool("help", false, "Print help and quit")
+	flag.Parse()
+	if *ver {
+		fmt.Println(version)
+		os.Exit(0)
+	}
+	if *help {
+		printHelp()
+		os.Exit(0)
+	}
+
 	ctx, cancel := signal.NotifyContext(
 		context.Background(),
 		os.Interrupt,

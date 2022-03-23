@@ -18,6 +18,8 @@ package main
 
 import (
 	"context"
+	"flag"
+	"fmt"
 	"io"
 	"os"
 	"os/signal"
@@ -37,7 +39,29 @@ import (
 	"github.com/nordix/meridio/pkg/security/credentials"
 )
 
+func printHelp() {
+	fmt.Println(`
+frontend --
+  The frontend process in https://github.com/Nordix/Meridio uses BGP (Bird)
+  to attract traffic to Virtual IP (VIP) addresses.
+  This program shall be started in a Kubernetes container.`)
+}
+
+var version = "(unknown)"
+
 func main() {
+	ver := flag.Bool("version", false, "Print version and quit")
+	help := flag.Bool("help", false, "Print help and quit")
+	flag.Parse()
+	if *ver {
+		fmt.Println(version)
+		os.Exit(0)
+	}
+	if *help {
+		printHelp()
+		os.Exit(0)
+	}
+
 	ctx, cancel := signal.NotifyContext(
 		context.Background(),
 		os.Interrupt,

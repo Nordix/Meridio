@@ -22,10 +22,11 @@ mkdir -p $tmp/bin
 cp $ARCHIVE/grpc_health_probe-linux-amd64 $tmp/bin/grpc_health_probe
 chmod a+x $tmp/bin/grpc_health_probe
 
-test -n "$MERIDIODIR" || MERIDIODIR=$GOPATH/src/github.com/Nordix/Meridio
+test -n "$MERIDIODIR" || MERIDIODIR=$(readlink -f $dir/../../../../../../../..)
 test -d $MERIDIODIR/cmd/load-balancer || die "Meridio src not found"
 cd $MERIDIODIR
-go build -o $tmp/bin/load-balancer ./cmd/load-balancer 1>&2 || die "go build"
+log "main.version=$meridio_version"
+go build -o $tmp/bin/load-balancer -ldflags "-X main.version=$meridio_version" ./cmd/load-balancer 1>&2 || die "go build"
 strip $tmp/bin/load-balancer
 cd $dir
 
@@ -35,7 +36,7 @@ if test -x $nfqlb; then
 	mkdir -p $tmp/bin
 	cp $nfqlb $tmp/bin
 else
-	nfqlb=nfqlb-0.6.0
+	nfqlb=nfqlb-0.8.0
 	log "Using $nfqlb"
 	ar=$ARCHIVE/Downloads/$nfqlb.tar.xz
 	test -r $ar || ar=$HOME/Downloads/$nfqlb.tar.xz
