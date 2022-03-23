@@ -1,5 +1,5 @@
 FROM golang:1.16 as build
-
+ARG meridio_version=0.0.0-unknown
 ENV GO111MODULE=on
 
 WORKDIR /app
@@ -10,8 +10,7 @@ COPY go.sum .
 RUN go mod download
 
 COPY . .
-
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"' -o load-balancer ./cmd/load-balancer
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-extldflags -static -X main.version=${meridio_version}" -o load-balancer ./cmd/load-balancer
 
 FROM ubuntu:21.04 as lb-builder
 

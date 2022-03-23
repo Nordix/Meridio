@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -61,7 +62,29 @@ const (
 	N = 100
 )
 
+func printHelp() {
+	fmt.Println(`
+load-balancer --
+  The load-balancer process in https://github.com/Nordix/Meridio
+  sets up load-balancing using https://github.com/Nordix/nfqueue-loadbalancer.
+  This program shall be started in a Kubernetes container.`)
+}
+
+var version = "(unknown)"
+
 func main() {
+	ver := flag.Bool("version", false, "Print version and quit")
+	help := flag.Bool("help", false, "Print help and quit")
+	flag.Parse()
+	if *ver {
+		fmt.Println(version)
+		os.Exit(0)
+	}
+	if *help {
+		printHelp()
+		os.Exit(0)
+	}
+
 	ctx, cancel := signal.NotifyContext(
 		context.Background(),
 		os.Interrupt,

@@ -25,7 +25,7 @@ chmod a+x $tmp/bin/grpc_health_probe
 test -n "$MERIDIODIR" || MERIDIODIR=$(readlink -f $dir/../../../../../../../..)
 test -d $MERIDIODIR/cmd/load-balancer || die "Meridio src not found"
 cd $MERIDIODIR
-go build -o $tmp/bin/tapa ./cmd/tapa 1>&2 || die "go build"
+go build -o $tmp/bin/tapa -ldflags "-X main.version=$meridio_version" ./cmd/tapa 1>&2 || die "go build"
 strip $tmp/bin/tapa
 cd $dir
 

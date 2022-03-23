@@ -17,7 +17,7 @@ all: default
 
 .PHONY: build
 build:
-	docker build -t $(IMAGE) -f ./build/$(IMAGE)/Dockerfile .
+	docker build -t $(IMAGE) --build-arg meridio_version=$(shell git describe --dirty --tags) -f ./build/$(IMAGE)/Dockerfile .
 .PHONY: tag
 tag:
 	docker tag $(IMAGE) $(REGISTRY)/$(IMAGE):$(VERSION)

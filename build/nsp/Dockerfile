@@ -1,5 +1,6 @@
 FROM golang:1.17.6 as build
 
+ARG meridio_version=0.0.0-unknown
 ENV GO111MODULE=on
 
 WORKDIR /app
@@ -11,7 +12,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=1 GOOS=linux go build -ldflags '-extldflags "-static"' -o nsp ./cmd/nsp
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags "-extldflags -static -X main.version=${meridio_version}" -o nsp ./cmd/nsp
 
 FROM ubuntu:21.04 as grpc-health-probe
 
