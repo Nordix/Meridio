@@ -48,12 +48,13 @@ const (
 	Dualstack IPFamily = "dualstack"
 )
 
-// +kubebuilder:validation:Enum=tcp;udp
+// +kubebuilder:validation:Enum=tcp;udp;sctp
 type TransportProtocol string
 
 const (
-	TCP TransportProtocol = "tcp"
-	UDP TransportProtocol = "udp"
+	TCP  TransportProtocol = "tcp"
+	UDP  TransportProtocol = "udp"
+	SCTP TransportProtocol = "sctp"
 )
 
 func TransportProtocolsToStrings(proto []TransportProtocol) []string {
