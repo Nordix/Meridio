@@ -197,9 +197,5 @@ func (r *Flow) validateUpdate(oldObj runtime.Object) error {
 		return apierrors.NewForbidden(r.GroupResource(),
 			r.Name, field.Forbidden(field.NewPath("metadata", "labels", "trench"), "update on trench label is forbidden"))
 	}
-	if r.Spec.Priority != old.Spec.Priority {
-		return apierrors.NewForbidden(r.GroupResource(),
-			r.Name, field.Forbidden(field.NewPath("metadata", "spec", "priority"), "update on priority is forbidden"))
-	}
 	return nil
 }
