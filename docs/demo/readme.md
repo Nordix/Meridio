@@ -3,6 +3,9 @@
 * [Kind - VLAN](readme.md) - Demo running on [Kind](https://kind.sigs.k8s.io/) using a vlan-forwarder to link the network service to an external host.
 * [xcluster - VLAN](xcluster.md) - Demo running on [xcluster](https://github.com/Nordix/xcluster) using a vlan-forwarder to link the network service to an external host.
 
+This demo deploys a Kubernetes with 2 workers and 1 master running Spire, Network Service Mesh and a single Meridio trench. The Meridio trench has 1 conduit (Stateless load-balancer) with 2 instances, 1 stream, 1 flow (any source IP/Port, TCP, 5000 as destination port and 2 VIP: 20.0.0.1/32 and 2000::1/128). The traffic is attracted by a vlan connected to a gateway (also used as traffic generator).
+
+![Overview](../resources/Overview.svg)
 
 ## Installation
 
@@ -27,42 +30,21 @@ helm install docs/demo/deployments/nsm --generate-name --create-namespace --name
 
 ### Meridio
 
-
-Install Meridio trench-a
+Install Meridio
 ```
-# ipv4
-helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-a --set vlan.id=100 --set --set vlan.fe.gateway[0]="169.254.100.150/24"
-# ipv6
-helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-a --set vlan.id=100 --set ipFamily=ipv6 --set vlan.fe.gateway[0]="100:100::150/64"
-# dualstack
-helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-a --set ipFamily=dualstack ---set vlan.fe.gateway[0]="169.254.100.150/24" --set vlan.fe.gateway[1]="100:100::150/64"
+helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-a --set ipFamily=dualstack
 ```
 
-Install Meridio trench-b
-```
-# ipv4
-helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-b --set vlan.id=101 --set vlan.fe.gateway[0]="169.254.100.150/24"
-# ipv6
-helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-b --set vlan.id=101 --set ipFamily=ipv6 --set vlan.fe.gateway[0]="100:100::150/64"
-# dualstack
-helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-b --set vlan.id=101 --set ipFamily=dualstack --set vlan.fe.gateway[0]="169.254.100.150/24" --set vlan.fe.gateway[1]="100:100::150/64"
-```
+### Target
 
-### target
-
-Install targets connected to trench-a
+Install targets
 ```
 helm install examples/target/helm/ --generate-name --create-namespace --namespace red --set applicationName=target-a --set default.trench.name=trench-a
 ```
 
-Install targets connected to trench-b
-```
-helm install examples/target/helm/ --generate-name --create-namespace --namespace red --set applicationName=target-b --set default.trench.name=trench-b
-```
-
 ### External host / External connectivity
 
-Deploy a external host
+Deploy a external host (Gateway-Router)
 ```
 ./docs/demo/scripts/kind/external-host.sh
 ```
@@ -85,40 +67,4 @@ ctraffic -address [2000::1]:5000 -nconn 400 -rate 100 -monitor -stats all > v4tr
 Verification
 ```
 ctraffic -analyze hosts -stat_file v4traffic.json
-```
-
-## Scaling
-
-Scale-In/Scale-Out target
-```
-kubectl scale deployment target -n red --replicas=5
-```
-
-Scale-In/Scale-Out load-balancer
-```
-kubectl scale deployment load-balancer-trench-a -n red --replicas=1
-```
-
-## Ambassador
-
-From a target:
-
-Connect to a conduit/trench (Conduit/Network Service: load-balancer, Trench: trench-a)
-```
-./target-client connect -ns load-balancer -t trench-a
-```
-
-Disconnect from a conduit/trench (Conduit/Network Service: load-balancer, Trench: trench-a)
-```
-./target-client disconnect -ns load-balancer -t trench-a
-```
-
-Request a stream (Conduit/Network Service: load-balancer, Trench: trench-a)
-```
-./target-client request -ns load-balancer -t trench-a
-```
-
-Close a stream (Conduit/Network Service: load-balancer, Trench: trench-a)
-```
-./target-client close -ns load-balancer -t trench-a
 ```

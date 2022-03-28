@@ -1,9 +1,38 @@
 # Meridio Documentation
 
-## Table of contents
+## Table Of Contents
 
-* [Overview](overview.md)
-* [Test](https://github.com/Nordix/Meridio/blob/master/test/e2e/e2e.md)
-* [Operator](https://github.com/Nordix/Meridio-Operator)
-* [Google Drive](https://drive.google.com/drive/folders/1ZSAzXkk13_LJnTDGPLC8OR-zlEYdCV2D?usp=sharing)
-* [pkg.go.dev](https://pkg.go.dev/github.com/nordix/meridio)
+* Getting Started 
+    * [High Level Overview](overview.md)
+    * [Quick Installation / Demo](demo)
+    * [Deployment](deployment.md)
+        * [Helm](deployment.md#helm)
+        * [Operator](deployment.md#operator)
+* Architecture and Design
+    * [Concepts](concepts.md)
+        * [Trench](concepts.md#trench)
+        * [Conduit](concepts.md#conduit)
+        * [Stream](concepts.md#stream)
+        * [Flow](concepts.md#flow)
+        * [VIP](concepts.md#vip)
+        * [Attractor](concepts.md#attractor)
+        * [Gateway](concepts.md#gateway)
+    * Components
+        * [Load-Balancer](load-balancer.md)
+        * [Front-End](front-end.md)
+        * [Proxy](proxy.md)
+        * [Target Access Point Ambassador (TAPA)](tapa.md)
+        * [Network Service Platform (NSP)](nsp.md)
+        * [IPAM](ipam.md)
+        * [User Application](user-application.md)
+        * NSC (TODO)
+        * NSE-VLAN (TODO)
+* [Contributing](../CONTRIBUTING.md)
+    * Build (TODO)
+    * [Test](../test/e2e/e2e.md)
+    * Code Style (TODO)
+    * Troubleshooting Guide (TODO)
+* [Frequently Asked Questions](faq.md)
+* Resources
+    * [Google Drive](https://drive.google.com/drive/folders/1ZSAzXkk13_LJnTDGPLC8OR-zlEYdCV2D?usp=sharing)
+    * [pkg.go.dev](https://pkg.go.dev/github.com/nordix/meridio)
