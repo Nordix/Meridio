@@ -29,16 +29,6 @@ import (
 
 var _ = Describe("MultiTrenches", func() {
 
-	Context("Another trench is up and running", func() {
-		It("have all the deployments/ds/pods in ready status", func() {
-			// do the following checking only when testing with the operator
-			if testWithOperator {
-				trenchB := op.GetMeridioResoucesByTrench(trenchAName, namespace)
-				op.AssertMeridioDeploymentsReady(trenchB)
-			}
-		})
-	})
-
 	Context("With two trenches containing both 2 VIP addresses (20.0.0.1:5000, [2000::1]:5000) and 4 target pods in each trench running ctraffic", func() {
 
 		var (

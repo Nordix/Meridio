@@ -21,30 +21,19 @@ import (
 	"testing"
 	"time"
 
-	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
-	"github.com/nordix/meridio/test/e2e/operator"
 	"github.com/nordix/meridio/test/e2e/utils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
-	kubescheme "k8s.io/client-go/kubernetes/scheme"
-	scalescheme "k8s.io/client-go/scale/scheme"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
 
 var (
 	trafficGeneratorCMD string
-	testWithOperator    bool
 	namespace           string
 	networkServiceName  = "load-balancer"
 	stream              = "stream-a"
 
 	clientset *kubernetes.Clientset
-	op        operator.Operator
 )
 
 const (
@@ -64,7 +53,6 @@ const (
 
 func init() {
 	flag.StringVar(&trafficGeneratorCMD, "traffic-generator-cmd", "docker exec -i {trench}", "Command to use to connect to the traffic generator. All occurences of '{trench}' will be replaced with the trench name.")
-	flag.BoolVar(&testWithOperator, "test-with-operator", false, "meridio deployment will be installed and updated by meridio operator")
 	flag.StringVar(&namespace, "namespace", "red", "the namespace where expects operator to exist")
 }
 
@@ -80,35 +68,4 @@ var _ = BeforeSuite(func() {
 	var err error
 	clientset, err = utils.GetClientSet()
 	Expect(err).ToNot(HaveOccurred())
-
-	var trenchA operator.MeridioResources
-
-	if testWithOperator {
-		By("checking operator deployment")
-		myScheme := runtime.NewScheme()
-
-		Expect(kubescheme.AddToScheme(myScheme)).To(Succeed())
-		Expect(scalescheme.AddToScheme(myScheme)).To(Succeed())
-		Expect(apiextensions.AddToScheme(myScheme)).To(Succeed())
-		Expect(meridiov1alpha1.AddToScheme(myScheme)).To(Succeed())
-
-		config := config.GetConfigOrDie()
-		kubeAPIClient, err := client.New(config, client.Options{Scheme: myScheme})
-		Expect(err).To(BeNil())
-		op = operator.Operator{
-			Namespace: namespace,
-			Client:    kubeAPIClient,
-		}
-		// verify operator is in the testing namespace
-		op.VerifyDeployment()
-
-		// By("cleaning up CRs")
-		// op.CleanUpResource()
-		// time.Sleep(5 * time.Second)
-		trenchA = op.GetMeridioResoucesByTrench(trenchAName, namespace)
-		op.AssertMeridioDeploymentsReady(trenchA)
-
-		// change networkServiceName
-		networkServiceName = trenchA.Conduit.ObjectMeta.Name
-	}
 })
