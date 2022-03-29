@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/sirupsen/logrus"
 )
 
 type Endpoint struct {
@@ -45,7 +46,7 @@ func New(maxTokenLifetime time.Duration,
 	s := NewServer(nse.Name, maxTokenLifetime, additionalFunctionality)
 	err := s.Start(context.Background())
 	if err != nil {
-		err = fmt.Errorf("Err starting the NSE server: %v", err)
+		err = fmt.Errorf("err starting the NSE server: %v", err)
 		errStop := s.Stop()
 		if errStop != nil {
 			return nil, fmt.Errorf("%v ; Err stopping the NSE server: %v", err, errStop)
@@ -61,6 +62,7 @@ func New(maxTokenLifetime time.Duration,
 }
 
 func (e *Endpoint) Delete(ctx context.Context) error {
+	logrus.Infof("Endpoint Delete")
 	var errFinal error
 	err := e.Unregister(ctx)
 	if err != nil {

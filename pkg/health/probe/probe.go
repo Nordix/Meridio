@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -77,7 +77,7 @@ func (ghp *GrpcHealthProbe) Run(ctx context.Context) error {
 	stdoutStderr, err := exec.CommandContext(ctx, ghp.cmd, ghp.addr, ghp.service,
 		ghp.connTimeout, ghp.rpcTimeout, ghp.spiffe).CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("gRPC Health Probe err: %v, %v", err, stdoutStderr)
+		return fmt.Errorf("gRPC Health Probe err: %v, %s", err, stdoutStderr)
 	}
 	//logrus.Infof("%v: %v", ghp.cmd, stdoutStderr)
 

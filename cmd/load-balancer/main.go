@@ -311,26 +311,22 @@ func (sns *SimpleNetworkService) Start() {
 					logrus.Infof("simpleNetworkService: %vblock service (allowService=%v)", pfx, allowService)
 
 					sns.simpleNetworkServiceBlocked = !allowService
-					// When service is blocked it implies that the southbound NSE gets also removed.
+					// When service is blocked it implies that NSE facing the proxies gets also removed.
 					// Removal of the NSE from registry prompts the NSC side to close the related NSM
 					// connections making the associated interfaces unusable. However unfortunately
 					// NSM is not able to properly close a connection associated with a "disappeared" NSE
 					// (so NSM interfaces remain as well).
 					//
 					// Thus in SimpleNetworkService we must prohibit processing of new Targets and
-					// creation of new southbound NSE interfaces while NSE removal takes effect on
-					// NSC side.
+					// creation of new NSE interfaces connecting proxies while NSE removal takes effect
+					// on NSC side.
 					// Moreover the known Targets and thus the associated routing must be force removed.
-					// That's because once the "block" is lifted, the southbound NSE should be advertised
+					// That's because once the "block" is lifted, the NSE serving proxies should be advertised
 					// again, resulting in new NSM Service Requests and thus interfaces for which the Target
 					// routes must be readjusted.
 					// Interference of old NSM interfaces must be avoided, thus their link state is changed
 					// to down. (Hopefully once NSM finally decides to remove an old interface (e.g. due
 					// to some timeout or whatever) this state change won't screw up things...)
-					//
-					// Note: Currently SimpleNetworkServiceClient/FullMeshNetworkServiceClient on the proxy side
-					// will keep trying to establish an NSM connection forever, while also blocking NSE event
-					// processing. So if the NSE disappeared in the meantime, it will go unnoticed by the proxy.
 					if sns.simpleNetworkServiceBlocked {
 						sns.evictStreams()
 						sns.disableInterfaces()

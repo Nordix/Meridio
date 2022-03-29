@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@ import (
 	"errors"
 	"net/url"
 	"time"
+
+	"github.com/nordix/meridio/pkg/nsm"
 )
 
 // Config - configuration for network service client
@@ -28,6 +30,7 @@ type Config struct {
 	RequestTimeout   time.Duration
 	ConnectTo        url.URL
 	MaxTokenLifetime time.Duration
+	APIClient        *nsm.APIClient
 }
 
 // IsValid - check if configuration is valid
