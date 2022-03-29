@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -59,58 +59,4 @@ func newClient(ctx context.Context, name string, nsmAPIClient *nsm.APIClient, ad
 		client.WithDialTimeout(nsmAPIClient.Config.DialTimeout),
 		client.WithDialOptions(nsmAPIClient.GRPCDialOption...),
 	)
-}
-
-func copyRequest(request *networkservice.NetworkServiceRequest) *networkservice.NetworkServiceRequest {
-	if request == nil {
-		return nil
-	}
-
-	newRequest := &networkservice.NetworkServiceRequest{}
-
-	conn := request.GetConnection()
-	if conn != nil {
-		newRequest.Connection = &networkservice.Connection{
-			Id:                         conn.Id,
-			NetworkService:             conn.NetworkService,
-			Labels:                     map[string]string{},
-			NetworkServiceEndpointName: conn.NetworkServiceEndpointName,
-			Payload:                    conn.Payload,
-			Context: &networkservice.ConnectionContext{
-				IpContext:       &networkservice.IPContext{},
-				DnsContext:      &networkservice.DNSContext{},
-				EthernetContext: &networkservice.EthernetContext{},
-				ExtraContext:    map[string]string{},
-			},
-		}
-		// copy Labels
-		for key, value := range conn.Labels {
-			newRequest.Connection.Labels[key] = value
-		}
-		if conn.GetContext() != nil {
-			// copy ExtraContext
-			for key, value := range conn.GetContext().ExtraContext {
-				newRequest.Connection.Context.ExtraContext[key] = value
-			}
-		}
-	}
-
-	mechanismPreferences := request.GetMechanismPreferences()
-	if mechanismPreferences != nil {
-		newRequest.MechanismPreferences = []*networkservice.Mechanism{}
-		for _, value := range mechanismPreferences {
-			newMechanismPreference := &networkservice.Mechanism{
-				Cls:        value.Cls,
-				Type:       value.Type,
-				Parameters: map[string]string{},
-			}
-			// copy Parameters
-			for key, value := range value.Parameters {
-				newMechanismPreference.Parameters[key] = value
-			}
-			newRequest.MechanismPreferences = append(newRequest.MechanismPreferences, newMechanismPreference)
-		}
-	}
-
-	return newRequest
 }

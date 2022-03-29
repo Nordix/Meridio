@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,10 +19,6 @@ package client
 import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 )
-
-type NSCConnectionFactory interface {
-	NewNSCIPContext() (*networkservice.IPContext, error)
-}
 
 type NetworkServiceClient interface {
 	Request(request *networkservice.NetworkServiceRequest) error
