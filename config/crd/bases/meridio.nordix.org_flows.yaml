@@ -78,6 +78,7 @@ spec:
                   enum:
                   - tcp
                   - udp
+                  - sctp
                   type: string
                 type: array
               source-ports:

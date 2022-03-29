@@ -88,12 +88,14 @@ func (r *Flow) validateFlow() error {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("labels"), r.ObjectMeta.Labels, err.Error()))
 	}
 
-	if len(r.Spec.Protocols) > 2 {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("spec").Child("protocols"), r.Spec.Protocols, "only TCP and UDP are supported"))
-	} else if len(r.Spec.Protocols) == 2 {
-		if r.Spec.Protocols[0] == r.Spec.Protocols[1] {
+	protocols := make(map[string]struct{})
+	for _, protocol := range r.Spec.Protocols {
+		_, exists := protocols[string(protocol)]
+		if exists {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("spec").Child("protocols"), r.Spec.Protocols, "duplicated protocols"))
+			break
 		}
+		protocols[string(protocol)] = struct{}{}
 	}
 
 	if n, err := validateSubnets(r.Spec.SourceSubnets); err != nil {
@@ -196,10 +198,6 @@ func (r *Flow) validateUpdate(oldObj runtime.Object) error {
 	if trenchNew != trenchOld {
 		return apierrors.NewForbidden(r.GroupResource(),
 			r.Name, field.Forbidden(field.NewPath("metadata", "labels", "trench"), "update on trench label is forbidden"))
-	}
-	if r.Spec.Priority != old.Spec.Priority {
-		return apierrors.NewForbidden(r.GroupResource(),
-			r.Name, field.Forbidden(field.NewPath("metadata", "spec", "priority"), "update on priority is forbidden"))
 	}
 	return nil
 }
