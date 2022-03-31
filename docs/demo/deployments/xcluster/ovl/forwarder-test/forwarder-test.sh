@@ -202,7 +202,9 @@ trench_test() {
 	fi
 	otc 202 "collect_lb_addresses $1"
 	otc 202 "trench_vip_route $1"
-	tcase "Sleep 10 sec..."
+	otc 2 "collect_target_addresses $1"
+	otc 2 "ping_lb_target $1"
+	#tcase "Sleep 10 sec..."
 	sleep 10
 	otc 202 "mconnect $1"
 }

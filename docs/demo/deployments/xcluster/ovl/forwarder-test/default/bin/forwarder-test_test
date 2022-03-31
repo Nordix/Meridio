@@ -399,6 +399,43 @@ cmd_tcase_conntrack() {
 	tcase "Set conntrack size to $1"
 	echo $1 > /proc/sys/net/nf_conntrack_max
 }
+cmd_tcase_collect_target_addresses() {
+	# . /etc/kubernetes/forwarder-test/red.conf
+	tcase "Collect meridio-app addresses for trench [$1]"
+	mkdir -p $tmp
+	configure_trench $1
+	mkdir -p /tmp/pod
+	pushv 120 20 6
+	echo kubectl get pod -n $NS -l app=meridio-app -o name
+	tex "kubectl get pod -n $NS -l app=meridio-app -o name > $tmp/targets" || \
+		tdie "Failed to get target pods"
+	local pod
+	for pod in $(cat $tmp/targets); do
+		tex kubectl exec -n $NS $pod -c meridio-app -- ip -j addr show dev nsc 2>&1 || tdie "No nsc in $pod"
+		echo "Interface nsc in pod [$pod]"
+		tex "kubectl exec -n $NS $pod  -c meridio-app -- ip -j addr show dev nsc > /tmp/$pod" || tdie NOOO
+		echo "Addresses collected in pod [$pod]"
+		cat /tmp/$pod | jq -r '.[].addr_info[]|select(.scope == "global")|.local' >> /tmp/target-addr-$NS
+	done
+	test -r /tmp/target-addr-$NS || tdie "No address file"
+	cat /tmp/target-addr-$NS
+}
+cmd_tcase_ping_lb_target() {
+	tcase "Ping all targets from all LB's in trench [$1]"
+	configure_trench $1
+	test -r /tmp/target-addr-$NS || tdie "Target addresses not collected"
+	local pod adr
+	pushv 60 10 6
+	for pod in $(kubectl get pod -n $NS -l app=meridio-load-balancer -o name); do
+		for adr in $(cat /tmp/target-addr-$NS); do
+			echo $adr | grep -Fq 10.0.0. && continue
+			echo $adr | grep -Fq 1000::1:a00: && continue
+			tex kubectl exec -n $NS $pod -c fe -- ping -c1 -W1 $adr || \
+				tdie "In $pod, ping $adr"
+		done
+	done
+}
+
 
 . /etc/profile
 . /usr/lib/xctest
