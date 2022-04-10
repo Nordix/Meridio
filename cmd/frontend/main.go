@@ -62,14 +62,8 @@ func main() {
 		os.Exit(0)
 	}
 
-	ctx, cancel := signal.NotifyContext(
-		context.Background(),
-		os.Interrupt,
-		syscall.SIGHUP,
-		syscall.SIGTERM,
-		syscall.SIGQUIT,
-	)
-	defer cancel()
+	rootCtx, cancelRootCtx := context.WithCancel(context.Background())
+	defer cancelRootCtx()
 
 	logrus.SetOutput(os.Stdout)
 	logrus.SetLevel(logrus.DebugLevel)
@@ -85,13 +79,21 @@ func main() {
 	logrus.Infof("rootConf: %+v", config)
 
 	logrus.SetLevel(func() logrus.Level {
-
 		l, err := logrus.ParseLevel(config.LogLevel)
 		if err != nil {
 			logrus.Fatalf("invalid log level %s", config.LogLevel)
 		}
 		return l
 	}())
+
+	ctx, cancel := signal.NotifyContext(
+		rootCtx,
+		os.Interrupt,
+		syscall.SIGHUP,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
+	defer cancel()
 
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
@@ -103,17 +105,17 @@ func main() {
 	defer fe.CleanUp()
 	health.SetServingStatus(ctx, health.TargetRegistryCliSvc, true) // NewFrontEndService() creates Target Registry Client
 
-	/* if err := fe.AddVIPRules(); err != nil {
-		cancel()
-		logrus.Fatalf("Failed to setup src routes for VIPs: %v", err)
-	} */
-
 	if err := fe.Init(); err != nil {
 		cancel()
 		logrus.Fatalf("Init failed: %v", err)
 	}
 
-	feErrCh := fe.Start(ctx)
+	feErrCh := fe.Start(rootCtx)
+	defer func() {
+		deleteCtx, deleteClose := context.WithTimeout(rootCtx, 3*time.Second)
+		defer deleteClose()
+		fe.Stop(deleteCtx)
+	}()
 	exitOnErrCh(ctx, cancel, feErrCh)
 
 	/* time.Sleep(1 * time.Second)
@@ -124,7 +126,7 @@ func main() {
 	// monitor BIRD routing sessions
 	if err := fe.Monitor(ctx); err != nil {
 		cancel()
-		logrus.Fatalf("Failed to start monitor: %v", err)
+		logrus.Errorf("Failed to start monitor: %v", err)
 	}
 
 	go watchConfig(ctx, cancel, config, fe)
@@ -144,10 +146,15 @@ func exitOnErrCh(ctx context.Context, cancel context.CancelFunc, errCh <-chan er
 	}
 	// Otherwise wait for an error in the background to log and cancel
 	go func(ctx context.Context, errCh <-chan error) {
-		if err, ok := <-errCh; ok {
-			logrus.Errorf("exitOnErrCh(1): %v", err)
+		select {
+		case <-ctx.Done():
+			logrus.Debugf("exitOnErrCh: context closed")
+		case err, ok := <-errCh:
+			if ok {
+				logrus.Errorf("exitOnErrCh(1): %v", err)
+			}
+			cancel()
 		}
-		cancel()
 	}(ctx, errCh)
 }
 
@@ -181,9 +188,6 @@ func watchConfig(ctx context.Context, cancel context.CancelFunc, c *env.Config, 
 	}, retry.WithContext(ctx),
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
-	if err != nil {
-		logrus.Fatalf("WatchVip err: %v", err)
-	}
 	if err != nil {
 		logrus.Errorf("Attractor watcher: %v", err)
 		cancel()
