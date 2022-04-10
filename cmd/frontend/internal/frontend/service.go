@@ -144,6 +144,13 @@ func (fes *FrontEndService) Start(ctx context.Context) <-chan error {
 	return errCh
 }
 
+// Stop -
+// Stop BIRD (attempt graceful shutdown)
+func (fes *FrontEndService) Stop(ctx context.Context) {
+	logrus.Infof("FrontEndService: Stop")
+	fes.stop(ctx)
+}
+
 // WaitStart -
 // Wait until BIRD started by checking birdc availability
 func (fes *FrontEndService) WaitStart(ctx context.Context) error {
@@ -172,12 +179,6 @@ func (fes *FrontEndService) WaitStart(ctx context.Context) error {
 		}
 	}
 	return nil
-}
-
-// AddVipRules -
-// Add src based routing rules for VIP addresses (pointing to the routing table BIRD shall sync to)
-func (fes *FrontEndService) AddVIPRules() error {
-	return fes.setVIPRules(fes.vips, []string{})
 }
 
 // RemoveVipRules -
@@ -863,6 +864,24 @@ func (fes *FrontEndService) start(ctx context.Context, errCh chan<- error) {
 	if err := bird.Run(ctx, fes.birdConfFile, fes.logBird); err != nil {
 		logrus.Errorf("FrontEndService: BIRD err: \"%v\"", err)
 		errCh <- err
+	}
+}
+
+// stop -
+// Actually stop BIRD process.
+func (fes *FrontEndService) stop(ctx context.Context) {
+	lp, err := bird.LookupCli()
+	if err != nil {
+		logrus.Warnf("FrontEndService: stop; birdc not found (%v)", err)
+		return
+	}
+	if err := bird.CheckCli(ctx, lp); err != nil {
+		logrus.Infof("FrontEndService: stop; birdc not running (%v)", err)
+		return
+	}
+	if err := bird.ShutDown(ctx, lp); err != nil {
+		logrus.Warnf("FrontEndService: stop; BIRD err: \"%v\"", err)
+		return
 	}
 }
 

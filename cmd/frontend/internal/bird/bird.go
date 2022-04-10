@@ -20,6 +20,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -130,6 +131,16 @@ func Run(ctx context.Context, configFile string, monitorLogs bool) error {
 	return nil
 }
 
+// ShutDown -
+// Shuts BIRD down via birdc
+func ShutDown(ctx context.Context, lp string) error {
+	out, err := CliCmd(ctx, lp, "down")
+	if err != nil {
+		err = fmt.Errorf("%v - %v", err, out)
+	}
+	return err
+}
+
 var regexWarn *regexp.Regexp = regexp.MustCompile(`Error|<ERROR>|<BUG>|<FATAL>|<WARNING>`)
 var regexInfo *regexp.Regexp = regexp.MustCompile(`<INFO>|BGP session|Connected|Received:|Started|Neighbor|Startup delayed`)
 
@@ -160,7 +171,7 @@ func Configure(ctx context.Context, lp, configFile string) (string, error) {
 	if err != nil {
 		return stringOut, err
 	} else if !strings.Contains(stringOut, ReconfigInProgress) && !strings.Contains(stringOut, Reconfigured) {
-		return stringOut, errors.New("Reconfiguration failed")
+		return stringOut, errors.New("reconfiguration failed")
 	} else {
 		return stringOut, nil
 	}
@@ -174,9 +185,8 @@ func Verify(ctx context.Context, lp, configFile string) (string, error) {
 	if err != nil {
 		return stringOut, err
 	} else if !strings.Contains(stringOut, ConfigurationOk) {
-		return stringOut, errors.New("Verification failed")
+		return stringOut, errors.New("verification failed")
 	} else {
-		logrus.Debugf("VerifyConfig: %v", stringOut)
 		return stringOut, nil
 	}
 }
