@@ -23,6 +23,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
@@ -34,6 +35,7 @@ import (
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
 	"github.com/nordix/meridio/pkg/conduit"
 	"github.com/nordix/meridio/pkg/networking"
+	"github.com/nordix/meridio/pkg/retry"
 	"github.com/sirupsen/logrus"
 )
 
@@ -56,6 +58,8 @@ type Conduit struct {
 	connection           *networkservice.Connection
 	mu                   sync.Mutex
 	localIPs             []string
+	ctx                  context.Context
+	cancel               context.CancelFunc
 }
 
 // New is the constructor of Conduit.
@@ -93,9 +97,10 @@ func (c *Conduit) Connect(ctx context.Context) error {
 	if c.isConnected() {
 		return nil
 	}
+	c.ctx, c.cancel = context.WithCancel(ctx)
 	logrus.Infof("Attempt to connect conduit: %v", c.Conduit)
 	nsName := conduit.GetNetworkServiceNameWithProxy(c.Conduit.GetName(), c.Conduit.GetTrench().GetName(), c.Namespace)
-	connection, err := c.NetworkServiceClient.Request(ctx,
+	connection, err := c.NetworkServiceClient.Request(c.ctx,
 		&networkservice.NetworkServiceRequest{
 			Connection: &networkservice.Connection{
 				Id:             fmt.Sprintf("%s-%s-%d", c.TargetName, nsName, 0),
@@ -128,6 +133,9 @@ func (c *Conduit) Connect(ctx context.Context) error {
 // Disconnect closes the connection from NSM, closes all streams
 // and stop the VIP watcher
 func (c *Conduit) Disconnect(ctx context.Context) error {
+	if c.cancel != nil {
+		c.cancel()
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	logrus.Infof("Disconnect from conduit: %v", c.Conduit)
@@ -169,7 +177,7 @@ func (c *Conduit) GetConduit() *ambassadorAPI.Conduit {
 	return c.Conduit
 }
 
-// GetStreams returns the local IPs for this conduit
+// GetIPs returns the local IPs for this conduit
 func (c *Conduit) GetIPs() []string {
 	if c.connection != nil {
 		return c.localIPs
@@ -219,29 +227,33 @@ func (c *Conduit) SetVIPs(vips []string) error {
 		c.connection.Context.IpContext.Policies = append(c.connection.Context.IpContext.Policies, newPolicyRoute)
 	}
 	var err error
+	c.ctx, c.cancel = context.WithCancel(context.TODO())
 	// update the NSM connection
-	// TODO: retry if error returned?
-	c.connection, err = c.NetworkServiceClient.Request(context.TODO(),
-		&networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id:             c.connection.GetId(),
-				NetworkService: c.connection.GetNetworkService(),
-				Labels:         c.connection.GetLabels(),
-				Payload:        c.connection.GetPayload(),
-				Context: &networkservice.ConnectionContext{
-					IpContext: c.connection.GetContext().GetIpContext(),
+	err = retry.Do(func() error {
+		c.connection, err = c.NetworkServiceClient.Request(c.ctx,
+			&networkservice.NetworkServiceRequest{
+				Connection: &networkservice.Connection{
+					Id:             c.connection.GetId(),
+					NetworkService: c.connection.GetNetworkService(),
+					Labels:         c.connection.GetLabels(),
+					Payload:        c.connection.GetPayload(),
+					Context: &networkservice.ConnectionContext{
+						IpContext: c.connection.GetContext().GetIpContext(),
+					},
 				},
-			},
-			MechanismPreferences: []*networkservice.Mechanism{
-				{
-					Cls:  cls.LOCAL,
-					Type: kernelmech.MECHANISM,
+				MechanismPreferences: []*networkservice.Mechanism{
+					{
+						Cls:  cls.LOCAL,
+						Type: kernelmech.MECHANISM,
+					},
 				},
-			},
-		})
-	if err != nil {
-		return fmt.Errorf("error updating the VIPs in conduit: %v - %v", c.Conduit, err)
-	}
+			})
+		if err != nil {
+			return fmt.Errorf("error updating the VIPs in conduit: %v - %v", c.Conduit, err)
+		}
+		return nil
+	}, retry.WithContext(c.ctx),
+		retry.WithDelay(500*time.Millisecond))
 	logrus.Infof("VIPs in conduit updated: %v - %v", c.Conduit, vips)
 	return nil
 }
