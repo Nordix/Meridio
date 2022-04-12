@@ -84,9 +84,6 @@ spec:
             - name: meridio-socket
               mountPath: /var/lib/meridio
               readOnly: false
-          securityContext:
-            capabilities:
-              add: ["NET_ADMIN"]
       volumes:
         - name: spire-agent-socket
           hostPath:
