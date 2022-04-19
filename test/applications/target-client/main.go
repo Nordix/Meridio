@@ -154,26 +154,23 @@ func watch() error {
 	if err != nil {
 		return err
 	}
-	go func() {
-		for {
-			streamResponse, err := watchStreamClient.Recv()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				break
-			}
-			fmt.Printf("New stream list:\n")
-			for _, stream := range streamResponse.GetStreamStatus() {
-				fmt.Printf("%v - %v - %v - %v\n",
-					stream.GetStatus(),
-					stream.GetStream().GetName(),
-					stream.GetStream().GetConduit().GetName(),
-					stream.GetStream().GetConduit().GetTrench().GetName())
-			}
+	for {
+		streamResponse, err := watchStreamClient.Recv()
+		if err == io.EOF {
+			break
 		}
-	}()
-	<-ctx.Done()
+		if err != nil {
+			break
+		}
+		fmt.Printf("New stream list:\n")
+		for _, stream := range streamResponse.GetStreamStatus() {
+			fmt.Printf("%v - %v - %v - %v\n",
+				stream.GetStatus(),
+				stream.GetStream().GetName(),
+				stream.GetStream().GetConduit().GetName(),
+				stream.GetStream().GetConduit().GetTrench().GetName())
+		}
+	}
 	return nil
 }
 
