@@ -120,7 +120,7 @@ func (c *Conduit) Connect(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	logrus.Infof("Conduit connected: %v", c.Conduit)
+	logrus.Infof("Conduit connected: %v ; NSM Connection: %v", c.Conduit, connection)
 	c.connection = connection
 	c.localIPs = c.connection.GetContext().GetIpContext().GetSrcIpAddrs()
 
@@ -226,31 +226,34 @@ func (c *Conduit) SetVIPs(vips []string) error {
 		}
 		c.connection.Context.IpContext.Policies = append(c.connection.Context.IpContext.Policies, newPolicyRoute)
 	}
-	var err error
 	c.ctx, c.cancel = context.WithCancel(context.TODO())
 	// update the NSM connection
-	err = retry.Do(func() error {
-		c.connection, err = c.NetworkServiceClient.Request(c.ctx,
-			&networkservice.NetworkServiceRequest{
-				Connection: &networkservice.Connection{
-					Id:             c.connection.GetId(),
-					NetworkService: c.connection.GetNetworkService(),
-					Labels:         c.connection.GetLabels(),
-					Payload:        c.connection.GetPayload(),
-					Context: &networkservice.ConnectionContext{
-						IpContext: c.connection.GetContext().GetIpContext(),
-					},
+	_ = retry.Do(func() error {
+		ctx, cancel := context.WithTimeout(c.ctx, 20*time.Second) // todo: configurable timeout
+		defer cancel()
+		request := &networkservice.NetworkServiceRequest{
+			Connection: &networkservice.Connection{
+				Id:             c.connection.GetId(),
+				NetworkService: c.connection.GetNetworkService(),
+				Labels:         c.connection.GetLabels(),
+				Payload:        c.connection.GetPayload(),
+				Context: &networkservice.ConnectionContext{
+					IpContext: c.connection.GetContext().GetIpContext(),
 				},
-				MechanismPreferences: []*networkservice.Mechanism{
-					{
-						Cls:  cls.LOCAL,
-						Type: kernelmech.MECHANISM,
-					},
+			},
+			MechanismPreferences: []*networkservice.Mechanism{
+				{
+					Cls:  cls.LOCAL,
+					Type: kernelmech.MECHANISM,
 				},
-			})
-		if err != nil {
-			return fmt.Errorf("error updating the VIPs in conduit: %v - %v", c.Conduit, err)
+			},
 		}
+		connection, err := c.NetworkServiceClient.Request(ctx, request)
+		if err != nil {
+			logrus.Errorf("error updating the VIPs in conduit: %v - %v", c.Conduit, err)
+			return err
+		}
+		c.connection = connection
 		return nil
 	}, retry.WithContext(c.ctx),
 		retry.WithDelay(500*time.Millisecond))
