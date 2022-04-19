@@ -3,7 +3,7 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-tag: v1.3.0-rc.1
+tag: v1.3.0
 pullPolicy: IfNotPresent
 
 registry: ghcr.io
