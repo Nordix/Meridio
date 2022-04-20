@@ -92,7 +92,7 @@ func GetProbeCommand(spiffe bool, addr, svc string) []string {
 
 func GetProbe(timer probeTimer, command []string) *corev1.Probe {
 	return &corev1.Probe{
-		Handler: corev1.Handler{
+		ProbeHandler: corev1.ProbeHandler{
 			Exec: &corev1.ExecAction{
 				Command: command,
 			},
