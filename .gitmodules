@@ -1,3 +1,3 @@
 [submodule "Meridio"]
 	path = Meridio
-	url = git@github.com:Nordix/Meridio.git
+	url = https://github.com/Nordix/Meridio.git
