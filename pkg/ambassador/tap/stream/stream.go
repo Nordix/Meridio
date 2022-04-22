@@ -74,7 +74,10 @@ func (s *Stream) Open(ctx context.Context) error {
 	defer s.mu.Unlock()
 	s.ips = s.Conduit.GetIPs()
 	if len(s.ips) <= 0 {
-		return errors.New("Ips not set")
+		return errors.New("ips not set")
+	}
+	if s.targetStatus == nspAPI.Target_ENABLED && s.isIdentifierInRange(1, s.MaxNumberOfTargets) {
+		return s.refresh(ctx)
 	}
 	logrus.Infof("Attempt to open stream: %v", s.Stream)
 	err := s.open(ctx)
@@ -122,7 +125,11 @@ func (s *Stream) setIdentifier(exclusionList []string) {
 
 func (s *Stream) isIdentifierValid(exclusionList map[string]struct{}, min int, max int) bool {
 	_, exists := exclusionList[strconv.Itoa(s.identifier)]
-	return !exists && s.identifier >= min && s.identifier <= max
+	return !exists && s.isIdentifierInRange(min, max)
+}
+
+func (s *Stream) isIdentifierInRange(min int, max int) bool {
+	return s.identifier >= min && s.identifier <= max
 }
 
 func (s *Stream) checkIdentifierCollision(identifiersInUse []string) bool {
@@ -223,4 +230,57 @@ func (s *Stream) open(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+func (s *Stream) refresh(ctx context.Context) error {
+	err := s.TargetRegistry.Register(ctx, s.getTarget())
+	if err != nil {
+		return err
+	}
+	targets, err := s.TargetRegistry.GetTargets(ctx, &nspAPI.Target{
+		Status: nspAPI.Target_ANY,
+		Type:   nspAPI.Target_DEFAULT,
+		Stream: &nspAPI.Stream{
+			Conduit: s.Stream.GetConduit().ToNSP(),
+		},
+	})
+	if err != nil {
+		return err
+	}
+	ips := s.getTarget().GetIps()
+	for _, target := range targets {
+		if !sameIps(ips, target.GetIps()) {
+			continue
+		}
+		// found current target
+		// if target is enabled then everything is fine
+		if target.Status == nspAPI.Target_ENABLED {
+			return nil
+		}
+		break
+	}
+	// Target is disabled since the NSP has set its status to disable
+	// during refresh. This might be because the NSP considered the refresh
+	// has a new registration (and it is not possible to register the first time as
+	// enabled).
+	s.targetStatus = nspAPI.Target_DISABLED
+	s.identifier = -1
+	return s.open(ctx)
+}
+
+func sameIps(ipsA []string, ipsB []string) bool {
+	if len(ipsA) != len(ipsB) {
+		return false
+	}
+	ipMap := map[string]interface{}{}
+	for _, ip := range ipsA {
+		ipMap[ip] = struct{}{}
+	}
+	for _, ip := range ipsB {
+		_, exists := ipMap[ip]
+		if !exists {
+			return false
+		}
+	}
+	return true
 }

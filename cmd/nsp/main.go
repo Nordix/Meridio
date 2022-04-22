@@ -24,6 +24,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/kelseyhightower/envconfig"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
@@ -33,6 +34,7 @@ import (
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/nsp"
 
+	keepAliveRegistry "github.com/nordix/meridio/pkg/nsp/registry/keepalive"
 	sqliteRegistry "github.com/nordix/meridio/pkg/nsp/registry/sqlite"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
@@ -112,7 +114,14 @@ func main() {
 	if err != nil {
 		logrus.Fatalf("Unable create sqlite registry: %v", err)
 	}
-	targetRegistryServer := nsp.NewServer(sqlr)
+	keepAliveRegistry, err := keepAliveRegistry.New(
+		keepAliveRegistry.WithRegistry(sqlr),
+		keepAliveRegistry.WithTimeout(60*time.Second),
+	)
+	if err != nil {
+		logrus.Fatalf("Unable create keepalive registry: %v", err)
+	}
+	targetRegistryServer := nsp.NewServer(keepAliveRegistry)
 
 	server := grpc.NewServer(grpc.Creds(
 		credentials.GetServer(context.Background()),
