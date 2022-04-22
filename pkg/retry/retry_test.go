@@ -113,7 +113,7 @@ func Test_Do_WithRetryTrigger(t *testing.T) {
 		}
 		cancel()
 		return errors.New("")
-	}, retry.WithRetryTrigger(func() <-chan struct{} {
+	}, retry.WithRetryTrigger(func(context.Context) <-chan struct{} {
 		channel := make(chan struct{}, 1)
 		go func() {
 			<-ctx.Done()

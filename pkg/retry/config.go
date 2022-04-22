@@ -23,7 +23,7 @@ import (
 
 // RetryTrigger is the function definition specifying when the Do
 // function should continue in an new attempt.
-type RetryTrigger func() <-chan struct{}
+type RetryTrigger func(context.Context) <-chan struct{}
 
 // RetryCondition is the function definition specifying if the Do
 // function should continue in an new attempt or not.
@@ -38,8 +38,8 @@ type Config struct {
 func newConfig() *Config {
 	return &Config{
 		context: context.Background(),
-		retryTriggerFunc: func() <-chan struct{} {
-			return delay(10 * time.Millisecond)
+		retryTriggerFunc: func(ctx context.Context) <-chan struct{} {
+			return delay(ctx, 10*time.Millisecond)
 		},
 		retryConditionFunc: defaultRetryCondition,
 	}
@@ -49,10 +49,13 @@ func defaultRetryCondition(err error) bool {
 	return err != nil
 }
 
-func delay(d time.Duration) <-chan struct{} {
+func delay(ctx context.Context, d time.Duration) <-chan struct{} {
 	channel := make(chan struct{}, 1)
 	go func() {
-		<-time.After(d)
+		select {
+		case <-ctx.Done():
+		case <-time.After(d):
+		}
 		channel <- struct{}{}
 	}()
 	return channel
