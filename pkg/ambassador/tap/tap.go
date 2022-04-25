@@ -40,6 +40,7 @@ type Tap struct {
 	NetworkServiceClient networkservice.NetworkServiceClient
 	NSPServiceName       string
 	NSPServicePort       int
+	NSPEntryTimeout      time.Duration
 	NetUtils             networking.Utils
 	StreamRegistry       types.Registry
 	currentTrench        types.Trench
@@ -52,6 +53,7 @@ func New(targetName string,
 	networkServiceClient networkservice.NetworkServiceClient,
 	nspServiceName string,
 	nspServicePort int,
+	nspEntryTimeout time.Duration,
 	netUtils networking.Utils) (*Tap, error) {
 	tap := &Tap{
 		NetworkServiceClient: networkServiceClient,
@@ -59,6 +61,7 @@ func New(targetName string,
 		NodeName:             nodeName,
 		NSPServiceName:       nspServiceName,
 		NSPServicePort:       nspServicePort,
+		NSPEntryTimeout:      nspEntryTimeout,
 		NetUtils:             netUtils,
 	}
 	tap.StreamRegistry = registry.New()
@@ -162,6 +165,7 @@ func (tap *Tap) setTrench(t *ambassadorAPI.Trench) (types.Trench, error) {
 		tap.StreamRegistry,
 		tap.NSPServiceName,
 		tap.NSPServicePort,
+		tap.NSPEntryTimeout,
 		tap.NetUtils)
 	if err != nil {
 		return nil, err

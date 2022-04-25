@@ -19,6 +19,7 @@ package conduit_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -77,7 +78,7 @@ func Test_Connect_Disconnect(t *testing.T) {
 		return nil, nil
 	})
 
-	cndt, err := conduit.New(c, targetName, namespace, node, nil, nil, networkServiceClient, nil, nil)
+	cndt, err := conduit.New(c, targetName, namespace, node, nil, nil, networkServiceClient, nil, nil, 30*time.Second)
 	assert.Nil(t, err)
 	assert.NotNil(t, cndt)
 	cndt.Configuration = configuration
@@ -112,9 +113,9 @@ func Test_AddStream(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	cndt, _ := conduit.New(c, targetName, namespace, node, nil, nil, nil, nil, nil)
+	cndt, _ := conduit.New(c, targetName, namespace, node, nil, nil, nil, nil, nil, 30*time.Second)
 	streamRegistry := registry.New()
-	cndt.StreamManager = conduit.NewStreamManager(nil, nil, streamRegistry, fakeStreamFactory(ctrl), 0)
+	cndt.StreamManager = conduit.NewStreamManager(nil, nil, streamRegistry, fakeStreamFactory(ctrl), 0, 30*time.Second)
 
 	err := cndt.AddStream(context.TODO(), s)
 	assert.Nil(t, err)
@@ -151,7 +152,7 @@ func Test_AddStream_Invalid(t *testing.T) {
 	namespace := "red"
 	node := "worker"
 
-	cndt, _ := conduit.New(c, targetName, namespace, node, nil, nil, nil, nil, nil)
+	cndt, _ := conduit.New(c, targetName, namespace, node, nil, nil, nil, nil, nil, 30*time.Second)
 
 	err := cndt.AddStream(context.TODO(), s)
 	assert.NotNil(t, err)
@@ -182,9 +183,9 @@ func Test_RemoveStream(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	cndt, _ := conduit.New(c, targetName, namespace, node, nil, nil, nil, nil, nil)
+	cndt, _ := conduit.New(c, targetName, namespace, node, nil, nil, nil, nil, nil, 30*time.Second)
 	streamRegistry := registry.New()
-	cndt.StreamManager = conduit.NewStreamManager(nil, nil, streamRegistry, fakeStreamFactory(ctrl), 0)
+	cndt.StreamManager = conduit.NewStreamManager(nil, nil, streamRegistry, fakeStreamFactory(ctrl), 0, 30*time.Second)
 
 	err := cndt.AddStream(context.TODO(), s2)
 	assert.Nil(t, err)

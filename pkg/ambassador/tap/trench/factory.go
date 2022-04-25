@@ -17,6 +17,8 @@ limitations under the License.
 package trench
 
 import (
+	"time"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
@@ -40,6 +42,7 @@ type conduitFactoryImpl struct {
 	NetworkServiceClient       networkservice.NetworkServiceClient
 	StreamRegistry             types.Registry
 	NetUtils                   networking.Utils
+	NSPEntryTimeout            time.Duration
 }
 
 func newConduitFactoryImpl(
@@ -50,7 +53,8 @@ func newConduitFactoryImpl(
 	targetRegistryClient nspAPI.TargetRegistryClient,
 	networkServiceClient networkservice.NetworkServiceClient,
 	streamRegistry types.Registry,
-	netUtils networking.Utils) *conduitFactoryImpl {
+	netUtils networking.Utils,
+	nspEntryTimeout time.Duration) *conduitFactoryImpl {
 	cfi := &conduitFactoryImpl{
 		TargetName:                 targetName,
 		Namespace:                  namespace,
@@ -60,6 +64,7 @@ func newConduitFactoryImpl(
 		NetworkServiceClient:       networkServiceClient,
 		StreamRegistry:             streamRegistry,
 		NetUtils:                   netUtils,
+		NSPEntryTimeout:            nspEntryTimeout,
 	}
 	return cfi
 }
@@ -73,5 +78,6 @@ func (cfi *conduitFactoryImpl) New(cndt *ambassadorAPI.Conduit) (types.Conduit, 
 		cfi.TargetRegistryClient,
 		cfi.NetworkServiceClient,
 		cfi.StreamRegistry,
-		cfi.NetUtils)
+		cfi.NetUtils,
+		cfi.NSPEntryTimeout)
 }

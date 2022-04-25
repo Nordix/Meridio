@@ -24,7 +24,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/kelseyhightower/envconfig"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
@@ -116,7 +115,7 @@ func main() {
 	}
 	keepAliveRegistry, err := keepAliveRegistry.New(
 		keepAliveRegistry.WithRegistry(sqlr),
-		keepAliveRegistry.WithTimeout(60*time.Second),
+		keepAliveRegistry.WithTimeout(config.EntryTimeout),
 	)
 	if err != nil {
 		logrus.Fatalf("Unable create keepalive registry: %v", err)

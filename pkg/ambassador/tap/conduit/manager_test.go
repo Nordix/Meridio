@@ -39,7 +39,7 @@ func Test_Manager_Run_Stop(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	logrus.SetLevel(logrus.FatalLevel)
 
-	manager := conduit.NewStreamManager(nil, nil, nil, nil, timeout)
+	manager := conduit.NewStreamManager(nil, nil, nil, nil, timeout, 30*time.Second)
 	manager.Run()
 	err := manager.Stop(context.TODO())
 	assert.Nil(t, err)
@@ -59,7 +59,7 @@ func Test_RemoveStream_non_existing(t *testing.T) {
 		},
 	}
 
-	manager := conduit.NewStreamManager(nil, nil, nil, nil, timeout)
+	manager := conduit.NewStreamManager(nil, nil, nil, nil, timeout, 30*time.Second)
 	err := manager.RemoveStream(context.TODO(), s)
 	assert.Nil(t, err)
 }
@@ -132,7 +132,7 @@ func Test_Manager_Running_AddStream_Stop(t *testing.T) {
 	streamA.EXPECT().Close(gomock.Any()).Return(nil).After(open)
 
 	// 1. Creates the stream manager
-	manager := conduit.NewStreamManager(nil, nil, r, streamFactory, timeout)
+	manager := conduit.NewStreamManager(nil, nil, r, streamFactory, timeout, 30*time.Second)
 	manager.SetStreams(streams)
 
 	// 2. Run the stream manager
@@ -216,7 +216,7 @@ func Test_Manager_RemoveStream(t *testing.T) {
 	streamA.EXPECT().Close(gomock.Any()).Return(nil)
 
 	// 1. Creates the stream manager
-	manager := conduit.NewStreamManager(nil, nil, r, streamFactory, timeout)
+	manager := conduit.NewStreamManager(nil, nil, r, streamFactory, timeout, 30*time.Second)
 	manager.SetStreams(streams)
 
 	// 2. Run the stream manager
@@ -291,7 +291,7 @@ func Test_Manager_Close_While_Opening(t *testing.T) {
 	streamA.EXPECT().Close(gomock.Any()).Return(nil)
 
 	// 1. Creates the stream manager
-	manager := conduit.NewStreamManager(nil, nil, r, streamFactory, 0)
+	manager := conduit.NewStreamManager(nil, nil, r, streamFactory, 0, 30*time.Second)
 	manager.SetStreams(streams)
 
 	// 2. Run the stream manager
@@ -382,7 +382,7 @@ func Test_Manager_Retry_Open(t *testing.T) {
 	streamA.EXPECT().Close(gomock.Any()).Return(nil).After(secondOpen)
 
 	// 1. Creates the stream manager
-	manager := conduit.NewStreamManager(nil, nil, r, streamFactory, timeout)
+	manager := conduit.NewStreamManager(nil, nil, r, streamFactory, timeout, 30*time.Second)
 	manager.SetStreams(streams)
 
 	// 2. Run the stream manager
@@ -478,7 +478,7 @@ func Test_Manager_Add_Non_Existing_Stream(t *testing.T) {
 	}).AnyTimes()
 
 	// 1. Creates the stream manager
-	manager := conduit.NewStreamManager(nil, nil, r, streamFactory, timeout)
+	manager := conduit.NewStreamManager(nil, nil, r, streamFactory, timeout, 30*time.Second)
 
 	// 2. Run the stream manager (with no NSP Streams)
 	manager.Run()

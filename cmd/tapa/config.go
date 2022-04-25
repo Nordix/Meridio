@@ -34,6 +34,7 @@ type Config struct {
 	DialTimeout      time.Duration `default:"5s" desc:"timeout to dial NSMgr" split_words:"true"`
 	MaxTokenLifetime time.Duration `default:"24h" desc:"maximum lifetime of tokens" split_words:"true"`
 	LogLevel         string        `default:"DEBUG" desc:"Log level" split_words:"true"`
+	NSPEntryTimeout  time.Duration `default:"30s" desc:"Timeout of the entries" envconfig:"nsp_entry_timeout"`
 }
 
 // IsValid checks if the configuration is valid

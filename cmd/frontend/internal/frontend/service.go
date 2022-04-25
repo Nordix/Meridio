@@ -81,6 +81,7 @@ func NewFrontEndService(c *env.Config) *FrontEndService {
 		targetRegistryClient: targetRegistryClient,
 		advertiseVIP:         false,
 		logNextMonitorStatus: true,
+		nspEntryTimeout:      c.NSPEntryTimeout,
 	}
 
 	if len(frontEndService.vrrps) > 0 {
@@ -116,6 +117,7 @@ type FrontEndService struct {
 	advertiseVIP         bool
 	logNextMonitorStatus bool
 	targetRegistryClient nspAPI.TargetRegistryClient
+	nspEntryTimeout      time.Duration
 }
 
 // CleanUp -
@@ -325,7 +327,7 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 							_ = retry.Do(func() error {
 								return announceFrontend(fes.targetRegistryClient)
 							}, retry.WithContext(refreshCtx),
-								retry.WithDelay(30*time.Second),
+								retry.WithDelay(fes.nspEntryTimeout),
 								retry.WithErrorIngnored())
 						}()
 						fes.announceVIP()

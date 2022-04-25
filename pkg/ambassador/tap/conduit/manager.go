@@ -48,6 +48,7 @@ type streamManager struct {
 	StreamRegistry             types.Registry
 	StreamFactory              StreamFactory
 	Timeout                    time.Duration
+	NSPEntryTimeout            time.Duration
 	// list of streams available in the conduit.
 	ConduitStreams map[string]*ambassadorAPI.Stream
 	mu             sync.Mutex
@@ -58,7 +59,8 @@ func NewStreamManager(configurationManagerClient nspAPI.ConfigurationManagerClie
 	targetRegistryClient nspAPI.TargetRegistryClient,
 	streamRegistry types.Registry,
 	streamFactory StreamFactory,
-	timeout time.Duration) StreamManager {
+	timeout time.Duration,
+	nspEntryTimeout time.Duration) StreamManager {
 	sm := &streamManager{
 		Streams:                    map[string]*streamRetry{},
 		ConfigurationManagerClient: configurationManagerClient,
@@ -66,6 +68,7 @@ func NewStreamManager(configurationManagerClient nspAPI.ConfigurationManagerClie
 		StreamRegistry:             streamRegistry,
 		StreamFactory:              streamFactory,
 		Timeout:                    timeout,
+		NSPEntryTimeout:            nspEntryTimeout,
 		ConduitStreams:             map[string]*ambassadorAPI.Stream{},
 		status:                     stopped,
 	}
@@ -87,9 +90,10 @@ func (sm *streamManager) AddStream(strm *ambassadorAPI.Stream) error {
 		return err
 	}
 	sr := &streamRetry{
-		Stream:         s,
-		StreamRegistry: sm.StreamRegistry,
-		Timeout:        sm.Timeout,
+		Stream:          s,
+		StreamRegistry:  sm.StreamRegistry,
+		Timeout:         sm.Timeout,
+		NSPEntryTimeout: sm.NSPEntryTimeout,
 	}
 	sm.Streams[strm.FullName()] = sr
 	if sm.status == stopped {
@@ -213,14 +217,15 @@ func (sm *streamManager) Stop(ctx context.Context) error {
 }
 
 type streamRetry struct {
-	Stream         types.Stream
-	StreamRegistry types.Registry
-	Timeout        time.Duration
-	currentStatus  ambassadorAPI.StreamStatus_Status
-	mu             sync.Mutex
-	ctxMu          sync.Mutex
-	statusMu       sync.Mutex
-	cancelOpen     context.CancelFunc
+	Stream          types.Stream
+	StreamRegistry  types.Registry
+	Timeout         time.Duration
+	NSPEntryTimeout time.Duration
+	currentStatus   ambassadorAPI.StreamStatus_Status
+	mu              sync.Mutex
+	ctxMu           sync.Mutex
+	statusMu        sync.Mutex
+	cancelOpen      context.CancelFunc
 }
 
 // Open continually tries to open the stream. The function
@@ -261,7 +266,7 @@ func (sr *streamRetry) Open() {
 
 		return nil
 	}, retry.WithContext(ctx),
-		retry.WithDelay(30*time.Second),
+		retry.WithDelay(sr.NSPEntryTimeout),
 		retry.WithErrorIngnored())
 }
 

@@ -72,7 +72,8 @@ func New(conduit *ambassadorAPI.Conduit,
 	targetRegistryClient nspAPI.TargetRegistryClient,
 	networkServiceClient networkservice.NetworkServiceClient,
 	streamRegistry types.Registry,
-	netUtils networking.Utils) (*Conduit, error) {
+	netUtils networking.Utils,
+	nspEntryTimeout time.Duration) (*Conduit, error) {
 	c := &Conduit{
 		TargetName:           targetName,
 		Namespace:            namespace,
@@ -84,7 +85,7 @@ func New(conduit *ambassadorAPI.Conduit,
 		localIPs:             []string{},
 	}
 	c.StreamFactory = stream.NewFactory(targetRegistryClient, stream.MaxNumberOfTargets, c)
-	c.StreamManager = NewStreamManager(configurationManagerClient, targetRegistryClient, streamRegistry, c.StreamFactory, PendingTime)
+	c.StreamManager = NewStreamManager(configurationManagerClient, targetRegistryClient, streamRegistry, c.StreamFactory, PendingTime, nspEntryTimeout)
 	c.Configuration = newConfigurationImpl(c.SetVIPs, c.StreamManager.SetStreams, c.Conduit.ToNSP(), configurationManagerClient)
 	return c, nil
 }
