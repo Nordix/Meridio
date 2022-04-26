@@ -46,6 +46,12 @@ findfile ctraffic.gz
 zcat $f > $tmp/bin/ctraffic
 chmod a+x $tmp/bin/ctraffic
 
+birdd=$($dir/forwarder-test.sh bird_dir)
+if test -x $birdd/bird; then
+	log "Include bird routing suite"
+	cp $birdd/bird $birdd/birdc $birdd/birdcl $tmp/bin
+fi
+
 cd $tmp
 tar cf "$1" *
 cd - > /dev/null
