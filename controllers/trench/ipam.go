@@ -113,6 +113,12 @@ func (i *IpamStatefulSet) insertParameters(dep *appsv1.StatefulSet) *appsv1.Stat
 
 	ret.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
 
+	// check resource requirement annotation update, and save annotation into deployment for visibility
+	oa, _ := common.GetResourceRequirementAnnotation(&dep.ObjectMeta)
+	if na, _ := common.GetResourceRequirementAnnotation(&i.trench.ObjectMeta); na != oa {
+		common.SetResourceRequirementAnnotation(&i.trench.ObjectMeta, &ret.ObjectMeta)
+	}
+
 	for x, container := range ret.Spec.Template.Spec.Containers {
 		switch name := container.Name; name {
 		case "ipam":
@@ -133,6 +139,11 @@ func (i *IpamStatefulSet) insertParameters(dep *appsv1.StatefulSet) *appsv1.Stat
 					common.GetProbeCommand(false, "unix:///tmp/health.sock", ""))
 			}
 			container.Env = i.getEnvVars(ret.Spec.Template.Spec.Containers[0].Env)
+			// set resource requirements for container (if not found, then values from model
+			// are kept even upon updates, as getReconciledDesiredStatus() overwrites containers)
+			if err := common.SetContainerResourceRequirements(&i.trench.ObjectMeta, &container); err != nil {
+				i.exec.LogInfo(fmt.Sprintf("trench %s, %v", i.trench.ObjectMeta.Name, err))
+			}
 		default:
 			i.exec.LogError(fmt.Errorf("container %s not expected", name), "get container error")
 		}

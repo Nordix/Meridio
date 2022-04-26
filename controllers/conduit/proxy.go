@@ -119,6 +119,12 @@ func (i *Proxy) insertParameters(init *appsv1.DaemonSet) *appsv1.DaemonSet {
 		common.GetProxySysCtl(i.trench),
 	}
 
+	// check resource requirement annotation update, and save annotation into deployment for visibility
+	oa, _ := common.GetResourceRequirementAnnotation(&init.ObjectMeta)
+	if na, _ := common.GetResourceRequirementAnnotation(&i.conduit.ObjectMeta); na != oa {
+		common.SetResourceRequirementAnnotation(&i.conduit.ObjectMeta, &ds.ObjectMeta)
+	}
+
 	for x, container := range ds.Spec.Template.Spec.Containers {
 		switch name := container.Name; name {
 		case "proxy":
@@ -139,6 +145,11 @@ func (i *Proxy) insertParameters(init *appsv1.DaemonSet) *appsv1.DaemonSet {
 					common.GetProbeCommand(false, "unix:///tmp/health.sock", ""))
 			}
 			container.Env = i.getEnvVars(container.Env)
+			// set resource requirements for container (if not found, then values from model
+			// are kept even upon updates, as getReconciledDesiredStatus() overwrites containers)
+			if err := common.SetContainerResourceRequirements(&i.conduit.ObjectMeta, &container); err != nil {
+				i.exec.LogInfo(fmt.Sprintf("conduit %s, %v", i.conduit.ObjectMeta.Name, err))
+			}
 		default:
 			i.exec.LogError(fmt.Errorf("container %s not expected", name), "get container error")
 		}

@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+spec:
+  template:
+    spec:
+      containers:
+      - name: manager
+        volumeMounts:
+        - name: resource-templates
+          mountPath: "/template/resource"
+          readOnly: true
+      volumes:
+      - name: resource-templates
+        configMap:
+          name: resource-templates
+

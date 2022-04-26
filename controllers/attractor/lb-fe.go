@@ -169,6 +169,12 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 		common.GetLoadBalancerSysCtl(l.trench),
 	}
 
+	// check resource requirement annotation update, and save annotation into deployment for visibility
+	oa, _ := common.GetResourceRequirementAnnotation(&dep.ObjectMeta)
+	if na, _ := common.GetResourceRequirementAnnotation(&l.attractor.ObjectMeta); na != oa {
+		common.SetResourceRequirementAnnotation(&l.attractor.ObjectMeta, &ret.ObjectMeta)
+	}
+
 	for i, container := range ret.Spec.Template.Spec.Containers {
 		switch name := container.Name; name {
 		case "load-balancer":
@@ -189,12 +195,22 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 					common.GetProbeCommand(false, "unix:///tmp/health.sock", ""))
 			}
 			container.Env = l.getLbEnvVars(container.Env)
+			// set resource requirements for container (if not found, then values from model
+			// are kept even upon updates, as getReconciledDesiredStatus() overwrites containers)
+			if err := common.SetContainerResourceRequirements(&l.attractor.ObjectMeta, &container); err != nil {
+				l.exec.LogInfo(fmt.Sprintf("attractor %s, %v", l.attractor.ObjectMeta.Name, err))
+			}
 		case "nsc":
 			if container.Image == "" {
 				container.Image = "registry.nordix.org/cloud-native/nsm/cmd-nsc:v1.3.0"
 				container.ImagePullPolicy = corev1.PullAlways
 			}
 			container.Env = l.getNscEnvVars(container.Env)
+			// set resource requirements for container (if not found, then values from model
+			// are kept even upon updates, as getReconciledDesiredStatus() overwrites containers)
+			if err := common.SetContainerResourceRequirements(&l.attractor.ObjectMeta, &container); err != nil {
+				l.exec.LogInfo(fmt.Sprintf("attractor %s, %v", l.attractor.ObjectMeta.Name, err))
+			}
 		case "fe":
 			if container.Image == "" {
 				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, feImage, common.Tag)
@@ -213,6 +229,11 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 					common.GetProbeCommand(false, "unix:///tmp/health.sock", ""))
 			}
 			container.Env = l.getFeEnvVars(container.Env)
+			// set resource requirements for container (if not found, then values from model
+			// are kept even upon updates, as getReconciledDesiredStatus() overwrites containers)
+			if err := common.SetContainerResourceRequirements(&l.attractor.ObjectMeta, &container); err != nil {
+				l.exec.LogInfo(fmt.Sprintf("attractor %s, %v", l.attractor.ObjectMeta.Name, err))
+			}
 		default:
 			l.exec.LogError(fmt.Errorf("container %s not expected", name), "get container error")
 		}
@@ -247,12 +268,12 @@ func (l *LoadBalancer) getDesiredStatus() *appsv1.Deployment {
 
 // getReconciledDesiredStatus gets the desired status of lb-fe deployment after it's created
 // more paramters than what are defined in the model could be added by K8S
-func (i *LoadBalancer) getReconciledDesiredStatus(lb *appsv1.Deployment) *appsv1.Deployment {
+func (l *LoadBalancer) getReconciledDesiredStatus(lb *appsv1.Deployment) *appsv1.Deployment {
 	template := lb.DeepCopy()
-	template.Spec.Template.Spec.InitContainers = i.model.Spec.Template.Spec.InitContainers
-	template.Spec.Template.Spec.Containers = i.model.Spec.Template.Spec.Containers
-	template.Spec.Template.Spec.Volumes = i.model.Spec.Template.Spec.Volumes
-	return i.insertParameters(template)
+	template.Spec.Template.Spec.InitContainers = l.model.Spec.Template.Spec.InitContainers
+	template.Spec.Template.Spec.Containers = l.model.Spec.Template.Spec.Containers
+	template.Spec.Template.Spec.Volumes = l.model.Spec.Template.Spec.Volumes
+	return l.insertParameters(template)
 }
 
 func (l *LoadBalancer) getAction() error {

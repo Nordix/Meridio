@@ -4,6 +4,7 @@ resources:
 patchesStrategicMerge:
 # - patches/manager_webhook_patch_certmanager.yaml # [CERTMANAGER] To enable cert-manager, you need to uncomment all the sections with [CERTMANAGER]
 - patches/manager_webhook_patch_spire.yaml # [SPIRE] To enable spire, you need to uncomment all the sections with [SPIRE]
+- patches/manager_resource_templates_patch.yaml
 
 generatorOptions:
   disableNameSuffixHash: true
@@ -12,6 +13,17 @@ configMapGenerator:
 - files:
   - controller_manager_config.yaml
   name: manager-config
+- files:
+  - resource_requirements/load-balancer
+  - resource_requirements/nsc
+  - resource_requirements/fe
+  - resource_requirements/nse
+  - resource_requirements/proxy
+  - resource_requirements/nsp
+  - resource_requirements/ipam
+  name: resource-templates
+  options:
+    disableNameSuffixHash: true
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:

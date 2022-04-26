@@ -94,6 +94,12 @@ func (i *NseDeployment) insertParameters(dep *appsv1.Deployment) *appsv1.Deploym
 
 	ret.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
 
+	// check resource requirement annotation update, and save annotation into deployment for visibility
+	oa, _ := common.GetResourceRequirementAnnotation(&dep.ObjectMeta)
+	if na, _ := common.GetResourceRequirementAnnotation(&i.attractor.ObjectMeta); na != oa {
+		common.SetResourceRequirementAnnotation(&i.attractor.ObjectMeta, &ret.ObjectMeta)
+	}
+
 	for x, container := range ret.Spec.Template.Spec.Containers {
 		switch name := container.Name; name {
 		case "nse":
@@ -117,6 +123,11 @@ func (i *NseDeployment) insertParameters(dep *appsv1.Deployment) *appsv1.Deploym
 				container.Ports = append([]corev1.ContainerPort{}, corev1.ContainerPort{HostPort: common.VlanNsePort, ContainerPort: common.VlanNsePort})
 			}
 			container.Env = i.getEnvVars(container.Env)
+			// set resource requirements for container (if not found, then values from model
+			// are kept even upon updates, as getReconciledDesiredStatus() overwrites containers)
+			if err := common.SetContainerResourceRequirements(&i.attractor.ObjectMeta, &container); err != nil {
+				i.exec.LogInfo(fmt.Sprintf("attractor %s, %v", i.attractor.ObjectMeta.Name, err))
+			}
 		default:
 			i.exec.LogError(fmt.Errorf("container %s not expected", name), "get container error")
 		}
