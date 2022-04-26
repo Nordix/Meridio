@@ -29,8 +29,8 @@ spec:
                 - /bin/grpc_health_probe
                 - -addr=unix:///tmp/health.sock
                 - -service=
-                - -connect-timeout=100ms
-                - -rpc-timeout=150ms
+                - -connect-timeout=250ms
+                - -rpc-timeout=350ms
             initialDelaySeconds: 0
             periodSeconds: 2
             timeoutSeconds: 2
@@ -43,8 +43,8 @@ spec:
                 - -spiffe
                 - -addr=:7777
                 - -service=
-                - -connect-timeout=100ms
-                - -rpc-timeout=150ms
+                - -connect-timeout=250ms
+                - -rpc-timeout=350ms
             failureThreshold: 5
             initialDelaySeconds: 0
             periodSeconds: 10
@@ -56,8 +56,8 @@ spec:
                 - /bin/grpc_health_probe
                 - -addr=unix:///tmp/health.sock
                 - -service=
-                - -connect-timeout=100ms
-                - -rpc-timeout=150ms
+                - -connect-timeout=250ms
+                - -rpc-timeout=350ms
             failureThreshold: 5
             initialDelaySeconds: 0
             periodSeconds: 10
