@@ -64,6 +64,33 @@ cmd_env() {
 	env_set=yes
 }
 
+##   bird_dir
+##   bird_build
+##     Build the Bird routing suite
+##
+bird_ver=2.0.9
+cmd_bird_dir() {
+	test -n "$__dest" || __dest=$XCLUSTER_WORKSPACE
+	echo $__dest/bird-$bird_ver
+}
+cmd_bird_build() {
+	local dir=$(cmd_bird_dir)
+	if test -x $dir/bird; then
+		log "Already built in [$dir]"
+		return 0
+	fi
+	local ar=bird-$bird_ver.tar.gz
+	if ! test -r $ARCHIVE/$ar; then
+		local url=https://bird.network.cz/download/$ar
+		curl -L $url > $ARCHIVE/$ar || die "curl $ar"
+	fi
+	mkdir -p $dir || die Mkdir
+	tar -C $dir/.. -xf $ARCHIVE/$ar
+	cd $dir
+	./configure || die configure
+	make -j$(nproc) || die make
+}
+
 ##   test --list
 ##   test [--xterm] [--no-stop] [--local] [--nsm-local] [test...] > logfile
 ##     Exec tests
