@@ -124,7 +124,10 @@ func (ka *KeepAlive) Get(ctx context.Context, target *nspAPI.Target) ([]*nspAPI.
 func (ka *KeepAlive) add(target *nspAPI.Target) {
 	kaTarget, exists := ka.targets[sqlite.GetTargetID(target)]
 	if exists {
+		logrus.Infof("Update/refresh: %v", target)
 		kaTarget.contextCancel()
+	} else {
+		logrus.Infof("Register: %v", target)
 	}
 	ctx, cancel := context.WithCancel(context.TODO())
 	ka.targets[sqlite.GetTargetID(target)] = &keepAliveTarget{
@@ -139,6 +142,7 @@ func (ka *KeepAlive) add(target *nspAPI.Target) {
 
 func (ka *KeepAlive) remove(ctx context.Context, target *nspAPI.Target) error {
 	delete(ka.targets, sqlite.GetTargetID(target))
+	logrus.Infof("Unregister: %v", target)
 	if ka.TargetRegistry == nil {
 		return nil
 	}

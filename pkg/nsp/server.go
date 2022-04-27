@@ -39,12 +39,10 @@ func NewServer(targetRegistry types.TargetRegistry) nspAPI.TargetRegistryServer 
 }
 
 func (s *Server) Register(ctx context.Context, target *nspAPI.Target) (*empty.Empty, error) {
-	logrus.Infof("Register: %v", target)
 	return &empty.Empty{}, s.TargetRegistry.Set(ctx, target)
 }
 
 func (s *Server) Unregister(ctx context.Context, target *nspAPI.Target) (*empty.Empty, error) {
-	logrus.Infof("Unregister: %v", target)
 	return &empty.Empty{}, s.TargetRegistry.Remove(ctx, target)
 }
 
