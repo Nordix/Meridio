@@ -44,8 +44,8 @@ func NewGRPCHealthProbe(options ...Option) (*GrpcHealthProbe, error) {
 		cmd:         "grpc_health_probe",
 		addr:        fmt.Sprintf("-addr=%v", health.DefaultURL),
 		service:     "-service=",
-		rpcTimeout:  "-rpc-timeout=150ms",
-		connTimeout: "-connect-timeout=100ms",
+		rpcTimeout:  "-rpc-timeout=350ms",
+		connTimeout: "-connect-timeout=250ms",
 	}
 	for _, opt := range options {
 		opt(opts)
