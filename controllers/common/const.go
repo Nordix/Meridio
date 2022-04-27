@@ -15,6 +15,7 @@ const (
 	SAName                = "meridio-sa"
 	ResourceNamePrefixEnv = "RESOURCE_NAME_PREFIX"
 	ImagePullSecretEnv    = "IMAGE_PULL_SECRET"
+	NSMRegistryServiceEnv = "NSM_REGISTRY_SERVICE"
 
 	Registry        = "registry.nordix.org"
 	Organization    = "cloud-native/meridio"
@@ -125,6 +126,10 @@ func VlanNtwkSvcName(cr *meridiov1alpha1.Trench) string {
 
 func getResourceNamePrefix() string {
 	return os.Getenv(ResourceNamePrefixEnv)
+}
+
+func GetNSMRegistryService() string {
+	return os.Getenv(NSMRegistryServiceEnv)
 }
 
 func GetImagePullSecrets() []corev1.LocalObjectReference {
