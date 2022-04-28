@@ -52,6 +52,10 @@ func (i *NseDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 				i.attractor.Spec.Interface.NSMVlan.BaseInterface),
 		},
 		{
+			Name:  "NSM_CONNECT_TO",
+			Value: common.GetNSMRegistryService(),
+		},
+		{
 			Name:  nseEnvPrefixV4,
 			Value: i.attractor.Spec.Interface.PrefixIPv4,
 		},
@@ -65,7 +69,6 @@ func (i *NseDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 		// append all hard coded envVars
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
 			e.Name == "NSM_NAME" ||
-			e.Name == "NSM_CONNECT_TO" ||
 			e.Name == "NSM_POINT2POINT" ||
 			e.Name == "NSM_REGISTER_SERVICE" ||
 			e.Name == "NSM_LISTEN_ON" ||
