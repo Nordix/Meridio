@@ -55,7 +55,7 @@ spec:
           - name: NSM_REGISTRY_SERVICE
             value: "nsm-registry-svc.nsm:5002"
           - name: LOG_LEVEL
-            value: "trace"
+            value: "debug"
           - name: IMAGE_PULL_SECRET
             value: "" # multiple secrets supported, use "," as the delimiter
           - name: WATCH_NAMESPACE
