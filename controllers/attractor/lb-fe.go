@@ -69,14 +69,17 @@ func (l *LoadBalancer) getLbEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			Name:  "NSM_NSP_SERVICE",
 			Value: common.NSPServiceWithPort(l.trench),
 		},
+		{
+			Name:  "NSM_LOG_LEVEL",
+			Value: common.GetLogLevel(),
+		},
 	}
 
 	for _, e := range allEnv {
 		// append all hard coded envVars
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
 			e.Name == "NSM_NAME" ||
-			e.Name == "NSM_MAX_TOKEN_LIFETIME" ||
-			e.Name == "NSM_LOG_LEVEL" {
+			e.Name == "NSM_MAX_TOKEN_LIFETIME" {
 			env = append(env, e)
 		}
 	}
@@ -89,6 +92,10 @@ func (l *LoadBalancer) getNscEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			Name:  "NSM_NETWORK_SERVICES",
 			Value: fmt.Sprintf("kernel://%s/%s", common.VlanNtwkSvcName(l.trench), common.GetExternalInterfaceName(l.attractor)),
 		},
+		{
+			Name:  "NSM_LOG_LEVEL",
+			Value: common.GetLogLevel(),
+		},
 	}
 
 	for _, e := range allEnv {
@@ -97,8 +104,7 @@ func (l *LoadBalancer) getNscEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			e.Name == "NSM_NAME" ||
 			e.Name == "NSM_DIAL_TIMEOUT" ||
 			e.Name == "NSM_REQUEST_TIMEOUT" ||
-			e.Name == "NSM_MAX_TOKEN_LIFETIME" ||
-			e.Name == "NSM_LOG_LEVEL" {
+			e.Name == "NSM_MAX_TOKEN_LIFETIME" {
 			env = append(env, e)
 		}
 	}
@@ -131,14 +137,17 @@ func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			Name:  "NFE_EXTERNAL_INTERFACE",
 			Value: common.GetExternalInterfaceName(l.attractor),
 		},
+		{
+			Name:  "NFE_LOG_LEVEL",
+			Value: common.GetLogLevel(),
+		},
 	}
 
 	for _, e := range allEnv {
 		// append all hard coded envVars
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
 			e.Name == "NFE_LOG_BIRD" ||
-			e.Name == "NFE_ECMP" ||
-			e.Name == "NFE_LOG_LEVEL" {
+			e.Name == "NFE_ECMP" {
 			env = append(env, e)
 		}
 	}

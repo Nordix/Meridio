@@ -16,6 +16,7 @@ const (
 	ResourceNamePrefixEnv = "RESOURCE_NAME_PREFIX"
 	ImagePullSecretEnv    = "IMAGE_PULL_SECRET"
 	NSMRegistryServiceEnv = "NSM_REGISTRY_SERVICE"
+	LogLevelEnv           = "LOG_LEVEL"
 
 	Registry        = "registry.nordix.org"
 	Organization    = "cloud-native/meridio"
@@ -130,6 +131,10 @@ func getResourceNamePrefix() string {
 
 func GetNSMRegistryService() string {
 	return os.Getenv(NSMRegistryServiceEnv)
+}
+
+func GetLogLevel() string {
+	return os.Getenv(LogLevelEnv)
 }
 
 func GetImagePullSecrets() []corev1.LocalObjectReference {
