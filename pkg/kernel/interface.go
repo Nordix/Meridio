@@ -17,6 +17,8 @@ limitations under the License.
 package kernel
 
 import (
+	"errors"
+	"os"
 	"reflect"
 
 	"github.com/nordix/meridio/pkg/networking"
@@ -94,7 +96,7 @@ func (intf *Interface) AddLocalPrefix(prefix string) error {
 		return err
 	}
 	err = netlink.AddrAdd(i, addr)
-	if err != nil {
+	if err != nil && errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	return nil
