@@ -142,3 +142,16 @@ func Test_Do_WithErrorIgnored(t *testing.T) {
 	}, retry.WithErrorIngnored(), retry.WithContext(ctx))
 	assert.Equal(t, 3, attempts)
 }
+
+func Test_Do_WithDelay_GoRoutineLeak(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithCancel(context.TODO())
+
+	go func() {
+		_ = retry.Do(func() error {
+			return errors.New("")
+		}, retry.WithErrorIngnored(), retry.WithContext(ctx), retry.WithDelay(10*time.Second))
+	}()
+	cancel()
+}
