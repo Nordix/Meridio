@@ -14,7 +14,7 @@ import (
 
 const (
 	nseImage       = "cmd-nse-remote-vlan"
-	nseImageTag    = "v1.3.0"
+	nseImageTag    = "v1.3.1"
 	nseEnvServices = "NSM_SERVICES"
 	nseEnvPrefixV4 = "NSM_CIDR_PREFIX"
 	nseEnvPrefixV6 = "NSM_IPV6_PREFIX"
