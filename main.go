@@ -37,6 +37,7 @@ import (
 	"github.com/faisal-memon/sviddisk"
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	attactorcontroller "github.com/nordix/meridio-operator/controllers/attractor"
+	"github.com/nordix/meridio-operator/controllers/common"
 	conduitcontroller "github.com/nordix/meridio-operator/controllers/conduit"
 	flowcontroller "github.com/nordix/meridio-operator/controllers/flow"
 	gatewaycontroller "github.com/nordix/meridio-operator/controllers/gateway"
@@ -114,10 +115,18 @@ func main() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 
+	if os.Getenv(common.LogLevelEnv) == "" { // trace as default value
+		os.Setenv(common.LogLevelEnv, "trace")
+	}
+
 	opts := zap.Options{
 		Development: true,
 	}
 	opts.BindFlags(flag.CommandLine)
+	flag.Set("zap-log-level", os.Getenv(common.LogLevelEnv)) // overwrite the zap log level value with the env variable
+	if os.Getenv(common.LogLevelEnv) == "trace" {            // trace doesn't exists in the operator, so it is translated to debug
+		flag.Set("zap-log-level", "debug")
+	}
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))

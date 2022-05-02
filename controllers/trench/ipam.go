@@ -84,13 +84,16 @@ func (i *IpamStatefulSet) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			Name:  "IPAM_IP_FAMILY",
 			Value: common.GetIPFamily(i.trench),
 		},
+		{
+			Name:  "IPAM_LOG_LEVEL",
+			Value: common.GetLogLevel(),
+		},
 	}
 
 	for _, e := range allEnv {
 		// append all hard coded envVars
 		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
-			e.Name == "IPAM_DATASOURCE" ||
-			e.Name == "IPAM_LOG_LEVEL" {
+			e.Name == "IPAM_DATASOURCE" {
 			env = append(env, e)
 		}
 	}

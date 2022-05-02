@@ -80,6 +80,10 @@ func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			Name:  "NSM_NAMESPACE",
 			Value: i.conduit.ObjectMeta.Namespace,
 		},
+		{
+			Name:  "NSM_LOG_LEVEL",
+			Value: common.GetLogLevel(),
+		},
 	}
 
 	for _, e := range allEnv {
@@ -88,8 +92,7 @@ func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			e.Name == "NSM_NAME" ||
 			e.Name == "NSM_HOST" ||
 			e.Name == "NSM_CONNECT_TO" ||
-			e.Name == "NSM_MAX_TOKEN_LIFETIME" ||
-			e.Name == "NSM_LOG_LEVEL" {
+			e.Name == "NSM_MAX_TOKEN_LIFETIME" {
 			env = append(env, e)
 		}
 	}
