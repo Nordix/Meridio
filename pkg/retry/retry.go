@@ -17,6 +17,7 @@ limitations under the License.
 package retry
 
 import (
+	"context"
 	"fmt"
 )
 
@@ -53,11 +54,14 @@ retry:
 			break
 		}
 
+		retryTriggerCtx, retryTriggerCancel := context.WithCancel(context.Background())
 		select {
-		case <-config.retryTriggerFunc():
+		case <-config.retryTriggerFunc(retryTriggerCtx):
 		case <-config.context.Done():
+			retryTriggerCancel()
 			break retry
 		}
+		retryTriggerCancel()
 	}
 	return errFinal
 }

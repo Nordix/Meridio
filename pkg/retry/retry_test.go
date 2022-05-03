@@ -19,6 +19,7 @@ package retry_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -70,15 +71,31 @@ func Test_Do_Context(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.TODO())
+	var waitGroup sync.WaitGroup
 
 	attempts := 0
 	err := retry.Do(func() error {
 		attempts++
+		waitGroup.Add(1)
 		if attempts == 5 {
 			cancel()
+		} else {
+			waitGroup.Done()
 		}
 		return errors.New("")
-	}, retry.WithDelay(1*time.Nanosecond), retry.WithContext(ctx))
+	}, retry.WithRetryTrigger(func(context.Context) <-chan struct{} {
+		channel := make(chan struct{}, 1)
+		go func() {
+			waitGroup.Wait()
+			channel <- struct{}{}
+		}()
+		return channel
+	}), retry.WithContext(ctx))
+
+	// required to avoid go routine leak test fail due to custom WithRetryTrigger func
+	waitGroup.Done()
+	time.Sleep(1 * time.Microsecond)
+
 	assert.NotNil(t, err)
 	assert.Equal(t, 5, attempts)
 }
@@ -113,7 +130,7 @@ func Test_Do_WithRetryTrigger(t *testing.T) {
 		}
 		cancel()
 		return errors.New("")
-	}, retry.WithRetryTrigger(func() <-chan struct{} {
+	}, retry.WithRetryTrigger(func(context.Context) <-chan struct{} {
 		channel := make(chan struct{}, 1)
 		go func() {
 			<-ctx.Done()
@@ -141,4 +158,17 @@ func Test_Do_WithErrorIgnored(t *testing.T) {
 		return errors.New("")
 	}, retry.WithErrorIngnored(), retry.WithContext(ctx))
 	assert.Equal(t, 3, attempts)
+}
+
+func Test_Do_WithDelay_GoRoutineLeak(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithCancel(context.TODO())
+
+	go func() {
+		_ = retry.Do(func() error {
+			return errors.New("")
+		}, retry.WithErrorIngnored(), retry.WithContext(ctx), retry.WithDelay(10*time.Second))
+	}()
+	cancel()
 }

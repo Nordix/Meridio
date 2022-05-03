@@ -41,8 +41,8 @@ func WithMaxAttempts(attempts uint) Option {
 // WithDelay sets a retry trigger with a 10 milliseconds delay
 // WithDelay sets the retry trigger function.
 func WithDelay(delayTime time.Duration) Option {
-	return WithRetryTrigger(func() <-chan struct{} {
-		return delay(delayTime)
+	return WithRetryTrigger(func(ctx context.Context) <-chan struct{} {
+		return delay(ctx, delayTime)
 	})
 }
 
