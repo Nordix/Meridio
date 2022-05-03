@@ -261,6 +261,9 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 			select {
 			case <-ctx.Done():
 				logrus.Infof("Monitor: shutting down")
+				if refreshCancel != nil {
+					refreshCancel()
+				}
 				return
 			case <-time.After(delay): //timeout
 				delay = 1 * time.Second
@@ -321,8 +324,7 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 						}
 						// refresh NSP entry
 						var refreshCtx context.Context
-						refreshCtx, refreshCancel = context.WithCancel(context.TODO())
-						defer refreshCancel()
+						refreshCtx, refreshCancel = context.WithCancel(ctx)
 						go func() {
 							_ = retry.Do(func() error {
 								return announceFrontend(fes.targetRegistryClient)
@@ -351,6 +353,9 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 					init = false
 				})
 			}
+		}
+		if refreshCancel != nil {
+			refreshCancel()
 		}
 	}()
 	return nil

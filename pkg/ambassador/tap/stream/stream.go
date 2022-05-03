@@ -260,9 +260,12 @@ func (s *Stream) refresh(ctx context.Context) error {
 		break
 	}
 	// Target is disabled since the NSP has set its status to disable
-	// during refresh. This might be because the NSP considered the refresh
-	// has a new registration (and it is not possible to register the first time as
-	// enabled).
+	// during refresh. This happened since the NSP has not received the
+	// refresh on time, so it has removed the target. When the NSP finnally
+	// received the refresh (register call), it considered it as a new registration
+	// and then has overwritten the status to DISABLED (it is not possible to register
+	// a target as enabled, the target has to be registered to DISABLED, and then
+	// updated to ENABLED). The target then has to call open function.
 	s.targetStatus = nspAPI.Target_DISABLED
 	s.identifier = -1
 	return s.open(ctx)
