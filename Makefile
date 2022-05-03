@@ -11,19 +11,29 @@ E2E_FOCUS ?= ""
 TRAFFIC_GENERATOR_CMD ?= "docker exec -i {trench}"
 
 REGISTRY ?= localhost:5000/meridio
+BASE_IMAGE ?= $(REGISTRY)/base:latest
+DEBUG_IMAGE ?= $(REGISTRY)/debug:$(VERSION)
 
 .PHONY: all
 all: default
 
 .PHONY: build
 build:
-	docker build -t $(IMAGE) --build-arg meridio_version=$(shell git describe --dirty --tags) -f ./build/$(IMAGE)/Dockerfile .
+	docker build -t $(IMAGE) --build-arg meridio_version=$(shell git describe --dirty --tags) --build-arg base_image=$(BASE_IMAGE) -f ./build/$(IMAGE)/Dockerfile .
 .PHONY: tag
 tag:
 	docker tag $(IMAGE) $(REGISTRY)/$(IMAGE):$(VERSION)
 .PHONY: push
 push:
 	docker push $(REGISTRY)/$(IMAGE):$(VERSION)
+
+.PHONY: base-image
+base-image:
+	docker build -t $(BASE_IMAGE) -f ./build/base/Dockerfile .
+
+.PHONY: debug-image
+debug-image:
+	docker build -t $(DEBUG_IMAGE) -f ./build/debug/Dockerfile .
 
 .PHONY: load-balancer
 load-balancer:
@@ -72,7 +82,7 @@ proto: ipam-proto nsp-proto ambassador-proto
 clear:
 
 .PHONY: default
-default: load-balancer proxy tapa ipam nsp ctraffic frontend
+default: base-image load-balancer proxy tapa ipam nsp ctraffic frontend
 
 .PHONY: lint
 lint: 
