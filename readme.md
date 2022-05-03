@@ -63,7 +63,7 @@ make e2e NAMESPACE="red"
 
 ### Trench
 
-A [trench](https://github.com/Nordix/Meridio-Operator/blob/master/config/samples/meridio_v1alpha1_trench.yaml) spawns the IPAM, NSP, Proxy pods, and needed role, role-binding and service accounts. The resources created by a trench will be suffixed with the trench's name.
+A [trench](https://github.com/Nordix/Meridio-Operator/blob/master/config/samples/meridio_v1alpha1_trench.yaml) spawns the IPAM, NSP pods, and needed role, role-binding and service accounts, and the ConfigMap storing configuration of the trench. The resources created by a trench will be suffixed with the trench's name.
 
 To see how to configure a trench, please refer to [trench spec](https://pkg.go.dev/github.com/nordix/meridio-operator/api/v1alpha1#TrenchSpec).
 
@@ -80,14 +80,10 @@ $ kubectl get all
 NAME                                  READY   STATUS        RESTARTS   AGE
 pod/ipam-trench-a-67474f4bf8-nt964    1/1     Running       0          1m
 pod/nsp-trench-a-799984cfb5-r4g8f     1/1     Running       0          1m
-pod/proxy-trench-a-dlc5c              1/1     Running       0          1m
 
 NAME                            TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)    AGE
 service/ipam-service-trench-a   ClusterIP   10.96.6.85     <none>        7777/TCP   1m
 service/nsp-service-trench-a    ClusterIP   10.96.71.187   <none>        7778/TCP   1m
-
-NAME                              DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE
-daemonset.apps/proxy-trench-a     1         1         1       1            1           <none>          1m
 
 NAME                            READY   UP-TO-DATE   AVAILABLE   AGE
 deployment.apps/ipam-trench-a   1/1     1            1           1m
@@ -97,7 +93,7 @@ deployment.apps/nsp-trench-a    1/1     1            1           1m
 
 ### Attractor
 
-An attractor resource is responsible for the creation of NSE-VLAN. The resources created will be suffixed with either attractor or trench's name.
+An attractor resource is responsible for the creation of NSE-VLAN and LB-FE. The resources created will be suffixed with either attractor or trench's name.
 
 To be noted, meridio-operator currently have a limitation to have one attractor each trench.
 
@@ -230,3 +226,31 @@ $ kubectl get flow
 NAME     VIPS       DST-PORTS       SRC-SUBNETS          SRC-PORTS         PROTOCOLS   STREAM     TRENCH
 flow-1   ["vip1"]   ["2000-3000"]   ["10.20.30.40/30"]   ["20000-21000"]   ["tcp"]     stream-1   trench-a
 ```
+
+## Resource Management
+
+The resource requirements of containers making up the PODs to be spawned by the Operator can be controlled by annotating the respective custom resource.
+As of now, annotation of __Trench__, __Attractor__ and __Conduit__ resources are supported, because these are responsible for creating POD resources.
+
+A Trench can be annotated to set resource requirements by following the example below.
+```
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Trench
+metadata:
+  name: trench-a
+  annotations:
+    resource-template: "small"
+spec:
+  ip-family: dualstack
+```
+
+### How it works
+
+For each container making up a specific custom resource (e.g. Trench) the annotation value for key _resource-template_ is interpreted as the name of a resource requirements template. Such templates are defined per container, and are to be specified before building the Operator.
+
+As an example some [templates](https://github.com/Nordix/Meridio-Operator/tree/master/config/manager/resource_requirements/) are included for each container out-of-the-box. But they are not verified to fit any production use cases, and can be overridden at will. (A template is basically a kubernetes [core v1 ResourceRequirements](https://pkg.go.dev/k8s.io/api@v0.22.2/core/v1#ResourceRequirements) block with name.)
+
+The Operator looks up the templates based on the annotation value for each container contributing to the particular custom resource. If a template is missing for a container, then deployment proceeds without setting resource requirements for the container at issue. Otherwise the related resources will be deployed by importing the respective resource requirements from the matching templates.
+
+Updating the annotation of a custom resource is possible. Changes will be applied by kubernetes according to the
+Update Strategy of the related resources. Service disturbances and outages are to be expected.
