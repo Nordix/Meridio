@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: ipam
-          image: registry.nordix.org/cloud-native/meridio/ipam:latest
+          image: registry.nordix.org/cloud-native/meridio/ipam:local
           imagePullPolicy: IfNotPresent
           startupProbe:
             exec:
@@ -145,7 +145,7 @@ spec:
     spec:
       containers:
         - name: nsp
-          image: registry.nordix.org/cloud-native/meridio/nsp:latest
+          image: registry.nordix.org/cloud-native/meridio/nsp:local
           imagePullPolicy: IfNotPresent
           startupProbe:
             exec:
@@ -197,6 +197,8 @@ spec:
               value: meridio-configuration-$NAME
             - name: NSP_DATASOURCE
               value: /run/nsp/data/registry.db
+            - name: NSP_ENTRY_TIMEOUT
+              value: 2m
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

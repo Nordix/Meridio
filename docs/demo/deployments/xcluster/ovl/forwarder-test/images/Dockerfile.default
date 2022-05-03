@@ -1,0 +1,4 @@
+ARG base_image=registry.nordix.org/cloud-native/meridio/base:local
+FROM ${base_image}
+COPY . .
+CMD ["/start-command"]

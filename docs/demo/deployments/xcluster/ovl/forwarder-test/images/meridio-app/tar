@@ -14,18 +14,13 @@ log() {
 }
 
 test -n "$1" || die "No out-file"
-
+x=$dir/../../_output/target-client
+test -x $x || die "Not built [target-client]"
 mkdir -p $tmp
 cp -R $dir/default/* $tmp
 
 mkdir -p $tmp/bin
-
-test -n "$MERIDIODIR" || MERIDIODIR=$(readlink -f $dir/../../../../../../../..)
-test -d $MERIDIODIR/cmd/load-balancer || die "Meridio src not found"
-cd $MERIDIODIR
-go build -o $tmp/bin/target-client ./test/applications/target-client 1>&2 || die "go build"
-strip $tmp/bin/target-client
-cd $dir
+cp $x $tmp/bin
 
 cd $tmp
 tar cf "$1" *

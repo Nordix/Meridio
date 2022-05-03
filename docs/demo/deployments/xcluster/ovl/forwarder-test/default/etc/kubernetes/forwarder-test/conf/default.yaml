@@ -1,0 +1,70 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: meridio-configuration-$NAME
+data:
+  trench: |
+    name: $NAME
+  conduits: |
+    items:
+    - name: $CONDUIT1
+      trench: $NAME
+  streams: |
+    items:
+    - name: $STREAM1
+      conduit: $CONDUIT1
+  flows: |
+    items:
+    - name: flow1
+      vips:
+        - vip1
+        - vip2
+        - vip3
+        - vip4
+      destination-port-ranges:
+        - 5000-5003
+      protocols:
+        - tcp
+      stream: $STREAM1
+  vips: |
+    items:
+    - name: vip1
+      address: $VIP1
+      trench: $NAME
+    - name: vip2
+      address: $VIP2
+      trench: $NAME
+    - name: vip3
+      address: $VIP3
+      trench: $NAME
+    - name: vip4
+      address: $VIP4
+      trench: $NAME
+  attractors: |
+    items:
+    - name: attractor1
+      vips:
+        - vip1
+        - vip2
+        - vip3
+        - vip4
+      gateways:
+        - gateway4
+        - gateway6
+      trench: $NAME
+  gateways: |
+    items:
+    - name: gateway4
+      address: $GATEWAY4
+      ip-family: ipv4
+      bfd: false
+      protocol: static
+      trench: $NAME
+    - name: gateway6
+      address: "$GATEWAY6"
+      ip-family: ipv6
+      bfd: false
+      protocol: static
+      trench: $NAME
+---

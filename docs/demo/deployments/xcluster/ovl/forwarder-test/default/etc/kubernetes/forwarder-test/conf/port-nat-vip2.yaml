@@ -16,20 +16,18 @@ data:
       conduit: $CONDUIT1
   flows: |
     items:
-    - name: flow1
+    - name: port-nat
       vips:
         - vip1
         - vip2
-      source-subnets:
-        - 0.0.0.0/0
-        - 0:0:0:0:0:0:0:0/0
-      source-port-ranges:
-        - 1024-65535
+        - vip3
+        - vip4
       destination-port-ranges:
-        - 5000-5003
+        - 7777
       protocols:
         - tcp
       stream: $STREAM1
+      local-port: 5001
   vips: |
     items:
     - name: vip1
@@ -38,12 +36,20 @@ data:
     - name: vip2
       address: $VIP2
       trench: $NAME
+    - name: vip3
+      address: $VIP3
+      trench: $NAME
+    - name: vip4
+      address: $VIP4
+      trench: $NAME
   attractors: |
     items:
     - name: attractor1
       vips:
         - vip1
         - vip2
+        - vip3
+        - vip4
       gateways:
         - gateway4
         - gateway6

@@ -63,46 +63,31 @@ configure_trench() {
 }
 
 cmd_tcase_trench() {
-	local p
-	test "$__local" = "yes" && p=-local
-	tcase "Start trench [$1] ($p)"
 	configure_trench $1
+	if test "$__use_multus" = "yes"; then
+		tcase "Start trench using Multus [$1]"
+		kubectl apply -f /etc/kubernetes/multus/crd-$NAME.yaml
+	else
+		tcase "Start trench [$1]"
+	fi
 	if test "$NS" != "default"; then
 		kubectl create namespace $NS || tdie "create namespace"
 		envsubst < $yamld/spire-template.yaml | kubectl apply -f - || tdie
 	fi
 	envsubst < $yamld$p/trench-base.yaml | $kubectl apply -f - || tdie
-	envsubst < $yamld/conf-template.yaml | $kubectl apply -f - || tdie
+	test -n "$TRENCH_TEMPLATE" || TRENCH_TEMPLATE=default
+	envsubst < $yamld/conf/$TRENCH_TEMPLATE.yaml | $kubectl apply -f - || tdie
 	envsubst < $yamld/nse-template.yaml | $kubectl apply -f - || tdie
 	envsubst < $yamld$p/load-balancer-template.yaml | $kubectl apply -f - || tdie
 	envsubst < $yamld$p/proxy-template.yaml | $kubectl apply -f - || tdie
 	test_deployment meridio-nse 120 || tdie
 	test_statefulset meridio-ipam 120
+	local pod=$($kubectl get pods -l app=meridio-ipam -o name)
+	local meridio_ver=$($kubectl exec $pod -- /ipam --version)
+	tlog "Meridio version [$meridio_ver]"
 	test_statefulset meridio-nsp 30
 	test_deployment meridio-load-balancer 60
-	test_daemonset meridio-proxy 30
-	envsubst < $yamld$p/target-template.yaml | $kubectl apply -f - || tdie
-	test_deployment meridio-app 60
-}
-
-cmd_tcase_trench_multus() {
-	local p
-	test "$__local" = "yes" && p=-local
-	tcase "Start trench using Multus [$1] ($p)"
-	configure_trench $1
-	if test "$NS" != "default"; then
-		kubectl create namespace $NS || tdie "create namespace"
-		kubectl apply -f /etc/kubernetes/multus/crd-$NAME.yaml
-	fi
-	envsubst < $yamld/spire-template.yaml | kubectl apply -f - || tdie
-	envsubst < $yamld$p/trench-base.yaml | $kubectl apply -f - || tdie
-	envsubst < $yamld/conf-template.yaml | $kubectl apply -f - || tdie
-	envsubst < $yamld$p/load-balancer-multus-template.yaml | $kubectl apply -f - || tdie
-	envsubst < $yamld$p/proxy-template.yaml | $kubectl apply -f - || tdie
-	test_statefulset meridio-ipam 120
-	test_statefulset meridio-nsp 30
-	test_deployment meridio-load-balancer 60
-	test_daemonset meridio-proxy 30
+	test_daemonset meridio-proxy 60
 	envsubst < $yamld$p/target-template.yaml | $kubectl apply -f - || tdie
 	test_deployment meridio-app 60
 }
@@ -266,23 +251,29 @@ cmd_tcase_trench_vip_route() {
 
 	local ns=$1
 	local out=/tmp/meridio-load-balancer-$ns
-	local vip4
+	local vips
 	case $ns in
-		red) vip4=10.0.0.1;;
-		blue) vip4=10.0.0.2;;
-		green) vip4=10.0.0.3;;
+		red)   vips="10.0.0.1/32 10.0.0.16/28";;
+		blue)  vips="10.0.0.2/32 10.0.0.32/28";;
+		green) vips="10.0.0.3/32 10.0.0.48/28";;
 		*) die "Unknown trench";;
 	esac
-	local hops ip
-	for ip in $(cat $out-ip4); do
-		hops="$hops nexthop via $ip"
+	local hops ip vip4 netbits vip6
+	for vip4 in $vips; do
+		hops=''
+		for ip in $(cat $out-ip4); do
+			hops="$hops nexthop via $ip"
+		done
+		ip route add $vip4 $hops || tdie "ip route add $vip4 $hops"
+		hops=''
+		netbits=$(echo $vip4 | cut -d/ -f2)
+		vip6="$ipv6prefix:$(echo $vip4 | cut -d/ -f1)"
+		vip6="$vip6/$((netbits + 96))"
+		for ip in $(cat $out-ip6); do
+			hops="$hops nexthop via $ip"
+		done
+		ip -6 route add $vip6 $hops || tdie "ip -6 route $vip6"
 	done
-	ip route add $vip4 $hops || die "ip route"
-	hops=''
-	for ip in $(cat $out-ip6); do
-		hops="$hops nexthop via $ip"
-	done
-	ip -6 route add $ipv6prefix:$vip4 $hops || die "ip -6 route"
 }
 
 cmd_tcase_mconnect() {
@@ -305,6 +296,13 @@ cmd_tcase_mconnect() {
 	popv
 	local end=$(date +%s)
 	tlog "Mconnect on [$1] succeful after $((end - begin)) sec"
+}
+
+cmd_tcase_mconnect_adr() {
+	pushv 120 20 5
+	tcase "Test mconnect to; $1"
+	tex "do_mconnect $1" || tdie
+	popv
 }
 
 cmd_tcase_scale() {
@@ -361,6 +359,7 @@ cmd_tcase_reconnect_targets() {
 cmd_tcase_check_connections() {
 	local targets=4
 	test -n "$2" && targets=$2
+	test -n "$__port" || __port=5001
 	tcase "Check connects to trench [$1], expected targets $targets"
 	configure_trench $1
 	local vip4
@@ -380,7 +379,7 @@ check_connections() {
 	mkdir -p $tmp
 	local out=$tmp/out
 	conntrack -F > /dev/null 2>&1
-	if ! mconnect -address $1:5001 -nconn 120 -output json > $out; then
+	if ! mconnect -address $1:$__port -nconn 120 -output json > $out; then
 		cat $out | jq
 		return 1
 	fi
@@ -436,6 +435,84 @@ cmd_tcase_ping_lb_target() {
 	done
 }
 
+cmd_tcase_configmap() {
+	# . /etc/kubernetes/forwarder-test/red.conf
+	# f=/etc/kubernetes/forwarder-test/conf-xflow-template.yaml
+	# kubectl="kubectl -n red"
+	tcase "Set configmap in [$1] to $2"
+	configure_trench $1
+	local f=$yamld/$2.yaml
+	test -r $f || tdie "Not readable [$f]"
+	envsubst < $f | $kubectl apply -f - || tdie
+}
+
+cmd_tcase_check_flow() {
+	tcase "Check port-NAT flows in load-balancers"
+	configure_trench $1
+	shift
+	local pod f
+	for f in $@; do
+		echo "Check for flow [$f]"
+		for pod in $($kubectl get pods -l app=meridio-load-balancer -o name); do
+			tex check_xflow $pod $f || tdie "No flow [$f] in $NS/$pod"
+		done
+	done
+}
+cmd_tcase_negative_check_flow() {
+	tcase "Negative check port-NAT flows in load-balancers"
+	configure_trench $1
+	shift
+	local pod f
+	for f in $@; do
+		echo "Negative check for flow [$f]"
+		for pod in $($kubectl get pods -l app=meridio-load-balancer -o name); do
+			check_xflow $pod $f && tdie "Flow [$f] in $NS/$pod"
+		done
+	done
+	return 0
+}
+check_xflow() {
+	$kubectl exec $1 -c load-balancer -- nfqlb flow-list-names | grep $2
+}
+
+cmd_tcase_check_flow_vips() {
+	test "$__cnt" || __cnt=2
+	tcase "Check $__cnt VIPs in trench $1"
+	configure_trench $1
+	local flow=port-nat
+	for pod in $($kubectl get pods -l app=meridio-load-balancer -o name); do
+		if ! tex check_flow_vips $pod port-nat; then
+			cat /tmp/ruleset
+			tdie "Unexpected number of VIPs in $pod"
+		fi
+	done
+}
+
+# Check that we have 2 vip-sets with $__cnt/2 addresses each, good
+# enough for now.
+check_flow_vips() {
+	local pod=$1
+	local flow=$2
+	$kubectl exec $pod -c load-balancer -- nft -j list ruleset > /tmp/ruleset || tdie
+	cat /tmp/ruleset |\
+		jq ".nftables[].set|select(. != null)|select(.name|match(\".*-$flow\"))" > /tmp/vipsets
+	local n
+	n=$(cat /tmp/vipsets | jq -s length)
+	test $n -eq 2 || tdie "Found sets $n, expected 2"
+	for n in $(cat /tmp/vipsets | jq '.elem|length'); do
+		test $n -eq $((__cnt / 2)) || return 1
+	done
+	return 0
+}
+
+cmd_tcase_bird() {
+	test -n "$__conf" || __conf=bgp
+	tcase "Start bird. Config [$__conf]"
+	local f=/etc/bird/$__conf.conf
+	test -r $f || tdie "Not readable [$f]"
+	mkdir -p /usr/local/var/run
+	bird -c $f || tdie "Start bird"
+}
 
 . /etc/profile
 . /usr/lib/xctest

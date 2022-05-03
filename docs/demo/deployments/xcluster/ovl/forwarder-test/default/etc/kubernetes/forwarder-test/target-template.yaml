@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: meridio-app
-          image: registry.nordix.org/cloud-native/meridio/meridio-app:xcluster
+          image: registry.nordix.org/cloud-native/meridio/meridio-app:local
           imagePullPolicy: IfNotPresent
           env:
             - name: TRENCH
@@ -41,7 +41,7 @@ spec:
               mountPath: /var/lib/meridio
               readOnly: false
         - name: tapa
-          image: registry.nordix.org/cloud-native/meridio/tapa:latest
+          image: registry.nordix.org/cloud-native/meridio/tapa:local
           imagePullPolicy: IfNotPresent
           startupProbe:
             exec:
@@ -97,8 +97,8 @@ spec:
               value: "/var/lib/meridio/ambassador.sock"
             - name: MERIDIO_MAX_TOKEN_LIFETIME
               value: 10m
-            - name: NO_START
-              value: "no"
+            - name: MERIDIO_NSP_ENTRY_TIMEOUT
+              value: 2m
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

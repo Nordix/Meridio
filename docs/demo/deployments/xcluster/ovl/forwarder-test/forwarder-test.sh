@@ -43,6 +43,7 @@ cmd_env() {
 		return 0
 	fi
 
+	test -n "$MERIDIOD" || MERIDIOD=$GOPATH/src/github.com/Nordix/Meridio
 	test -n "$xcluster_NSM_FORWARDER" || export xcluster_NSM_FORWARDER=vpp
 	test -n "$xcluster_FIRST_WORKER" || export xcluster_FIRST_WORKER=1
 	if test "$xcluster_FIRST_WORKER" = "1"; then
@@ -60,6 +61,7 @@ cmd_env() {
 	test -n "$xcluster_DOMAIN" || xcluster_DOMAIN=xcluster
 	test -n "$XCLUSTER" || die 'Not set [$XCLUSTER]'
 	test -x "$XCLUSTER" || die "Not executable [$XCLUSTER]"
+	test -n "$__out" || __out=$(readlink -f $dir/_output)
 	eval $($XCLUSTER env)
 	env_set=yes
 }
@@ -67,7 +69,6 @@ cmd_env() {
 ##   bird_dir
 ##   bird_build
 ##     Build the Bird routing suite
-##
 bird_ver=2.0.9
 cmd_bird_dir() {
 	test -n "$__dest" || __dest=$XCLUSTER_WORKSPACE
@@ -87,8 +88,119 @@ cmd_bird_build() {
 	mkdir -p $dir || die Mkdir
 	tar -C $dir/.. -xf $ARCHIVE/$ar
 	cd $dir
-	./configure || die configure
+	./configure --with-protocols=bfd,bgp,static || die configure
 	make -j$(nproc) || die make
+}
+
+##   generate_manifests [--dst=/tmp/$USER/meridio-manifests]
+##     Generate manifests from Meridio helm charts.
+cmd_generate_manifests() {
+	unset KUBECONFIG
+	test -n "$__dst" || __dst=/tmp/$USER/meridio-manifests
+	mkdir -p $__dst
+	test -n "$__meridio_dir" || __meridio_dir=$(readlink -f ../../../../../..)
+	local m
+	m=$__meridio_dir/deployments/helm
+	test -d $m || die "Not a directory [$m]"
+	helm template --generate-name $m > $__dst/meridio.yaml
+	m=$__meridio_dir/examples/target/helm
+	test -d $m || die "Not a directory [$m]"
+	helm template --generate-name $m > $__dst/target.yaml
+	echo "Manifests generated in [$__dst]"
+}
+
+##   build_binaries
+##     Build binaries. Build in ./_output
+cmd_build_binaries() {
+	cmd_env
+	mkdir -p $__out
+	__targets="load-balancer proxy tapa ipam nsp frontend"
+
+	cd $MERIDIOD
+	local gitver=$(git describe --dirty --tags)
+	log "Building binaries for [$gitver]"
+	local n cmds cgo
+	for n in $__targets; do
+		if echo $n | grep -qE 'ipam|nsp'; then
+			# Requires CGO_ENABLED=1
+			cgo="$cgo $MERIDIOD/cmd/$n"
+		else
+			cmds="$cmds $MERIDIOD/cmd/$n"
+		fi
+		cmds="$cmds $MERIDIOD/test/applications/target-client"
+	done
+	if test -n "$cmds"; then
+		CGO_ENABLED=0 GOOS=linux go build -o $__out \
+			-ldflags "-extldflags -static -X main.version=$gitver" $cmds \
+			|| die "go build $cmds"
+	fi
+	if test -n "$cgo"; then
+		mkdir -p $tmp
+		if ! CGO_ENABLED=1 GOOS=linux go build -o $__out \
+			-ldflags "-extldflags -static -X main.version=$gitver" \
+			$cgo > $tmp/out 2>&1; then
+			cat $tmp/out
+			die "go build $cgo"
+		fi
+	fi
+	strip $__out/*
+}
+
+##   build_base_image
+##     Build the base image
+cmd_build_base_image() {
+	cmd_env
+	local base=$(grep base_image= $dir/images/Dockerfile.default | cut -d= -f2)
+	log "Building base image [$base]"
+	local dockerfile=$dir/images/Dockerfile.base
+	mkdir -p $tmp
+	docker build -t $base -f $dockerfile $tmp || die "docker build $base"
+}
+##   build_images
+##     Build local images and upload to the local registry.
+cmd_build_images() {
+	cmd_build_binaries
+	local images=$($XCLUSTER ovld images)/images.sh
+	test -x $images || dir "Can't find ovl/images/images.sh"
+
+	test -n "$__registry" || __registry=registry.nordix.org/cloud-native/meridio
+	test -n "$__version" || __version=local
+	test -n "$__nfqlb" || __nfqlb=0.8.0
+
+	for n in frontend ipam load-balancer nsp proxy tapa; do
+		x=$__out/$n
+		test -x $x || die "Not built [$x]"
+		rm -rf $tmp; mkdir -p $tmp
+		cp $x $tmp
+		if test "$n" = "load-balancer"; then
+			local ar=$HOME/Downloads/nfqlb-$__nfqlb.tar.xz
+			if ! test -r $ar; then
+				local url=https://github.com/Nordix/nfqueue-loadbalancer/releases/download
+				curl -L $url/$__nfqlb/nfqlb-$__nfqlb.tar.xz > $ar || die Curl
+			fi
+			tar -C $tmp --strip-components=1 -xf $ar nfqlb-$__nfqlb/bin/nfqlb \
+				|| die "tar $ar"
+		fi
+		dockerfile=$dir/images/Dockerfile.$n
+		test -r $dockerfile \
+			|| dockerfile=$dir/images/Dockerfile.default
+		sed -e "s,/start-command,/$n," < $dockerfile > $tmp/Dockerfile
+		docker build -t $__registry/$n:$__version $tmp \
+			|| die "docker build $n"
+	done
+
+	for n in frontend ipam load-balancer nsp proxy tapa; do
+		$images lreg_upload --strip-host $__registry/$n:$__version
+	done
+}
+##   build_app_image
+##     Build the "meridio-app" test image
+cmd_build_app_image() {
+	local images=$($XCLUSTER ovld images)/images.sh
+	test -x $images || dir "Can't find ovl/images/images.sh"
+	test -n "$__registry" || __registry=registry.nordix.org/cloud-native/meridio
+	test -n "$__version" || __version=local
+	$images mkimage --upload --strip-host --tag=$__registry/meridio-app:$__version $dir/images/meridio-app
 }
 
 ##   test --list
@@ -144,6 +256,11 @@ test_start_empty() {
 ##     Start the cluster with NSM. Default; xcluster_NSM_FORWARDER=vpp
 test_start() {
 	tcase "Start with NSM, forwarder=$xcluster_NSM_FORWARDER"
+	if test -n "$__bgp"; then
+		test "$__bgp" = "yes" && __bgp=bgp
+		test -n "$xcluster_TRENCH_TEMPLATE" || xcluster_TRENCH_TEMPLATE="$__bgp"
+		export xcluster_TRENCH_TEMPLATE
+	fi
 	test_start_empty $@
 	otc 202 "conntrack 20000"
 	otcw "conntrack 20000"
@@ -162,23 +279,19 @@ test_start() {
 	unset otcprog
 }
 
-##   test [--trenches=red,...] [--use-multus] trench (default)
+##   test [--trenches=red,...] [--use-multus] [--bgp] trench (default)
 ##     Test trenches. The default is to test all 3 trenches
 ##     Problems has been observed "after some time" so if
 ##     "--reconnect-delay=sec" is specified the Re-test connectivity
 ##     is delayed.
 test_trench() {
-	local x
 	test "$__use_multus" = "yes" && export __use_multus
-	if test "$__local" = "yes"; then
-		x="images:local"
-		export __local
-	fi
 	test -n "$__trenches" || __trenches=red,blue,green
 	test "$__nsm_local" = "yes" && export nsm_local=yes
-	tlog "=== forwarder-test: Test trenches [$__trenches] $x"
+	tlog "=== forwarder-test: Test trenches [$__trenches]"
 	test_start
 	local trench
+	test -n "$__bgp" && otc 202 "bird --conf=$__bird_conf"
 	for trench in $(echo $__trenches | tr , ' '); do
 		trench_test $trench
 	done
@@ -188,7 +301,7 @@ test_trench() {
 	fi
 	tcase "Re-test connectivity with all trenches"
 	for trench in $(echo $__trenches | tr , ' '); do
-		otc 202 "mconnect $trench"
+		mconnect_trench $trench
 	done
 	xcluster_stop
 }
@@ -201,7 +314,7 @@ cmd_add_trench() {
 		green) otc 202 "setup_vlan --tag=100 eth4";;
 		*) tdie "Invalid trench [$1]";;
 	esac
-	otc 1 "trench --local=$__local $1"
+	otc 1 "trench $1"
 }
 
 cmd_add_multus_trench() {
@@ -218,7 +331,7 @@ cmd_add_multus_trench() {
 			otc 202 "setup_vlan --tag=100 eth4";;
 		*) tdie "Invalid trench [$1]";;
 	esac
-	otc 1 "trench_multus --local=$__local $1"
+	otc 1 "trench --use-multus $1"
 }
 
 trench_test() {
@@ -227,14 +340,41 @@ trench_test() {
 	else
 		cmd_add_trench $1
 	fi
-	otc 202 "collect_lb_addresses $1"
-	otc 202 "trench_vip_route $1"
+	if test -z "$__bgp"; then
+		otc 202 "collect_lb_addresses $1"
+		otc 202 "trench_vip_route $1"
+	fi
 	otc 2 "collect_target_addresses $1"
 	otc 2 "ping_lb_target $1"
 	#tcase "Sleep 10 sec..."
 	sleep 10
-	otc 202 "mconnect $1"
+	mconnect_trench $1
 }
+
+mconnect_trench() {
+	test -n "$__port" || __port=5001
+	case $1 in
+		red)
+			otc 202 "mconnect_adr 10.0.0.1:$__port"
+			otc 202 "mconnect_adr [1000::1:10.0.0.1]:$__port"
+			otc 202 "mconnect_adr 10.0.0.16:$__port"
+			otc 202 "mconnect_adr [1000::1:10.0.0.16]:$__port"
+		;;
+		blue)
+			otc 202 "mconnect_adr 10.0.0.2:$__port"
+			otc 202 "mconnect_adr [1000::1:10.0.0.2]:$__port"
+			otc 202 "mconnect_adr 10.0.0.32:$__port"
+			otc 202 "mconnect_adr [1000::1:10.0.0.32]:$__port"
+		;;
+		green)
+			otc 202 "mconnect_adr 10.0.0.3:$__port"
+			otc 202 "mconnect_adr [1000::1:10.0.0.3]:$__port"
+			otc 202 "mconnect_adr 10.0.0.48:$__port"
+			otc 202 "mconnect_adr [1000::1:10.0.0.48]:$__port"
+		;;
+	esac
+}
+
 
 ##   test [--cnt=n] scale
 ##     Scaling targets. By changing replicas and by disconnect targets
@@ -248,7 +388,7 @@ test_scale() {
 	tlog "=== forwarder-test: Scale target cnt=$__cnt $x"
 	test_start
 	local trench=red
-	trench_test red
+	trench_test $trench
 	otc 1 "scale $trench 8"
 	otc 1 "check_targets $trench 8"
 	while test $__cnt -gt 0; do
@@ -263,6 +403,55 @@ test_scale() {
 	done
 	otc 1 "scale $trench 4"
 	otc 1 "check_targets $trench 4"
+	xcluster_stop
+}
+
+##   test port_nat_basic
+##     Test port-NAT. Extra flow with "local-port" are added. Some
+##     flows with invalid dport are added that should be ignored.
+test_port_nat_basic() {
+	if test "$__local" = "yes"; then
+		x="images:local"
+		export __local
+	fi
+	tlog "=== forwarder-test: port-NAT. $x"
+	test_start
+	local trench=red
+	trench_test $trench
+	otc 1 "configmap $trench conf/port-nat-basic"
+	otc 1 "check_flow $trench port-nat"
+	tcase "Dealy 5s ..."; sleep 5
+	otc 1 "negative_check_flow $trench flow1 multi-dport dport-range"
+	otc 202 "mconnect_adr 10.0.0.1:7777"
+	otc 202 "mconnect_adr [1000::1:10.0.0.1]:7777"
+	xcluster_stop
+}
+
+##   test port_nat_vip
+##     Test port-NAT. VIPs are added and removed. VIP segments are used.
+test_port_nat_vip() {
+	if test "$__local" = "yes"; then
+		x="images:local"
+		export __local
+	fi
+	tlog "=== forwarder-test: port-NAT VIPs. $x"
+	test_start
+	local trench=red
+	trench_test $trench
+	__port=7777
+	otc 1 "configmap $trench conf/port-nat-vip1"
+	otc 1 "check_flow $trench port-nat"
+	otc 202 "mconnect_adr 10.0.0.1:7777"
+	otc 202 "mconnect_adr [1000::1:10.0.0.1]:7777"
+	otc 1 "check_flow_vips --cnt=2 $trench"
+	otc 1 "configmap $trench conf/port-nat-vip2"
+	mconnect_trench $trench
+	otc 1 "check_flow_vips --cnt=4 $trench"
+	test "$__no_stop" = "yes" && exit 0
+	otc 1 "configmap $trench conf/port-nat-vip1"
+	otc 202 "mconnect_adr 10.0.0.1:7777"
+	otc 202 "mconnect_adr [1000::1:10.0.0.1]:7777"
+	otc 1 "check_flow_vips --cnt=2 $trench"
 	xcluster_stop
 }
 
@@ -314,52 +503,6 @@ test_multus() {
 	done
 	xcluster_stop
 }
-
-##
-##   generate_manifests [--dst=/tmp/$USER/meridio-manifests]
-##     Generate manifests from Meridio helm charts.
-cmd_generate_manifests() {
-	unset KUBECONFIG
-	test -n "$__dst" || __dst=/tmp/$USER/meridio-manifests
-	mkdir -p $__dst
-	test -n "$__meridio_dir" || __meridio_dir=$(readlink -f ../../../../../..)
-	local m
-	m=$__meridio_dir/deployments/helm
-	test -d $m || die "Not a directory [$m]"
-	helm template --generate-name $m > $__dst/meridio.yaml
-	m=$__meridio_dir/examples/target/helm
-	test -d $m || die "Not a directory [$m]"
-	helm template --generate-name $m > $__dst/target.yaml
-	echo "Manifests generated in [$__dst]"
-}
-
-##   build_image [images...]
-##     Build local images and upload to the local registry.
-cmd_build_image() {
-	export meridio_version=$(git describe --dirty --tags)
-	echo "meridio_version=$meridio_version"
-	local images=$($XCLUSTER ovld images)/images.sh
-	test -x $images || dir "Can't find ovl/images/images.sh"
-	local tagbase=registry.nordix.org/cloud-native/meridio
-	local i d ver
-	if test -n "$1"; then
-		for i in $@; do
-			test -d images/$i || die "Not a directory [images/$i]"
-			ver=local
-			echo $1 | grep -q meridio-app && ver=xcluster
-			$images mkimage --upload --strip-host --tag=$tagbase/$i:$ver images/$i
-		done
-	else
-		for d in $(find images -mindepth 1 -maxdepth 1 -type d); do
-			i=$(basename $d)
-			ver=local
-			echo $i | grep -q meridio-app && ver=xcluster
-			echo "=== Building [$i:$ver]"
-			$images mkimage --upload --strip-host --tag=$tagbase/$i:$ver $d
-		done
-	fi
-}
-
 
 
 ##
