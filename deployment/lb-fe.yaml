@@ -15,7 +15,7 @@ spec:
   revisionHistoryLimit: 10
   strategy:
     rollingUpdate:
-      maxSurge: 25%
+      maxSurge: 0
       maxUnavailable: 25%
     type: RollingUpdate
   template:
