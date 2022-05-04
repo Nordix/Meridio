@@ -66,6 +66,7 @@ func New(trench *ambassadorAPI.Trench,
 	streamRegistry types.Registry,
 	nspServiceName string,
 	nspServicePort int,
+	nspEntryTimeout time.Duration,
 	netUtils networking.Utils) (*Trench, error) {
 
 	t := &Trench{
@@ -94,7 +95,8 @@ func New(trench *ambassadorAPI.Trench,
 		t.TargetRegistryClient,
 		t.NetworkServiceClient,
 		t.StreamRegistry,
-		t.NetUtils)
+		t.NetUtils,
+		nspEntryTimeout)
 	logrus.Infof("Connect to trench: %v", t.Trench)
 	return t, nil
 }

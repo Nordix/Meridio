@@ -59,6 +59,7 @@ func Test_Open_Close(t *testing.T) {
 		assert.NotNil(t, target)
 		assert.Equal(t, target.Ips, ips)
 		assert.Equal(t, target.Status, nspAPI.Target_DISABLED)
+		assert.Equal(t, s.ToNSP(), target.Stream)
 		identifier, exists := target.Context[types.IdentifierKey]
 		assert.True(t, exists)
 		assert.NotEqual(t, identifier, "1")
@@ -73,6 +74,7 @@ func Test_Open_Close(t *testing.T) {
 		assert.NotNil(t, target)
 		assert.Equal(t, target.Ips, ips)
 		assert.Equal(t, target.Status, nspAPI.Target_ENABLED)
+		assert.Equal(t, s.ToNSP(), target.Stream)
 		identifier, exists := target.Context[types.IdentifierKey]
 		assert.True(t, exists)
 		assert.Equal(t, identifier, identifierSelected)
@@ -263,6 +265,161 @@ func Test_Open_Concurrent_NoIdentifierAvailable(t *testing.T) {
 
 	err = strm.Open(context.TODO())
 	assert.NotNil(t, err)
+}
+
+func Test_Open_Refresh(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	logrus.SetLevel(logrus.FatalLevel)
+
+	s := &ambassadorAPI.Stream{
+		Name: "stream-a",
+		Conduit: &ambassadorAPI.Conduit{
+			Name: "conduit-a",
+			Trench: &ambassadorAPI.Trench{
+				Name: "trench-a",
+			},
+		},
+	}
+	ips := []string{"172.16.0.1/24", "fd00::1/64"}
+	maxNumberOfTargets := 1
+	var createdTarget *nspAPI.Target
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	cndt := mocks.NewMockConduit(ctrl)
+	tr := mocks.NewMockTargetRegistry(ctrl)
+	cndt.EXPECT().GetIPs().Return(ips).AnyTimes()
+	tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return([]*nspAPI.Target{}, nil)
+	firstRegister := tr.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) error {
+		assert.NotNil(t, target)
+		assert.Equal(t, target.Ips, ips)
+		assert.Equal(t, target.Status, nspAPI.Target_DISABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
+		assert.True(t, exists)
+		assert.Equal(t, "1", identifier)
+		createdTarget = target
+		tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return([]*nspAPI.Target{createdTarget}, nil)
+		return nil
+	})
+	secondRegister := tr.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) error {
+		assert.NotNil(t, target)
+		assert.Equal(t, target.Ips, ips)
+		assert.Equal(t, target.Status, nspAPI.Target_ENABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
+		assert.True(t, exists)
+		assert.Equal(t, "1", identifier)
+		createdTarget = target
+		tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return([]*nspAPI.Target{createdTarget}, nil)
+		return nil
+	}).After(firstRegister)
+	tr.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) error {
+		assert.NotNil(t, target)
+		assert.Equal(t, target.Ips, ips)
+		assert.Equal(t, target.Status, nspAPI.Target_ENABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
+		assert.True(t, exists)
+		assert.Equal(t, "1", identifier)
+		createdTarget = target
+		return nil
+	}).After(secondRegister)
+
+	strm, err := stream.New(s, nil, maxNumberOfTargets, cndt)
+	assert.Nil(t, err)
+	assert.NotNil(t, strm)
+	strm.TargetRegistry = tr
+
+	err = strm.Open(context.TODO())
+	assert.Nil(t, err)
+
+	err = strm.Open(context.TODO())
+	assert.Nil(t, err)
+}
+
+func Test_Open_Failed_Refresh(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	logrus.SetLevel(logrus.FatalLevel)
+
+	s := &ambassadorAPI.Stream{
+		Name: "stream-a",
+		Conduit: &ambassadorAPI.Conduit{
+			Name: "conduit-a",
+			Trench: &ambassadorAPI.Trench{
+				Name: "trench-a",
+			},
+		},
+	}
+	ips := []string{"172.16.0.1/24", "fd00::1/64"}
+	maxNumberOfTargets := 1
+	var createdTarget *nspAPI.Target
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	cndt := mocks.NewMockConduit(ctrl)
+	tr := mocks.NewMockTargetRegistry(ctrl)
+	cndt.EXPECT().GetIPs().Return(ips).AnyTimes()
+	tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return([]*nspAPI.Target{}, nil)
+	firstRegister := tr.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) error {
+		assert.NotNil(t, target)
+		assert.Equal(t, target.Ips, ips)
+		assert.Equal(t, target.Status, nspAPI.Target_DISABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
+		assert.True(t, exists)
+		assert.Equal(t, "1", identifier)
+		createdTarget = target
+		tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return([]*nspAPI.Target{createdTarget}, nil)
+		return nil
+	})
+	secondRegister := tr.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) error {
+		assert.NotNil(t, target)
+		assert.Equal(t, target.Ips, ips)
+		assert.Equal(t, target.Status, nspAPI.Target_ENABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
+		assert.True(t, exists)
+		assert.Equal(t, "1", identifier)
+		tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return([]*nspAPI.Target{}, nil)
+		return nil
+	}).After(firstRegister)
+	thirdRegister := tr.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) error {
+		assert.NotNil(t, target)
+		assert.Equal(t, target.Ips, ips)
+		assert.Equal(t, target.Status, nspAPI.Target_ENABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
+		assert.True(t, exists)
+		assert.Equal(t, "1", identifier)
+		tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return([]*nspAPI.Target{}, nil)
+		return nil
+	}).After(secondRegister) // refresh
+	fourthRegister := tr.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) error {
+		assert.NotNil(t, target)
+		assert.Equal(t, target.Ips, ips)
+		assert.Equal(t, target.Status, nspAPI.Target_DISABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
+		assert.True(t, exists)
+		assert.Equal(t, "1", identifier)
+		createdTarget = target
+		tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return([]*nspAPI.Target{createdTarget}, nil)
+		return nil
+	}).After(thirdRegister)
+	tr.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) error {
+		assert.NotNil(t, target)
+		assert.Equal(t, target.Ips, ips)
+		assert.Equal(t, target.Status, nspAPI.Target_ENABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
+		assert.True(t, exists)
+		assert.Equal(t, "1", identifier)
+		return nil
+	}).After(fourthRegister)
+
+	strm, err := stream.New(s, nil, maxNumberOfTargets, cndt)
+	assert.Nil(t, err)
+	assert.NotNil(t, strm)
+	strm.TargetRegistry = tr
+
+	err = strm.Open(context.TODO())
+	assert.Nil(t, err)
+
+	err = strm.Open(context.TODO())
+	assert.Nil(t, err)
 }
 
 func getTargets(identifiers []string) []*nspAPI.Target {

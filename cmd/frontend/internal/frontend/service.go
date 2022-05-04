@@ -34,6 +34,7 @@ import (
 	"github.com/nordix/meridio/cmd/frontend/internal/env"
 	"github.com/nordix/meridio/cmd/frontend/internal/utils"
 	"github.com/nordix/meridio/pkg/health"
+	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -80,6 +81,7 @@ func NewFrontEndService(c *env.Config) *FrontEndService {
 		targetRegistryClient: targetRegistryClient,
 		advertiseVIP:         false,
 		logNextMonitorStatus: true,
+		nspEntryTimeout:      c.NSPEntryTimeout,
 	}
 
 	if len(frontEndService.vrrps) > 0 {
@@ -115,6 +117,7 @@ type FrontEndService struct {
 	advertiseVIP         bool
 	logNextMonitorStatus bool
 	targetRegistryClient nspAPI.TargetRegistryClient
+	nspEntryTimeout      time.Duration
 }
 
 // CleanUp -
@@ -253,10 +256,14 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 		connectivityMap := map[string]bool{}
 		delay := 3 * time.Second // when started grant more time to write the whole config (minimize intial link flapping)
 		_ = fes.WaitStart(ctx)
+		var refreshCancel context.CancelFunc
 		for {
 			select {
 			case <-ctx.Done():
 				logrus.Infof("Monitor: shutting down")
+				if refreshCancel != nil {
+					refreshCancel()
+				}
 				return
 			case <-time.After(delay): //timeout
 				delay = 1 * time.Second
@@ -270,6 +277,9 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 				//linkCh <- "Failed to fetch protocol status"
 			} else if strings.Contains(protocolOut, bird.NoProtocolsLog) {
 				if !noConnectivity || init {
+					if refreshCancel != nil {
+						refreshCancel()
+					}
 					_ = denounceFrontend(fes.targetRegistryClient)
 					noConnectivity = true
 					connectivityMap = map[string]bool{}
@@ -297,6 +307,9 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 					if !noConnectivity || init {
 						noConnectivity = true
 						health.SetServingStatus(ctx, health.EgressSvc, false)
+						if refreshCancel != nil {
+							refreshCancel()
+						}
 						if err := denounceFrontend(fes.targetRegistryClient); err != nil {
 							logrus.Infof("FrontEndService: failed to denounce frontend connectivity (err: %v)", err)
 						}
@@ -309,6 +322,16 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 						if err := announceFrontend(fes.targetRegistryClient); err != nil {
 							logrus.Infof("FrontEndService: failed to announce frontend connectivity (err: %v)", err)
 						}
+						// refresh NSP entry
+						var refreshCtx context.Context
+						refreshCtx, refreshCancel = context.WithCancel(ctx)
+						go func() {
+							_ = retry.Do(func() error {
+								return announceFrontend(fes.targetRegistryClient)
+							}, retry.WithContext(refreshCtx),
+								retry.WithDelay(fes.nspEntryTimeout),
+								retry.WithErrorIngnored())
+						}()
 						fes.announceVIP()
 					}
 				}
@@ -330,6 +353,9 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 					init = false
 				})
 			}
+		}
+		if refreshCancel != nil {
+			refreshCancel()
 		}
 	}()
 	return nil

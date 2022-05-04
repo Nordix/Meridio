@@ -25,6 +25,7 @@ import (
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
+	"github.com/nordix/meridio/pkg/retry"
 	"github.com/sirupsen/logrus"
 )
 
@@ -47,6 +48,7 @@ type streamManager struct {
 	StreamRegistry             types.Registry
 	StreamFactory              StreamFactory
 	Timeout                    time.Duration
+	NSPEntryTimeout            time.Duration
 	// list of streams available in the conduit.
 	ConduitStreams map[string]*ambassadorAPI.Stream
 	mu             sync.Mutex
@@ -57,7 +59,8 @@ func NewStreamManager(configurationManagerClient nspAPI.ConfigurationManagerClie
 	targetRegistryClient nspAPI.TargetRegistryClient,
 	streamRegistry types.Registry,
 	streamFactory StreamFactory,
-	timeout time.Duration) StreamManager {
+	timeout time.Duration,
+	nspEntryTimeout time.Duration) StreamManager {
 	sm := &streamManager{
 		Streams:                    map[string]*streamRetry{},
 		ConfigurationManagerClient: configurationManagerClient,
@@ -65,6 +68,7 @@ func NewStreamManager(configurationManagerClient nspAPI.ConfigurationManagerClie
 		StreamRegistry:             streamRegistry,
 		StreamFactory:              streamFactory,
 		Timeout:                    timeout,
+		NSPEntryTimeout:            nspEntryTimeout,
 		ConduitStreams:             map[string]*ambassadorAPI.Stream{},
 		status:                     stopped,
 	}
@@ -86,9 +90,10 @@ func (sm *streamManager) AddStream(strm *ambassadorAPI.Stream) error {
 		return err
 	}
 	sr := &streamRetry{
-		Stream:         s,
-		StreamRegistry: sm.StreamRegistry,
-		Timeout:        sm.Timeout,
+		Stream:          s,
+		StreamRegistry:  sm.StreamRegistry,
+		Timeout:         sm.Timeout,
+		NSPEntryTimeout: sm.NSPEntryTimeout,
 	}
 	sm.Streams[strm.FullName()] = sr
 	if sm.status == stopped {
@@ -212,14 +217,15 @@ func (sm *streamManager) Stop(ctx context.Context) error {
 }
 
 type streamRetry struct {
-	Stream         types.Stream
-	StreamRegistry types.Registry
-	Timeout        time.Duration
-	currentStatus  ambassadorAPI.StreamStatus_Status
-	mu             sync.Mutex
-	ctxMu          sync.Mutex
-	statusMu       sync.Mutex
-	cancelOpen     context.CancelFunc
+	Stream          types.Stream
+	StreamRegistry  types.Registry
+	Timeout         time.Duration
+	NSPEntryTimeout time.Duration
+	currentStatus   ambassadorAPI.StreamStatus_Status
+	mu              sync.Mutex
+	ctxMu           sync.Mutex
+	statusMu        sync.Mutex
+	cancelOpen      context.CancelFunc
 }
 
 // Open continually tries to open the stream. The function
@@ -239,23 +245,29 @@ func (sr *streamRetry) Open() {
 	ctx, sr.cancelOpen = context.WithCancel(context.TODO())
 	sr.ctxMu.Unlock()
 
-	for { // todo: retry
-		if ctx.Err() != nil {
-			return
-		}
+	// retry to refresh
+	_ = retry.Do(func() error {
 		openCtx, cancel := context.WithTimeout(ctx, sr.Timeout)
 		defer cancel()
-		err := sr.Stream.Open(openCtx)
-		if err != nil {
-			logrus.Warnf("error opening stream: %v ; %v", sr.Stream.GetStream(), err)
-			// opened unsuccessfully, set status to UNDEFINED (might be due to lack of identifier, no connection to NSP)
-			sr.setStatus(ambassadorAPI.StreamStatus_UNAVAILABLE)
-			continue
-		}
-		break
-	}
-	// successfully opened, set status to OPENED
-	sr.setStatus(ambassadorAPI.StreamStatus_OPEN)
+
+		// retry to open
+		_ = retry.Do(func() error {
+			err := sr.Stream.Open(openCtx)
+			if err != nil {
+				logrus.Warnf("error opening stream: %v ; %v", sr.Stream.GetStream(), err)
+				// opened unsuccessfully, set status to UNDEFINED (might be due to lack of identifier, no connection to NSP)
+				sr.setStatus(ambassadorAPI.StreamStatus_UNAVAILABLE)
+				return err
+			}
+			sr.setStatus(ambassadorAPI.StreamStatus_OPEN)
+			return nil
+		}, retry.WithContext(openCtx),
+			retry.WithDelay(50*time.Millisecond))
+
+		return nil
+	}, retry.WithContext(ctx),
+		retry.WithDelay(sr.NSPEntryTimeout),
+		retry.WithErrorIngnored())
 }
 
 // Close cancel the opening of the stream and tries 1 time
