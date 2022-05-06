@@ -33,7 +33,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-var timeout = 50 * time.Millisecond
+var timeout = 500 * time.Millisecond
 
 func Test_Manager_Run_Stop(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
