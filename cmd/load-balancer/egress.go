@@ -50,6 +50,7 @@ type FrontendNetworkService struct {
 	targetRegistryStream     nspAPI.TargetRegistry_WatchClient
 	myHostName               string
 	serviceControlDispatcher *serviceControlDispatcher
+	feAnnounced              bool
 }
 
 // Start -
@@ -86,9 +87,15 @@ func (fns *FrontendNetworkService) recv() error {
 
 		target := fns.getLocal(targetResponse.GetTargets())
 
+		currentState := target != nil
+		if currentState == fns.feAnnounced {
+			continue
+		}
+		fns.feAnnounced = currentState
+
 		logrus.Debugf("FrontendNetworkService: event: %v", target)
 
-		if target != nil {
+		if fns.feAnnounced {
 			logrus.Infof("FrontendNetworkService: (local) FE available: %v", target.GetContext()[types.IdentifierKey])
 			// inform controlled services they are allowed to operate:
 			// SimpleNetworkService is allowed to accept new Targets.
@@ -146,6 +153,7 @@ func NewFrontendNetworkService(ctx context.Context, targetRegistryClient nspAPI.
 		loadBalancerEndpoint:     loadBalancerEndpoint,
 		targetRegistryClient:     targetRegistryClient,
 		serviceControlDispatcher: serviceControlDispatcher,
+		feAnnounced:              false,
 	}
 	frontendNetworkService.myHostName, _ = os.Hostname()
 	return frontendNetworkService
