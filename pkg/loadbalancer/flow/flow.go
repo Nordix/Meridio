@@ -50,7 +50,7 @@ func New(flow *nspAPI.Flow, lb types.NFQueueLoadBalancer, nfth types.NftHandler)
 		if err != nil {
 			return nil, err
 		}
-		logrus.Tracef("Flow:New: Port NAT: %v -> %v", dport, flow.LocalPort)
+		logrus.Infof("Flow:New: Port NAT: %v -> %v", dport, flow.LocalPort)
 
 		err = nfth.PortNATCreateSets(flow)
 		if err != nil {
@@ -87,7 +87,7 @@ func New(flow *nspAPI.Flow, lb types.NFQueueLoadBalancer, nfth types.NftHandler)
 
 // Update updates a flow
 func (f *Flow) Update(flow *nspAPI.Flow) error {
-	logrus.Infof("Flow:Update: %v -> %v", f.Flow, flow)
+	logrus.Tracef("Flow:Update: %v -> %v", f.Flow, flow)
 	if f.Flow.DeepEquals(flow) {
 		// Not changed
 		logrus.Debugf("Flow:Update: to same")
