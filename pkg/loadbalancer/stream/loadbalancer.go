@@ -40,6 +40,7 @@ type LoadBalancer struct {
 	TargetRegistryClient       nspAPI.TargetRegistryClient
 	ConfigurationManagerClient nspAPI.ConfigurationManagerClient
 	nfqlb                      types.NFQueueLoadBalancer
+	nfth                       types.NftHandler
 	flows                      map[string]types.Flow
 	targets                    map[int]types.Target // key: Identifier
 	netUtils                   networking.Utils
@@ -66,12 +67,18 @@ func New(
 	if err != nil {
 		return nil, err
 	}
+	nfth, err := flow.NewNftHandler()
+	if err != nil {
+		return nil, err
+	}
+
 	loadBalancer := &LoadBalancer{
 		Stream:                     stream,
 		TargetRegistryClient:       targetRegistryClient,
 		ConfigurationManagerClient: configurationManagerClient,
 		flows:                      make(map[string]types.Flow),
 		nfqlb:                      nfqlb,
+		nfth:                       nfth,
 		targets:                    make(map[int]types.Target),
 		netUtils:                   netUtils,
 		nfqueue:                    nfqueue,
@@ -246,21 +253,17 @@ func (lb *LoadBalancer) watchFlows(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		err = lb.setFlows(flowResponse.Flows)
-		if err != nil {
-			logrus.Warnf("Stream '%v' err set flows: %v", lb.GetName(), err) // todo
-		}
+		lb.setFlows(flowResponse.Flows)
 	}
 	return nil
 }
 
-func (lb *LoadBalancer) setFlows(flows []*nspAPI.Flow) error {
+func (lb *LoadBalancer) setFlows(flows []*nspAPI.Flow) {
 	lb.mu.Lock()
 	defer lb.mu.Unlock()
 	if !lb.isStreamRunning() {
-		return nil
+		return
 	}
-	var errFinal error
 	remainingFlows := make(map[string]struct{})
 	for name := range lb.flows {
 		remainingFlows[name] = struct{}{}
@@ -268,16 +271,16 @@ func (lb *LoadBalancer) setFlows(flows []*nspAPI.Flow) error {
 	for _, f := range flows {
 		fl, exists := lb.flows[f.GetName()]
 		if !exists { // create
-			newFlow, err := flow.New(f, flow.WithNFQueueLoadBalancer(lb.nfqlb))
+			newFlow, err := flow.New(f, lb.nfqlb, lb.nfth)
 			if err != nil {
-				errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+				logrus.Warnf("Stream '%v' new flow: %v", lb.GetName(), err)
 				continue
 			}
 			lb.flows[f.GetName()] = newFlow
 		} else { // update
 			err := fl.Update(f)
 			if err != nil {
-				errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+				logrus.Warnf("Stream '%v' flow update: %v", lb.GetName(), err)
 				continue
 			}
 		}
@@ -291,7 +294,7 @@ func (lb *LoadBalancer) setFlows(flows []*nspAPI.Flow) error {
 		}
 		err := flow.Delete()
 		if err != nil {
-			errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+			logrus.Warnf("Stream '%v' flow delete: %v", lb.GetName(), err)
 		}
 		delete(lb.flows, name)
 	}
@@ -300,7 +303,6 @@ func (lb *LoadBalancer) setFlows(flows []*nspAPI.Flow) error {
 	if len(lb.flows) > 0 {
 		health.SetServingStatus(lb.ctx, health.FlowSvc, true)
 	}
-	return errFinal
 }
 
 // todo

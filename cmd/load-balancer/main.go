@@ -158,7 +158,7 @@ func main() {
 	if err != nil {
 		logrus.Fatalf("Error creating link monitor: %+v", err)
 	}
-	sns := NewSimpleNetworkService(
+	sns := newSimpleNetworkService(
 		netUtils.WithInterfaceMonitor(ctx, interfaceMonitor),
 		targetRegistryClient,
 		configurationManagerClient,
@@ -269,7 +269,7 @@ func (sns *SimpleNetworkService) Close(ctx context.Context, conn *networkservice
 } */
 
 // NewSimpleNetworkService -
-func NewSimpleNetworkService(
+func newSimpleNetworkService(
 	ctx context.Context,
 	targetRegistryClient nspAPI.TargetRegistryClient,
 	configurationManagerClient nspAPI.ConfigurationManagerClient,
