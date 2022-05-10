@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,4 +23,12 @@ import (
 type Flow interface {
 	Update(*nspAPI.Flow) error
 	Delete() error
+}
+
+type NftHandler interface {
+	PortNATSet(flowName string, protocols []string, dport, localPort uint) error
+	PortNATDelete(flowName string)
+	PortNATCreateSets(flow *nspAPI.Flow) error
+	PortNATDeleteSets(flow *nspAPI.Flow)
+	PortNATSetAddresses(flow *nspAPI.Flow) error
 }

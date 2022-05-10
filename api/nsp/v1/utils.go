@@ -39,6 +39,9 @@ func (c *Conduit) Equals(c2 *Conduit) bool {
 }
 
 func (s *Stream) Equals(s2 *Stream) bool {
+	if s == nil && s2 == nil {
+		return true
+	}
 	if s == nil || s2 == nil {
 		return false
 	}
@@ -125,6 +128,7 @@ func (f *Flow) DeepEquals(f2 *Flow) bool {
 		return vipSlice
 	}
 	return f.Equals(f2) &&
+		f.LocalPort == f2.LocalPort &&
 		f.Priority == f2.Priority &&
 		compareSlice(f.GetDestinationPortRanges(), f2.GetDestinationPortRanges()) &&
 		compareSlice(f.GetProtocols(), f2.GetProtocols()) &&
@@ -134,8 +138,18 @@ func (f *Flow) DeepEquals(f2 *Flow) bool {
 }
 
 // compareSlice -
-// Returns false if the two slices are not equal by content
+// Returns false if the two slices are not equal by content.
+// This is more a set-compare. a=[x,x,y], b=[y,y,x] would return true.
+// But it's ok with a simplified compare here. Ref;
+// https://stackoverflow.com/questions/36000487/check-for-equality-on-slices-without-order
 func compareSlice(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	if len(a) == 0 {
+		// In go nil is semantically the same as a 0-length slice
+		return true
+	}
 	m := make(map[string]bool)
 	for _, item := range b {
 		// items in b

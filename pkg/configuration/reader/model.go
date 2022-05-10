@@ -51,6 +51,7 @@ type Flow struct {
 	Vips                  []string `yaml:"vips"`
 	Priority              int32    `yaml:"priority"`
 	Stream                string   `yaml:"stream"`
+	LocalPort             uint16   `yaml:"local-port,omitempty"`
 }
 
 type VipList struct {
