@@ -33,6 +33,7 @@ import (
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/endpoint"
 	"github.com/nordix/meridio/pkg/nsm/ipcontext"
+	"github.com/nordix/meridio/pkg/nsm/mtu"
 	"github.com/nordix/meridio/pkg/nsm/service"
 	"github.com/nordix/meridio/pkg/proxy"
 	"github.com/sirupsen/logrus"
@@ -55,6 +56,7 @@ func StartNSE(ctx context.Context,
 		}),
 		ipcontext.NewServer(p),
 		interfaceMonitorServer,
+		mtu.NewMtuServer(uint32(config.MTU)),
 		sendfd.NewServer(),
 	}
 
