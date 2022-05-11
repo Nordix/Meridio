@@ -24,4 +24,5 @@ type Config struct {
 	ServiceName      string
 	Labels           map[string]string
 	MaxTokenLifetime time.Duration
+	MTU              int
 }

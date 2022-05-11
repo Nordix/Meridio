@@ -71,6 +71,8 @@ spec:
               value: {{ .Values.maxTokenLifetime }}
             - name: NSM_LOG_LEVEL
               value: "DEBUG"
+            - name: NSM_MTU
+              value: "1500"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

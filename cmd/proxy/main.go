@@ -83,6 +83,9 @@ func main() {
 		logrus.Fatalf("%v", err)
 	}
 	logrus.Infof("rootConf: %+v", config)
+	if err := config.IsValid(); err != nil {
+		logrus.Fatalf("%v", err)
+	}
 	ctx = setLogging(ctx, &config)
 
 	// create and start health server
@@ -156,6 +159,7 @@ func main() {
 		ServiceName:      config.ServiceName,
 		MaxTokenLifetime: config.MaxTokenLifetime,
 		Labels:           labels,
+		MTU:              config.MTU,
 	}
 	interfaceMonitorServer := interfacemonitor.NewServer(interfaceMonitor, p, netUtils)
 	ep := service.StartNSE(ctx, endpointConfig, nsmAPIClient, p, interfaceMonitorServer)

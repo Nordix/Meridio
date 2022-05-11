@@ -19,6 +19,7 @@ package config
 import (
 	"errors"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -40,12 +41,24 @@ type Config struct {
 	NSPServicePort     int           `default:"7778" desc:"port of the NSP Service" split_words:"true"`
 	IPFamily           string        `default:"dualstack" desc:"ip family" envconfig:"ip_family"`
 	LogLevel           string        `default:"DEBUG" desc:"Log level" split_words:"true"`
+	MTU                int           `default:"1500" desc:"Conduit MTU considered by local NSCs and NSE composing the network mesh" split_words:"true"`
 }
 
 // IsValid checks if the configuration is valid
 func (c *Config) IsValid() error {
 	if c.ConnectTo.String() == "" {
-		return errors.New("no NSMGr ConnectTO URL are specified")
+		return errors.New("no NSMGr ConnectTo URL are specified")
+	}
+	family := strings.ToLower(c.IPFamily)
+	if family == "ipv4" {
+		if c.MTU < 576 {
+			return errors.New("minimum MTU is 576 Bytes")
+		}
+	} else {
+		// dualstack or ipv6
+		if c.MTU < 1280 {
+			return errors.New("minimum MTU required by IPv6 is 1280 Bytes")
+		}
 	}
 	return nil
 }
