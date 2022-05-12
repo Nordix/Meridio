@@ -17,6 +17,8 @@ limitations under the License.
 package proxy
 
 import (
+	"net"
+
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/sirupsen/logrus"
 )
@@ -27,15 +29,33 @@ type virtualIP struct {
 	netUtils         networking.Utils
 }
 
+func isSameFamily(cidr1, cidr2 string) bool {
+	ip1, _, err := net.ParseCIDR(cidr1)
+	if err != nil {
+		return false
+	}
+	ip2, _, err := net.ParseCIDR(cidr2)
+	if err != nil {
+		return false
+	}
+	return (ip1.To4() == nil) == (ip2.To4() == nil)
+}
+
 func (vip *virtualIP) Delete() error {
 	return vip.removeSourceBaseRoute()
 }
 
 func (vip *virtualIP) AddNexthop(ip string) error {
+	if !isSameFamily(vip.prefix, ip) {
+		return nil
+	}
 	return vip.sourceBasedRoute.AddNexthop(ip)
 }
 
 func (vip *virtualIP) RemoveNexthop(ip string) error {
+	if !isSameFamily(vip.prefix, ip) {
+		return nil
+	}
 	return vip.sourceBasedRoute.RemoveNexthop(ip)
 }
 
