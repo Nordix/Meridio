@@ -17,6 +17,11 @@ spec:
   selector:
     matchLabels:
       control-plane: controller-manager
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 100%
+    type: RollingUpdate
   replicas: 1
   template:
     metadata:
