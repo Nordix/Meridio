@@ -50,7 +50,7 @@ func (h *healthServiceClient) Request(ctx context.Context, request *networkservi
 
 	if err == nil {
 		h.mu.Lock()
-		logrus.Debugf("HealthServiceClient:Request id=%v", id)
+		logrus.Tracef("HealthServiceClient:Request id=%v", id)
 		h.connIds[id] = struct{}{}
 		health.SetServingStatus(ctx, health.EgressSvc, true)
 		h.mu.Unlock()
@@ -62,7 +62,7 @@ func (h *healthServiceClient) Request(ctx context.Context, request *networkservi
 // Close -
 func (h *healthServiceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	h.mu.Lock()
-	logrus.Debugf("HealthServiceClient:Close id=%v", conn.Id)
+	logrus.Tracef("HealthServiceClient:Close id=%v", conn.Id)
 	delete(h.connIds, conn.Id)
 	if len(h.connIds) == 0 {
 		logrus.Debugf("HealthServiceClient:Close No conns left!")

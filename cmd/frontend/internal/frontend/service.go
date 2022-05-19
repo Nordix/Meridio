@@ -319,6 +319,7 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 					if noConnectivity {
 						noConnectivity = false
 						health.SetServingStatus(ctx, health.EgressSvc, true)
+						logrus.Infof("FrontEndService: announce frontend")
 						if err := announceFrontend(fes.targetRegistryClient); err != nil {
 							logrus.Infof("FrontEndService: failed to announce frontend connectivity (err: %v)", err)
 						}
