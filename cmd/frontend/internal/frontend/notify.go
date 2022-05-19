@@ -38,15 +38,13 @@ import (
 
 // TODO: add context to nspClient calls so that they could be cancelled
 // TODO: must denounce FE upon its shutdown (make sure it won't block forever e.g. in case NSP is no longer available)
-// TODO: NSP must be improved to somehow learn if source of a Register event has disappeared (check NSM registry for clue)
-// (maybe introduce timed Register that requires registration)
 // TODO: maybe introduce update target through new context keyword, indicating nsp to replace found item with new one
 func announceFrontend(targetRegistryClient nspAPI.TargetRegistryClient) error {
 	hn, _ := os.Hostname()
 	targetContext := map[string]string{
 		types.IdentifierKey: hn,
 	}
-	logrus.Infof("announceFrontend: hostname: %v, targetType: %v", hn, nspAPI.Target_FRONTEND)
+	logrus.Tracef("announceFrontend: hostname: %v, targetType: %v", hn, nspAPI.Target_FRONTEND)
 	_, err := targetRegistryClient.Register(context.Background(), &nspAPI.Target{
 		Ips:     []string{hn},
 		Type:    nspAPI.Target_FRONTEND,
