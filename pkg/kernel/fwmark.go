@@ -56,6 +56,8 @@ func (fwmr *FWMarkRoute) Verify() bool {
 }
 
 func (fwmr *FWMarkRoute) configure() error {
+	_ = fwmr.Delete()
+
 	rule := netlink.NewRule()
 	rule.Table = fwmr.tableID
 	rule.Mark = fwmr.fwmark
