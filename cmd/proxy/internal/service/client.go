@@ -32,6 +32,7 @@ import (
 	"github.com/nordix/meridio/cmd/proxy/internal/client"
 	"github.com/nordix/meridio/cmd/proxy/internal/config"
 	"github.com/nordix/meridio/pkg/nsm"
+	"github.com/nordix/meridio/pkg/nsm/fullmeshtracker"
 	"github.com/nordix/meridio/pkg/nsm/ipcontext"
 	"github.com/nordix/meridio/pkg/nsm/mtu"
 	"github.com/nordix/meridio/pkg/proxy"
@@ -64,6 +65,7 @@ func GetNSC(ctx context.Context,
 		interfaceMonitorClient,
 		mtu.NewMtuClient(uint32(config.MTU)),
 		proxyHealth.NewClient(),
+		fullmeshtracker.NewClient(),
 	)
 	fullMeshClient := client.NewFullMeshNetworkServiceClient(ctx, clientConfig, additionalFunctionality)
 
