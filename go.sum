@@ -225,6 +225,7 @@ github.com/go-openapi/jsonreference v0.19.3/go.mod h1:rjx6GuL8TTa9VaixXglHmQmIL9
 github.com/go-openapi/jsonreference v0.19.5/go.mod h1:RdybgQwPxbL4UEjuAruzK1x3nE69AqPYEJeo/TWfEeg=
 github.com/go-openapi/swag v0.19.5/go.mod h1:POnQmlKehdgb5mhVOsnJFsivZCEZ/vjK9gh66Z9tfKk=
 github.com/go-openapi/swag v0.19.14/go.mod h1:QYRuS/SOXUCsnplDa677K7+DxSOj6IPNl/eQntq43wQ=
+github.com/go-ping/ping v1.0.0/go.mod h1:35JbSyV/BYqHwwRA6Zr1uVDm1637YlNOU61wI797NPI=
 github.com/go-sql-driver/mysql v1.4.0/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
 github.com/go-sql-driver/mysql v1.6.0/go.mod h1:DCzpHaOWr8IXmIStZouvnhqoel9Qv2LBy8hT2VhHyBg=
 github.com/go-stack/stack v1.8.0/go.mod h1:v0f6uXyyMGvRgIKkXu+yp6POWl0qKG85gN/melR3HDY=
@@ -511,13 +512,13 @@ github.com/nats-io/nkeys v0.1.3/go.mod h1:xpnFELMwJABBLVhffcfd1MZx6VsNRFpEugbxzi
 github.com/nats-io/nkeys v0.3.0/go.mod h1:gvUNGjVcM2IPr5rCsRsC6Wb3Hr2CQAm08dsxtV6A5y4=
 github.com/nats-io/nuid v1.0.1/go.mod h1:19wcPz3Ph3q0Jbyiqsd0kePYG7A95tJPxeL+1OSON2c=
 github.com/nats-io/stan.go v0.10.2/go.mod h1:vo2ax8K2IxaR3JtEMLZRFKIdoK/3o1/PKueapB7ezX0=
-github.com/networkservicemesh/api v1.3.1 h1:dxe+6ezXle0TczQpfZJztHf1+3UcQkj0kyfzirXfL4s=
-github.com/networkservicemesh/api v1.3.1/go.mod h1:B6meq/SWjWR6bGXZdXPfbOeaBK+T1JayLdtEJQCsXKU=
-github.com/networkservicemesh/sdk v1.3.1 h1:SGuhONUtEvRvNyHtYIJGnyIvW1bZ6yQHPHoTCsYOdKg=
-github.com/networkservicemesh/sdk v1.3.1/go.mod h1:E7EduCLfioJBrMyucSFiTZSkZjwxAQVByb5rtcCmjWM=
-github.com/networkservicemesh/sdk-kernel v1.3.1/go.mod h1:iDh5SbUN6IYzhhnwjqdbk9PRRNdpySeyrbyrOQcV9gE=
-github.com/networkservicemesh/sdk-sriov v1.3.1 h1:sW54Vyhu5Pa9hVD5dO/c5c0CvYo40WCGbWxglSr58XM=
-github.com/networkservicemesh/sdk-sriov v1.3.1/go.mod h1:xmZn7irt7X0oYBIP/d/txlLkDaYdRoVVkW3y4ujWfIw=
+github.com/networkservicemesh/api v1.4.0-rc.1 h1:Z4caiVW6sPsazhzTIMinCSx4bssbw2R9NLaEjspw5AE=
+github.com/networkservicemesh/api v1.4.0-rc.1/go.mod h1:hOF2844BSstH1311oDMDgqqXS+kdc77htZNPRKl9mf8=
+github.com/networkservicemesh/sdk v1.4.0-rc.1 h1:3JKoWnqmmhgm7NvoW+Y6tCFO9qWjPJ5hanavh6QcJww=
+github.com/networkservicemesh/sdk v1.4.0-rc.1/go.mod h1:E6qqvRsJX010ja4/6CVxpdLyFGGPCuAzsXoSMDw4nZE=
+github.com/networkservicemesh/sdk-kernel v1.4.0-rc.1/go.mod h1:+byCoOjqE8v2C+GEm4Szg2MFGpJyl/BhVLXpd2c8haI=
+github.com/networkservicemesh/sdk-sriov v1.4.0-rc.1 h1:Ax++upUuQo1ujgJOKYNHGpXvejbqGng+JnKRyHrpq/o=
+github.com/networkservicemesh/sdk-sriov v1.4.0-rc.1/go.mod h1:qxqsE7T3sv9hQKhpuv0hMfGuMjscuoQnAMUKAHeNhHQ=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
@@ -892,6 +893,7 @@ golang.org/x/net v0.0.0-20200520182314-0ba52f642ac2/go.mod h1:qpuaurCH72eLCgpAm/
 golang.org/x/net v0.0.0-20200625001655-4c5254603344/go.mod h1:/O7V0waA8r7cgGh81Ro3o1hOxt32SMVPicZroKQ2sZA=
 golang.org/x/net v0.0.0-20200707034311-ab3426394381/go.mod h1:/O7V0waA8r7cgGh81Ro3o1hOxt32SMVPicZroKQ2sZA=
 golang.org/x/net v0.0.0-20200822124328-c89045814202/go.mod h1:/O7V0waA8r7cgGh81Ro3o1hOxt32SMVPicZroKQ2sZA=
+golang.org/x/net v0.0.0-20200904194848-62affa334b73/go.mod h1:/O7V0waA8r7cgGh81Ro3o1hOxt32SMVPicZroKQ2sZA=
 golang.org/x/net v0.0.0-20201021035429-f5854403a974/go.mod h1:sp8m0HH+o8qH0wwXwYZr8TS3Oi6o0r6Gce1SSxlDquU=
 golang.org/x/net v0.0.0-20201031054903-ff519b6c9102/go.mod h1:sp8m0HH+o8qH0wwXwYZr8TS3Oi6o0r6Gce1SSxlDquU=
 golang.org/x/net v0.0.0-20201110031124-69a78807bb2b/go.mod h1:sp8m0HH+o8qH0wwXwYZr8TS3Oi6o0r6Gce1SSxlDquU=

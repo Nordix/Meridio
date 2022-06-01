@@ -40,9 +40,7 @@ spec:
             - name: NSM_SERVICES
               value: "{{ template "meridio.vlan.networkServiceName" . }} { vlan: {{ .Values.vlan.id }}; via: {{ .Values.vlan.interface }} }"
             - name: NSM_CIDR_PREFIX
-              value: "{{ .Values.vlan.ipv4Prefix }}"
-            - name: NSM_IPV6_PREFIX
-              value: "{{ .Values.vlan.ipv6Prefix }}"
+              value: "{{ .Values.vlan.ipv4Prefix }},{{ .Values.vlan.ipv6Prefix }}"
             - name: NSM_POINT2POINT
               value: "False"
             - name: NSM_REGISTER_SERVICE
@@ -62,10 +60,10 @@ spec:
               readOnly: false
           resources:
             requests:
-              cpu: 100m
-            limits:
-              memory: 40Mi
               cpu: 200m
+            limits:
+              memory: 100Mi
+              cpu: 400m
       volumes:
         - name: spire-agent-socket
           hostPath:

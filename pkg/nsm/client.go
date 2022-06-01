@@ -23,7 +23,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
-	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/spiffejwt"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
@@ -85,10 +85,10 @@ func (apiClient *APIClient) setNetworkServiceEndpointRegistryClient() {
 	clientOptions := apiClient.GetClientOptions()
 	apiClient.NetworkServiceEndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryClient(
 		apiClient.context,
-		&apiClient.Config.ConnectTo,
+		registryclient.WithClientURL(&apiClient.Config.ConnectTo),
 		registryclient.WithDialOptions(clientOptions...),
 		registryclient.WithNSEAdditionalFunctionality(
-			registrysendfd.NewNetworkServiceEndpointRegistryClient(),
+			sendfd.NewNetworkServiceEndpointRegistryClient(),
 		))
 }
 
@@ -96,7 +96,7 @@ func (apiClient *APIClient) setNetworkServiceRegistryClient() {
 	clientOptions := apiClient.GetClientOptions()
 	apiClient.NetworkServiceRegistryClient = registryclient.NewNetworkServiceRegistryClient(
 		apiClient.context,
-		&apiClient.Config.ConnectTo,
+		registryclient.WithClientURL(&apiClient.Config.ConnectTo),
 		registryclient.WithDialOptions(clientOptions...))
 }
 

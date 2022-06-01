@@ -10,9 +10,9 @@ require (
 	github.com/google/nftables v0.0.0-20210916140115-16a134723a96
 	github.com/google/uuid v1.2.0
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/networkservicemesh/api v1.3.1
-	github.com/networkservicemesh/sdk v1.3.1
-	github.com/networkservicemesh/sdk-sriov v1.3.1
+	github.com/networkservicemesh/api v1.4.0-rc.1
+	github.com/networkservicemesh/sdk v1.4.0-rc.1
+	github.com/networkservicemesh/sdk-sriov v1.4.0-rc.1
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
 	github.com/pkg/errors v0.9.1
