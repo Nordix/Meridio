@@ -25,7 +25,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 	"github.com/nordix/meridio/pkg/nsm"
 )
 
@@ -46,8 +45,6 @@ func expirationTimeIsNull(expirationTime *timestamp.Timestamp) bool {
 func newClient(ctx context.Context, name string, nsmAPIClient *nsm.APIClient, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	additionalFunctionality = append(additionalFunctionality,
 		sendfd.NewClient(),
-		dnscontext.NewClient(dnscontext.WithChainContext(ctx)),
-		// excludedprefixes.NewClient(),
 	)
 
 	return client.NewClient(ctx,

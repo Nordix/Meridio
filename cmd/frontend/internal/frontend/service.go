@@ -57,6 +57,7 @@ func NewFrontEndService(c *env.Config) *FrontEndService {
 	}
 	targetRegistryClient := nspAPI.NewTargetRegistryClient(conn)
 
+	birdConfFile := c.BirdConfigPath + "/bird-fe-meridio.conf"
 	frontEndService := &FrontEndService{
 		vips:     []string{},
 		gateways: []*utils.Gateway{},
@@ -66,7 +67,9 @@ func NewFrontEndService(c *env.Config) *FrontEndService {
 		},
 		vrrps:                c.VRRPs,
 		birdConfPath:         c.BirdConfigPath,
-		birdConfFile:         c.BirdConfigPath + "/bird-fe-meridio.conf",
+		birdConfFile:         birdConfFile,
+		birdCommSocket:       c.BirdCommunicationSock,
+		birdLogFileSize:      c.BirdLogFileSize,
 		kernelTableId:        c.TableID,
 		extInterface:         c.ExternalInterface,
 		localASN:             c.LocalAS,
@@ -82,6 +85,7 @@ func NewFrontEndService(c *env.Config) *FrontEndService {
 		advertiseVIP:         false,
 		logNextMonitorStatus: true,
 		nspEntryTimeout:      c.NSPEntryTimeout,
+		routingService:       bird.NewService(c.BirdCommunicationSock, birdConfFile),
 	}
 
 	if len(frontEndService.vrrps) > 0 {
@@ -103,6 +107,8 @@ type FrontEndService struct {
 	vrrps                []string
 	birdConfPath         string
 	birdConfFile         string
+	birdCommSocket       string
+	birdLogFileSize      int
 	kernelTableId        int
 	extInterface         string
 	localASN             string
@@ -118,6 +124,7 @@ type FrontEndService struct {
 	logNextMonitorStatus bool
 	targetRegistryClient nspAPI.TargetRegistryClient
 	nspEntryTimeout      time.Duration
+	routingService       *bird.Service
 }
 
 // CleanUp -
@@ -157,7 +164,7 @@ func (fes *FrontEndService) Stop(ctx context.Context) {
 // WaitStart -
 // Wait until BIRD started by checking birdc availability
 func (fes *FrontEndService) WaitStart(ctx context.Context) error {
-	lp, err := bird.LookupCli()
+	lp, err := fes.routingService.LookupCli()
 	if err != nil {
 		return fmt.Errorf("WaitStart: birdc not found! (%v)", err)
 	}
@@ -171,7 +178,7 @@ func (fes *FrontEndService) WaitStart(ctx context.Context) error {
 		case <-time.After(timeoutScale * time.Nanosecond): //timeout
 		}
 
-		err := bird.CheckCli(ctx, lp)
+		err := fes.routingService.CheckCli(ctx, lp)
 		if err != nil {
 			if i <= 10 {
 				timeoutScale += 10000000 // 10 ms
@@ -233,7 +240,7 @@ func (fes *FrontEndService) SetNewConfig(c interface{}) error {
 // VIPs must be added to BIRD only if the frontend is considered up.
 // (Note: IPv4/IPv6 backplane not separated).
 func (fes *FrontEndService) Monitor(ctx context.Context) error {
-	lp, err := bird.LookupCli()
+	lp, err := fes.routingService.LookupCli()
 	if err != nil {
 		logrus.Errorf("ReloadConfig: Birdc not found!")
 		return err
@@ -270,7 +277,7 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 			}
 
 			forced := logForced() // force status logs after config updates
-			protocolOut, err := bird.ShowProtocolSessions(ctx, lp, `NBR-*`)
+			protocolOut, err := fes.routingService.ShowProtocolSessions(ctx, lp, `NBR-*`)
 			if err != nil {
 				logrus.Warnf("Monitor: %v: %v", err, protocolOut)
 				//Note: if birdc is not yet running, no need to bail out
@@ -287,7 +294,7 @@ func (fes *FrontEndService) Monitor(ctx context.Context) error {
 					//linkCh <- "No protocols match"
 				}
 			} else {
-				bfdOut, err := bird.ShowBfdSessions(ctx, lp, `NBR-BFD`)
+				bfdOut, err := fes.routingService.ShowBfdSessions(ctx, lp, `NBR-BFD`)
 				if err != nil {
 					logrus.Warnf("Monitor: %v: %v", err, bfdOut)
 					//Note: if birdc is not yet running, no need to bail out
@@ -414,12 +421,12 @@ func (fes *FrontEndService) parseStatusOutput(output string, bfdOutput string) *
 //
 // prerequisite: BIRD must be running so that birdc could talk to it
 func (fes *FrontEndService) VerifyConfig(ctx context.Context) error {
-	lp, err := bird.LookupCli()
+	lp, err := fes.routingService.LookupCli()
 	if err != nil {
 		logrus.Errorf("ReloadConfig: Birdc not found!")
 		return err
 	} else {
-		stringOut, err := bird.Verify(ctx, lp, fes.birdConfFile)
+		stringOut, err := fes.routingService.Verify(ctx, lp)
 		if err != nil {
 			logrus.Errorf("VerifyConfig: %v: %v", err, stringOut)
 			return err
@@ -431,6 +438,7 @@ func (fes *FrontEndService) VerifyConfig(ctx context.Context) error {
 }
 
 //-------------------------------------------------------------------------------------------
+// TODO: Try to detach writeConfig components specific to bird
 
 // promoteConfig -
 // Write BIRD config and initiate BIRD reconfiguration
@@ -492,8 +500,13 @@ func (fes *FrontEndService) writeConfig() error {
 // writeConfigBase -
 // Common part of BIRD config
 func (fes *FrontEndService) writeConfigBase(conf *string) {
-	*conf += "log syslog all;\n"
-	*conf += "log \"/var/log/bird.log\" { debug, trace, info, remote, warning, error, auth, fatal, bug };\n"
+	if fes.birdLogFileSize > 0 {
+		// TODO: const or make them configurable
+		logFile := "/var/log/bird.log"
+		logFileBackup := "/var/log/bird.log.backup"
+		*conf += fmt.Sprintf("log \"%s\" %v \"%s\" { debug, trace, info, remote, warning, error, auth, fatal, bug };\n",
+			logFile, fes.birdLogFileSize, logFileBackup)
+	}
 	if fes.logBird {
 		*conf += "log stderr all;\n"
 	} else {
@@ -888,7 +901,7 @@ func (fes *FrontEndService) start(ctx context.Context, errCh chan<- error) {
 	defer close(errCh)
 	defer logrus.Warnf("FrontEndService: Run fnished")
 
-	if err := bird.Run(ctx, fes.birdConfFile, fes.logBird); err != nil {
+	if err := fes.routingService.Run(ctx, fes.logBird); err != nil {
 		logrus.Errorf("FrontEndService: BIRD err: \"%v\"", err)
 		errCh <- err
 	}
@@ -897,16 +910,16 @@ func (fes *FrontEndService) start(ctx context.Context, errCh chan<- error) {
 // stop -
 // Actually stop BIRD process.
 func (fes *FrontEndService) stop(ctx context.Context) {
-	lp, err := bird.LookupCli()
+	lp, err := fes.routingService.LookupCli()
 	if err != nil {
 		logrus.Warnf("FrontEndService: stop; birdc not found (%v)", err)
 		return
 	}
-	if err := bird.CheckCli(ctx, lp); err != nil {
+	if err := fes.routingService.CheckCli(ctx, lp); err != nil {
 		logrus.Infof("FrontEndService: stop; birdc not running (%v)", err)
 		return
 	}
-	if err := bird.ShutDown(ctx, lp); err != nil {
+	if err := fes.routingService.ShutDown(ctx, lp); err != nil {
 		logrus.Warnf("FrontEndService: stop; BIRD err: \"%v\"", err)
 		return
 	}
@@ -917,7 +930,7 @@ func (fes *FrontEndService) stop(ctx context.Context) {
 //
 // prerequisite: BIRD must be started
 func (fes *FrontEndService) reconfigurationAgent(ctx context.Context, reconfCh <-chan struct{}, errCh chan<- error) {
-	lp, err := bird.LookupCli()
+	lp, err := fes.routingService.LookupCli()
 	if err != nil {
 		err := fmt.Errorf("reconfigurationAgent: birdc not found! (%v)", err)
 		logrus.Errorf("%v", err)
@@ -953,9 +966,9 @@ func (fes *FrontEndService) reconfigurationAgent(ctx context.Context, reconfCh <
 }
 
 // reconfigure -
-// Order reconfiguration of BIRD through birdc (i.e. apply new config file)
+// Order reconfiguration of BIRD through birdc (i.e. apply new config)
 func (fes *FrontEndService) reconfigure(ctx context.Context, path string) error {
-	stringOut, err := bird.Configure(ctx, path, fes.birdConfFile)
+	stringOut, err := fes.routingService.Configure(ctx, path)
 	if err != nil {
 		logrus.Errorf("reconfigure: %v: %v", err, stringOut)
 		return err

@@ -41,6 +41,8 @@ spec:
               value: {{ template "meridio.configuration" . }}
             - name: NSP_DATASOURCE
               value: /run/nsp/data/registry.db
+          securityContext:
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
@@ -48,11 +50,17 @@ spec:
             - name: nsp-data
               mountPath: /run/nsp/data
               readOnly: false
+            - name: tmp
+              mountPath: /tmp
+              readOnly: false
       volumes:
         - name: spire-agent-socket
           hostPath:
             path: /run/spire/sockets
             type: Directory
+        - name: tmp
+          emptyDir:
+            medium: Memory
   volumeClaimTemplates:
     - metadata:
         name: nsp-data

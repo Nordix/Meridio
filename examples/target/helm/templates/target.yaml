@@ -49,6 +49,8 @@ spec:
 {{ tpl (toYaml .Values.readinessProbe) . | indent 12 }}
           livenessProbe:
 {{ toYaml .Values.livenessProbe | indent 12 }}
+          securityContext:
+            readOnlyRootFilesystem: true
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
@@ -84,6 +86,9 @@ spec:
             - name: meridio-socket
               mountPath: /var/lib/meridio
               readOnly: false
+            - name: tmp
+              mountPath: /tmp
+              readOnly: false
       volumes:
         - name: spire-agent-socket
           hostPath:
@@ -95,3 +100,6 @@ spec:
             type: DirectoryOrCreate
         - name: meridio-socket
           emptyDir: {}
+        - name: tmp
+          emptyDir:
+            medium: Memory
