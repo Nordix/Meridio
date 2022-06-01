@@ -75,7 +75,11 @@ spec:
             - name: nsm-socket
               mountPath: /var/lib/networkservicemesh
               readOnly: false
+            - name: tmp-lb
+              mountPath: /tmp
+              readOnly: false
           securityContext:
+            readOnlyRootFilesystem: true
             capabilities:
               add: ["NET_ADMIN"]
         - name: nsc
@@ -139,7 +143,20 @@ spec:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
               readOnly: true
+            - name: tmp-fe
+              mountPath: /tmp
+              readOnly: false
+            - name: run
+              mountPath: /var/run/bird
+              readOnly: false
+            - name: etc
+              mountPath: /etc/bird
+              readOnly: false
+            - name: log
+              mountPath: /var/log
+              readOnly: false
           securityContext:
+            readOnlyRootFilesystem: true
             capabilities:
               add: ["NET_ADMIN"]
       volumes:
@@ -151,3 +168,18 @@ spec:
           hostPath:
             path: /var/lib/networkservicemesh
             type: DirectoryOrCreate
+        - name: tmp-lb
+          emptyDir:
+            medium: Memory
+        - name: tmp-fe
+          emptyDir:
+            medium: Memory
+        - name: run
+          emptyDir:
+            medium: Memory
+        - name: etc
+          emptyDir:
+            medium: Memory
+        - name: log
+          emptyDir:
+            medium: Memory

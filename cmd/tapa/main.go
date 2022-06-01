@@ -37,7 +37,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
@@ -141,8 +140,6 @@ func main() {
 			kernelmech.MECHANISM: chain.NewNetworkServiceClient(kernel.NewClient(kernel.WithInterfaceName("nsc"))),
 		}),
 		sendfd.NewClient(),
-		dnscontext.NewClient(dnscontext.WithChainContext(ctx)),
-		// excludedprefixes.NewClient(),
 	}
 
 	networkServiceClient := client.NewClient(ctx,

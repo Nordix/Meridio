@@ -56,6 +56,8 @@ spec:
               value: "{{ .Values.subnetPool.nodePrefixLength.ipv6 }}"
             - name: IPAM_IP_FAMILY
               value: "{{ .Values.ipFamily }}"
+          securityContext:
+            readOnlyRootFilesystem: true
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
@@ -63,11 +65,17 @@ spec:
             - name: ipam-data
               mountPath: /run/ipam/data
               readOnly: false
+            - name: tmp
+              mountPath: /tmp
+              readOnly: false
       volumes:
         - name: spire-agent-socket
           hostPath:
             path: /run/spire/sockets
             type: Directory
+        - name: tmp
+          emptyDir:
+            medium: Memory
   volumeClaimTemplates:
     - metadata:
         name: ipam-data
