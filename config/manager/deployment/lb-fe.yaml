@@ -142,6 +142,8 @@ spec:
               value: "10m"
             - name: NSM_LOG_LEVEL
               value: "DEBUG"
+            - name: NSM_LIVENESSCHECKENABLED
+              value:  # to be filled by operator
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

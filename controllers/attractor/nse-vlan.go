@@ -14,10 +14,9 @@ import (
 
 const (
 	nseImage       = "cmd-nse-remote-vlan"
-	nseImageTag    = "v1.3.1"
+	nseImageTag    = "v1.4.0"
 	nseEnvServices = "NSM_SERVICES"
-	nseEnvPrefixV4 = "NSM_CIDR_PREFIX"
-	nseEnvPrefixV6 = "NSM_IPV6_PREFIX"
+	nseEnvPrefix   = "NSM_CIDR_PREFIX"
 )
 
 type NseDeployment struct {
@@ -56,12 +55,8 @@ func (i *NseDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			Value: common.GetNSMRegistryService(),
 		},
 		{
-			Name:  nseEnvPrefixV4,
-			Value: i.attractor.Spec.Interface.PrefixIPv4,
-		},
-		{
-			Name:  nseEnvPrefixV6,
-			Value: i.attractor.Spec.Interface.PrefixIPv6,
+			Name:  nseEnvPrefix,
+			Value: fmt.Sprintf("%v,%v", i.attractor.Spec.Interface.PrefixIPv4, i.attractor.Spec.Interface.PrefixIPv6),
 		},
 		{
 			Name:  "NSM_LOG_LEVEL",

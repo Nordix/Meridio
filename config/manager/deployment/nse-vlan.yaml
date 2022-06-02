@@ -86,8 +86,6 @@ spec:
               value:  # to be filled by operator
             - name: NSM_CIDR_PREFIX
               value:  # to be filled by operator according to Attractor
-            - name: NSM_IPV6_PREFIX
-              value:  # to be filled by operator according to Attractor
             - name: NSE_POINT2POINT
               value: "False"
             - name: NSM_REGISTER_SERVICE

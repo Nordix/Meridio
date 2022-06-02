@@ -96,6 +96,10 @@ func (l *LoadBalancer) getNscEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 			Name:  "NSM_LOG_LEVEL",
 			Value: common.GetLogLevel(),
 		},
+		{
+			Name:  "NSM_LIVENESSCHECKENABLED",
+			Value: "false",
+		},
 	}
 
 	for _, e := range allEnv {
@@ -211,7 +215,7 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 			}
 		case "nsc":
 			if container.Image == "" {
-				container.Image = "registry.nordix.org/cloud-native/nsm/cmd-nsc:v1.3.1"
+				container.Image = "registry.nordix.org/cloud-native/nsm/cmd-nsc:v1.4.0"
 				container.ImagePullPolicy = corev1.PullAlways
 			}
 			container.Env = l.getNscEnvVars(container.Env)
