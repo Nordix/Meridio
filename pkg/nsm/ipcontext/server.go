@@ -47,6 +47,9 @@ func (ics *ipcontextServer) Request(ctx context.Context, request *networkservice
 
 // Close
 func (ics *ipcontextServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	// TODO: free IPs
+	err := ics.ics.UnsetIPContext(conn, networking.NSE)
+	if err != nil {
+		return nil, err
+	}
 	return next.Server(ctx).Close(ctx, conn)
 }

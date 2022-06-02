@@ -23,4 +23,5 @@ import (
 
 type ipContextSetter interface {
 	SetIPContext(conn *networkservice.Connection, interfaceType networking.InterfaceType) error
+	UnsetIPContext(conn *networkservice.Connection, interfaceType networking.InterfaceType) error
 }
