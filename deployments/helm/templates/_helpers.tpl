@@ -45,7 +45,11 @@ Set IP Family
 {{- end -}}
 
 {{- define "meridio.vlan.extInterfaceName" -}}
+{{- if .Values.vlan.id }}
 {{- printf "ext-vlan.%d" ( .Values.vlan.id | int ) -}}
+{{- else -}}
+{{- printf "ext" -}}
+{{- end -}}
 {{- end -}}
 
 {{- define "meridio.vrrps" -}}
