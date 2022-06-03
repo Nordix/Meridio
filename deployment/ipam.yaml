@@ -101,6 +101,11 @@ spec:
             - name: ipam-data
               mountPath: /run/ipam/data
               readOnly: false
+            - name: tmp
+              mountPath: /tmp
+              readOnly: false
+          securityContext:
+            readOnlyRootFilesystem: true
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler
@@ -111,6 +116,9 @@ spec:
           hostPath:
             path: /run/spire/sockets
             type: Directory
+        - name: tmp
+          emptyDir:
+            medium: Memory
   updateStrategy:
     rollingUpdate:
       partition: 0

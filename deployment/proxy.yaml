@@ -111,7 +111,11 @@ spec:
             - name: nsm-socket
               mountPath: /var/lib/networkservicemesh
               readOnly: true
+            - name: tmp
+              mountPath: /tmp
+              readOnly: false
           securityContext:
+            readOnlyRootFilesystem: true
             capabilities:
               add: ["NET_ADMIN"]
       volumes:
@@ -123,3 +127,6 @@ spec:
           hostPath:
             path: /var/lib/networkservicemesh
             type: DirectoryOrCreate
+        - name: tmp
+          emptyDir:
+            medium: Memory
