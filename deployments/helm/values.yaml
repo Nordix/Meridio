@@ -94,14 +94,14 @@ subnetPool:
 
 vlanNSE:
   image: cmd-nse-remote-vlan
-  version: v1.4.0-rc.2
+  version: v1.4.0
   probe:
     addr: :5003
     spiffe: true
 
 vlanNSC:
   image: cmd-nsc
-  version: v1.4.0-rc.2
+  version: v1.4.0
 
 vlan:
   networkServiceName: external-vlan
