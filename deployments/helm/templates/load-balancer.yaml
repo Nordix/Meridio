@@ -102,6 +102,8 @@ spec:
               value: {{ .Values.maxTokenLifetime }}
             - name: NSM_LOG_LEVEL
               value: "TRACE"
+            - name: NSM_LIVENESSCHECKENABLED
+              value: "false"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
