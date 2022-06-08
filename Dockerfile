@@ -25,7 +25,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags="${LD
 FROM ${BASE_IMG}
 WORKDIR /
 COPY --from=builder /workspace/manager .
-COPY deployment/ deployment/
+
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]

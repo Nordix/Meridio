@@ -32,20 +32,8 @@ spec:
         runAsNonRoot: true
       volumes:
       - name: templates-volume
-        emptyDir:
-          medium: Memory
-      initContainers:
-      - name: copy
-        image: controller:latest
-        imagePullPolicy: IfNotPresent
-        command:
-        - cp
-        - -r
-        - ./deployment/.
-        - ./templates-tmp
-        volumeMounts:
-        - name: templates-volume
-          mountPath: /templates-tmp
+        configMap:
+          name: deployment-templates
       containers:
       - command:
         - /manager
