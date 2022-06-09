@@ -24,6 +24,18 @@ configMapGenerator:
   name: resource-templates
   options:
     disableNameSuffixHash: true
+- files:
+  - deployment/ipam-service.yaml
+  - deployment/ipam.yaml
+  - deployment/lb-fe.yaml
+  - deployment/nse-vlan.yaml
+  - deployment/nsp-service.yaml
+  - deployment/nsp.yaml
+  - deployment/proxy.yaml
+  - deployment/role-binding.yaml
+  - deployment/role.yaml
+  - deployment/service-account.yaml
+  name: deployment-templates
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:

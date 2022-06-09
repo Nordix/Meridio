@@ -36,7 +36,7 @@ out = subprocess.run(["make", "-s", "print-manifests",
  "ENABLE_MUTATING_WEBHOOK=" + args.mutating],
                      capture_output=True).stdout.decode("utf-8")
 # split the output
-contents = out.split('---\n')
+contents = out.split('\n---\n')
 
 # initialize the directories
 helmdir = "helm"
@@ -52,12 +52,12 @@ Path(templatedir).mkdir(parents=True, exist_ok=True)
 for content in contents:
     # compose file name, using:
     # first "kind" found in the manifest. For example: Namespace
-    kind = re.findall('(?<=kind: )\S+', content)[0]
+    kind = re.findall('(?<=\nkind: )\S+', content)[0]
     # skip namespace file
     if kind == "Namespace":
         continue
     # first "name" found in the manifest. For example: meridio
-    name = re.findall('(?<=name: )\S+', content)[0]
+    name = re.findall('(?<=\n  name: )\S+', content)[0]
     filename = kind + "-" + name + ".yaml"
 
     # fix the identation
