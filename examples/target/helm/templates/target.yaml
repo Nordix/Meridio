@@ -27,6 +27,11 @@ spec:
               screen -d -m bash -c "./ctraffic -server -address [::]:5002" ; 
               screen -d -m bash -c "./ctraffic -server -udp -address [::]:5003" ; 
               screen -d -m bash -c "./ctraffic -server -udp -address [::]:5004" ; 
+              screen -d -m bash -c "./mconnect -server -address [::]:4000" ; 
+              screen -d -m bash -c "./mconnect -server -address [::]:4001" ; 
+              screen -d -m bash -c "./mconnect -server -address [::]:4002" ; 
+              screen -d -m bash -c "./mconnect -server -udp -address [::]:4003" ; 
+              screen -d -m bash -c "./mconnect -server -udp -address [::]:4004" ; 
               tail -f /dev/null
           command:
             - /bin/bash

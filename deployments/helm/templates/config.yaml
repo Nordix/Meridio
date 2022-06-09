@@ -27,6 +27,7 @@ data:
         - 0:0:0:0:0:0:0:0/0
       destination-port-ranges:
         - 5000
+        - 4000
       source-port-ranges:
         - 1024-65535
       protocols:
@@ -40,6 +41,7 @@ data:
         - 0:0:0:0:0:0:0:0/0
       destination-port-ranges:
         - 5000
+        - 4000
       source-port-ranges:
         - 1024-65535
       protocols:
