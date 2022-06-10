@@ -172,6 +172,20 @@ func (p *Proxy) SetIPContext(conn *networkservice.Connection, interfaceType netw
 	return nil
 }
 
+func (p *Proxy) UnsetIPContext(conn *networkservice.Connection, interfaceType networking.InterfaceType) error {
+	for _, subnet := range p.Subnets {
+		child := &ipamAPI.Child{
+			Name:   fmt.Sprintf("%s-src", conn.Id),
+			Subnet: subnet,
+		}
+		_, err := p.ipamClient.Release(context.TODO(), child)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (p *Proxy) setBridgeIP(prefix string) error {
 	err := p.bridge.AddLocalPrefix(prefix)
 	if err != nil {

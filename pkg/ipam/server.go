@@ -118,7 +118,35 @@ func (is *IpamServer) Allocate(ctx context.Context, child *ipamAPI.Child) (*ipam
 }
 
 func (is *IpamServer) Release(ctx context.Context, child *ipamAPI.Child) (*emptypb.Empty, error) {
-	return &emptypb.Empty{}, nil
+	logrus.Infof("Release: %v", child)
+	trench, exists := is.Trenches[child.GetSubnet().GetIpFamily()]
+	if !exists {
+		return &emptypb.Empty{}, nil
+	}
+	if child.GetSubnet().GetConduit() == nil {
+		return &emptypb.Empty{}, nil
+	}
+	if child.GetSubnet().GetConduit().GetTrench() == nil {
+		return &emptypb.Empty{}, nil
+	}
+	if trench.GetName() != getTrenchName(child.GetSubnet().GetConduit().GetTrench().GetName(), child.GetSubnet().GetIpFamily()) {
+		return &emptypb.Empty{}, nil
+	}
+	conduit, err := trench.GetConduit(ctx, child.GetSubnet().GetConduit().GetName())
+	if err != nil {
+		return &emptypb.Empty{}, err
+	}
+	if conduit == nil {
+		return &emptypb.Empty{}, nil
+	}
+	node, err := conduit.GetNode(ctx, child.GetSubnet().GetNode())
+	if err != nil {
+		return &emptypb.Empty{}, err
+	}
+	if node == nil {
+		return &emptypb.Empty{}, nil
+	}
+	return &emptypb.Empty{}, node.Release(ctx, child.GetName())
 }
 
 func getTrenchName(trenchName string, ipFamily ipamAPI.IPFamily) string {

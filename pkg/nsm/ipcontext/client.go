@@ -49,6 +49,9 @@ func (icc *ipcontextClient) Request(ctx context.Context, request *networkservice
 
 // Close
 func (icc *ipcontextClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	// TODO: free IPs
+	err := icc.ics.UnsetIPContext(conn, networking.NSC)
+	if err != nil {
+		return nil, err
+	}
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
