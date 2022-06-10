@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,10 +30,11 @@ import (
 var (
 	trafficGeneratorCMD string
 	namespace           string
-	networkServiceName  = "load-balancer"
-	stream              = "stream-a"
 
 	clientset *kubernetes.Clientset
+
+	trafficGeneratorHost *utils.TrafficGeneratorHost
+	trafficGenerator     utils.TrafficGenerator
 )
 
 const (
@@ -42,13 +43,16 @@ const (
 
 	trenchAName = "trench-a"
 	trenchBName = "trench-b"
+	conduitName = "load-balancer"
+	streamName  = "stream-a"
 
-	targetDeploymentName = "target-a"
-	port                 = "5000"
-	ipv4                 = "20.0.0.1"
-	ipv6                 = "[2000::1]"
-	numberOfTargets      = 4
-	ipPort               = "20.0.0.1:5000"
+	loadbalancerDeploymentName = "load-balancer"
+	targetDeploymentName       = "target-a"
+	port                       = "4000"
+	ipv4                       = "20.0.0.1"
+	ipv6                       = "[2000::1]"
+	numberOfTargets            = 4
+	ipPort                     = "20.0.0.1:4000"
 )
 
 func init() {
@@ -68,4 +72,11 @@ var _ = BeforeSuite(func() {
 	var err error
 	clientset, err = utils.GetClientSet()
 	Expect(err).ToNot(HaveOccurred())
+
+	trafficGeneratorHost = &utils.TrafficGeneratorHost{
+		TrafficGeneratorCommand: trafficGeneratorCMD,
+	}
+	trafficGenerator = &utils.MConnect{
+		NConn: 400,
+	}
 })

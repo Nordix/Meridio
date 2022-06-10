@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ import (
 
 var _ = Describe("MultiTrenches", func() {
 
-	Context("With two trenches containing both 2 VIP addresses (20.0.0.1:5000, [2000::1]:5000) and 4 target pods in each trench running ctraffic", func() {
+	Context("With two trenches containing both a stream with 2 VIP addresses and 4 target pods running", func() {
 
 		var (
 			targetPod *v1.Pod
@@ -51,9 +51,9 @@ var _ = Describe("MultiTrenches", func() {
 		When("traffic is sent on 2 trenches at the same time with the same VIP address", func() {
 			var (
 				trenchALastingConns map[string]int
-				trenchALostConns    map[string]int
+				trenchALostConns    int
 				trenchBLastingConns map[string]int
-				trenchBLostConns    map[string]int
+				trenchBLostConns    int
 			)
 
 			BeforeEach(func() {
@@ -62,11 +62,11 @@ var _ = Describe("MultiTrenches", func() {
 				trenchBDone := make(chan bool)
 				var trenchBErr error
 				go func() {
-					trenchALastingConns, trenchALostConns, trenchAErr = utils.SendTraffic(trafficGeneratorCMD, trenchAName, namespace, ipPort, 400, 100)
+					trenchALastingConns, trenchALostConns = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, ipPort)
 					trenchADone <- true
 				}()
 				go func() {
-					trenchBLastingConns, trenchBLostConns, trenchBErr = utils.SendTraffic(trafficGeneratorCMD, trenchBName, namespace, ipPort, 400, 100)
+					trenchBLastingConns, trenchBLostConns = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchBName, namespace, ipPort)
 					trenchBDone <- true
 				}()
 				<-trenchADone
@@ -76,43 +76,55 @@ var _ = Describe("MultiTrenches", func() {
 			})
 
 			It("should be possible to send traffic on the 2 trenches using the same VIP", func() {
-				Expect(len(trenchALostConns)).To(Equal(0))
+				Expect(trenchALostConns).To(Equal(0))
 				Expect(len(trenchALastingConns)).To(Equal(4))
-				Expect(len(trenchBLostConns)).To(Equal(0))
+				Expect(trenchBLostConns).To(Equal(0))
 				Expect(len(trenchBLastingConns)).To(Equal(4))
 			})
 		})
 
 		When("a target disconnects from a trench and connect to another one", func() {
 			BeforeEach(func() {
-				_, err := utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "disconnect", "-ns", networkServiceName, "-t", trenchAName})
+				_, err := utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "close", "-t", trenchAName, "-c", conduitName, "-s", streamName})
 				Expect(err).NotTo(HaveOccurred())
-				_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "connect", "-ns", networkServiceName, "-t", trenchBName})
+				_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "open", "-t", trenchBName, "-c", conduitName, "-s", streamName})
 				Expect(err).NotTo(HaveOccurred())
-				_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "request", "-ns", networkServiceName, "-t", trenchBName})
-				Expect(err).NotTo(HaveOccurred())
+				Eventually(func() bool {
+					targetWatchOutput, err := utils.PodExec(targetPod, "ctraffic", []string{"timeout", "--preserve-status", "0.5", "./target-client", "watch"})
+					Expect(err).NotTo(HaveOccurred())
+					streamStatus := utils.ParseTargetWatch(targetWatchOutput)
+					if len(streamStatus) == 1 && streamStatus[0].Status == "OPEN" && streamStatus[0].Trench == trenchBName && streamStatus[0].Conduit == conduitName && streamStatus[0].Stream == streamName {
+						return true
+					}
+					return false
+				}, timeout, interval).Should(BeTrue())
 			})
 
 			AfterEach(func() {
-				_, err := utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "connect", "-ns", networkServiceName, "-t", trenchAName})
+				_, err := utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "close", "-t", trenchBName, "-c", conduitName, "-s", streamName})
 				Expect(err).NotTo(HaveOccurred())
-				_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "request", "-ns", networkServiceName, "-t", trenchAName})
+				_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "open", "-t", trenchAName, "-c", conduitName, "-s", streamName})
 				Expect(err).NotTo(HaveOccurred())
-				_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "disconnect", "-ns", networkServiceName, "-t", trenchBName})
-				Expect(err).NotTo(HaveOccurred())
+				Eventually(func() bool {
+					targetWatchOutput, err := utils.PodExec(targetPod, "ctraffic", []string{"timeout", "--preserve-status", "0.5", "./target-client", "watch"})
+					Expect(err).NotTo(HaveOccurred())
+					streamStatus := utils.ParseTargetWatch(targetWatchOutput)
+					if len(streamStatus) == 1 && streamStatus[0].Status == "OPEN" && streamStatus[0].Trench == trenchAName && streamStatus[0].Conduit == conduitName && streamStatus[0].Stream == streamName {
+						return true
+					}
+					return false
+				}, timeout, interval).Should(BeTrue())
 			})
 
 			It("should receive the traffic on the other trench", func() {
 				By("Verifying trench-a has only 3 targets")
-				lastingConn, lostConn, err := utils.SendTraffic(trafficGeneratorCMD, trenchAName, namespace, ipPort, 400, 100)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(len(lostConn)).To(Equal(0))
+				lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, ipPort)
+				Expect(lostConn).To(Equal(0))
 				Expect(len(lastingConn)).To(Equal(3))
 
 				By("Verifying trench-b has only 5 targets")
-				lastingConn, lostConn, err = utils.SendTraffic(trafficGeneratorCMD, trenchBName, namespace, ipPort, 400, 100)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(len(lostConn)).To(Equal(0))
+				lastingConn, lostConn = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchBName, namespace, ipPort)
+				Expect(lostConn).To(Equal(0))
 				Expect(len(lastingConn)).To(Equal(5))
 			})
 		})

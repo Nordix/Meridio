@@ -110,7 +110,9 @@ lint: golangci-lint ## Run linter against code.
 
 .PHONY: e2e
 e2e: ginkgo ## Run the E2E tests.
-	$(GINKGO) -v --focus=$(E2E_FOCUS) ./test/e2e/... -- -traffic-generator-cmd=$(TRAFFIC_GENERATOR_CMD) -namespace=${NAMESPACE}
+	ginkgo -v --focus=$(E2E_FOCUS) --repeat=0 --timeout=1h ./test/e2e/... -- \
+		-traffic-generator-cmd=$(TRAFFIC_GENERATOR_CMD) \
+		-namespace=${NAMESPACE}
 
 .PHONY: test
 test: ## Run the Unit tests.
