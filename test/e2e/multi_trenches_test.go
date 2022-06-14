@@ -62,11 +62,11 @@ var _ = Describe("MultiTrenches", func() {
 				trenchBDone := make(chan bool)
 				var trenchBErr error
 				go func() {
-					trenchALastingConns, trenchALostConns = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, ipPort)
+					trenchALastingConns, trenchALostConns = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, tcpIPv4, "tcp")
 					trenchADone <- true
 				}()
 				go func() {
-					trenchBLastingConns, trenchBLostConns = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchBName, namespace, ipPort)
+					trenchBLastingConns, trenchBLostConns = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchBName, namespace, tcpIPv4, "tcp")
 					trenchBDone <- true
 				}()
 				<-trenchADone
@@ -118,12 +118,12 @@ var _ = Describe("MultiTrenches", func() {
 
 			It("should receive the traffic on the other trench", func() {
 				By("Verifying trench-a has only 3 targets")
-				lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, ipPort)
+				lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, tcpIPv4, "tcp")
 				Expect(lostConn).To(Equal(0))
 				Expect(len(lastingConn)).To(Equal(3))
 
 				By("Verifying trench-b has only 5 targets")
-				lastingConn, lostConn = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchBName, namespace, ipPort)
+				lastingConn, lostConn = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchBName, namespace, tcpIPv4, "tcp")
 				Expect(lostConn).To(Equal(0))
 				Expect(len(lastingConn)).To(Equal(5))
 			})

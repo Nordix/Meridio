@@ -17,7 +17,9 @@ limitations under the License.
 package e2e_test
 
 import (
+	"bytes"
 	"flag"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -30,6 +32,7 @@ import (
 var (
 	trafficGeneratorCMD string
 	namespace           string
+	script              string
 
 	clientset *kubernetes.Clientset
 
@@ -48,16 +51,17 @@ const (
 
 	loadbalancerDeploymentName = "load-balancer"
 	targetDeploymentName       = "target-a"
-	port                       = "4000"
-	ipv4                       = "20.0.0.1"
-	ipv6                       = "[2000::1]"
 	numberOfTargets            = 4
-	ipPort                     = "20.0.0.1:4000"
+	tcpIPv4                    = "20.0.0.1:4000"
+	udpIPv4                    = "20.0.0.1:4003"
+	tcpIPv6                    = "[2000::1]:4000"
+	udpIPv6                    = "[2000::1]:4003"
 )
 
 func init() {
 	flag.StringVar(&trafficGeneratorCMD, "traffic-generator-cmd", "docker exec -i {trench}", "Command to use to connect to the traffic generator. All occurences of '{trench}' will be replaced with the trench name.")
 	flag.StringVar(&namespace, "namespace", "red", "the namespace where expects operator to exist")
+	flag.StringVar(&script, "script", "./data/kind/test.sh", "path + script used by the e2e tests")
 }
 
 func TestE2e(t *testing.T) {
@@ -79,4 +83,11 @@ var _ = BeforeSuite(func() {
 	trafficGenerator = &utils.MConnect{
 		NConn: 400,
 	}
+
+	cmd := exec.Command(script, "init")
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err = cmd.Run()
+	Expect(stderr.String()).To(BeEmpty())
+	Expect(err).ToNot(HaveOccurred())
 })

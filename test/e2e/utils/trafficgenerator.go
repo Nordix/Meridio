@@ -29,15 +29,15 @@ type TrafficGeneratorHost struct {
 }
 
 type TrafficGenerator interface {
-	GetCommand(vip string) string
+	GetCommand(ipPort string, protocol string) string
 	AnalyzeTraffic([]byte) (map[string]int, int)
 }
 
-func (tgh *TrafficGeneratorHost) SendTraffic(tg TrafficGenerator, trench string, namespace string, vip string) (map[string]int, int) {
+func (tgh *TrafficGeneratorHost) SendTraffic(tg TrafficGenerator, trench string, namespace string, ipPort string, protocol string) (map[string]int, int) {
 	commandString := tgh.TrafficGeneratorCommand
 	commandString = strings.ReplaceAll(commandString, "{trench}", trench)
 	commandString = strings.ReplaceAll(commandString, "{namespace}", namespace)
-	commandString = fmt.Sprintf("%s %s", commandString, tg.GetCommand(vip))
+	commandString = fmt.Sprintf("%s %s", commandString, tg.GetCommand(ipPort, protocol))
 	command := exec.Command("/bin/sh", "-c", commandString)
 	var stdout bytes.Buffer
 	command.Stdout = &stdout
@@ -51,8 +51,8 @@ type CTraffic struct {
 	Rate  int
 }
 
-func (ct *CTraffic) GetCommand(vip string) string {
-	return fmt.Sprintf("ctraffic -address %s -nconn %d -rate %d -stats all", vip, ct.NConn, ct.Rate)
+func (ct *CTraffic) GetCommand(ipPort string, protocol string) string {
+	return fmt.Sprintf("ctraffic %s -address %s -nconn %d -rate %d -stats all", getProtocolParameter(protocol), ipPort, ct.NConn, ct.Rate)
 }
 
 func (ct *CTraffic) AnalyzeTraffic(output []byte) (map[string]int, int) {
@@ -86,8 +86,8 @@ type MConnect struct {
 	NConn int
 }
 
-func (mc *MConnect) GetCommand(vip string) string {
-	return fmt.Sprintf("mconnect -address %s -nconn %d -timeout 5m -output json", vip, mc.NConn)
+func (mc *MConnect) GetCommand(ipPort string, protocol string) string {
+	return fmt.Sprintf("mconnect %s -address %s -nconn %d -timeout 5m -output json", getProtocolParameter(protocol), ipPort, mc.NConn)
 }
 
 func (mc *MConnect) AnalyzeTraffic(output []byte) (map[string]int, int) {
@@ -102,4 +102,11 @@ func (mc *MConnect) AnalyzeTraffic(output []byte) (map[string]int, int) {
 		lastingConn[name] = int(connections.(float64))
 	}
 	return lastingConn, lostConn
+}
+
+func getProtocolParameter(protocol string) string {
+	if strings.ToLower(protocol) == "udp" {
+		return "-udp"
+	}
+	return ""
 }

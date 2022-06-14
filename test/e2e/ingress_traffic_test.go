@@ -17,8 +17,6 @@ limitations under the License.
 package e2e_test
 
 import (
-	"fmt"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -30,20 +28,18 @@ var _ = Describe("IngressTraffic", func() {
 		var (
 			lostConnections    int
 			lastingConnections map[string]int
-			vip                string
+			ipPort             string
+			protocol           string
 		)
 
 		JustBeforeEach(func() {
-			var err error
-			ipPort := fmt.Sprintf("%s:%s", vip, port)
-
-			lastingConnections, lostConnections = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, ipPort)
-			Expect(err).NotTo(HaveOccurred())
+			lastingConnections, lostConnections = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, ipPort, protocol)
 		})
 
-		When("sending traffic to a registered IPv4", func() {
+		When("sending TCP traffic to an IPv4", func() {
 			BeforeEach(func() {
-				vip = ipv4
+				ipPort = tcpIPv4
+				protocol = "tcp"
 			})
 			It("should receive the traffic correctly", func() {
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
@@ -52,9 +48,34 @@ var _ = Describe("IngressTraffic", func() {
 			})
 		})
 
-		When("sending traffic to a registered IPv6", func() {
+		When("sending TCP traffic to an IPv6", func() {
 			BeforeEach(func() {
-				vip = ipv6
+				ipPort = tcpIPv6
+				protocol = "tcp"
+			})
+			It("should receive the traffic correctly", func() {
+				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
+				Expect(lostConnections).To(Equal(0))
+				Expect(len(lastingConnections)).To(Equal(numberOfTargets))
+			})
+		})
+
+		When("sending UDP traffic to an IPv4", func() {
+			BeforeEach(func() {
+				ipPort = udpIPv4
+				protocol = "udp"
+			})
+			It("should receive the traffic correctly", func() {
+				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
+				Expect(lostConnections).To(Equal(0))
+				Expect(len(lastingConnections)).To(Equal(numberOfTargets))
+			})
+		})
+
+		When("sending UDP traffic to an IPv6", func() {
+			BeforeEach(func() {
+				ipPort = udpIPv6
+				protocol = "udp"
 			})
 			It("should receive the traffic correctly", func() {
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")

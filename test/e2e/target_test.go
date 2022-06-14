@@ -80,7 +80,7 @@ var _ = Describe("Target", func() {
 
 			It("should receive traffic anymore", func() {
 				By("Checking the target has not receive traffic")
-				lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, ipPort)
+				lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, tcpIPv4, "tcp")
 				Expect(lostConnections).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(numberOfTargets - 1))
 				_, exists := lastingConnections[targetPod.Name]
