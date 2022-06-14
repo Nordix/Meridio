@@ -29,7 +29,7 @@
         * NSE-VLAN (TODO)
 * [Contributing](../CONTRIBUTING.md)
     * Build (TODO)
-    * [Test](../test/e2e/e2e.md)
+    * [Test](test.md)
     * Code Style (TODO)
     * Troubleshooting Guide (TODO)
 * [Frequently Asked Questions](faq.md)
