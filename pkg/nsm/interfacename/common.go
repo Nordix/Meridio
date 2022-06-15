@@ -18,26 +18,50 @@ package interfacename
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 )
 
-const MAX_INTERFACE_NAME_LENGTH = 16
+const MAX_INTERFACE_NAME_LENGTH = 15
 
 type interfaceNameSetter struct {
-	nameGenerator NameGenerator
-	prefix        string
-	maxLength     int
+	nameGenerator       NameGenerator
+	prefix              string
+	maxLength           int
+	usedInterfacesNames map[string]string // key: id, value: name
+	mu                  sync.Mutex
 }
 
-func (ins *interfaceNameSetter) SetInterfaceName(request *networkservice.NetworkServiceRequest, isClient bool) {
+func (ins *interfaceNameSetter) SetInterfaceName(request *networkservice.NetworkServiceRequest) {
+	ins.mu.Lock()
+	defer ins.mu.Unlock()
+	if ins.usedInterfacesNames == nil {
+		ins.usedInterfacesNames = map[string]string{}
+	}
 	ins.setInterfaceNameMechanism(request)
-	ins.setInterfaceNameMechanismPreferences(request)
+}
+
+func (ins *interfaceNameSetter) UnsetInterfaceName(conn *networkservice.Connection) {
+	ins.mu.Lock()
+	defer ins.mu.Unlock()
+	if ins.usedInterfacesNames != nil {
+		delete(ins.usedInterfacesNames, conn.GetId())
+	}
+	mechanism := conn.GetMechanism()
+	if mechanism.GetParameters() == nil {
+		return
+	}
+	interfaceName, exists := mechanism.GetParameters()[common.InterfaceNameKey]
+	if exists {
+		ins.nameGenerator.Release(interfaceName)
+	}
 }
 
 func (ins *interfaceNameSetter) setInterfaceNameMechanism(request *networkservice.NetworkServiceRequest) {
 	if request == nil || request.GetConnection() == nil || request.GetConnection().GetMechanism() == nil {
+		ins.setInterfaceNameMechanismPreferences(request)
 		return
 	}
 	mechanism := request.GetConnection().GetMechanism()
@@ -50,7 +74,12 @@ func (ins *interfaceNameSetter) setInterfaceNameMechanism(request *networkservic
 	if val, ok := mechanism.GetParameters()[common.InterfaceNameKey]; !ok ||
 		val == "" || (ins.prefix != "" && !strings.HasPrefix(val, ins.prefix)) {
 		//logrus.Debugf("Generate new mech interface name (old %v)", val)
-		mechanism.GetParameters()[common.InterfaceNameKey] = ins.nameGenerator.Generate(ins.prefix, ins.maxLength)
+		interfaceName, exists := ins.usedInterfacesNames[request.GetConnection().GetId()]
+		if !exists {
+			interfaceName = ins.nameGenerator.Generate(ins.prefix, ins.maxLength)
+		}
+		mechanism.GetParameters()[common.InterfaceNameKey] = interfaceName
+		ins.usedInterfacesNames[request.GetConnection().GetId()] = interfaceName
 	}
 }
 
@@ -70,7 +99,12 @@ func (ins *interfaceNameSetter) setInterfaceNameMechanismPreferences(request *ne
 		if val, ok := mechanism.Parameters[common.InterfaceNameKey]; !ok ||
 			val == "" || (ins.prefix != "" && !strings.HasPrefix(val, ins.prefix)) {
 			//logrus.Debugf("Generate new mech_pref interface name (old %v)", val)
-			mechanism.Parameters[common.InterfaceNameKey] = ins.nameGenerator.Generate(ins.prefix, ins.maxLength)
+			interfaceName, exists := ins.usedInterfacesNames[request.GetConnection().GetId()]
+			if !exists {
+				interfaceName = ins.nameGenerator.Generate(ins.prefix, ins.maxLength)
+			}
+			mechanism.Parameters[common.InterfaceNameKey] = interfaceName
+			ins.usedInterfacesNames[request.GetConnection().GetId()] = interfaceName
 		}
 	}
 }

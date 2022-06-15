@@ -140,7 +140,7 @@ func main() {
 			vfiomech.MECHANISM:   chain.NewNetworkServiceClient(vfio.NewClient()),
 			kernelmech.MECHANISM: chain.NewNetworkServiceClient(kernel.NewClient()),
 		}),
-		interfacename.NewClient("nsc", &interfacename.RandomGenerator{}),
+		interfacename.NewClient("nsm-", &interfacename.CounterGenerator{}),
 		sendfd.NewClient(),
 	}
 

@@ -24,7 +24,6 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
 type interfaceNameClient struct {
@@ -43,8 +42,7 @@ func NewClient(prefix string, generator NameGenerator) networkservice.NetworkSer
 // A non-nil error is returned if the name generation fails or if a next element in the chain returns a non-nil error
 // It implements NetworkServiceClient for the interfacename package
 func (inc *interfaceNameClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	// TODO: check if interface name already exists
-	inc.SetInterfaceName(request, metadata.IsClient(inc))
+	inc.SetInterfaceName(request)
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
@@ -52,6 +50,6 @@ func (inc *interfaceNameClient) Request(ctx context.Context, request *networkser
 // A non-nil error if a next element in the chain returns a non-nil error
 // It implements NetworkServiceClient for the interfacename package
 func (inc *interfaceNameClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	// TODO: release interfacename
+	inc.UnsetInterfaceName(conn)
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
