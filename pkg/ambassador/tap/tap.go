@@ -56,6 +56,7 @@ func New(targetName string,
 	nspEntryTimeout time.Duration,
 	netUtils networking.Utils) (*Tap, error) {
 	tap := &Tap{
+		TargetName:           targetName,
 		NetworkServiceClient: networkServiceClient,
 		Namespace:            namespace,
 		NodeName:             nodeName,
