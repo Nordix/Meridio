@@ -39,7 +39,7 @@ var _ = Describe("Configuration", func() {
 			})
 
 			AfterEach(func() {
-				cmd := exec.Command("./data/kind/test.sh", "init")
+				cmd := exec.Command("./data/kind/test.sh", "configuration_new_ip_revert")
 				var stderr bytes.Buffer
 				cmd.Stderr = &stderr
 				err := cmd.Run()
