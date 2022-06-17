@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -61,24 +60,6 @@ func (r *Attractor) ValidateCreate() error {
 	err := attractorClient.Get(context.TODO(), selector, trench)
 	if err != nil || trench == nil {
 		return fmt.Errorf("unable to find the trench in label, %s cannot be created", r.GroupVersionKind().Kind)
-	}
-
-	// validation: get all attractors with same trench, verdict the number should not be greater than 1
-	al := &AttractorList{}
-	sel := labels.Set{"trench": trench.ObjectMeta.Name}
-	err = attractorClient.List(context.TODO(), al, &client.ListOptions{
-		LabelSelector: sel.AsSelector(),
-		Namespace:     r.ObjectMeta.Namespace,
-	})
-
-	if err != nil {
-		return fmt.Errorf("unable to get attractors")
-	} else if len(al.Items) >= 1 {
-		var names []string
-		for _, a := range al.Items {
-			names = append(names, a.ObjectMeta.Name)
-		}
-		return fmt.Errorf("only one attractor is allowed in a trench, but also found %s", strings.Join(names, ", "))
 	}
 
 	if r.Spec.Replicas == nil {
