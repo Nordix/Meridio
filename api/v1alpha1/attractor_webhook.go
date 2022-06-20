@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -67,10 +68,6 @@ func (r *Attractor) ValidateCreate() error {
 		*r.Spec.Replicas = 1
 	}
 
-	if len(r.Spec.Composites) > 1 {
-		return fmt.Errorf("only one composite is supported in the current version")
-	}
-
 	return r.validateAttractor()
 }
 
@@ -113,6 +110,49 @@ func (r *Attractor) validateAttractor() error {
 		}
 	default:
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("interface").Child("type"), r.Spec.Interface.Type, "not a supported interface"))
+	}
+
+	if len(r.Spec.Composites) > 1 {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("composites"), r.Spec.Composites, "only one composite per attractor is supported in the current version"))
+	}
+
+	al := &AttractorList{}
+	sel := labels.Set{"trench": r.ObjectMeta.Labels["trench"]}
+	err = attractorClient.List(context.TODO(), al, &client.ListOptions{
+		LabelSelector: sel.AsSelector(),
+		Namespace:     r.ObjectMeta.Namespace,
+	})
+	if err != nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("composites"), r.Spec.Composites, "unable to get attractors"))
+	} else {
+		vips := map[string]struct{}{}
+		composites := map[string]struct{}{}
+		for _, vip := range r.Spec.Vips {
+			vips[vip] = struct{}{}
+		}
+		for _, composite := range r.Spec.Composites {
+			composites[composite] = struct{}{}
+		}
+		for _, attractor := range al.Items {
+			for _, vip := range attractor.Spec.Vips {
+				if attractor.ObjectMeta.Name == r.ObjectMeta.Name && attractor.ObjectMeta.Namespace == r.ObjectMeta.Namespace {
+					continue
+				}
+				_, exists := vips[vip]
+				if exists {
+					allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.Vips, "a vip cannot be shared between 2 attractors in this version"))
+				}
+			}
+			for _, composite := range attractor.Spec.Composites {
+				if attractor.ObjectMeta.Name == r.ObjectMeta.Name && attractor.ObjectMeta.Namespace == r.ObjectMeta.Namespace {
+					continue
+				}
+				_, exists := composites[composite]
+				if exists {
+					allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("composites"), r.Spec.Composites, "a conduit cannot be shared between 2 attractors in this version"))
+				}
+			}
+		}
 	}
 
 	if len(allErrs) == 0 {
