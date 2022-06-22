@@ -1,7 +1,11 @@
 #!/bin/bash
 
-function init {
+function init () {
     kubectl patch configmap meridio-configuration-trench-a -n red --patch-file $(dirname -- $(readlink -fn -- "$0"))/init.yaml
+}
+
+function end () {
+    :
 }
 
 function configuration_new_ip () {

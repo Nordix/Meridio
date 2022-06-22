@@ -30,7 +30,7 @@ var _ = Describe("Configuration", func() {
 
 		When("creating a new vip and adding it to existing stream and attractor", func() {
 			BeforeEach(func() {
-				cmd := exec.Command("./data/kind/test.sh", "configuration_new_ip")
+				cmd := exec.Command(script, "configuration_new_ip")
 				var stderr bytes.Buffer
 				cmd.Stderr = &stderr
 				err := cmd.Run()
@@ -39,7 +39,7 @@ var _ = Describe("Configuration", func() {
 			})
 
 			AfterEach(func() {
-				cmd := exec.Command("./data/kind/test.sh", "configuration_new_ip_revert")
+				cmd := exec.Command(script, "configuration_new_ip_revert")
 				var stderr bytes.Buffer
 				cmd.Stderr = &stderr
 				err := cmd.Run()

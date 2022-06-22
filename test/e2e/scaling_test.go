@@ -71,13 +71,13 @@ var _ = Describe("Scaling", func() {
 			}, timeout, interval).Should(BeTrue())
 			// wait for all identifiers to be in NFQLB
 			listOptions := metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("app=%s", fmt.Sprintf("%s-%s", loadbalancerDeploymentName, trenchAName)),
+				LabelSelector: fmt.Sprintf("app=%s", lbfeDeploymentName),
 			}
 			pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
 			Expect(err).NotTo(HaveOccurred())
 			Eventually(func() bool {
 				for _, pod := range pods.Items {
-					nfqlbOutput, err := utils.PodExec(&pod, "load-balancer", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", streamName)})
+					nfqlbOutput, err := utils.PodExec(&pod, "load-balancer", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", streamA1Name)})
 					Expect(err).NotTo(HaveOccurred())
 					if utils.ParseNFQLB(nfqlbOutput) != int(scale.Spec.Replicas) {
 						return false
@@ -109,13 +109,13 @@ var _ = Describe("Scaling", func() {
 			}, timeout, interval).Should(BeTrue())
 			// wait for all identifiers to be in NFQLB
 			listOptions := metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("app=%s", fmt.Sprintf("%s-%s", loadbalancerDeploymentName, trenchAName)),
+				LabelSelector: fmt.Sprintf("app=%s", lbfeDeploymentName),
 			}
 			pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
 			Expect(err).NotTo(HaveOccurred())
 			Eventually(func() bool {
 				for _, pod := range pods.Items {
-					nfqlbOutput, err := utils.PodExec(&pod, "load-balancer", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", streamName)})
+					nfqlbOutput, err := utils.PodExec(&pod, "load-balancer", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", streamA1Name)})
 					Expect(err).NotTo(HaveOccurred())
 					if utils.ParseNFQLB(nfqlbOutput) != int(scale.Spec.Replicas) {
 						return false

@@ -2,6 +2,17 @@
 
 ## E2E Tests
 
+### Environment
+
+#### Initial Deployment
+
+<img src="resources/Initial-Deployment-E2E.svg" width="50%">
+
+#### Test in another environment
+
+1. Set `TRAFFIC_GENERATOR_CMD` when running `make e2e`
+2. Implement `test.sh`
+
 ### List of tests
 
 - IngressTraffic (ingress_traffic_test.go)

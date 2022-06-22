@@ -85,15 +85,15 @@ var _ = Describe("MultiTrenches", func() {
 
 		When("a target disconnects from a trench and connect to another one", func() {
 			BeforeEach(func() {
-				_, err := utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "close", "-t", trenchAName, "-c", conduitName, "-s", streamName})
+				_, err := utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "close", "-t", trenchAName, "-c", conduitA1Name, "-s", streamA1Name})
 				Expect(err).NotTo(HaveOccurred())
-				_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "open", "-t", trenchBName, "-c", conduitName, "-s", streamName})
+				_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "open", "-t", trenchBName, "-c", conduitB1Name, "-s", streamB1Name})
 				Expect(err).NotTo(HaveOccurred())
 				Eventually(func() bool {
 					targetWatchOutput, err := utils.PodExec(targetPod, "ctraffic", []string{"timeout", "--preserve-status", "0.5", "./target-client", "watch"})
 					Expect(err).NotTo(HaveOccurred())
 					streamStatus := utils.ParseTargetWatch(targetWatchOutput)
-					if len(streamStatus) == 1 && streamStatus[0].Status == "OPEN" && streamStatus[0].Trench == trenchBName && streamStatus[0].Conduit == conduitName && streamStatus[0].Stream == streamName {
+					if len(streamStatus) == 1 && streamStatus[0].Status == "OPEN" && streamStatus[0].Trench == trenchBName && streamStatus[0].Conduit == conduitB1Name && streamStatus[0].Stream == streamB1Name {
 						return true
 					}
 					return false
@@ -101,15 +101,15 @@ var _ = Describe("MultiTrenches", func() {
 			})
 
 			AfterEach(func() {
-				_, err := utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "close", "-t", trenchBName, "-c", conduitName, "-s", streamName})
+				_, err := utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "close", "-t", trenchBName, "-c", conduitB1Name, "-s", streamB1Name})
 				Expect(err).NotTo(HaveOccurred())
-				_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "open", "-t", trenchAName, "-c", conduitName, "-s", streamName})
+				_, err = utils.PodExec(targetPod, "ctraffic", []string{"./target-client", "open", "-t", trenchAName, "-c", conduitA1Name, "-s", streamA1Name})
 				Expect(err).NotTo(HaveOccurred())
 				Eventually(func() bool {
 					targetWatchOutput, err := utils.PodExec(targetPod, "ctraffic", []string{"timeout", "--preserve-status", "0.5", "./target-client", "watch"})
 					Expect(err).NotTo(HaveOccurred())
 					streamStatus := utils.ParseTargetWatch(targetWatchOutput)
-					if len(streamStatus) == 1 && streamStatus[0].Status == "OPEN" && streamStatus[0].Trench == trenchAName && streamStatus[0].Conduit == conduitName && streamStatus[0].Stream == streamName {
+					if len(streamStatus) == 1 && streamStatus[0].Status == "OPEN" && streamStatus[0].Trench == trenchAName && streamStatus[0].Conduit == conduitA1Name && streamStatus[0].Stream == streamA1Name {
 						return true
 					}
 					return false
