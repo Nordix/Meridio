@@ -28,6 +28,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const (
+	channelBufferSize = 1
+)
+
 type Configuration interface {
 	Watch()
 	Stop()
@@ -39,8 +43,9 @@ type configurationImpl struct {
 	Conduit                    *nspAPI.Conduit
 	ConfigurationManagerClient nspAPI.ConfigurationManagerClient
 	cancel                     context.CancelFunc
-	wg                         sync.WaitGroup
 	mu                         sync.Mutex
+	vipChan                    chan []string
+	streamChan                 chan []*nspAPI.Stream
 }
 
 func newConfigurationImpl(setVips func([]string) error,
@@ -61,6 +66,10 @@ func (c *configurationImpl) Watch() {
 	defer c.mu.Unlock()
 	var ctx context.Context
 	ctx, c.cancel = context.WithCancel(context.TODO())
+	c.vipChan = make(chan []string, channelBufferSize)
+	c.streamChan = make(chan []*nspAPI.Stream, channelBufferSize)
+	go c.vipHandler(ctx)
+	go c.streamHandler(ctx)
 	go c.watchVIPs(ctx)
 	go c.watchStreams(ctx)
 }
@@ -71,12 +80,34 @@ func (c *configurationImpl) Stop() {
 	if c.cancel != nil {
 		c.cancel()
 	}
-	c.wg.Wait()
+}
+
+func (c *configurationImpl) vipHandler(ctx context.Context) {
+	for {
+		select {
+		case vips := <-c.vipChan:
+			err := c.SetVips(vips)
+			if err != nil {
+				logrus.Warnf("err set vips: %v", err) // todo
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (c *configurationImpl) streamHandler(ctx context.Context) {
+	for {
+		select {
+		case streams := <-c.streamChan:
+			c.SetStreams(streams)
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func (c *configurationImpl) watchVIPs(ctx context.Context) {
-	c.wg.Add(1)
-	defer c.wg.Done()
 	err := retry.Do(func() error {
 		toWatch := &nspAPI.Flow{
 			Stream: &nspAPI.Stream{
@@ -95,10 +126,12 @@ func (c *configurationImpl) watchVIPs(ctx context.Context) {
 			if err != nil {
 				return err
 			}
-			err = c.SetVips(flowResponseToVIPSlice(response))
-			if err != nil {
-				logrus.Warnf("err set vips: %v", err) // todo
+			// flush previous context in channel
+			select {
+			case <-c.vipChan:
+			default:
 			}
+			c.vipChan <- flowResponseToVIPSlice(response)
 		}
 		return nil
 	}, retry.WithContext(ctx),
@@ -110,8 +143,6 @@ func (c *configurationImpl) watchVIPs(ctx context.Context) {
 }
 
 func (c *configurationImpl) watchStreams(ctx context.Context) {
-	c.wg.Add(1)
-	defer c.wg.Done()
 	err := retry.Do(func() error {
 		vipsToWatch := &nspAPI.Stream{
 			Conduit: c.Conduit,
@@ -129,6 +160,12 @@ func (c *configurationImpl) watchStreams(ctx context.Context) {
 				return err
 			}
 			c.SetStreams(streamResponse.GetStreams())
+			// flush previous context in channel
+			select {
+			case <-c.streamChan:
+			default:
+			}
+			c.streamChan <- streamResponse.GetStreams()
 		}
 		return nil
 	}, retry.WithContext(ctx),
