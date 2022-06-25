@@ -54,6 +54,9 @@ func (sqlis *SQLiteIPAMStorage) Add(ctx context.Context, prefix types.Prefix) er
 	sqlis.mu.Lock()
 	defer sqlis.mu.Unlock()
 	model := prefixToModel(prefix)
+	if model == nil {
+		return nil
+	}
 	tx := sqlis.DB.Create(model)
 	return tx.Error
 }
@@ -61,6 +64,9 @@ func (sqlis *SQLiteIPAMStorage) Add(ctx context.Context, prefix types.Prefix) er
 func (sqlis *SQLiteIPAMStorage) Delete(ctx context.Context, prefix types.Prefix) error {
 	sqlis.mu.Lock()
 	defer sqlis.mu.Unlock()
+	if prefix == nil {
+		return nil
+	}
 	return sqlis.delete(prefix)
 }
 
@@ -95,6 +101,9 @@ func (sqlis *SQLiteIPAMStorage) init() error {
 func (sqlis *SQLiteIPAMStorage) getChilds(prefix types.Prefix) ([]types.Prefix, error) {
 	model := prefixToModel(prefix)
 	var results []*Prefix
+	if model == nil {
+		return []types.Prefix{}, nil
+	}
 	tx := sqlis.DB.Where("parent_id = ?", model.Id).Find(&results)
 	if tx.Error != nil {
 		if errors.Is(tx.Error, gorm.ErrRecordNotFound) {
