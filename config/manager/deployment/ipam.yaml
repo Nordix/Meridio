@@ -105,11 +105,21 @@ spec:
               mountPath: /tmp
               readOnly: false
           securityContext:
+            runAsNonRoot: true
             readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+              - all
+              add:
+              - DAC_OVERRIDE  # required by debug tools netstat, ss
+              - NET_RAW  # required by debug tool ping
+              - SYS_PTRACE  # required by debug tools netstat, ss to list process names/ids
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler
-      securityContext: {}
+      securityContext:
+        fsGroup: 2000
+        fsGroupChangePolicy: "OnRootMismatch"
       terminationGracePeriodSeconds: 30
       volumes:
         - name: spire-agent-socket

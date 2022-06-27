@@ -115,9 +115,19 @@ spec:
               mountPath: /tmp
               readOnly: false
           securityContext:
+            runAsNonRoot: true
             readOnlyRootFilesystem: true
             capabilities:
-              add: ["NET_ADMIN"]
+              drop:
+              - all
+              add:
+              - NET_ADMIN  # required by proxy
+              - DAC_OVERRIDE  # required by proxy to use nsm-socket and by debug tools netstat, ss
+              - NET_RAW  # required by debug tools tcpdump, ping
+              - SYS_PTRACE  # required by debug tools netstat, ss to list process names/ids
+      securityContext:
+        fsGroup: 2000
+        fsGroupChangePolicy: "OnRootMismatch"
       volumes:
         - name: spire-agent-socket
           hostPath:
