@@ -17,9 +17,9 @@ FROM ubuntu:21.04 as lb-builder
 WORKDIR /
 RUN apt-get update -y --fix-missing
 RUN apt-get install -y wget xz-utils
-RUN wget https://github.com/Nordix/nfqueue-loadbalancer/releases/download/0.7.1/nfqlb-0.7.1.tar.xz
-RUN tar -xvf /nfqlb-0.7.1.tar.xz
-RUN mv nfqlb-0.7.1 nfqlb
+RUN wget https://github.com/Nordix/nfqueue-loadbalancer/releases/download/1.0.0/nfqlb-1.0.0.tar.xz
+RUN tar -xvf /nfqlb-1.0.0.tar.xz
+RUN mv nfqlb-1.0.0 nfqlb
 
 FROM ubuntu:21.04 as grpc-health-probe
 
