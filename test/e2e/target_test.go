@@ -40,7 +40,7 @@ var _ = Describe("Target", func() {
 				return
 			}
 			listOptions := metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("app=%s", targetDeploymentName),
+				LabelSelector: fmt.Sprintf("app=%s", targetADeploymentName),
 			}
 			pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
 			Expect(err).ToNot(HaveOccurred())
@@ -82,7 +82,7 @@ var _ = Describe("Target", func() {
 				By("Checking the target has not receive traffic")
 				lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, tcpIPv4, "tcp")
 				Expect(lostConnections).To(Equal(0))
-				Expect(len(lastingConnections)).To(Equal(numberOfTargets - 1))
+				Expect(len(lastingConnections)).To(Equal(numberOfTargetA - 1))
 				_, exists := lastingConnections[targetPod.Name]
 				Expect(exists).ToNot(BeTrue())
 			})

@@ -49,9 +49,9 @@ var _ = Describe("Configuration", func() {
 
 			It("should receive the traffic correctly", func() {
 				By("Checking if all targets have receive traffic via the new VIP with no traffic interruption (no lost connection)")
-				lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, newTCPIPv4, "tcp")
+				lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, newTCPVIP, "tcp")
 				Expect(lostConnections).To(Equal(0))
-				Expect(len(lastingConnections)).To(Equal(numberOfTargets))
+				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
 			})
 		})
 

@@ -64,7 +64,7 @@ helm install deployments/helm/ --generate-name --create-namespace --namespace re
 5. Deploy trench-b
 
 ```bash
-helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-b --set vlan.id=101 --set ipFamily=dualstack
+helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-b --set vlan.id=200 --set ipFamily=dualstack
 ```
 
 6. Deploy target of trench-a

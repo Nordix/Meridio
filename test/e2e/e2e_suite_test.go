@@ -18,6 +18,7 @@ package e2e_test
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"os/exec"
 	"testing"
@@ -26,6 +27,7 @@ import (
 	"github.com/nordix/meridio/test/e2e/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -41,7 +43,19 @@ var (
 	streamA1Name  string
 	streamB1Name  string
 
+	tcpIPv4 string
+	tcpIPv6 string
+	udpIPv4 string
+	udpIPv6 string
+
+	newTCPVIP string
+
 	lbfeDeploymentName string
+
+	targetADeploymentName string
+	numberOfTargetA       int
+	targetBDeploymentName string
+	numberOfTargetB       int
 
 	clientset *kubernetes.Clientset
 
@@ -52,16 +66,6 @@ var (
 const (
 	timeout  = time.Minute * 3
 	interval = time.Second * 2
-
-	targetDeploymentName = "target-a"
-	numberOfTargets      = 4
-
-	tcpIPv4 = "20.0.0.1:4000"
-	udpIPv4 = "20.0.0.1:4003"
-	tcpIPv6 = "[2000::1]:4000"
-	udpIPv6 = "[2000::1]:4003"
-
-	newTCPIPv4 = "60.0.0.150:4000"
 )
 
 func init() {
@@ -75,6 +79,13 @@ func init() {
 	flag.StringVar(&streamA1Name, "stream-a-1-name", "stream-a-1", "Name of stream-a-1 (see e2e documentation diagram)")
 	flag.StringVar(&streamB1Name, "stream-b-1-name", "stream-b-1", "Name of stream-b-1 (see e2e documentation diagram)")
 	flag.StringVar(&lbfeDeploymentName, "lb-fe-deployment-name", "lb-fe-attractor-a-1", "Name of load-balancer deployment in trench-a")
+	flag.StringVar(&targetADeploymentName, "target-a-deployment-name", "target-a", "Name of target-a deployment in trench-a")
+	flag.StringVar(&targetBDeploymentName, "target-b-deployment-name", "target-b", "Name of target-b deployment in trench-b")
+	flag.StringVar(&tcpIPv4, "tcp-ipv4", "20.0.0.1:4000", "IP + Port used for testing IPv4 TCP")
+	flag.StringVar(&tcpIPv6, "tcp-ipv6", "[2000::1]:4000", "IP + Port used for testing IPv6 TCP")
+	flag.StringVar(&udpIPv4, "udp-ipv4", "20.0.0.1:4003", "IP + Port used for testing IPv4 UDP")
+	flag.StringVar(&udpIPv6, "udp-ipv6", "[2000::1]:4003", "IP + Port used for testing IPv6 UDP")
+	flag.StringVar(&newTCPVIP, "new-tcp-vip", "60.0.0.150:4000", "IP + Port used for testing a new VIP with TCP")
 }
 
 func TestE2e(t *testing.T) {
@@ -103,6 +114,14 @@ var _ = BeforeSuite(func() {
 	err = cmd.Run()
 	Expect(stderr.String()).To(BeEmpty())
 	Expect(err).ToNot(HaveOccurred())
+
+	deploymentTargetA, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), targetADeploymentName, metav1.GetOptions{})
+	Expect(err).ToNot(HaveOccurred())
+	numberOfTargetA = int(*deploymentTargetA.Spec.Replicas)
+
+	deploymentTargetB, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), targetADeploymentName, metav1.GetOptions{})
+	Expect(err).ToNot(HaveOccurred())
+	numberOfTargetB = int(*deploymentTargetB.Spec.Replicas)
 })
 
 var _ = AfterSuite(func() {

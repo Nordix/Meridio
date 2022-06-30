@@ -44,7 +44,7 @@ var _ = Describe("IngressTraffic", func() {
 			It("should receive the traffic correctly", func() {
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
 				Expect(lostConnections).To(Equal(0))
-				Expect(len(lastingConnections)).To(Equal(numberOfTargets))
+				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
 			})
 		})
 
@@ -56,7 +56,7 @@ var _ = Describe("IngressTraffic", func() {
 			It("should receive the traffic correctly", func() {
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
 				Expect(lostConnections).To(Equal(0))
-				Expect(len(lastingConnections)).To(Equal(numberOfTargets))
+				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
 			})
 		})
 
@@ -68,7 +68,7 @@ var _ = Describe("IngressTraffic", func() {
 			It("should receive the traffic correctly", func() {
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
 				Expect(lostConnections).To(Equal(0))
-				Expect(len(lastingConnections)).To(Equal(numberOfTargets))
+				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
 			})
 		})
 
@@ -80,7 +80,7 @@ var _ = Describe("IngressTraffic", func() {
 			It("should receive the traffic correctly", func() {
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
 				Expect(lostConnections).To(Equal(0))
-				Expect(len(lastingConnections)).To(Equal(numberOfTargets))
+				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
 			})
 		})
 

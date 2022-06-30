@@ -40,7 +40,7 @@ var _ = Describe("MultiTrenches", func() {
 				return
 			}
 			listOptions := metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("app=%s", targetDeploymentName),
+				LabelSelector: fmt.Sprintf("app=%s", targetADeploymentName),
 			}
 			pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
 			Expect(err).ToNot(HaveOccurred())
@@ -77,9 +77,9 @@ var _ = Describe("MultiTrenches", func() {
 
 			It("should be possible to send traffic on the 2 trenches using the same VIP", func() {
 				Expect(trenchALostConns).To(Equal(0))
-				Expect(len(trenchALastingConns)).To(Equal(4))
+				Expect(len(trenchALastingConns)).To(Equal(numberOfTargetA))
 				Expect(trenchBLostConns).To(Equal(0))
-				Expect(len(trenchBLastingConns)).To(Equal(4))
+				Expect(len(trenchBLastingConns)).To(Equal(numberOfTargetB))
 			})
 		})
 
@@ -120,12 +120,12 @@ var _ = Describe("MultiTrenches", func() {
 				By("Verifying trench-a has only 3 targets")
 				lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, tcpIPv4, "tcp")
 				Expect(lostConn).To(Equal(0))
-				Expect(len(lastingConn)).To(Equal(3))
+				Expect(len(lastingConn)).To(Equal(numberOfTargetA - 1))
 
 				By("Verifying trench-b has only 5 targets")
 				lastingConn, lostConn = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchBName, namespace, tcpIPv4, "tcp")
 				Expect(lostConn).To(Equal(0))
-				Expect(len(lastingConn)).To(Equal(5))
+				Expect(len(lastingConn)).To(Equal(numberOfTargetB + 1))
 			})
 		})
 

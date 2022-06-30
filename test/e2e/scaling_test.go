@@ -37,10 +37,10 @@ var _ = Describe("Scaling", func() {
 		)
 
 		BeforeEach(func() {
-			replicas = numberOfTargets
+			replicas = numberOfTargetA
 			scale = &autoscalingv1.Scale{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      targetDeploymentName,
+					Name:      targetADeploymentName,
 					Namespace: namespace,
 				},
 				Spec: autoscalingv1.ScaleSpec{
@@ -52,16 +52,16 @@ var _ = Describe("Scaling", func() {
 		JustBeforeEach(func() {
 			// scale
 			scale.Spec.Replicas = int32(replicas)
-			_, err := clientset.AppsV1().Deployments(namespace).UpdateScale(context.Background(), targetDeploymentName, scale, metav1.UpdateOptions{})
+			_, err := clientset.AppsV1().Deployments(namespace).UpdateScale(context.Background(), targetADeploymentName, scale, metav1.UpdateOptions{})
 			Expect(err).NotTo(HaveOccurred())
 			// wait for all targets to be in Running mode
 			Eventually(func() bool {
-				deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), targetDeploymentName, metav1.GetOptions{})
+				deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), targetADeploymentName, metav1.GetOptions{})
 				if err != nil {
 					return false
 				}
 				listOptions := metav1.ListOptions{
-					LabelSelector: fmt.Sprintf("app=%s", targetDeploymentName),
+					LabelSelector: fmt.Sprintf("app=%s", targetADeploymentName),
 				}
 				pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
 				if err != nil {
@@ -89,17 +89,17 @@ var _ = Describe("Scaling", func() {
 
 		AfterEach(func() {
 			// scale
-			scale.Spec.Replicas = numberOfTargets
-			_, err := clientset.AppsV1().Deployments(namespace).UpdateScale(context.Background(), targetDeploymentName, scale, metav1.UpdateOptions{})
+			scale.Spec.Replicas = int32(numberOfTargetA)
+			_, err := clientset.AppsV1().Deployments(namespace).UpdateScale(context.Background(), targetADeploymentName, scale, metav1.UpdateOptions{})
 			Expect(err).NotTo(HaveOccurred())
 			// wait for all targets to be in Running mode
 			Eventually(func() bool {
-				deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), targetDeploymentName, metav1.GetOptions{})
+				deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), targetADeploymentName, metav1.GetOptions{})
 				if err != nil {
 					return false
 				}
 				listOptions := metav1.ListOptions{
-					LabelSelector: fmt.Sprintf("app=%s", targetDeploymentName),
+					LabelSelector: fmt.Sprintf("app=%s", targetADeploymentName),
 				}
 				pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
 				if err != nil {
@@ -125,9 +125,9 @@ var _ = Describe("Scaling", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 
-		When("scaling targets down to 3", func() {
+		When("scaling targets down by 1", func() {
 			BeforeEach(func() {
-				replicas = 3
+				replicas = numberOfTargetA - 1
 			})
 			It("should receive the traffic correctly", func() {
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
@@ -137,9 +137,9 @@ var _ = Describe("Scaling", func() {
 			})
 		})
 
-		When("scaling targets up to 5", func() {
+		When("scaling targets up by 1", func() {
 			BeforeEach(func() {
-				replicas = 5
+				replicas = numberOfTargetA + 1
 			})
 			It("should receive the traffic correctly", func() {
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
