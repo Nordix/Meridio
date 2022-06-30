@@ -80,4 +80,6 @@ TODO
 
 ## Privileges
 
-No privileges required.
+Name | Description
+--- | ---
+DAC_OVERRIDE | The TAPA requires access to a unix socket provided by a hostPath volume to interact with NSM.
