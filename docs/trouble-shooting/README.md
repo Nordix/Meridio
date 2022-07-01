@@ -448,6 +448,20 @@ default via 169.254.101.254 dev nsm-1 proto bird metric 32
 As you can see the egress route is set up by `Bird` to the external GW.
 
 
+### Flow-trace
+
+You can use [nfqlb trace-flows](
+https://github.com/Nordix/nfqueue-loadbalancer/blob/master/log-trace.md#trace-flows)
+in a `load-balancer` container;
+
+```
+kubectl exec -it -n red meridio-load-balancer-5c9dbbd4bb-25glb -c load-balancer -- sh
+nfqlb trace-flow-set -h
+nfqlb trace-flow-set --name=router-traffic --srcs=169.254.101.254/32
+nfqlb trace --selection=log,flows
+```
+
+
 
 ## Proxy
 
