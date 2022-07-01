@@ -14,10 +14,8 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-extldflags -static -X main.version=${meridio_version}" -o load-balancer ./cmd/load-balancer
 
-FROM ubuntu:21.04 as lb-builder
+FROM ${base_image} as lb-builder
 WORKDIR /
-RUN apt update -y --fix-missing
-RUN apt install -y curl xz-utils
 ADD https://github.com/Nordix/nfqueue-loadbalancer/releases/download/1.0.0/nfqlb-1.0.0.tar.xz /
 RUN tar --strip-components=1 -xf /nfqlb-1.0.0.tar.xz nfqlb-1.0.0/bin/nfqlb
 
