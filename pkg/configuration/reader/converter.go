@@ -110,6 +110,7 @@ func ConvertFlows(flows []*Flow, streams []*nspAPI.Stream, vips []*nspAPI.Vip) [
 			Stream:                s,
 			Vips:                  getVips(flow.Vips, vips),
 			LocalPort:             uint32(flow.LocalPort),
+			ByteMatches:           flow.ByteMatches,
 		})
 	}
 	return resFlows

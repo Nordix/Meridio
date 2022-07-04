@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -52,6 +52,7 @@ type Flow struct {
 	Priority              int32    `yaml:"priority"`
 	Stream                string   `yaml:"stream"`
 	LocalPort             uint16   `yaml:"local-port,omitempty"`
+	ByteMatches           []string `yaml:"byte-matches,omitempty"`
 }
 
 type VipList struct {
