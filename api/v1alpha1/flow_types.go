@@ -57,6 +57,10 @@ type FlowSpec struct {
 
 	// Priority of the flow
 	Priority int32 `json:"priority"`
+
+	// ByteMatches matches bytes in the L4 header in the flow.
+	// +optional
+	ByteMatches []string `json:"byte-matches,omitempty"`
 }
 
 // FlowStatus defines the observed state of Flow
@@ -70,6 +74,7 @@ type FlowStatus struct {
 //+kubebuilder:printcolumn:name="src-subnets",type=string,JSONPath=`.spec.source-subnets`
 //+kubebuilder:printcolumn:name="src-ports",type=string,JSONPath=`.spec.source-ports`
 //+kubebuilder:printcolumn:name="protocols",type=string,JSONPath=`.spec.protocols`
+//+kubebuilder:printcolumn:name="byte-matches",type=string,JSONPath=`.spec.byte-matches`
 //+kubebuilder:printcolumn:name="stream",type=string,JSONPath=`.spec.stream`
 //+kubebuilder:printcolumn:name="Trench",type=string,JSONPath=`.metadata.labels.trench`
 

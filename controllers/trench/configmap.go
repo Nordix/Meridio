@@ -352,6 +352,7 @@ func (c *ConfigMap) getFlowsData() ([]byte, error) {
 			Vips:                  cr.Spec.Vips,
 			Protocols:             meridiov1alpha1.TransportProtocolsToStrings(cr.Spec.Protocols),
 			Priority:              cr.Spec.Priority,
+			ByteMatches:           cr.Spec.ByteMatches,
 		})
 	}
 	return yaml.Marshal(lst)
