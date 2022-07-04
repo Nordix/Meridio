@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -41,6 +42,7 @@ type AttractorReconciler struct {
 
 //+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=attractors,verbs=get;list;watch;update
 //+kubebuilder:rbac:groups=apps,resources=deployments,namespace=system,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,namespace=system,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -89,6 +91,15 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		if err != nil {
 			return ctrl.Result{}, err
 		}
+
+		lbPDB, err := NewLoadBalancerPDB(executor, attr, trench)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		err = lbPDB.getAction()
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	} else {
 		return ctrl.Result{}, fmt.Errorf("unable to get trench for attractor %s", req.NamespacedName)
 	}
@@ -112,5 +123,6 @@ func (r *AttractorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&meridiov1alpha1.Attractor{}).
 		Owns(&appsv1.Deployment{}).
+		Owns(&policyv1.PodDisruptionBudget{}).
 		Complete(r)
 }

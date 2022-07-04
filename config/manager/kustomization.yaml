@@ -35,6 +35,7 @@ configMapGenerator:
   - deployment/role-binding.yaml
   - deployment/role.yaml
   - deployment/service-account.yaml
+  - deployment/pdb.yaml
   name: deployment-templates
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization

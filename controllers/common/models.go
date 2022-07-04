@@ -7,6 +7,7 @@ import (
 	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -200,4 +201,17 @@ func GetTrenchBySelector(e *Executor, selector client.ObjectKey) (*meridiov1alph
 	trench := &meridiov1alpha1.Trench{}
 	err := e.GetObject(selector, trench)
 	return trench, err
+}
+
+func GetPodDisruptionBudgetModel(f string) (*policyv1.PodDisruptionBudget, error) {
+	data, err := os.Open(f)
+	if err != nil {
+		return nil, fmt.Errorf("open %s error: %s", f, err)
+	}
+	rb := &policyv1.PodDisruptionBudget{}
+	err = yaml.NewYAMLOrJSONDecoder(data, 4096).Decode(rb)
+	if err != nil {
+		return nil, fmt.Errorf("decode %s error: %s", f, err)
+	}
+	return rb, nil
 }

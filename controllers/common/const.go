@@ -39,16 +39,17 @@ const (
 	IpamTargetPort = 7777
 	VlanNsePort    = 5003
 
-	IpamSvcName = "ipam-service"
-	NspSvcName  = "nsp-service"
-	LBName      = "lb-fe"
-	ProxyName   = "proxy"
-	IpamName    = "ipam"
-	NseName     = "nse-vlan"
-	NspName     = "nsp"
-	RlName      = "meridio-configuration-role"
-	RBName      = "meridio-configuration-role-binding"
-	CMName      = "meridio-configuration"
+	IpamSvcName             = "ipam-service"
+	NspSvcName              = "nsp-service"
+	PodDisruptionBudgetName = "pdb"
+	LBName                  = "lb-fe"
+	ProxyName               = "proxy"
+	IpamName                = "ipam"
+	NseName                 = "nse-vlan"
+	NspName                 = "nsp"
+	RlName                  = "meridio-configuration-role"
+	RBName                  = "meridio-configuration-role-binding"
+	CMName                  = "meridio-configuration"
 
 	NetworkServiceName = "external-vlan"
 
@@ -66,6 +67,10 @@ func IPAMServiceName(trench *meridiov1alpha1.Trench) string {
 
 func NSPServiceName(trench *meridiov1alpha1.Trench) string {
 	return GetSuffixedName(NspSvcName, trench.ObjectMeta.Name)
+}
+
+func PDBName(attractir *meridiov1alpha1.Attractor) string {
+	return GetSuffixedName(PodDisruptionBudgetName, attractir.ObjectMeta.Name)
 }
 
 func LbFeDeploymentName(attractor *meridiov1alpha1.Attractor) string {
