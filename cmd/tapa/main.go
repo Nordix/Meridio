@@ -159,6 +159,9 @@ func main() {
 	if err != nil {
 		logrus.Fatalf("error listening on unix socket: %v", err)
 	}
+	if err := os.Chmod(config.Socket, os.ModePerm); err != nil {
+		logrus.Errorf("error changing unix socket permission: %v", err)
+	}
 	s := grpc.NewServer()
 	defer s.Stop()
 
