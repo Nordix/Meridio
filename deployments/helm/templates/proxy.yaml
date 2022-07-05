@@ -84,9 +84,19 @@ spec:
               mountPath: /tmp
               readOnly: false
           securityContext:
+            runAsNonRoot: true
             readOnlyRootFilesystem: true
             capabilities:
-              add: ["NET_ADMIN"]
+              drop:
+              - all
+              add:
+              - NET_ADMIN
+              - DAC_OVERRIDE
+              - NET_RAW
+              - SYS_PTRACE
+      securityContext:
+        fsGroup: {{.Values.fsGroup }}
+        fsGroupChangePolicy: "OnRootMismatch"
       volumes:
         - name: spire-agent-socket
           hostPath:

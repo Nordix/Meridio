@@ -37,7 +37,14 @@ spec:
             - /bin/bash
             - -c
           securityContext:
-            privileged: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+              - all
+              add:
+              - DAC_OVERRIDE  # required by debug tools netstat, ss
+              - NET_RAW  # required by debug tools tcpdump, ping
+              - SYS_PTRACE  # required by debug tools netstat, ss to list process names/ids, and by strace
           env:
             - name: MERIDIO_AMBASSADOR_SOCKET
               value: unix:///var/lib/meridio/ambassador.sock
@@ -55,7 +62,15 @@ spec:
           livenessProbe:
 {{ toYaml .Values.livenessProbe | indent 12 }}
           securityContext:
+            runAsNonRoot: true
             readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+              - all
+              add:
+              - DAC_OVERRIDE  # required by tapa to access nsm-socket and by debug tools netstat, ss
+              - NET_RAW  # required by debug tools tcpdump, ping
+              - SYS_PTRACE  # required by debug tools netstat, ss to list process names/ids
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
@@ -94,6 +109,9 @@ spec:
             - name: tmp
               mountPath: /tmp
               readOnly: false
+      securityContext:
+        fsGroup: {{.Values.fsGroup }}  # provides tapa users with access to ambassador unix socket (to be used in case of old tapa images not setting proper permissions)
+        fsGroupChangePolicy: "OnRootMismatch"
       volumes:
         - name: spire-agent-socket
           hostPath:

@@ -6,6 +6,7 @@ tag: latest
 pullPolicy: IfNotPresent
 
 maxTokenLifetime: 10m
+fsGroup: 3000
 
 nsm:
   namespace: nsm

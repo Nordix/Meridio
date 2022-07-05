@@ -57,7 +57,15 @@ spec:
             - name: IPAM_IP_FAMILY
               value: "{{ .Values.ipFamily }}"
           securityContext:
+            runAsNonRoot: true
             readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+              - all
+              add:
+              - DAC_OVERRIDE
+              - NET_RAW
+              - SYS_PTRACE
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
@@ -68,6 +76,9 @@ spec:
             - name: tmp
               mountPath: /tmp
               readOnly: false
+      securityContext:
+        fsGroup: {{.Values.fsGroup }}
+        fsGroupChangePolicy: "OnRootMismatch"
       volumes:
         - name: spire-agent-socket
           hostPath:
