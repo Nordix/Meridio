@@ -1,3 +1,7 @@
+ARG USER=tapa-user
+ARG UID=10006
+ARG HOME=/home/${USER}
+
 FROM golang:1.18.1 as build
 
 ENV GO111MODULE=on
@@ -15,19 +19,33 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"' -o target
 
 FROM ubuntu:21.04
 
-RUN apt-get update -y --fix-missing \
-  && apt-get install -y iproute2 tcpdump iptables net-tools iputils-ping ipvsadm netcat wget screen conntrack xz-utils
+ARG USER
+ARG UID
+ARG HOME
 
-WORKDIR /root/
+RUN apt-get update -y --fix-missing \
+  && apt-get install -y iproute2 tcpdump net-tools iputils-ping netcat wget screen xz-utils strace \
+  && setcap 'cap_sys_ptrace,cap_dac_override+ep' /usr/bin/ss \
+  && setcap 'cap_sys_ptrace,cap_dac_override+ep' /usr/bin/netstat \
+  && setcap 'cap_net_raw+ep' /usr/bin/ping \
+  && setcap 'cap_net_raw+ep' /usr/sbin/tcpdump \
+  && setcap 'cap_sys_ptrace+ep' /usr/bin/strace
+
+RUN groupadd --gid $UID $USER \
+  && useradd $USER --create-home --home-dir $HOME --no-log-init --uid $UID --gid $UID \
+  && chown -R :root "${HOME}" && chmod -R g+s=u "${HOME}"
+
+WORKDIR $HOME
 
 ADD https://github.com/Nordix/ctraffic/releases/download/v1.7.0/ctraffic.gz ctraffic.gz
 RUN gunzip ctraffic.gz \
-  && chmod u+x ctraffic
+  && chmod a+x ctraffic
 
 ADD https://github.com/Nordix/mconnect/releases/download/v2.2.0/mconnect.xz mconnect.xz
 RUN unxz mconnect.xz \
-  && chmod u+x mconnect
+  && chmod a+x mconnect
 
 COPY --from=build /app/target-client .
 
+USER ${UID}:${UID}
 CMD ./ctraffic -server -address [::]:5000

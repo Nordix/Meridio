@@ -8,6 +8,7 @@ pullPolicy: IfNotPresent
 applicationName: target-a
 
 configMapName: meridio-configuration
+fsGroup: 3000
 
 default:
   ambassadorSock: /var/lib/meridio/ambassador.sock
