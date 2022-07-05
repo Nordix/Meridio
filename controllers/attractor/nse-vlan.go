@@ -46,7 +46,7 @@ func (i *NseDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 		{
 			Name: nseEnvServices,
 			Value: fmt.Sprintf("%s { vlan: %d; via: %s }",
-				common.VlanNtwkSvcName(i.attractor),
+				common.VlanNtwkSvcName(i.attractor, i.trench),
 				*i.attractor.Spec.Interface.NSMVlan.VlanID,
 				i.attractor.Spec.Interface.NSMVlan.BaseInterface),
 		},

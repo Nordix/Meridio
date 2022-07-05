@@ -90,7 +90,7 @@ func (l *LoadBalancer) getNscEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	env := []corev1.EnvVar{
 		{
 			Name:  "NSM_NETWORK_SERVICES",
-			Value: fmt.Sprintf("kernel://%s/%s", common.VlanNtwkSvcName(l.attractor), common.GetExternalInterfaceName(l.attractor)),
+			Value: fmt.Sprintf("kernel://%s/%s", common.VlanNtwkSvcName(l.attractor, l.trench), common.GetExternalInterfaceName(l.attractor)),
 		},
 		{
 			Name:  "NSM_LOG_LEVEL",
