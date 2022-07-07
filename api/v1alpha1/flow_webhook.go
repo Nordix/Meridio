@@ -22,6 +22,7 @@ import (
 	"net"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -116,6 +117,54 @@ func (r *Flow) validateFlow() error {
 	if r.Spec.Priority < 0 {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("spec").Child("priority"), r.Spec.Priority,
 			"priority must be larger than 0"))
+	}
+
+	fl := &FlowList{}
+	sel := labels.Set{"trench": r.ObjectMeta.Labels["trench"]}
+	err := flowClient.List(context.TODO(), fl, &client.ListOptions{
+		LabelSelector: sel.AsSelector(),
+		Namespace:     r.ObjectMeta.Namespace,
+	})
+	if err != nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.Vips, "unable to get flows"))
+	} else {
+		sl := &StreamList{}
+		sel := labels.Set{"trench": r.ObjectMeta.Labels["trench"]}
+		err := flowClient.List(context.TODO(), sl, &client.ListOptions{
+			LabelSelector: sel.AsSelector(),
+			Namespace:     r.ObjectMeta.Namespace,
+		})
+		if err != nil {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.Vips, "unable to get flows"))
+		} else {
+			streams := map[string]Stream{}
+			currentConduit := ""
+			for _, stream := range sl.Items {
+				streams[stream.ObjectMeta.Name] = stream
+				if stream.ObjectMeta.Name == r.Spec.Stream {
+					currentConduit = stream.Spec.Conduit
+				}
+			}
+			vips := map[string]struct{}{}
+			for _, vip := range r.Spec.Vips {
+				vips[vip] = struct{}{}
+			}
+			for _, flow := range fl.Items {
+				if flow.ObjectMeta.Name == r.ObjectMeta.Name && flow.ObjectMeta.Namespace == r.ObjectMeta.Namespace {
+					continue
+				}
+				stream, exists := streams[flow.Spec.Stream]
+				if exists && stream.Spec.Conduit == currentConduit {
+					continue
+				}
+				for _, vip := range flow.Spec.Vips {
+					_, exists := vips[vip]
+					if exists {
+						allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.Vips, "a vip cannot be shared between 2 conduits in this version"))
+					}
+				}
+			}
+		}
 	}
 
 	if len(allErrs) == 0 {

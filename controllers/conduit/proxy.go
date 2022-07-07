@@ -103,7 +103,7 @@ func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 func (i *Proxy) insertParameters(init *appsv1.DaemonSet) *appsv1.DaemonSet {
 	// if status proxy daemonset parameters are specified in the cr, use those
 	// else use the default parameters
-	proxyDeploymentName := common.ProxyDeploymentName(i.trench)
+	proxyDeploymentName := common.ProxyDeploymentName(i.conduit)
 	ds := init.DeepCopy()
 	ds.ObjectMeta.Name = proxyDeploymentName
 	ds.ObjectMeta.Namespace = i.trench.ObjectMeta.Namespace
@@ -173,7 +173,7 @@ func (i *Proxy) getModel() error {
 func (i *Proxy) getSelector() client.ObjectKey {
 	return client.ObjectKey{
 		Namespace: i.trench.ObjectMeta.Namespace,
-		Name:      common.ProxyDeploymentName(i.trench),
+		Name:      common.ProxyDeploymentName(i.conduit),
 	}
 }
 

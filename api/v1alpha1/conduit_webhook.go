@@ -19,10 +19,8 @@ package v1alpha1
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -58,35 +56,6 @@ func (r *Conduit) ValidateCreate() error {
 	err := conduitClient.Get(context.TODO(), selector, trench)
 	if err != nil || trench == nil {
 		return fmt.Errorf("unable to find the trench in label, %s cannot be created", r.GroupVersionKind().Kind)
-	}
-
-	// workaround for lb and fe are in the same deployment, the env vars come from both conduit and attractor
-	al := &AttractorList{}
-	sel := labels.Set{"trench": trench.ObjectMeta.Name}
-	err = conduitClient.List(context.TODO(), al, &client.ListOptions{
-		LabelSelector: sel.AsSelector(),
-		Namespace:     r.ObjectMeta.Namespace,
-	})
-	if err != nil || len(al.Items) != 1 {
-		return fmt.Errorf("conduit must be created when there is one and only one attractor in the same trench")
-	}
-
-	// validation: get all attractors with same trench, verdict the number should not be greater than 1
-	cl := &ConduitList{}
-	sel = labels.Set{"trench": trench.ObjectMeta.Name}
-	err = attractorClient.List(context.TODO(), cl, &client.ListOptions{
-		LabelSelector: sel.AsSelector(),
-		Namespace:     r.ObjectMeta.Namespace,
-	})
-
-	if err != nil {
-		return fmt.Errorf("unable to get %s", r.GroupKind().Kind)
-	} else if len(cl.Items) >= 1 {
-		var names []string
-		for _, a := range cl.Items {
-			names = append(names, a.ObjectMeta.Name)
-		}
-		return fmt.Errorf("only one conduit is allowed in a trench, but also found %s", strings.Join(names, ", "))
 	}
 
 	return r.validateConduit()

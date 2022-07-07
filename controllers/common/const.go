@@ -72,8 +72,8 @@ func LbFeDeploymentName(attractor *meridiov1alpha1.Attractor) string {
 	return GetSuffixedName(LBName, attractor.ObjectMeta.Name)
 }
 
-func ProxyDeploymentName(trench *meridiov1alpha1.Trench) string {
-	return GetSuffixedName(ProxyName, trench.ObjectMeta.Name)
+func ProxyDeploymentName(conduit *meridiov1alpha1.Conduit) string {
+	return GetSuffixedName(ProxyName, conduit.ObjectMeta.Name)
 }
 
 func IPAMStatefulSetName(trench *meridiov1alpha1.Trench) string {
@@ -124,8 +124,8 @@ func LoadBalancerNsName(conduit, trench, namespace string) string {
 	return strings.Join([]string{conduit, trench, namespace}, ".")
 }
 
-func VlanNtwkSvcName(cr *meridiov1alpha1.Trench) string {
-	return strings.Join([]string{NetworkServiceName, cr.ObjectMeta.Name, cr.ObjectMeta.Namespace}, ".")
+func VlanNtwkSvcName(attractorCr *meridiov1alpha1.Attractor, trenchCr *meridiov1alpha1.Trench) string {
+	return strings.Join([]string{NetworkServiceName, attractorCr.ObjectMeta.Name, trenchCr.ObjectMeta.Name, trenchCr.ObjectMeta.Namespace}, ".")
 }
 
 func getResourceNamePrefix() string {
