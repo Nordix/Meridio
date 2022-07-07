@@ -61,17 +61,24 @@ spec:
           httpGet:
             path: /healthz
             port: 8081
-          initialDelaySeconds: 15
           periodSeconds: 20
+          timeoutSeconds: 2
         readinessProbe:
           httpGet:
             path: /readyz
             port: 8081
-          initialDelaySeconds: 5
           periodSeconds: 10
+          timeoutSeconds: 2
+        startupProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          failureThreshold: 100
+          periodSeconds: 3
+          timeoutSeconds: 2
         resources:
           limits:
-            cpu: 100m
+            cpu: 300m
             memory: 30Mi
           requests:
             cpu: 100m
