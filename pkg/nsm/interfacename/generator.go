@@ -17,6 +17,8 @@ limitations under the License.
 package interfacename
 
 import (
+	"fmt"
+	"math"
 	"math/rand"
 	"strconv"
 	"sync"
@@ -25,6 +27,7 @@ import (
 
 type NameGenerator interface {
 	Generate(prefix string, maxLength int) string
+	Release(name string)
 }
 
 type RandomGenerator struct {
@@ -50,4 +53,44 @@ func (rg *RandomGenerator) Generate(prefix string, maxLength int) string {
 	}
 	rg.usedNames[randomName] = struct{}{}
 	return randomName
+}
+
+func (rg *RandomGenerator) Release(name string) {
+	rg.mu.Lock()
+	defer rg.mu.Unlock()
+	delete(rg.usedNames, name)
+}
+
+type CounterGenerator struct {
+	mu        sync.Mutex
+	usedNames map[string]struct{}
+}
+
+// TODO: make sure the generated name is within range (probably the prefix length should be limited as well)
+func (cg *CounterGenerator) Generate(prefix string, maxLength int) string {
+	cg.mu.Lock()
+	defer cg.mu.Unlock()
+	if cg.usedNames == nil {
+		cg.usedNames = make(map[string]struct{})
+	}
+	selected := 0
+	selectedName := fmt.Sprintf("%s%d", prefix, selected)
+	length := maxLength - len(prefix)
+	length = int(math.Pow(10, float64(length)))
+	length -= 1
+	for selected < length {
+		if _, ok := cg.usedNames[selectedName]; !ok {
+			break
+		}
+		selected++
+		selectedName = fmt.Sprintf("%s%d", prefix, selected)
+	}
+	cg.usedNames[selectedName] = struct{}{}
+	return selectedName
+}
+
+func (cg *CounterGenerator) Release(name string) {
+	cg.mu.Lock()
+	defer cg.mu.Unlock()
+	delete(cg.usedNames, name)
 }

@@ -77,22 +77,24 @@ func (c *configurationImpl) watchVIPs(ctx context.Context) {
 	c.wg.Add(1)
 	defer c.wg.Done()
 	err := retry.Do(func() error {
-		vipsToWatch := &nspAPI.Vip{
-			Trench: c.Conduit.GetTrench(),
+		toWatch := &nspAPI.Flow{
+			Stream: &nspAPI.Stream{
+				Conduit: c.Conduit,
+			},
 		}
-		watchVIPClient, err := c.ConfigurationManagerClient.WatchVip(ctx, vipsToWatch)
+		watchClient, err := c.ConfigurationManagerClient.WatchFlow(ctx, toWatch)
 		if err != nil {
 			return err
 		}
 		for {
-			vipResponse, err := watchVIPClient.Recv()
+			response, err := watchClient.Recv()
 			if err == io.EOF {
 				break
 			}
 			if err != nil {
 				return err
 			}
-			err = c.SetVips(vipResponse.ToSlice())
+			err = c.SetVips(flowResponseToVIPSlice(response))
 			if err != nil {
 				logrus.Warnf("err set vips: %v", err) // todo
 			}
@@ -134,4 +136,18 @@ func (c *configurationImpl) watchStreams(ctx context.Context) {
 	if err != nil {
 		logrus.Warnf("err watchStreams: %v", err) // todo
 	}
+}
+
+func flowResponseToVIPSlice(flowResponse *nspAPI.FlowResponse) []string {
+	vipMap := map[string]struct{}{}
+	for _, flow := range flowResponse.GetFlows() {
+		for _, vip := range flow.Vips {
+			vipMap[vip.Address] = struct{}{}
+		}
+	}
+	vips := []string{}
+	for vip := range vipMap {
+		vips = append(vips, vip)
+	}
+	return vips
 }

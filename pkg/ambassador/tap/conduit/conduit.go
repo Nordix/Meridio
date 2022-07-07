@@ -236,16 +236,11 @@ func (c *Conduit) SetVIPs(vips []string) error {
 			Connection: &networkservice.Connection{
 				Id:             c.connection.GetId(),
 				NetworkService: c.connection.GetNetworkService(),
+				Mechanism:      c.connection.GetMechanism(),
 				Labels:         c.connection.GetLabels(),
 				Payload:        c.connection.GetPayload(),
 				Context: &networkservice.ConnectionContext{
 					IpContext: c.connection.GetContext().GetIpContext(),
-				},
-			},
-			MechanismPreferences: []*networkservice.Mechanism{
-				{
-					Cls:  cls.LOCAL,
-					Type: kernelmech.MECHANISM,
 				},
 			},
 		}

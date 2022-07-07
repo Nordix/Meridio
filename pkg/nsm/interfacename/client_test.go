@@ -49,8 +49,8 @@ func Test_Client_Request(t *testing.T) {
 	assert.NotNil(t, conn.GetMechanism().GetParameters())
 	assert.Contains(t, conn.GetMechanism().GetParameters(), common.InterfaceNameKey)
 	assert.Equal(t, conn.GetMechanism().GetParameters()[common.InterfaceNameKey], "NewInterfaceName")
-	assert.Equal(t, request.GetMechanismPreferences()[0].GetParameters()[common.InterfaceNameKey], "NewInterfaceName")
-	assert.Equal(t, request.GetMechanismPreferences()[1].GetParameters()[common.InterfaceNameKey], "NewInterfaceName")
+	assert.Equal(t, request.GetMechanismPreferences()[0].GetParameters()[common.InterfaceNameKey], "")
+	assert.Equal(t, request.GetMechanismPreferences()[1].GetParameters()[common.InterfaceNameKey], "")
 }
 
 func Test_Client_Request_Nil_Mechanism(t *testing.T) {
@@ -96,6 +96,6 @@ func Test_Client_Request_Overwrite(t *testing.T) {
 	assert.NotNil(t, conn.GetMechanism().GetParameters())
 	assert.Contains(t, conn.GetMechanism().GetParameters(), common.InterfaceNameKey)
 	assert.Equal(t, conn.GetMechanism().GetParameters()[common.InterfaceNameKey], "NewInterfaceName")
-	assert.Equal(t, request.GetMechanismPreferences()[0].GetParameters()[common.InterfaceNameKey], "NewInterfaceName")
-	assert.Equal(t, request.GetMechanismPreferences()[1].GetParameters()[common.InterfaceNameKey], "NewInterfaceName")
+	assert.Equal(t, request.GetMechanismPreferences()[0].GetParameters()[common.InterfaceNameKey], "default-A")
+	assert.Equal(t, request.GetMechanismPreferences()[1].GetParameters()[common.InterfaceNameKey], "default-B")
 }

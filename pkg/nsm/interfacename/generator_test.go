@@ -23,14 +23,45 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_Generate(t *testing.T) {
+func Test_RandomGenerator(t *testing.T) {
 	generator := &interfacename.RandomGenerator{}
 
-	stringGenerated := generator.Generate("", 10)
-	assert.NotEmpty(t, stringGenerated)
-	assert.LessOrEqual(t, len(stringGenerated), 10)
+	stringGenerated1 := generator.Generate("", 10)
+	assert.NotEmpty(t, stringGenerated1)
+	assert.LessOrEqual(t, len(stringGenerated1), 10)
 
-	stringGenerated = generator.Generate("abc", 10)
-	assert.Contains(t, stringGenerated, "abc")
-	assert.LessOrEqual(t, len(stringGenerated), 10)
+	stringGenerated2 := generator.Generate("abc", 10)
+	assert.Contains(t, stringGenerated2, "abc")
+	assert.LessOrEqual(t, len(stringGenerated2), 10)
+
+	assert.NotEqual(t, stringGenerated1, stringGenerated2)
+}
+
+func Test_CounterGenerator(t *testing.T) {
+	generator := &interfacename.CounterGenerator{}
+
+	stringGenerated := generator.Generate("nsm-", 5)
+	assert.Equal(t, stringGenerated, "nsm-0")
+	stringGenerated = generator.Generate("nsm-", 5)
+	assert.Equal(t, stringGenerated, "nsm-1")
+	stringGenerated = generator.Generate("nsm-", 5)
+	assert.Equal(t, stringGenerated, "nsm-2")
+	stringGenerated = generator.Generate("nsm-", 5)
+	assert.Equal(t, stringGenerated, "nsm-3")
+	stringGenerated = generator.Generate("nsm-", 5)
+	assert.Equal(t, stringGenerated, "nsm-4")
+	stringGenerated = generator.Generate("nsm-", 5)
+	assert.Equal(t, stringGenerated, "nsm-5")
+	stringGenerated = generator.Generate("nsm-", 5)
+	assert.Equal(t, stringGenerated, "nsm-6")
+	stringGenerated = generator.Generate("nsm-", 5)
+	assert.Equal(t, stringGenerated, "nsm-7")
+	stringGenerated = generator.Generate("nsm-", 5)
+	assert.Equal(t, stringGenerated, "nsm-8")
+	stringGenerated = generator.Generate("nsm-", 5)
+	assert.Equal(t, stringGenerated, "nsm-9")
+	stringGenerated = generator.Generate("nsm-", 5)
+	assert.Equal(t, stringGenerated, "nsm-9")
+	stringGenerated = generator.Generate("nsm-", 6)
+	assert.Equal(t, stringGenerated, "nsm-10")
 }
