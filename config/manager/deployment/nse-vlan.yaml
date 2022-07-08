@@ -81,7 +81,7 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: NSM_CONNECT_TO
-              value: nsm-registry-svc.nsm:5002
+              value:  # to be filled by operator
             - name: NSM_SERVICES
               value:  # to be filled by operator
             - name: NSM_CIDR_PREFIX
@@ -91,11 +91,11 @@ spec:
             - name: NSM_REGISTER_SERVICE
               value: "True"
             - name: NSM_LISTEN_ON  # will be filled by operator if not specified
-              value: "tcp://:5003"
+              value:  # to be filled by operator
             - name: NSM_MAX_TOKEN_LIFETIME
               value: "10m"
             - name: NSM_LOG_LEVEL
-              value: "DEBUG"
+              value:  # to be filled by operator
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

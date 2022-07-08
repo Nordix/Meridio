@@ -50,112 +50,38 @@ func NewLoadBalancer(e *common.Executor, attr *meridiov1alpha1.Attractor, t *mer
 }
 
 func (l *LoadBalancer) getLbEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
-	env := []corev1.EnvVar{
-		{
-			Name: "NSM_SERVICE_NAME",
-			Value: common.LoadBalancerNsName(l.attractor.Spec.Composites[0],
-				l.trench.ObjectMeta.Name,
-				l.attractor.ObjectMeta.Namespace),
-		},
-		{
-			Name:  "NSM_CONDUIT_NAME",
-			Value: l.attractor.Spec.Composites[0],
-		},
-		{
-			Name:  "NSM_TRENCH_NAME",
-			Value: l.trench.ObjectMeta.Name,
-		},
-		{
-			Name:  "NSM_NSP_SERVICE",
-			Value: common.NSPServiceWithPort(l.trench),
-		},
-		{
-			Name:  "NSM_LOG_LEVEL",
-			Value: common.GetLogLevel(),
-		},
+	operatorEnv := map[string]string{
+		"NSM_SERVICE_NAME": common.LoadBalancerNsName(l.attractor.Spec.Composites[0],
+			l.trench.ObjectMeta.Name,
+			l.attractor.ObjectMeta.Namespace),
+		"NSM_CONDUIT_NAME": l.attractor.Spec.Composites[0],
+		"NSM_TRENCH_NAME":  l.trench.ObjectMeta.Name,
+		"NSM_NSP_SERVICE":  common.NSPServiceWithPort(l.trench),
+		"NSM_LOG_LEVEL":    common.GetLogLevel(),
 	}
-
-	for _, e := range allEnv {
-		// append all hard coded envVars
-		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
-			e.Name == "NSM_NAME" ||
-			e.Name == "NSM_MAX_TOKEN_LIFETIME" {
-			env = append(env, e)
-		}
-	}
-	return env
+	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }
 
 func (l *LoadBalancer) getNscEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
-	env := []corev1.EnvVar{
-		{
-			Name:  "NSM_NETWORK_SERVICES",
-			Value: fmt.Sprintf("kernel://%s/%s", common.VlanNtwkSvcName(l.attractor, l.trench), common.GetExternalInterfaceName(l.attractor)),
-		},
-		{
-			Name:  "NSM_LOG_LEVEL",
-			Value: common.GetLogLevel(),
-		},
-		{
-			Name:  "NSM_LIVENESSCHECKENABLED",
-			Value: "false",
-		},
+	operatorEnv := map[string]string{
+		"NSM_NETWORK_SERVICES":     fmt.Sprintf("kernel://%s/%s", common.VlanNtwkSvcName(l.attractor, l.trench), common.GetExternalInterfaceName(l.attractor)),
+		"NSM_LOG_LEVEL":            common.GetLogLevel(),
+		"NSM_LIVENESSCHECKENABLED": "false",
 	}
-
-	for _, e := range allEnv {
-		// append all hard coded envVars
-		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
-			e.Name == "NSM_NAME" ||
-			e.Name == "NSM_DIAL_TIMEOUT" ||
-			e.Name == "NSM_REQUEST_TIMEOUT" ||
-			e.Name == "NSM_MAX_TOKEN_LIFETIME" {
-			env = append(env, e)
-		}
-	}
-	return env
+	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }
 
 func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
-	env := []corev1.EnvVar{
-		{
-			Name:  "NFE_CONFIG_MAP_NAME",
-			Value: common.ConfigMapName(l.trench),
-		},
-		{
-			Name:  "NFE_NSP_SERVICE",
-			Value: common.NSPServiceWithPort(l.trench),
-		},
-		{
-			Name:  "NFE_TRENCH_NAME",
-			Value: l.trench.ObjectMeta.Name,
-		},
-		{
-			Name:  "NFE_ATTRACTOR_NAME",
-			Value: l.attractor.ObjectMeta.Name,
-		},
-		{
-			Name:  "NFE_NAMESPACE",
-			Value: l.attractor.ObjectMeta.Namespace,
-		},
-		{
-			Name:  "NFE_EXTERNAL_INTERFACE",
-			Value: common.GetExternalInterfaceName(l.attractor),
-		},
-		{
-			Name:  "NFE_LOG_LEVEL",
-			Value: common.GetLogLevel(),
-		},
+	operatorEnv := map[string]string{
+		"NFE_CONFIG_MAP_NAME":    common.ConfigMapName(l.trench),
+		"NFE_NSP_SERVICE":        common.NSPServiceWithPort(l.trench),
+		"NFE_TRENCH_NAME":        l.trench.ObjectMeta.Name,
+		"NFE_ATTRACTOR_NAME":     l.attractor.ObjectMeta.Name,
+		"NFE_NAMESPACE":          l.attractor.ObjectMeta.Namespace,
+		"NFE_EXTERNAL_INTERFACE": common.GetExternalInterfaceName(l.attractor),
+		"NFE_LOG_LEVEL":          common.GetLogLevel(),
 	}
-
-	for _, e := range allEnv {
-		// append all hard coded envVars
-		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
-			e.Name == "NFE_LOG_BIRD" ||
-			e.Name == "NFE_ECMP" {
-			env = append(env, e)
-		}
-	}
-	return env
+	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }
 
 func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployment {

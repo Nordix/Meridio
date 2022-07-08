@@ -91,7 +91,7 @@ spec:
             - name: IPAM_IP_FAMILY
               value:  # to be filled by operator
             - name: IPAM_LOG_LEVEL
-              value: "DEBUG"
+              value:  # to be filled by operator
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
           volumeMounts:
