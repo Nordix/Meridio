@@ -120,6 +120,17 @@ spec:
             - name: nsm-socket
               mountPath: /var/lib/networkservicemesh
               readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: {{ .Values.vlanNSC.userId }}
+            runAsGroup: {{ .Values.vlanNSC.userId }}
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+              - all
+              add:
+              - DAC_OVERRIDE
+              - NET_RAW
         - name: fe
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.frontEnd.image }}:{{ .Values.frontEnd.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
