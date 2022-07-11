@@ -99,10 +99,12 @@ vlanNSE:
   probe:
     addr: :5003
     spiffe: true
+  userId: 10000
 
 vlanNSC:
   image: cmd-nsc
   version: v1.4.0
+  userId: 10000
 
 vlan:
   networkServiceName: external-vlan

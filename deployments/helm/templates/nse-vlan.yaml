@@ -29,7 +29,13 @@ spec:
             - containerPort: 5003
               hostPort: 5003
           securityContext:
+            runAsNonRoot: true
+            runAsUser: {{ .Values.vlanNSE.userId }}
+            runAsGroup: {{ .Values.vlanNSE.userId }}
             readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+              - all
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
