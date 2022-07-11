@@ -26,6 +26,7 @@ FROM ${base_image}
 ARG USER
 ARG UID
 ARG HOME
+RUN apk add nftables
 RUN addgroup --gid $UID $USER \
   && adduser $USER --home $HOME --uid $UID -G $USER --disabled-password \
   && chown -R :root "${HOME}" && chmod -R g+s=u "${HOME}"
@@ -35,6 +36,7 @@ COPY --from=lb-builder /bin/nfqlb /bin/nfqlb
 # cap_dac_override required by non-root user because of nsm-socket hostPath file permissions
 # (while file permissions of hostPath unix spire-agent-socket grant "write" access for "others")
 RUN setcap 'cap_net_admin,cap_dac_override+ep' ./load-balancer \
-  && chown root:root /bin/nfqlb && setcap 'cap_net_admin,cap_ipc_lock,cap_ipc_owner+ep' /bin/nfqlb
+  && chown root:root /bin/nfqlb && setcap 'cap_net_admin,cap_ipc_lock,cap_ipc_owner+ep' /bin/nfqlb \
+  && setcap 'cap_net_admin+ep' /usr/sbin/nft
 USER ${UID}:${UID}
 CMD ["./load-balancer"]
