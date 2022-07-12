@@ -60,6 +60,8 @@ message Flow {
     repeated Vip vips = 8;
     // The port that the application listens on, or 0 if not used
     uint32 localPort = 9;
+    // Bytes in L4 header
+    repeated string byteMatches = 10;
 }
 
 message Vip {

@@ -244,6 +244,9 @@ func (n *nfqlb) SetFlow(flow *nspAPI.Flow) error {
 	if sports := flow.GetSourcePortRanges(); sports != nil && !n.anyPortRange(sports) {
 		args = append(args, fmt.Sprintf("--sports=%v", strings.Join(sports, ",")))
 	}
+	if byteMatches := flow.GetByteMatches(); byteMatches != nil {
+		args = append(args, fmt.Sprintf("--match=%v", strings.Join(byteMatches, ",")))
+	}
 
 	cmd := exec.CommandContext(
 		ctx,

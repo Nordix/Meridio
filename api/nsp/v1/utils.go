@@ -134,7 +134,8 @@ func (f *Flow) DeepEquals(f2 *Flow) bool {
 		compareSlice(f.GetProtocols(), f2.GetProtocols()) &&
 		compareSlice(f.GetSourcePortRanges(), f2.GetSourcePortRanges()) &&
 		compareSlice(f.GetSourceSubnets(), f2.GetSourceSubnets()) &&
-		compareSlice(vipsToSlice(f.GetVips()), vipsToSlice(f2.GetVips()))
+		compareSlice(vipsToSlice(f.GetVips()), vipsToSlice(f2.GetVips())) &&
+		compareSlice(f.GetByteMatches(), f2.GetByteMatches())
 }
 
 // compareSlice -
