@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/nordix/meridio/pkg/configuration/reader"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -167,6 +168,11 @@ func (r *Flow) validateFlow() error {
 		}
 	}
 
+	if p, err := validateByteMatches(r.Spec.ByteMatches); err != nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("spec").Child("byte-matches"), p,
+			fmt.Sprintf("byte matches%s", err.Error())))
+	}
+
 	if len(allErrs) == 0 {
 		return nil
 	}
@@ -185,6 +191,15 @@ func validatePorts(ports []string) (string, error) {
 			if portsList, err = checkPortsOverlapping(portsList, candidatePorts); err != nil {
 				return p, fmt.Errorf("[%d]: %s", i, err.Error())
 			}
+		}
+	}
+	return "", nil
+}
+
+func validateByteMatches(byteMatches []string) (string, error) {
+	for i, bm := range byteMatches {
+		if !reader.ValidByteMatch(bm) {
+			return bm, fmt.Errorf("[%d]: byte match wrong format", i)
 		}
 	}
 	return "", nil

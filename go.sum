@@ -513,6 +513,8 @@ github.com/networkservicemesh/sdk-sriov v1.4.0/go.mod h1:umjPum97SQsB96sCAgdfoTU
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/nordix/meridio v0.6.0 h1:7lrJtnlALcmQrMCQiRwOu/2HaditLYqCNAUZiLwyWRc=
 github.com/nordix/meridio v0.6.0/go.mod h1:IN9Ix0rwV6xIaCNmGVb4zYA65CHzJhJ88yIyx2Wh814=
+github.com/nordix/meridio v0.6.1-0.20220704064544-d127f81c2500 h1:dRn6rCZtQRmMwvGRPkVLkkt0ktSyBbL6JPD2WzmS1XM=
+github.com/nordix/meridio v0.6.1-0.20220704064544-d127f81c2500/go.mod h1:IN9Ix0rwV6xIaCNmGVb4zYA65CHzJhJ88yIyx2Wh814=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/nxadm/tail v1.4.8/go.mod h1:+ncqLTQzXmGhMZNUePPaPqPvBxHAIsmXswZKocGu+AU=

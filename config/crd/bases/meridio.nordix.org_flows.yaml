@@ -32,6 +32,9 @@ spec:
     - jsonPath: .spec.protocols
       name: protocols
       type: string
+    - jsonPath: .spec.byte-matches
+      name: byte-matches
+      type: string
     - jsonPath: .spec.stream
       name: stream
       type: string
@@ -59,6 +62,11 @@ spec:
           spec:
             description: FlowSpec defines the desired state of Flow
             properties:
+              byte-matches:
+                description: ByteMatches matches bytes in the L4 header in the flow.
+                items:
+                  type: string
+                type: array
               destination-ports:
                 description: 'Destination port ranges allowed in the flow. The ports
                   should not have overlaps. Ports can be defined by: - a single port,
