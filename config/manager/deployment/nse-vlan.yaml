@@ -104,7 +104,13 @@ spec:
               mountPath: /var/lib/networkservicemesh
               readOnly: false
           securityContext:
+            runAsNonRoot: true
+            runAsUser: 10000
+            runAsGroup: 10000
             readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+              - all
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
       volumes:
