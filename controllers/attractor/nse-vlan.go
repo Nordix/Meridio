@@ -13,10 +13,8 @@ import (
 )
 
 const (
-	nseImage       = "cmd-nse-remote-vlan"
-	nseImageTag    = "v1.4.0"
-	nseEnvServices = "NSM_SERVICES"
-	nseEnvPrefix   = "NSM_CIDR_PREFIX"
+	nseImage    = "cmd-nse-remote-vlan"
+	nseImageTag = "v1.4.0"
 )
 
 type NseDeployment struct {
@@ -40,45 +38,17 @@ func NewNSE(e *common.Executor, attr *meridiov1alpha1.Attractor, t *meridiov1alp
 }
 
 func (i *NseDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
-	// if envVars are set in the cr, use the values
-	// else return default envVars
-	env := []corev1.EnvVar{
-		{
-			Name: nseEnvServices,
-			Value: fmt.Sprintf("%s { vlan: %d; via: %s }",
-				common.VlanNtwkSvcName(i.attractor, i.trench),
-				*i.attractor.Spec.Interface.NSMVlan.VlanID,
-				i.attractor.Spec.Interface.NSMVlan.BaseInterface),
-		},
-		{
-			Name:  "NSM_CONNECT_TO",
-			Value: common.GetNSMRegistryService(),
-		},
-		{
-			Name:  nseEnvPrefix,
-			Value: fmt.Sprintf("%v,%v", i.attractor.Spec.Interface.PrefixIPv4, i.attractor.Spec.Interface.PrefixIPv6),
-		},
-		{
-			Name:  "NSM_LOG_LEVEL",
-			Value: common.GetLogLevel(),
-		},
+	operatorEnv := map[string]string{
+		"NSM_SERVICES": fmt.Sprintf("%s { vlan: %d; via: %s }",
+			common.VlanNtwkSvcName(i.attractor, i.trench),
+			*i.attractor.Spec.Interface.NSMVlan.VlanID,
+			i.attractor.Spec.Interface.NSMVlan.BaseInterface),
+		"NSM_CONNECT_TO":  common.GetNSMRegistryService(),
+		"NSM_CIDR_PREFIX": fmt.Sprintf("%v,%v", i.attractor.Spec.Interface.PrefixIPv4, i.attractor.Spec.Interface.PrefixIPv6),
+		"NSM_LOG_LEVEL":   common.GetLogLevel(),
+		"NSM_LISTEN_ON":   fmt.Sprintf("tcp://:%v", common.VlanNsePort),
 	}
-
-	for _, e := range allEnv {
-		// append all hard coded envVars
-		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
-			e.Name == "NSM_NAME" ||
-			e.Name == "NSM_POINT2POINT" ||
-			e.Name == "NSM_REGISTER_SERVICE" ||
-			e.Name == "NSM_LISTEN_ON" ||
-			e.Name == "NSM_MAX_TOKEN_LIFETIME" {
-			if e.Name == "NSM_LISTEN_ON" && e.Value == "" {
-				e.Value = fmt.Sprintf("tcp://:%v", common.VlanNsePort)
-			}
-			env = append(env, e)
-		}
-	}
-	return env
+	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }
 
 func (i *NseDeployment) insertParameters(dep *appsv1.Deployment) *appsv1.Deployment {

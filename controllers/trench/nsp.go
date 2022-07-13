@@ -36,24 +36,13 @@ func NewNspStatefulSet(e *common.Executor, t *meridiov1alpha1.Trench) (*NspState
 }
 
 func (i *NspStatefulSet) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
-	ret := []corev1.EnvVar{}
-	for _, env := range allEnv {
-		switch env.Name {
-		case "NSP_PORT":
-			env.Value = fmt.Sprint(common.NspTargetPort)
-		case "NSP_CONFIG_MAP_NAME":
-			env.Value = common.ConfigMapName(i.trench)
-		case "NSP_NAMESPACE":
-			env.Value = i.trench.ObjectMeta.Namespace
-		case "NSP_LOG_LEVEL":
-			env.Value = common.GetLogLevel()
-		case "SPIFFE_ENDPOINT_SOCKET", "NSP_DATASOURCE":
-		default:
-			i.exec.LogError(fmt.Errorf("env %s not expected", env.Name), "get env var error")
-		}
-		ret = append(ret, env)
+	operatorEnv := map[string]string{
+		"NSP_PORT":            fmt.Sprint(common.NspTargetPort),
+		"NSP_CONFIG_MAP_NAME": common.ConfigMapName(i.trench),
+		"NSP_NAMESPACE":       i.trench.ObjectMeta.Namespace,
+		"NSP_LOG_LEVEL":       common.GetLogLevel(),
 	}
-	return ret
+	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }
 
 func (i *NspStatefulSet) insertParameters(init *appsv1.StatefulSet) *appsv1.StatefulSet {

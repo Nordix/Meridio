@@ -39,65 +39,21 @@ func NewProxy(e *common.Executor, t *meridiov1alpha1.Trench, c *meridiov1alpha1.
 }
 
 func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
-	// if envVars are set in the cr, use the values
-	// else return default envVars
-	env := []corev1.EnvVar{
-		{
-			Name:  "NSM_SERVICE_NAME",
-			Value: common.ProxyNtwkSvcNsName(i.conduit),
-		},
-		{
-			Name:  "NSM_IPAM_SERVICE",
-			Value: common.IPAMServiceWithPort(i.trench),
-		},
-		{
-			Name: "NSM_NETWORK_SERVICE_NAME",
-			Value: common.LoadBalancerNsName(i.conduit.ObjectMeta.Name,
-				i.trench.ObjectMeta.Name,
-				i.conduit.ObjectMeta.Namespace),
-		},
-		{
-			Name:  "NSM_IP_FAMILY",
-			Value: common.GetIPFamily(i.trench),
-		},
-		{
-			Name:  "NSM_TRENCH",
-			Value: i.trench.GetName(),
-		},
-		{
-			Name:  "NSM_CONDUIT",
-			Value: i.conduit.ObjectMeta.GetName(),
-		},
-		{
-			Name:  "NSM_NSP_SERVICE_NAME",
-			Value: common.GetPrefixedName(common.NspSvcName),
-		},
-		{
-			Name:  "NSM_NSP_SERVICE_PORT",
-			Value: strconv.Itoa(common.NspTargetPort),
-		},
-		{
-			Name:  "NSM_NAMESPACE",
-			Value: i.conduit.ObjectMeta.Namespace,
-		},
-		{
-			Name:  "NSM_LOG_LEVEL",
-			Value: common.GetLogLevel(),
-		},
+	operatorEnv := map[string]string{
+		"NSM_SERVICE_NAME": common.ProxyNtwkSvcNsName(i.conduit),
+		"NSM_IPAM_SERVICE": common.IPAMServiceWithPort(i.trench),
+		"NSM_NETWORK_SERVICE_NAME": common.LoadBalancerNsName(i.conduit.ObjectMeta.Name,
+			i.trench.ObjectMeta.Name,
+			i.conduit.ObjectMeta.Namespace),
+		"NSM_IP_FAMILY":        common.GetIPFamily(i.trench),
+		"NSM_TRENCH":           i.trench.GetName(),
+		"NSM_CONDUIT":          i.conduit.ObjectMeta.GetName(),
+		"NSM_NSP_SERVICE_NAME": common.GetPrefixedName(common.NspSvcName),
+		"NSM_NSP_SERVICE_PORT": strconv.Itoa(common.NspTargetPort),
+		"NSM_NAMESPACE":        i.conduit.ObjectMeta.Namespace,
+		"NSM_LOG_LEVEL":        common.GetLogLevel(),
 	}
-
-	for _, e := range allEnv {
-		// append all hard coded envVars
-		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
-			e.Name == "NSM_NAME" ||
-			e.Name == "NSM_HOST" ||
-			e.Name == "NSM_CONNECT_TO" ||
-			e.Name == "NSM_MAX_TOKEN_LIFETIME" {
-			env = append(env, e)
-		}
-	}
-
-	return env
+	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }
 
 func (i *Proxy) insertParameters(init *appsv1.DaemonSet) *appsv1.DaemonSet {

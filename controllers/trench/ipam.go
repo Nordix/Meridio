@@ -37,68 +37,21 @@ func NewIPAM(e *common.Executor, t *meridiov1alpha1.Trench) (*IpamStatefulSet, e
 }
 
 func (i *IpamStatefulSet) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
-	// if envVars are set in the cr, use the values
-	// else return default envVars
-	env := []corev1.EnvVar{
-		{
-			Name:  "IPAM_PORT",
-			Value: strconv.Itoa(common.IpamPort),
-		},
-		{
-			Name:  "IPAM_NAMESPACE",
-			Value: i.trench.ObjectMeta.Namespace,
-		},
-		{
-			Name:  "IPAM_TRENCH_NAME",
-			Value: i.trench.ObjectMeta.GetName(),
-		},
-		{
-			Name:  "IPAM_NSP_SERVICE",
-			Value: common.NSPServiceWithPort(i.trench),
-		},
-		{
-			Name:  "IPAM_PREFIX_IPV4",
-			Value: common.SubnetPoolIpv4,
-		},
-		{
-			Name:  "IPAM_PREFIX_IPV6",
-			Value: common.SubnetPoolIpv6,
-		},
-		{
-			Name:  "IPAM_CONDUIT_PREFIX_LENGTH_IPV4",
-			Value: common.ConduitPrefixLengthIpv4,
-		},
-		{
-			Name:  "IPAM_CONDUIT_PREFIX_LENGTH_IPV6",
-			Value: common.ConduitPrefixLengthIpv6,
-		},
-		{
-			Name:  "IPAM_NODE_PREFIX_LENGTH_IPV4",
-			Value: common.NodePrefixLengthIpv4,
-		},
-		{
-			Name:  "IPAM_NODE_PREFIX_LENGTH_IPV6",
-			Value: common.NodePrefixLengthIpv6,
-		},
-		{
-			Name:  "IPAM_IP_FAMILY",
-			Value: common.GetIPFamily(i.trench),
-		},
-		{
-			Name:  "IPAM_LOG_LEVEL",
-			Value: common.GetLogLevel(),
-		},
+	operatorEnv := map[string]string{
+		"IPAM_PORT":                       strconv.Itoa(common.IpamPort),
+		"IPAM_NAMESPACE":                  i.trench.ObjectMeta.Namespace,
+		"IPAM_TRENCH_NAME":                i.trench.ObjectMeta.GetName(),
+		"IPAM_NSP_SERVICE":                common.NSPServiceWithPort(i.trench),
+		"IPAM_PREFIX_IPV4":                common.SubnetPoolIpv4,
+		"IPAM_PREFIX_IPV6":                common.SubnetPoolIpv6,
+		"IPAM_CONDUIT_PREFIX_LENGTH_IPV4": common.ConduitPrefixLengthIpv4,
+		"IPAM_CONDUIT_PREFIX_LENGTH_IPV6": common.ConduitPrefixLengthIpv6,
+		"IPAM_NODE_PREFIX_LENGTH_IPV4":    common.NodePrefixLengthIpv4,
+		"IPAM_NODE_PREFIX_LENGTH_IPV6":    common.NodePrefixLengthIpv6,
+		"IPAM_IP_FAMILY":                  common.GetIPFamily(i.trench),
+		"IPAM_LOG_LEVEL":                  common.GetLogLevel(),
 	}
-
-	for _, e := range allEnv {
-		// append all hard coded envVars
-		if e.Name == "SPIFFE_ENDPOINT_SOCKET" ||
-			e.Name == "IPAM_DATASOURCE" {
-			env = append(env, e)
-		}
-	}
-
-	return env
+	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }
 
 func (i *IpamStatefulSet) insertParameters(dep *appsv1.StatefulSet) *appsv1.StatefulSet {
