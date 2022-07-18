@@ -22,6 +22,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -36,8 +37,9 @@ import (
 // AttractorReconciler reconciles a Attractor object
 type AttractorReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	Log    logr.Logger
+	Scheme     *runtime.Scheme
+	Log        logr.Logger
+	PdbVersion string
 }
 
 //+kubebuilder:rbac:groups=meridio.nordix.org,namespace=system,resources=attractors,verbs=get;list;watch;update
@@ -92,7 +94,7 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			return ctrl.Result{}, err
 		}
 
-		lbPDB, err := NewLoadBalancerPDB(executor, attr, trench)
+		lbPDB, err := NewLoadBalancerPDB(executor, attr, trench, r.PdbVersion)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -120,9 +122,19 @@ func getAttractorActions(e *common.Executor, new, old *meridiov1alpha1.Attractor
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *AttractorReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	var err error
+	r.PdbVersion, err = common.GetPodDisruptionBudgetVersion(r.Client)
+	if err != nil {
+		return err
+	}
+	var podDisruptionBudget client.Object
+	podDisruptionBudget = &policyv1.PodDisruptionBudget{}
+	if r.PdbVersion == policyv1beta1.SchemeGroupVersion.Version {
+		podDisruptionBudget = &policyv1beta1.PodDisruptionBudget{}
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&meridiov1alpha1.Attractor{}).
 		Owns(&appsv1.Deployment{}).
-		Owns(&policyv1.PodDisruptionBudget{}).
+		Owns(podDisruptionBudget).
 		Complete(r)
 }
