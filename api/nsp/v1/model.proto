@@ -29,6 +29,15 @@ message Conduit {
     string name = 1;
     // Trench the conduit belongs to
     Trench trench = 2;
+    // The list of destination port NATs
+    // If the VIP is nil then any VIP will be considered
+    repeated PortNat destinationPortNats = 3;
+    message PortNat {
+        uint32 port = 1;
+        uint32 localPort = 2;
+        repeated Vip vips = 3;
+        string protocol = 4;
+    }
 }
 
 message Stream {
@@ -58,8 +67,6 @@ message Flow {
     // Stream the flow belongs to
     Stream stream = 7;
     repeated Vip vips = 8;
-    // The port that the application listens on, or 0 if not used
-    uint32 localPort = 9;
     // Bytes in L4 header
     repeated string byteMatches = 10;
 }

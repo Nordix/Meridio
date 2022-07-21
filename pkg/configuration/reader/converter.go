@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -109,7 +109,6 @@ func ConvertFlows(flows []*Flow, streams []*nspAPI.Stream, vips []*nspAPI.Vip) [
 			Priority:              flow.Priority,
 			Stream:                s,
 			Vips:                  getVips(flow.Vips, vips),
-			LocalPort:             uint32(flow.LocalPort),
 			ByteMatches:           flow.ByteMatches,
 		})
 	}

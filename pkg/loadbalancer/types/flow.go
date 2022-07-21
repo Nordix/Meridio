@@ -24,11 +24,3 @@ type Flow interface {
 	Update(*nspAPI.Flow) error
 	Delete() error
 }
-
-type NftHandler interface {
-	PortNATSet(flowName string, protocols []string, dport, localPort uint) error
-	PortNATDelete(flowName string)
-	PortNATCreateSets(flow *nspAPI.Flow) error
-	PortNATDeleteSets(flow *nspAPI.Flow)
-	PortNATSetAddresses(flow *nspAPI.Flow) error
-}
