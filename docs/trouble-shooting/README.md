@@ -148,7 +148,10 @@ in the manifest. Example;
 This method can be used for both Meridio and NSM containers. The log
 level can not be changed without a POD restart.
 
+### NSM Logs
 
+The following description details how to check main events in NSM logs; [example NSM logs of
+succesfull events](example-nsm-logs.md)
 
 ## Enter containers
 
