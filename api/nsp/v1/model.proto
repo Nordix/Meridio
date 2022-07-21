@@ -34,7 +34,7 @@ message Conduit {
     repeated PortNat destinationPortNats = 3;
     message PortNat {
         uint32 port = 1;
-        uint32 localPort = 2;
+        uint32 targetPort = 2;
         repeated Vip vips = 3;
         string protocol = 4;
     }
