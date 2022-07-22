@@ -302,11 +302,25 @@ func (c *ConfigMap) getConduitsData() ([]byte, error) {
 	lst := reader.ConduitList{}
 	for _, cr := range crs.Items {
 		lst.Conduits = append(lst.Conduits, &reader.Conduit{
-			Name:   cr.ObjectMeta.Name,
-			Trench: c.trench.ObjectMeta.Name,
+			Name:                cr.ObjectMeta.Name,
+			Trench:              c.trench.ObjectMeta.Name,
+			DestinationPortNats: getPortNatsData(cr.Spec.DestinationPortNats),
 		})
 	}
 	return yaml.Marshal(lst)
+}
+
+func getPortNatsData(portNatSpecs []meridiov1alpha1.PortNatSpec) []*reader.PortNat {
+	portNats := []*reader.PortNat{}
+	for _, pns := range portNatSpecs {
+		portNats = append(portNats, &reader.PortNat{
+			Port:       pns.Port,
+			TargetPort: pns.TargetPort,
+			Vips:       pns.Vips,
+			Protocol:   string(pns.Protocol),
+		})
+	}
+	return portNats
 }
 
 func (c *ConfigMap) getStreamsData() ([]byte, error) {
