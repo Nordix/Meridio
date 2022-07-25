@@ -23,31 +23,27 @@ import (
 
 func TestPortNatDiff(t *testing.T) {
 	type args struct {
-		old []*Conduit_PortNat
-		new []*Conduit_PortNat
+		set1 []*Conduit_PortNat
+		set2 []*Conduit_PortNat
 	}
 	tests := []struct {
-		name  string
-		args  args
-		want  []*Conduit_PortNat
-		want1 []*Conduit_PortNat
-		want2 []*Conduit_PortNat
+		name string
+		args args
+		want []*Conduit_PortNat
 	}{
 		{
 			name: "empty",
 			args: args{
-				old: []*Conduit_PortNat{},
-				new: []*Conduit_PortNat{},
+				set1: []*Conduit_PortNat{},
+				set2: []*Conduit_PortNat{},
 			},
-			want:  []*Conduit_PortNat{},
-			want1: []*Conduit_PortNat{},
-			want2: []*Conduit_PortNat{},
+			want: []*Conduit_PortNat{},
 		},
 		{
 			name: "1 added",
 			args: args{
-				old: []*Conduit_PortNat{},
-				new: []*Conduit_PortNat{
+				set1: []*Conduit_PortNat{},
+				set2: []*Conduit_PortNat{
 					{
 						Port:       10,
 						TargetPort: 10,
@@ -61,24 +57,12 @@ func TestPortNatDiff(t *testing.T) {
 					},
 				},
 			},
-			want: []*Conduit_PortNat{{
-				Port:       10,
-				TargetPort: 10,
-				Protocol:   "TCP",
-				Vips: []*Vip{
-					{
-						Name:    "vip-a",
-						Address: "20.0.0.1/32",
-					},
-				},
-			}},
-			want1: []*Conduit_PortNat{},
-			want2: []*Conduit_PortNat{},
+			want: []*Conduit_PortNat{},
 		},
 		{
 			name: "1 removed",
 			args: args{
-				old: []*Conduit_PortNat{
+				set1: []*Conduit_PortNat{
 					{
 						Port:       10,
 						TargetPort: 10,
@@ -91,11 +75,9 @@ func TestPortNatDiff(t *testing.T) {
 						},
 					},
 				},
-				new: []*Conduit_PortNat{},
+				set2: []*Conduit_PortNat{},
 			},
-			want:  []*Conduit_PortNat{},
-			want1: []*Conduit_PortNat{},
-			want2: []*Conduit_PortNat{
+			want: []*Conduit_PortNat{
 				{
 					Port:       10,
 					TargetPort: 10,
@@ -112,7 +94,7 @@ func TestPortNatDiff(t *testing.T) {
 		{
 			name: "1 common with different vips",
 			args: args{
-				old: []*Conduit_PortNat{
+				set1: []*Conduit_PortNat{
 					{
 						Port:       10,
 						TargetPort: 10,
@@ -125,7 +107,7 @@ func TestPortNatDiff(t *testing.T) {
 						},
 					},
 				},
-				new: []*Conduit_PortNat{
+				set2: []*Conduit_PortNat{
 					{
 						Port:       10,
 						TargetPort: 10,
@@ -140,25 +122,11 @@ func TestPortNatDiff(t *testing.T) {
 				},
 			},
 			want: []*Conduit_PortNat{},
-			want1: []*Conduit_PortNat{
-				{
-					Port:       10,
-					TargetPort: 10,
-					Protocol:   "TCP",
-					Vips: []*Vip{
-						{
-							Name:    "vip-b",
-							Address: "150.0.0.1/32",
-						},
-					},
-				},
-			},
-			want2: []*Conduit_PortNat{},
 		},
 		{
 			name: "different port and TargetPort and protocol",
 			args: args{
-				old: []*Conduit_PortNat{
+				set1: []*Conduit_PortNat{
 					{
 						Port:       10,
 						TargetPort: 10,
@@ -178,7 +146,7 @@ func TestPortNatDiff(t *testing.T) {
 						Vips:       []*Vip{},
 					},
 				},
-				new: []*Conduit_PortNat{
+				set2: []*Conduit_PortNat{
 					{
 						Port:       10,
 						TargetPort: 10,
@@ -188,15 +156,6 @@ func TestPortNatDiff(t *testing.T) {
 				},
 			},
 			want: []*Conduit_PortNat{
-				{
-					Port:       10,
-					TargetPort: 10,
-					Protocol:   "UDP",
-					Vips:       []*Vip{},
-				},
-			},
-			want1: []*Conduit_PortNat{},
-			want2: []*Conduit_PortNat{
 				{
 					Port:       10,
 					TargetPort: 10,
@@ -220,15 +179,9 @@ func TestPortNatDiff(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, got2 := PortNatDiff(tt.args.old, tt.args.new)
+			got := PortNatDiff(tt.args.set1, tt.args.set2)
 			if !conduitPortNatEquals(got, tt.want) {
 				t.Errorf("PortNatDiff() got = %v, want %v", got, tt.want)
-			}
-			if !conduitPortNatEquals(got1, tt.want1) {
-				t.Errorf("PortNatDiff() got1 = %v, want %v", got1, tt.want1)
-			}
-			if !conduitPortNatEquals(got2, tt.want2) {
-				t.Errorf("PortNatDiff() got2 = %v, want %v", got2, tt.want2)
 			}
 		})
 	}

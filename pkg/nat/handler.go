@@ -68,12 +68,10 @@ func (nh *NatHandler) initTable() error {
 
 func (nh *NatHandler) SetNats(portNats []*nspAPI.Conduit_PortNat) error {
 	var errFinal error
-	toAdd, toUpdate, toRemove := nspAPI.PortNatDiff(nh.getPortNats(), portNats)
+	toRemove := nspAPI.PortNatDiff(nh.getPortNats(), portNats)
 	logrus.WithFields(logrus.Fields{
 		"Previous Port Nats": nh.getPortNats(),
-		"New Port Nats":      portNats,
-		"To add":             toAdd,
-		"To update":          toUpdate,
+		"To add/update":      portNats,
 		"To remove":          toRemove,
 	}).Infof("NAT Handler: SetNats")
 	for _, n := range toRemove {
@@ -82,7 +80,7 @@ func (nh *NatHandler) SetNats(portNats []*nspAPI.Conduit_PortNat) error {
 			errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 		}
 	}
-	for _, n := range append(toAdd, toUpdate...) {
+	for _, n := range portNats {
 		err := nh.setNat(n)
 		if err != nil {
 			errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo

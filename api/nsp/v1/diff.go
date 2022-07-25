@@ -19,30 +19,19 @@ package v1
 import "fmt"
 
 // Checks the differences between 2 port nat list
-// 1st return gives the items added
-// 2nd return gives the items in common
-// 3rd return gives the items removed
-func PortNatDiff(old []*Conduit_PortNat, new []*Conduit_PortNat) ([]*Conduit_PortNat, []*Conduit_PortNat, []*Conduit_PortNat) {
-	added := []*Conduit_PortNat{}
-	common := []*Conduit_PortNat{}
-	removed := []*Conduit_PortNat{}
-	oldMap := map[string]*Conduit_PortNat{}
-	for _, o := range old {
-		oldMap[o.GetNatName()] = o
+func PortNatDiff(set1 []*Conduit_PortNat, set2 []*Conduit_PortNat) []*Conduit_PortNat {
+	diff := []*Conduit_PortNat{}
+	set2Map := map[string]*Conduit_PortNat{}
+	for _, pn := range set2 {
+		set2Map[pn.GetNatName()] = pn
 	}
-	for _, n := range new {
-		_, exists := oldMap[n.GetNatName()]
-		if exists {
-			common = append(common, n)
-			delete(oldMap, n.GetNatName())
-		} else {
-			added = append(added, n)
+	for _, pn := range set1 {
+		_, exists := set2Map[pn.GetNatName()]
+		if !exists {
+			diff = append(diff, pn)
 		}
 	}
-	for _, portNat := range oldMap {
-		removed = append(removed, portNat)
-	}
-	return added, common, removed
+	return diff
 }
 
 func (pn *Conduit_PortNat) GetNatName() string {
