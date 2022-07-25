@@ -83,7 +83,10 @@ func (i *Proxy) insertParameters(init *appsv1.DaemonSet) *appsv1.DaemonSet {
 	ds.Spec.Selector.MatchLabels["app"] = proxyDeploymentName
 	ds.Spec.Template.ObjectMeta.Labels["app"] = proxyDeploymentName
 
-	ds.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
+	imagePullSecrets := common.GetImagePullSecrets()
+	if len(imagePullSecrets) > 0 {
+		ds.Spec.Template.Spec.ImagePullSecrets = imagePullSecrets
+	}
 
 	// init container
 	if ds.Spec.Template.Spec.InitContainers[0].Image == "" {

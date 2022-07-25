@@ -163,8 +163,11 @@ func GetLogLevel() string {
 
 func GetImagePullSecrets() []corev1.LocalObjectReference {
 	secstr := os.Getenv(ImagePullSecretEnv)
-	secs := strings.Split(secstr, ",")
 	var pullSecs []corev1.LocalObjectReference
+	if len(secstr) == 0 {
+		return pullSecs
+	}
+	secs := strings.Split(secstr, ",")
 	for _, sec := range secs {
 		pullSecs = append(pullSecs, corev1.LocalObjectReference{
 			Name: strings.TrimSpace(sec),

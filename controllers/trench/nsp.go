@@ -74,7 +74,10 @@ func (i *NspStatefulSet) insertParameters(init *appsv1.StatefulSet) *appsv1.Stat
 	ret.Spec.Template.ObjectMeta.Labels["app"] = nspStatefulSetName
 	ret.Spec.Template.Spec.ServiceAccountName = common.ServiceAccountName(i.trench)
 
-	ret.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
+	imagePullSecrets := common.GetImagePullSecrets()
+	if len(imagePullSecrets) > 0 {
+		ret.Spec.Template.Spec.ImagePullSecrets = imagePullSecrets
+	}
 
 	// check resource requirement annotation update, and save annotation into deployment for visibility
 	oa, _ := common.GetResourceRequirementAnnotation(&init.ObjectMeta)

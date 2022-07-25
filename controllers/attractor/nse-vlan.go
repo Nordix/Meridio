@@ -76,7 +76,10 @@ func (i *NseDeployment) insertParameters(dep *appsv1.Deployment) *appsv1.Deploym
 	ret.Spec.Selector.MatchLabels["app"] = nseVLANDeploymentName
 	ret.Spec.Template.ObjectMeta.Labels["app"] = nseVLANDeploymentName
 
-	ret.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
+	imagePullSecrets := common.GetImagePullSecrets()
+	if len(imagePullSecrets) > 0 {
+		ret.Spec.Template.Spec.ImagePullSecrets = imagePullSecrets
+	}
 
 	// check resource requirement annotation update, and save annotation into deployment for visibility
 	oa, _ := common.GetResourceRequirementAnnotation(&dep.ObjectMeta)
