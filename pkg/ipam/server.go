@@ -31,6 +31,7 @@ import (
 )
 
 type IpamServer struct {
+	ipamAPI.UnimplementedIpamServer
 	Trenches      map[ipamAPI.IPFamily]types.Trench
 	PrefixLengths map[ipamAPI.IPFamily]*types.PrefixLengths
 }

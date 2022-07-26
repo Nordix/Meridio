@@ -26,6 +26,7 @@ import (
 )
 
 type Server struct {
+	nspAPI.UnimplementedTargetRegistryServer
 	TargetRegistry types.TargetRegistry
 }
 
