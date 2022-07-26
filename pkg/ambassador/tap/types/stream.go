@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+//go:generate mockgen -source=stream.go -destination=mocks/stream.go -package=mocks
 package types
 
 import (

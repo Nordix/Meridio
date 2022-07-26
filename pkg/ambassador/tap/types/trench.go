@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+//go:generate mockgen -source=trench.go -destination=mocks/trench.go -package=mocks
 package types
 
 import (

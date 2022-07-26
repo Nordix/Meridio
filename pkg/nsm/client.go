@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+//go:generate mockgen -source=client.go -destination=mocks/client.go -package=mocks
 package nsm
 
 import (

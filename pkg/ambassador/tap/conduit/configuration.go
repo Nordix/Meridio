@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+//go:generate mockgen -source=configuration.go -destination=mocks/configuration.go -package=mocks
 package conduit
 
 import (
