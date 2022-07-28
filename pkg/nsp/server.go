@@ -17,58 +17,11 @@ limitations under the License.
 package nsp
 
 import (
-	"context"
-
-	"github.com/golang/protobuf/ptypes/empty"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
-	"github.com/nordix/meridio/pkg/nsp/types"
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/nsp/next"
 )
 
-type Server struct {
-	nspAPI.UnimplementedTargetRegistryServer
-	TargetRegistry types.TargetRegistry
-}
-
 // NewServer -
-func NewServer(targetRegistry types.TargetRegistry) nspAPI.TargetRegistryServer {
-	networkServicePlateformService := &Server{
-		TargetRegistry: targetRegistry,
-	}
-
-	return networkServicePlateformService
-}
-
-func (s *Server) Register(ctx context.Context, target *nspAPI.Target) (*empty.Empty, error) {
-	return &empty.Empty{}, s.TargetRegistry.Set(ctx, target)
-}
-
-func (s *Server) Unregister(ctx context.Context, target *nspAPI.Target) (*empty.Empty, error) {
-	return &empty.Empty{}, s.TargetRegistry.Remove(ctx, target)
-}
-
-func (s *Server) Watch(t *nspAPI.Target, watcher nspAPI.TargetRegistry_WatchServer) error {
-	targetWatcher, err := s.TargetRegistry.Watch(context.TODO(), t)
-	if err != nil {
-		return err
-	}
-	s.watcher(watcher, targetWatcher.ResultChan())
-	targetWatcher.Stop()
-	return nil
-}
-
-func (s *Server) watcher(watcher nspAPI.TargetRegistry_WatchServer, ch <-chan []*nspAPI.Target) {
-	for {
-		select {
-		case event := <-ch:
-			err := watcher.Send(&nspAPI.TargetResponse{
-				Targets: event,
-			})
-			if err != nil {
-				logrus.Errorf("err sending TrenchResponse: %v", err)
-			}
-		case <-watcher.Context().Done():
-			return
-		}
-	}
+func NewServer(nextTargetRegistryServers ...next.NextTargetRegistryServer) nspAPI.TargetRegistryServer {
+	return next.BuildNextTargetRegistryChain(nextTargetRegistryServers...)
 }
