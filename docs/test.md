@@ -70,13 +70,13 @@ helm install deployments/helm/ --generate-name --create-namespace --namespace re
 6. Deploy target of trench-a
 
 ```bash
-helm install examples/target/helm/ --generate-name --create-namespace --namespace red --set applicationName=target-a --set default.trench.name=trench-a
+helm install examples/target/deployments/helm/ --generate-name --create-namespace --namespace red --set applicationName=target-a --set default.trench.name=trench-a
 ```
 
 7. Deploy target of trench-b
 
 ```bash
-helm install examples/target/helm/ --generate-name --create-namespace --namespace red --set applicationName=target-b --set default.trench.name=trench-b
+helm install examples/target/deployments/helm/ --generate-name --create-namespace --namespace red --set applicationName=target-b --set default.trench.name=trench-b
 ```
 
 8. Run e2e tests

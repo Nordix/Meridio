@@ -102,8 +102,8 @@ nsp: ## Build the nsp.
 	VERSION=$(VERSION_NSP) IMAGE=nsp $(MAKE) -s $(BUILD_STEPS)
 
 .PHONY: ctraffic
-ctraffic: ## Build the ctraffic.
-	VERSION=$(VERSION_CTRAFFIC) IMAGE=ctraffic $(MAKE) -s $(BUILD_STEPS)
+ctraffic:
+	VERSION=$(VERSION_CTRAFFIC) BUILD_DIR=examples/target/build IMAGE=ctraffic $(MAKE) $(BUILD_STEPS)
 
 .PHONY: frontend
 frontend: ## Build the frontend.
