@@ -17,7 +17,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"' -o target-client ./test/applications/target-client
 
-FROM ubuntu:21.04
+FROM ubuntu:22.04
 
 ARG USER
 ARG UID
@@ -28,7 +28,7 @@ RUN apt-get update -y --fix-missing \
   && setcap 'cap_sys_ptrace,cap_dac_override+ep' /usr/bin/ss \
   && setcap 'cap_sys_ptrace,cap_dac_override+ep' /usr/bin/netstat \
   && setcap 'cap_net_raw+ep' /usr/bin/ping \
-  && setcap 'cap_net_raw+ep' /usr/sbin/tcpdump \
+  && setcap 'cap_net_raw+ep' /usr/bin/tcpdump \
   && setcap 'cap_sys_ptrace+ep' /usr/bin/strace
 
 RUN groupadd --gid $UID $USER \
