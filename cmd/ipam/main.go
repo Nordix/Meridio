@@ -22,15 +22,22 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/kelseyhightower/envconfig"
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/ipam"
+	"github.com/nordix/meridio/pkg/ipam/conduitwatcher"
+	"github.com/nordix/meridio/pkg/ipam/prefix"
+	"github.com/nordix/meridio/pkg/ipam/storage/sqlite"
+	"github.com/nordix/meridio/pkg/ipam/trench"
 	"github.com/nordix/meridio/pkg/ipam/types"
+	"github.com/nordix/meridio/pkg/log"
+	"github.com/nordix/meridio/pkg/log/logrus"
 	"github.com/nordix/meridio/pkg/security/credentials"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	grpcHealth "google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -59,27 +66,61 @@ func main() {
 		os.Exit(0)
 	}
 
-	logrus.SetOutput(os.Stdout)
-	logrus.SetLevel(logrus.DebugLevel)
+	ctx, cancel := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGHUP,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
+	defer cancel()
+
+	logger := logrus.New()
+	logger.SetOutput(os.Stdout)
+	logger.SetLevel(log.DebugLevel)
 
 	// create and start health server
 	_ = health.CreateChecker(context.Background())
 	var config Config
 	err := envconfig.Process("ipam", &config)
 	if err != nil {
-		logrus.Fatalf("%v", err)
+		logger.Fatal("%v", err)
 	}
-	logrus.Infof("rootConf: %+v", config)
+	logger.Info("rootConf: %+v", config)
 
-	logrus.SetLevel(func() logrus.Level {
-
-		l, err := logrus.ParseLevel(config.LogLevel)
+	logger.SetLevel(func() log.Level {
+		l, err := log.ParseLevel(config.LogLevel)
 		if err != nil {
-			logrus.Fatalf("invalid log level %s", config.LogLevel)
+			logger.Fatal("invalid log level %s", config.LogLevel)
 		}
 		return l
 	}())
 
+	prefixLengths, cidrs := GetPrefixLengthsAndCIDRs(&config)
+
+	store, err := sqlite.New(config.Datasource)
+	if err != nil {
+		logger.Fatal("invalid log level %s", config.LogLevel)
+	}
+
+	trenches, conduitWatcherTrenches, err := SetupTrenches(ctx, store, config.TrenchName, prefixLengths, cidrs)
+	if err != nil {
+		logger.Fatal("error setup trenches %s", config.LogLevel)
+	}
+
+	conduitWatcherLogger := logger.WithField(log.SubSystem, "Conduit-Watcher")
+	go func() {
+		err := conduitwatcher.Start(ctx, config.NSPService, config.TrenchName, conduitWatcherTrenches, conduitWatcherLogger)
+		if err != nil {
+			conduitWatcherLogger.Fatal("error starting conduit watcher %s", config.LogLevel)
+		}
+	}()
+
+	ipamServerLogger := logger.WithField(log.SubSystem, "IPAM-Server")
+	StartServer(&config, trenches, prefixLengths, ipamServerLogger)
+}
+
+func GetPrefixLengthsAndCIDRs(config *Config) (map[ipamAPI.IPFamily]*types.PrefixLengths, map[ipamAPI.IPFamily]string) {
 	prefixLengths := make(map[ipamAPI.IPFamily]*types.PrefixLengths)
 	cidrs := make(map[ipamAPI.IPFamily]string)
 	if strings.ToLower(config.IPFamily) == "ipv4" {
@@ -94,10 +135,13 @@ func main() {
 		cidrs[ipamAPI.IPFamily_IPV4] = config.PrefixIPv4
 		cidrs[ipamAPI.IPFamily_IPV6] = config.PrefixIPv6
 	}
+	return prefixLengths, cidrs
+}
 
-	ipamServer, err := ipam.NewServer(config.Datasource, config.TrenchName, config.NSPService, cidrs, prefixLengths)
+func StartServer(config *Config, trenches map[ipamAPI.IPFamily]types.Trench, prefixLengths map[ipamAPI.IPFamily]*types.PrefixLengths, logger log.Logger) {
+	ipamServer, err := ipam.NewServer(trenches, prefixLengths, logger)
 	if err != nil {
-		logrus.Fatalf("Unable to create ipam server: %v", err)
+		logger.Fatal("unable to create ipam server: %v", err)
 	}
 
 	server := grpc.NewServer(grpc.Creds(
@@ -107,13 +151,33 @@ func main() {
 	healthServer := grpcHealth.NewServer()
 	grpc_health_v1.RegisterHealthServer(server, healthServer)
 
-	logrus.Infof("IPAM Service: Start the service (port: %v)", config.Port)
+	logger.Info("start the service (port: %v)", config.Port)
 	listener, err := net.Listen("tcp", fmt.Sprintf("[::]:%d", config.Port))
 	if err != nil {
-		logrus.Fatalf("NSP Service: failed to listen: %v", err)
+		logger.Fatal("failed to listen: %v", err)
 	}
 
 	if err := server.Serve(listener); err != nil {
-		logrus.Errorf("NSP Service: failed to serve: %v", err)
+		logger.Error("failed to serve: %v", err)
 	}
+}
+
+func SetupTrenches(ctx context.Context,
+	store types.Storage,
+	trenchName string,
+	prefixLengths map[ipamAPI.IPFamily]*types.PrefixLengths,
+	cidrs map[ipamAPI.IPFamily]string) (map[ipamAPI.IPFamily]types.Trench, []conduitwatcher.Trench, error) {
+	trenches := map[ipamAPI.IPFamily]types.Trench{}
+	conduitWatcherTrenches := []conduitwatcher.Trench{}
+	for ipFamily, cidr := range cidrs {
+		name := ipam.GetTrenchName(trenchName, ipFamily)
+		prefix := prefix.New(name, cidr, nil)
+		newTrench, err := trench.New(context.TODO(), prefix, store, prefixLengths[ipFamily])
+		if err != nil {
+			return nil, nil, err
+		}
+		conduitWatcherTrenches = append(conduitWatcherTrenches, newTrench)
+		trenches[ipFamily] = newTrench
+	}
+	return trenches, conduitWatcherTrenches, nil
 }

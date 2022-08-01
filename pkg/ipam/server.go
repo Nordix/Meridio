@@ -22,11 +22,8 @@ import (
 	"net"
 
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
-	"github.com/nordix/meridio/pkg/ipam/prefix"
-	"github.com/nordix/meridio/pkg/ipam/storage/sqlite"
-	"github.com/nordix/meridio/pkg/ipam/trench"
 	"github.com/nordix/meridio/pkg/ipam/types"
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/log"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -34,45 +31,25 @@ type IpamServer struct {
 	ipamAPI.UnimplementedIpamServer
 	Trenches      map[ipamAPI.IPFamily]types.Trench
 	PrefixLengths map[ipamAPI.IPFamily]*types.PrefixLengths
+	Logger        log.Logger
 }
 
 // NewIpam -
-func NewServer(datastore string,
-	trenchName string,
-	nspService string,
-	cidrs map[ipamAPI.IPFamily]string,
-	prefixLengths map[ipamAPI.IPFamily]*types.PrefixLengths) (ipamAPI.IpamServer, error) {
+func NewServer(trenches map[ipamAPI.IPFamily]types.Trench,
+	prefixLengths map[ipamAPI.IPFamily]*types.PrefixLengths,
+	logger log.Logger) (ipamAPI.IpamServer, error) {
 	is := &IpamServer{
-		Trenches:      make(map[ipamAPI.IPFamily]types.Trench),
+		Trenches:      trenches,
 		PrefixLengths: prefixLengths,
+		Logger:        logger,
 	}
-	store, err := sqlite.New(datastore)
-	if err != nil {
-		return nil, err
-	}
-
-	trenchWatchers := []trench.TrenchWatcher{}
-	for ipFamily, cidr := range cidrs {
-		name := getTrenchName(trenchName, ipFamily)
-		prefix := prefix.New(name, cidr, nil)
-		newTrench, err := trench.New(context.TODO(), prefix, store, is.PrefixLengths[ipFamily])
-		if err != nil {
-			return nil, err
-		}
-		is.Trenches[ipFamily] = newTrench
-		trenchWatchers = append(trenchWatchers, newTrench)
-	}
-	conduitWatcher, err := trench.NewConduitWatcher(context.TODO(), nspService, trenchName, trenchWatchers)
-	if err != nil {
-		return nil, err
-	}
-	go conduitWatcher.Start()
 
 	return is, nil
 }
 
 func (is *IpamServer) Allocate(ctx context.Context, child *ipamAPI.Child) (*ipamAPI.Prefix, error) {
-	logrus.Infof("Allocate: %v", child)
+	ctx = log.WithLogger(ctx, is.Logger)
+	is.Logger.Info("Allocate: %v", child)
 	trench, exists := is.Trenches[child.GetSubnet().GetIpFamily()]
 	if !exists {
 		return nil, fmt.Errorf("cannot allocate in this ip family")
@@ -83,7 +60,7 @@ func (is *IpamServer) Allocate(ctx context.Context, child *ipamAPI.Child) (*ipam
 	if child.GetSubnet().GetConduit().GetTrench() == nil {
 		return nil, fmt.Errorf("trench cannot be nil")
 	}
-	if trench.GetName() != getTrenchName(child.GetSubnet().GetConduit().GetTrench().GetName(), child.GetSubnet().GetIpFamily()) {
+	if trench.GetName() != GetTrenchName(child.GetSubnet().GetConduit().GetTrench().GetName(), child.GetSubnet().GetIpFamily()) {
 		return nil, fmt.Errorf("no corresponding trench")
 	}
 	var conduit types.Conduit
@@ -119,7 +96,8 @@ func (is *IpamServer) Allocate(ctx context.Context, child *ipamAPI.Child) (*ipam
 }
 
 func (is *IpamServer) Release(ctx context.Context, child *ipamAPI.Child) (*emptypb.Empty, error) {
-	logrus.Infof("Release: %v", child)
+	ctx = log.WithLogger(ctx, is.Logger)
+	is.Logger.Info("Release: %v", child)
 	trench, exists := is.Trenches[child.GetSubnet().GetIpFamily()]
 	if !exists {
 		return &emptypb.Empty{}, nil
@@ -130,7 +108,7 @@ func (is *IpamServer) Release(ctx context.Context, child *ipamAPI.Child) (*empty
 	if child.GetSubnet().GetConduit().GetTrench() == nil {
 		return &emptypb.Empty{}, nil
 	}
-	if trench.GetName() != getTrenchName(child.GetSubnet().GetConduit().GetTrench().GetName(), child.GetSubnet().GetIpFamily()) {
+	if trench.GetName() != GetTrenchName(child.GetSubnet().GetConduit().GetTrench().GetName(), child.GetSubnet().GetIpFamily()) {
 		return &emptypb.Empty{}, nil
 	}
 	conduit, err := trench.GetConduit(ctx, child.GetSubnet().GetConduit().GetName())
@@ -150,6 +128,6 @@ func (is *IpamServer) Release(ctx context.Context, child *ipamAPI.Child) (*empty
 	return &emptypb.Empty{}, node.Release(ctx, child.GetName())
 }
 
-func getTrenchName(trenchName string, ipFamily ipamAPI.IPFamily) string {
+func GetTrenchName(trenchName string, ipFamily ipamAPI.IPFamily) string {
 	return fmt.Sprintf("%s-%d", trenchName, ipFamily)
 }

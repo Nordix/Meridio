@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package trench
+package conduitwatcher
 
 import (
 	"context"
@@ -23,54 +23,30 @@ import (
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ipam/types"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/security/credentials"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
-type ConduitWatcher struct {
-	Ctx                        context.Context
-	TrenchWatchers             []TrenchWatcher
-	TrenchName                 string
-	ConfigurationManagerClient nspAPI.ConfigurationManagerClient
-}
-
-type TrenchWatcher interface {
+type Trench interface {
 	AddConduit(ctx context.Context, name string) (types.Conduit, error)
 	RemoveConduit(ctx context.Context, name string) error
 }
 
-func NewConduitWatcher(ctx context.Context, nspService string, trenchName string, trenchWatchers []TrenchWatcher) (*ConduitWatcher, error) {
-	nspConn, err := grpc.Dial(nspService,
-		grpc.WithTransportCredentials(
-			credentials.GetClient(context.Background()),
-		),
-		grpc.WithDefaultCallOptions(
-			grpc.WaitForReady(true),
-		))
+func Start(ctx context.Context, nspService string, trenchName string, trenches []Trench, logger log.Logger) error {
+	configurationManagerClient, err := getConfigurationManagerClient(nspService)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	configurationManagerClient := nspAPI.NewConfigurationManagerClient(nspConn)
-
-	cw := &ConduitWatcher{
-		Ctx:                        ctx,
-		TrenchName:                 trenchName,
-		TrenchWatchers:             trenchWatchers,
-		ConfigurationManagerClient: configurationManagerClient,
-	}
-	return cw, nil
-}
-
-func (cw *ConduitWatcher) Start() {
-	err := retry.Do(func() error {
+	loggerCtx := log.WithLogger(ctx, logger)
+	return retry.Do(func() error {
 		toWatch := &nspAPI.Conduit{
 			Trench: &nspAPI.Trench{
-				Name: cw.TrenchName,
+				Name: trenchName,
 			},
 		}
-		watchConduitClient, err := cw.ConfigurationManagerClient.WatchConduit(cw.Ctx, toWatch)
+		watchConduitClient, err := configurationManagerClient.WatchConduit(loggerCtx, toWatch)
 		if err != nil {
 			return err
 		}
@@ -83,19 +59,30 @@ func (cw *ConduitWatcher) Start() {
 				return err
 			}
 			for _, conduit := range conduitResponse.Conduits { // todo: add and remove conduits by checking the existing ones
-				for _, w := range cw.TrenchWatchers {
-					_, err := w.AddConduit(cw.Ctx, conduit.GetName())
+				for _, trench := range trenches {
+					_, err := trench.AddConduit(loggerCtx, conduit.GetName())
 					if err != nil {
-						logrus.Warnf("err AddConduit: %v", err)
+						logger.Warn("err AddConduit: %v", err)
 					}
 				}
 			}
 		}
 		return nil
-	}, retry.WithContext(cw.Ctx),
+	}, retry.WithContext(ctx),
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
+}
+
+func getConfigurationManagerClient(nspService string) (nspAPI.ConfigurationManagerClient, error) {
+	nspConn, err := grpc.Dial(nspService,
+		grpc.WithTransportCredentials(
+			credentials.GetClient(context.Background()),
+		),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+		))
 	if err != nil {
-		logrus.Fatalf("ConduitWatcher err: %v", err)
+		return nil, err
 	}
+	return nspAPI.NewConfigurationManagerClient(nspConn), nil
 }

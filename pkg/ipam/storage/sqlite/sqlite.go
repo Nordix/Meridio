@@ -23,6 +23,7 @@ import (
 
 	"github.com/nordix/meridio/pkg/ipam/prefix"
 	"github.com/nordix/meridio/pkg/ipam/types"
+	"github.com/nordix/meridio/pkg/log"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -53,6 +54,11 @@ func New(datastore string) (*SQLiteIPAMStorage, error) {
 func (sqlis *SQLiteIPAMStorage) Add(ctx context.Context, prefix types.Prefix) error {
 	sqlis.mu.Lock()
 	defer sqlis.mu.Unlock()
+	logger := log.FromContext(ctx)
+	logger.WithField("Name", prefix.GetName()).
+		WithField("CIDR", prefix.GetCidr()).
+		WithField("Parent", prefix.GetParent()).
+		Debug("sqlite, Add")
 	model := prefixToModel(prefix)
 	if model == nil {
 		return nil
@@ -64,6 +70,11 @@ func (sqlis *SQLiteIPAMStorage) Add(ctx context.Context, prefix types.Prefix) er
 func (sqlis *SQLiteIPAMStorage) Delete(ctx context.Context, prefix types.Prefix) error {
 	sqlis.mu.Lock()
 	defer sqlis.mu.Unlock()
+	logger := log.FromContext(ctx)
+	logger.WithField("Name", prefix.GetName()).
+		WithField("CIDR", prefix.GetCidr()).
+		WithField("Parent", prefix.GetParent()).
+		Debug("sqlite, Delete")
 	if prefix == nil {
 		return nil
 	}
