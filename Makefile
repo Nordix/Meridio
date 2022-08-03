@@ -41,7 +41,7 @@ BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:0.0.1
-BUILDER ?= golang:1.18
+BUILDER ?= golang:1.19.0
 BASE_IMG ?= ubuntu:22.04
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= crd
