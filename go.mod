@@ -1,6 +1,6 @@
 module github.com/nordix/meridio-operator
 
-go 1.17
+go 1.19
 
 require (
 	github.com/faisal-memon/sviddisk v0.0.0-20211007205134-77ccea0b9271
