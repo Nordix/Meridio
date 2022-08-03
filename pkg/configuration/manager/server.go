@@ -27,6 +27,7 @@ const (
 
 // Server implements the ConfigurationManagerServer nsp service
 type Server struct {
+	nspAPI.UnimplementedConfigurationManagerServer
 	WatcherRegistry WatcherRegistry
 }
 

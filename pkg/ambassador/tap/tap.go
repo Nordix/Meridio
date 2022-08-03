@@ -34,6 +34,7 @@ import (
 
 // Tap implements ambassadorAPI.TapServer
 type Tap struct {
+	ambassadorAPI.UnimplementedTapServer
 	TargetName           string
 	Namespace            string
 	NodeName             string
