@@ -19,7 +19,6 @@ package endpoint
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -84,7 +83,7 @@ func (s *Server) Start(ctx context.Context) error {
 	s.server = grpc.NewServer(options...)
 	responderEndpoint.Register(s.server)
 	var err error
-	s.tmpDir, err = ioutil.TempDir("", s.Name)
+	s.tmpDir, err = os.MkdirTemp("", s.Name)
 	if err != nil {
 		return fmt.Errorf("error creating tmpDir for endpoint server (%v)", err)
 	}

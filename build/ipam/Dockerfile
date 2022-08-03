@@ -3,7 +3,7 @@ ARG USER=meridio
 ARG UID=10004
 ARG HOME=/home/${USER}
 
-FROM golang:1.18.1 as build
+FROM golang:1.19.0 as build
 
 ENV GO111MODULE=on
 ARG meridio_version=0.0.0-unknown
