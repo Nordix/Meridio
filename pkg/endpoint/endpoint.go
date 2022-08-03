@@ -18,7 +18,6 @@ package endpoint
 
 import (
 	"context"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -89,7 +88,7 @@ func (e *Endpoint) StartWithoutRegister(additionalFunctionality ...networkservic
 	responderEndpoint.Register(server)
 
 	var err error
-	e.tmpDir, err = ioutil.TempDir("", e.config.Name)
+	e.tmpDir, err = os.MkdirTemp("", e.config.Name)
 	if err != nil {
 		return errors.Wrap(err, "error creating tmpDir")
 	}
