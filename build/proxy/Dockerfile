@@ -28,8 +28,6 @@ RUN addgroup --gid $UID $USER \
   && chown -R :root "${HOME}" && chmod -R g+s=u "${HOME}"
 WORKDIR $HOME
 COPY --from=build /app/proxy .
-# cap_dac_override required by non-root user because of nsm-socket hostPath file permissions
-# (while file permissions of hostPath unix spire-agent-socket grant "write" access for "others")
-RUN setcap 'cap_net_admin,cap_dac_override+ep' ./proxy
+RUN setcap 'cap_net_admin+ep' ./proxy
 USER ${UID}:${UID}
 CMD ["./proxy"]
