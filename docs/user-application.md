@@ -35,8 +35,6 @@ Here is the minimal TAPA container specification required:
     capabilities:
       drop:
       - all
-      add:
-      - DAC_OVERRIDE
 ```
 
 Additional configuration via environment variables can be found on the [TAPA Configuration](tapa.md#configuration) documentation page.
@@ -44,7 +42,7 @@ Additional configuration via environment variables can be found on the [TAPA Con
 ### Volumes
 
 Four Volumes must be added to the pod. Spire and NSM are required to access the socket files to communicate with the APIs. And the Meridio volume provides a socket file user container can use to communicate with the TAPA API.
-If readOnlyRootFilesystem is enabled, the tmp volume provides a writable mount to create the health server socket that can be used by liveness, startup probes.
+If readOnlyRootFilesystem is enabled, the tmp volume provides a writable mount to create the health server unix socket that can be used by liveness, startup probes.
 
 ```yaml
 volumes:

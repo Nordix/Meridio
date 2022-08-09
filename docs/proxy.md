@@ -72,4 +72,3 @@ Sysctl: net.ipv6.fib_multipath_hash_policy=1 |
 Sysctl: net.ipv4.conf.all.rp_filter=0 | 
 Sysctl: net.ipv4.conf.default.rp_filter=0 | 
 NET_ADMIN | The proxy creates IP rules, IP routes, bridge interfaces and modifies NSM interfaces to link them to bridge interfaces.
-DAC_OVERRIDE | The proxy requires access to a unix socket provided by a hostPath volume to interact with NSM.
