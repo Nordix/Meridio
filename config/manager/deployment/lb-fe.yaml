@@ -153,6 +153,8 @@ spec:
               value:  # to be filled by operator
             - name: NSM_LIVENESSCHECKENABLED
               value:  # to be filled by operator
+            - name: NSM_LOCALDNSSERVERADDRESS
+              value: "127.0.0.1:10053"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
