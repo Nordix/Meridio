@@ -2,6 +2,9 @@
 .PHONY: default
 default: base-image load-balancer proxy tapa ipam nsp ctraffic frontend
 
+.PHONY: all
+all: default
+
 ############################################################################
 # Variables
 ############################################################################
@@ -15,6 +18,8 @@ VERSION_IPAM ?= $(VERSION)
 VERSION_NSP ?= $(VERSION)
 VERSION_CTRAFFIC ?= $(VERSION)
 VERSION_FRONTEND ?= $(VERSION)
+VERSION_BASE_IMAGE ?= $(VERSION)
+LOCAL_VERSION ?= $(VERSION)
 
 # E2E tests
 E2E_FOCUS ?= ""
@@ -23,7 +28,7 @@ NAMESPACE ?= red
 
 # Contrainer Registry
 REGISTRY ?= localhost:5000/meridio
-BASE_IMAGE ?= $(REGISTRY)/base:latest
+BASE_IMAGE ?= $(REGISTRY)/base-image:$(VERSION_BASE_IMAGE)
 DEBUG_IMAGE ?= $(REGISTRY)/debug:$(VERSION)
 
 # Tools
@@ -42,15 +47,12 @@ BUILD_STEPS ?= build tag push
 # Container: Build, tag, push
 #############################################################################
 
-.PHONY: all
-all: default
-
 .PHONY: build
 build:
-	docker build -t $(IMAGE) --build-arg meridio_version=$(shell git describe --dirty --tags) --build-arg base_image=$(BASE_IMAGE) -f ./$(BUILD_DIR)/$(IMAGE)/Dockerfile .
+	docker build -t $(IMAGE):$(LOCAL_VERSION) --build-arg meridio_version=$(shell git describe --dirty --tags) --build-arg base_image=$(BASE_IMAGE) -f ./$(BUILD_DIR)/$(IMAGE)/Dockerfile .
 .PHONY: tag
 tag:
-	docker tag $(IMAGE) $(REGISTRY)/$(IMAGE):$(VERSION)
+	docker tag $(IMAGE):$(LOCAL_VERSION) $(REGISTRY)/$(IMAGE):$(VERSION)
 .PHONY: push
 push:
 	docker push $(REGISTRY)/$(IMAGE):$(VERSION)
@@ -61,7 +63,7 @@ push:
 
 .PHONY: base-image
 base-image:
-	docker build -t $(BASE_IMAGE) -f ./build/base/Dockerfile .
+	VERSION=$(VERSION_BASE_IMAGE) IMAGE=base-image $(MAKE) $(BUILD_STEPS)
 
 .PHONY: debug-image
 debug-image:
