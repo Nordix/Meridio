@@ -60,6 +60,5 @@ Sysctl: net.ipv6.fib_multipath_hash_policy=1 |
 Sysctl: net.ipv4.conf.all.rp_filter=0 | 
 Sysctl: net.ipv4.conf.default.rp_filter=0 | 
 NET_ADMIN | The load balancer configures IP rules and IP routes to steer packets (processed by [nfqueue-loadbalancer program](https://github.com/Nordix/nfqueue-loadbalancer)) to targets. The user space load balancer program relies on [libnetfilter_queue](https://netfilter.org/projects/libnetfilter_queue).
-DAC_OVERRIDE | The load balancer requires access to a unix socket provided by a hostPath volume to interact with NSM.
 IPC_LOCK | The user space load balancer program uses shared memory.
 IPC_OWNER | The user space load balancer program uses shared memory.
