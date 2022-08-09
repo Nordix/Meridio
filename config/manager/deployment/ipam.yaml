@@ -111,9 +111,9 @@ spec:
               drop:
               - all
               add:
-              - DAC_OVERRIDE  # required by debug tools netstat, ss
-              - NET_RAW  # required by debug tool ping
-              - SYS_PTRACE  # required by debug tools netstat, ss to list process names/ids
+              - DAC_OVERRIDE  # required by debug tools (netstat, ss)
+              - NET_RAW  # required by debug tool (ping)
+              - SYS_PTRACE  # required by debug tools (netstat, ss to list process names/ids)
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler

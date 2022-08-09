@@ -122,9 +122,9 @@ spec:
               - all
               add:
               - NET_ADMIN  # required by proxy
-              - DAC_OVERRIDE  # required by proxy to use nsm-socket and by debug tools netstat, ss
-              - NET_RAW  # required by debug tools tcpdump, ping
-              - SYS_PTRACE  # required by debug tools netstat, ss to list process names/ids
+              - DAC_OVERRIDE  # required by debug tools (netstat, ss)
+              - NET_RAW  # required by debug tools (tcpdump, ping)
+              - SYS_PTRACE  # required by debug tools (netstat, ss to list process names/ids)
       securityContext:
         fsGroup: 2000
         fsGroupChangePolicy: "OnRootMismatch"
