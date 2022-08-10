@@ -113,7 +113,10 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 
 	ret.Spec.Template.ObjectMeta.Labels["app"] = lbFeDeploymentName
 	ret.Spec.Template.Spec.Affinity.PodAntiAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].LabelSelector.MatchExpressions[0].Values[0] = lbFeDeploymentName
-	ret.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
+	imagePullSecrets := common.GetImagePullSecrets()
+	if len(imagePullSecrets) > 0 {
+		ret.Spec.Template.Spec.ImagePullSecrets = imagePullSecrets
+	}
 
 	if ret.Spec.Template.Spec.InitContainers[0].Image == "" {
 		ret.Spec.Template.Spec.InitContainers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, common.BusyboxImage, common.BusyboxTag)

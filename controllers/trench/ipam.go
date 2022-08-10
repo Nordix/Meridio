@@ -83,7 +83,10 @@ func (i *IpamStatefulSet) insertParameters(dep *appsv1.StatefulSet) *appsv1.Stat
 
 	ret.Spec.ServiceName = ipamStatefulSetName
 
-	ret.Spec.Template.Spec.ImagePullSecrets = common.GetImagePullSecrets()
+	imagePullSecrets := common.GetImagePullSecrets()
+	if len(imagePullSecrets) > 0 {
+		ret.Spec.Template.Spec.ImagePullSecrets = imagePullSecrets
+	}
 
 	// check resource requirement annotation update, and save annotation into deployment for visibility
 	oa, _ := common.GetResourceRequirementAnnotation(&dep.ObjectMeta)
