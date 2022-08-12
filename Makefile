@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 0.0.1
+VERSION ?= latest
 
 # https://sdk.operatorframework.io/docs/faqs/#when-invoking-make-targets-why-do-i-see-errors-like-forkexec-usrlocalkubebuilderbinetcd-no-such-file-or-directory-occurred
 SHELL := /bin/bash
@@ -37,10 +37,12 @@ NAMESPACE ?= meridio-operator-system
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
 # You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
-BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
+BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:$(VERSION)
+
+REGISTRY ?= registry.nordix.org/cloud-native/meridio
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:0.0.1
+IMG ?= $(REGISTRY)/controller:$(VERSION)
 BUILDER ?= golang:1.19.0
 BASE_IMG ?= ubuntu:22.04
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
@@ -94,6 +96,12 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
+TEMPLATES_HELM_CHART_VALUES_PATH = config/templates/charts/meridio/values.yaml
+set-templates-values: ## Set the values in the templates helm chart
+	sed -i 's/^version: .*/version: ${VERSION}/' ${TEMPLATES_HELM_CHART_VALUES_PATH} ; \
+	sed -i 's/^registry: .*/registry: $(shell echo ${REGISTRY} | cut -d "/" -f 1)/' ${TEMPLATES_HELM_CHART_VALUES_PATH} ; \
+	sed -i 's#^organization: .*#organization: $(shell echo ${REGISTRY} | cut -d "/" -f 2-)#' ${TEMPLATES_HELM_CHART_VALUES_PATH}
+
 ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.21
@@ -144,12 +152,12 @@ WEBHOOK_SUPPORT ?= spire # spire or certmanager
 configure-webhook:
 	ENABLE_MUTATING_WEBHOOK=$(ENABLE_MUTATING_WEBHOOK) WEBHOOK_SUPPORT=$(WEBHOOK_SUPPORT) hack/webhook-switch.sh
 
-deploy: manifests kustomize namespace configure-webhook ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+deploy: manifests kustomize namespace configure-webhook set-templates-values ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
+	$(KUSTOMIZE) build config/default --enable-helm | kubectl apply -f -
 
 undeploy: namespace configure-webhook ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default | kubectl delete -f - --ignore-not-found=true
+	$(KUSTOMIZE) build config/default --enable-helm | kubectl delete -f - --ignore-not-found=true
 
 apply-samples: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	kubectl apply -f config/samples/meridio_v1alpha1_trench.yaml -n ${NAMESPACE}
@@ -162,7 +170,7 @@ apply-samples: ## Undeploy controller from the K8s cluster specified in ~/.kube/
 
 print-manifests: manifests kustomize namespace  configure-webhook ## Generate manifests to be deployed in the cluster
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default
+	$(KUSTOMIZE) build config/default --enable-helm
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
@@ -227,7 +235,7 @@ endif
 BUNDLE_IMGS ?= $(BUNDLE_IMG)
 
 # The image tag given to the resulting catalog image (e.g. make catalog-build CATALOG_IMG=example.com/operator-catalog:v0.2.0).
-CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:v$(VERSION)
+CATALOG_IMG ?= $(IMAGE_TAG_BASE)-catalog:$(VERSION)
 
 # Set CATALOG_BASE_IMG to an existing catalog image tag to add $BUNDLE_IMGS to that image.
 ifneq ($(origin CATALOG_BASE_IMG), undefined)

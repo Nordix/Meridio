@@ -18,7 +18,7 @@ spec:
     spec:
       initContainers:
         - name: sysctl-init
-          image:  # to be filled by operator
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.sysctlInit.image }}:{{ .Values.sysctlInit.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
           securityContext:
             privileged: true
@@ -26,7 +26,7 @@ spec:
           args:  # to be filled by operator according to the Trench
       containers:
         - name: proxy
-          image:  # to be filled by operator if not specified
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.proxy.image }}:{{ .Values.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
           startupProbe:  # will be filled by operator if not specified
             exec:

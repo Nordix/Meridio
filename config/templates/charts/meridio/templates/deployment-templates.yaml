@@ -1,0 +1,10 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deployment-templates
+data: 
+  {{ range $path, $_ :=  .Files.Glob  "deployment/**.yaml" }}
+    {{ $path | replace "deployment/" "" }}: |-
+{{ tpl ($.Files.Get $path) $ | indent 5 }}
+  {{- end }}

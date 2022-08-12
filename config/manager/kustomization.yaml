@@ -1,9 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
 resources:
 - manager.yaml
+- ../templates
 
-patchesStrategicMerge:
 # - patches/manager_webhook_patch_certmanager.yaml # [CERTMANAGER] To enable cert-manager, you need to uncomment all the sections with [CERTMANAGER]
-- patches/manager_webhook_patch_spire.yaml # [SPIRE] To enable spire, you need to uncomment all the sections with [SPIRE]
+patchesStrategicMerge:
+- patches/manager_webhook_patch_spire.yaml
 - patches/manager_resource_templates_patch.yaml
 
 generatorOptions:
@@ -24,22 +28,8 @@ configMapGenerator:
   name: resource-templates
   options:
     disableNameSuffixHash: true
-- files:
-  - deployment/ipam-service.yaml
-  - deployment/ipam.yaml
-  - deployment/lb-fe.yaml
-  - deployment/nse-vlan.yaml
-  - deployment/nsp-service.yaml
-  - deployment/nsp.yaml
-  - deployment/proxy.yaml
-  - deployment/role-binding.yaml
-  - deployment/role.yaml
-  - deployment/service-account.yaml
-  - deployment/pdb.yaml
-  name: deployment-templates
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
+
 images:
 - name: controller
-  newName: controller
-  newTag: 0.0.1
+  newName: registry.nordix.org/cloud-native/meridio/meridio-operator
+  newTag: latest
