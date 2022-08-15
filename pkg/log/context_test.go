@@ -44,7 +44,7 @@ func Test(t *testing.T) {
 			name: "context and logrus logger",
 			args: args{
 				parent: context.Background(),
-				logger: log.NewLogrusLogger(),
+				logger: log.NewLogrusLogger(nil),
 			},
 		},
 	}

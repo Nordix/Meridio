@@ -26,11 +26,18 @@ type logrusLogger struct {
 	entry *logrus.Entry
 }
 
-func NewLogrusLogger() *logrusLogger {
-	l := &logrusLogger{
+// NewLogrusLogger return a new logger with a logrus backend.
+// If the logger parameter is not-nil it will be used as base. This
+// allows for instance passing of a base logger with JSON formatter.
+func NewLogrusLogger(l *logrus.Logger) *logrusLogger {
+	if l != nil {
+		return &logrusLogger{
+			entry: logrus.NewEntry(l),
+		}
+	}
+	return &logrusLogger{
 		entry: logrus.NewEntry(logrus.StandardLogger()),
 	}
-	return l
 }
 
 func (l *logrusLogger) Trace(format string, v ...interface{}) {
