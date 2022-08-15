@@ -14,60 +14,59 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package logrus
+package log
 
 import (
 	"io"
 
-	"github.com/nordix/meridio/pkg/log"
 	"github.com/sirupsen/logrus"
 )
 
-type logger struct {
+type logrusLogger struct {
 	entry *logrus.Entry
 }
 
-func New() *logger {
-	l := &logger{
+func NewLogrusLogger() *logrusLogger {
+	l := &logrusLogger{
 		entry: logrus.NewEntry(logrus.StandardLogger()),
 	}
 	return l
 }
 
-func (l *logger) Trace(format string, v ...interface{}) {
+func (l *logrusLogger) Trace(format string, v ...interface{}) {
 	l.entry.Tracef(format, v...)
 }
 
-func (l *logger) Debug(format string, v ...interface{}) {
+func (l *logrusLogger) Debug(format string, v ...interface{}) {
 	l.entry.Debugf(format, v...)
 }
 
-func (l *logger) Info(format string, v ...interface{}) {
+func (l *logrusLogger) Info(format string, v ...interface{}) {
 	l.entry.Infof(format, v...)
 }
 
-func (l *logger) Warn(format string, v ...interface{}) {
+func (l *logrusLogger) Warn(format string, v ...interface{}) {
 	l.entry.Warnf(format, v...)
 }
 
-func (l *logger) Error(format string, v ...interface{}) {
+func (l *logrusLogger) Error(format string, v ...interface{}) {
 	l.entry.Errorf(format, v...)
 }
 
-func (l *logger) Fatal(format string, v ...interface{}) {
+func (l *logrusLogger) Fatal(format string, v ...interface{}) {
 	l.entry.Fatalf(format, v...)
 }
 
-func (l *logger) SetOutput(out io.Writer) {
+func (l *logrusLogger) SetOutput(out io.Writer) {
 	l.entry.Logger.SetOutput(out)
 }
 
-func (l *logger) SetLevel(level log.Level) {
+func (l *logrusLogger) SetLevel(level Level) {
 	l.entry.Logger.SetLevel(logrus.Level(level))
 }
 
-func (l *logger) WithField(key, value interface{}) log.Logger {
-	return &logger{
+func (l *logrusLogger) WithField(key, value interface{}) Logger {
+	return &logrusLogger{
 		entry: l.entry.WithField(key.(string), value),
 	}
 }

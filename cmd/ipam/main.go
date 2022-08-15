@@ -36,7 +36,6 @@ import (
 	"github.com/nordix/meridio/pkg/ipam/trench"
 	"github.com/nordix/meridio/pkg/ipam/types"
 	"github.com/nordix/meridio/pkg/log"
-	"github.com/nordix/meridio/pkg/log/logrus"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"google.golang.org/grpc"
 	grpcHealth "google.golang.org/grpc/health"
@@ -75,7 +74,7 @@ func main() {
 	)
 	defer cancel()
 
-	logger := logrus.New()
+	logger := log.NewLogrusLogger()
 	logger.SetOutput(os.Stdout)
 	logger.SetLevel(log.DebugLevel)
 

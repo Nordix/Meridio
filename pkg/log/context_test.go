@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/nordix/meridio/pkg/log"
-	"github.com/nordix/meridio/pkg/log/logrus"
 )
 
 func Test(t *testing.T) {
@@ -45,7 +44,7 @@ func Test(t *testing.T) {
 			name: "context and logrus logger",
 			args: args{
 				parent: context.Background(),
-				logger: logrus.New(),
+				logger: log.NewLogrusLogger(),
 			},
 		},
 	}
