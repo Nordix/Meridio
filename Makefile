@@ -5,6 +5,9 @@ default: base-image load-balancer proxy tapa ipam nsp ctraffic frontend
 .PHONY: all
 all: default
 
+help: ## Display this help.
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+
 ############################################################################
 # Variables
 ############################################################################
@@ -58,59 +61,59 @@ push:
 	docker push $(REGISTRY)/$(IMAGE):$(VERSION)
 
 #############################################################################
-# Component (Build, tag, push): base, debug, load-balancer, proxy, tapa, ipam, nsp, ctraffic, frontend
+##@ Component (Build, tag, push): use VERSION to set the version. Use BUILD_STEPS to set the build steps (build, tag, push)
 #############################################################################
 
 .PHONY: base-image
-base-image:
+base-image: ## Build the base-image
 	VERSION=$(VERSION_BASE_IMAGE) IMAGE=base-image $(MAKE) $(BUILD_STEPS)
 
 .PHONY: debug-image
-debug-image:
+debug-image: ## Build the debug-image
 	docker build -t $(DEBUG_IMAGE) -f ./build/debug/Dockerfile .
 
 .PHONY: load-balancer
-load-balancer:
+load-balancer: ## Build the load-balancer.
 	VERSION=$(VERSION_LOAD_BALANCER) IMAGE=load-balancer $(MAKE) $(BUILD_STEPS)
 
 .PHONY: proxy
-proxy:
+proxy: ## Build the proxy.
 	VERSION=$(VERSION_PROXY) IMAGE=proxy $(MAKE) $(BUILD_STEPS)
 
 .PHONY: tapa
-tapa:
+tapa: ## Build the tapa.
 	VERSION=$(VERSION_TAPA) IMAGE=tapa $(MAKE) $(BUILD_STEPS)
 
 .PHONY: ipam
-ipam:
+ipam: ## Build the ipam.
 	VERSION=$(VERSION_IPAM) IMAGE=ipam $(MAKE) $(BUILD_STEPS)
 
 .PHONY: nsp
-nsp:
+nsp: ## Build the nsp.
 	VERSION=$(VERSION_NSP) IMAGE=nsp $(MAKE) $(BUILD_STEPS)
 
 .PHONY: ctraffic
-ctraffic:
+ctraffic: ## Build the ctraffic.
 	VERSION=$(VERSION_CTRAFFIC) IMAGE=ctraffic $(MAKE) $(BUILD_STEPS)
 
 .PHONY: frontend
-frontend:
+frontend: ## Build the frontend.
 	VERSION=$(VERSION_FRONTEND) IMAGE=frontend $(MAKE) $(BUILD_STEPS)
 
 #############################################################################
-# Testing & Code check
+##@ Testing & Code check
 #############################################################################
 
 .PHONY: lint
-lint: golangci-lint
+lint: golangci-lint ## Run linter against code.
 	$(GOLANGCI_LINT) run ./...
 
 .PHONY: e2e
-e2e: ginkgo
+e2e: ginkgo ## Run the E2E tests.
 	$(GINKGO) -v --focus=$(E2E_FOCUS) ./test/e2e/... -- -traffic-generator-cmd=$(TRAFFIC_GENERATOR_CMD) -namespace=${NAMESPACE}
 
 .PHONY: test
-test: 
+test: ## Run the Unit tests.
 	go test -race -cover -short ./... 
 
 .PHONY: cover
@@ -119,14 +122,14 @@ cover:
 	go tool cover -html=cover.out -o cover.html
 
 .PHONY: check
-check: lint test
+check: lint test ## Run the linter and the Unit tests.
 
 #############################################################################
-# Code generation
+##@ Code generation
 #############################################################################
 
 .PHONY: generate
-generate: mockgen
+generate: mockgen ## Generate the mocks.
 	go generate ./... 
 
 .PHONY: ipam-proto
@@ -142,7 +145,7 @@ ambassador-proto: proto-compiler
 	protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative api/ambassador/**/*.proto
 
 .PHONY: proto
-proto: ipam-proto nsp-proto ambassador-proto
+proto: ipam-proto nsp-proto ambassador-proto ## Compile the proto.
 
 #############################################################################
 # Tools
