@@ -24,7 +24,6 @@ import (
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ipam/types"
 	"github.com/nordix/meridio/pkg/retry"
-	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
@@ -41,17 +40,7 @@ type TrenchWatcher interface {
 	RemoveConduit(ctx context.Context, name string) error
 }
 
-func NewConduitWatcher(ctx context.Context, nspService string, trenchName string, trenchWatchers []TrenchWatcher) (*ConduitWatcher, error) {
-	nspConn, err := grpc.Dial(nspService,
-		grpc.WithTransportCredentials(
-			credentials.GetClient(context.Background()),
-		),
-		grpc.WithDefaultCallOptions(
-			grpc.WaitForReady(true),
-		))
-	if err != nil {
-		return nil, err
-	}
+func NewConduitWatcher(ctx context.Context, nspConn *grpc.ClientConn, trenchName string, trenchWatchers []TrenchWatcher) (*ConduitWatcher, error) {
 	configurationManagerClient := nspAPI.NewConfigurationManagerClient(nspConn)
 
 	cw := &ConduitWatcher{

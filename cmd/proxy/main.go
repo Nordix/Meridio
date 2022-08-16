@@ -35,6 +35,7 @@ import (
 	"github.com/nordix/meridio/cmd/proxy/internal/service"
 	endpointOld "github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"
+	"github.com/nordix/meridio/pkg/health/connection"
 	"github.com/nordix/meridio/pkg/health/probe"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/nsm"
@@ -111,7 +112,9 @@ func main() {
 	}
 
 	// connect IPAM the proxy relies on to assign IPs both locally and remote via nsc and nse
-	conn, err := grpc.Dial(config.IPAMService,
+	logrus.Infof("Dial IPAM (%v)", config.IPAMService)
+	conn, err := grpc.DialContext(signalCtx,
+		config.IPAMService,
 		grpc.WithTransportCredentials(
 			credentials.GetClient(ctx),
 		),
@@ -121,6 +124,13 @@ func main() {
 	if err != nil {
 		logrus.Fatalf("Error dialing IPAM: %+v", err)
 	}
+	defer conn.Close()
+
+	// monitor status of IPAM connection and adjust probe status accordingly
+	if err := connection.Monitor(signalCtx, health.IPAMCliSvc, conn); err != nil {
+		logrus.Warnf("IPAM connection state monitor err: %v", err)
+	}
+
 	ipamClient := ipamAPI.NewIpamClient(conn)
 	conduit := &nspAPI.Conduit{
 		Name: config.Conduit,
@@ -176,8 +186,9 @@ func main() {
 	// connect NSP and start watching config events of interest
 	configurationContext, configurationCancel := context.WithCancel(signalCtx)
 	defer configurationCancel()
-	logrus.Debugf("Dial NSP (%v)", nsp.GetService(config.NSPServiceName, config.Trench, config.Namespace, config.NSPServicePort))
-	nspConn, err := grpc.Dial(nsp.GetService(config.NSPServiceName, config.Trench, config.Namespace, config.NSPServicePort),
+	logrus.Infof("Dial NSP (%v)", nsp.GetService(config.NSPServiceName, config.Trench, config.Namespace, config.NSPServicePort))
+	nspConn, err := grpc.DialContext(signalCtx,
+		nsp.GetService(config.NSPServiceName, config.Trench, config.Namespace, config.NSPServicePort),
 		grpc.WithTransportCredentials(
 			credentials.GetClient(configurationContext),
 		),
@@ -185,16 +196,21 @@ func main() {
 			grpc.WaitForReady(true),
 		))
 	if err != nil {
-		logrus.Fatalf("Dial err: %v", err)
+		logrus.Fatalf("Error dialing NSP: %v", err)
+	}
+	defer nspConn.Close()
+
+	// monitor status of NSP connection and adjust probe status accordingly
+	if err := connection.Monitor(signalCtx, health.NSPCliSvc, nspConn); err != nil {
+		logrus.Warnf("NSP connection state monitor err: %v", err)
 	}
 
 	configurationManagerClient := nspAPI.NewConfigurationManagerClient(nspConn)
 	if err != nil {
 		logrus.Fatalf("WatchVip err: %v", err)
 	}
-	logrus.Debugf("Connected to NSP")
-	health.SetServingStatus(ctx, health.NSPCliSvc, true)
 
+	logrus.Debugf("Watch configuration")
 	err = retry.Do(func() error {
 		vipWatcher, err := configurationManagerClient.WatchVip(configurationContext, &nspAPI.Vip{
 			Trench: &nspAPI.Trench{

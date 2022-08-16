@@ -57,9 +57,7 @@ ipam:
   serviceName: ipam-service
   probe:
     readiness:
-      service: ""
-      addr: :7777
-      spiffe: true
+      service: "Readiness"
 
 nsp:
   image: nsp

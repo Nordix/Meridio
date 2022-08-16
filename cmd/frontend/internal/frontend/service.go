@@ -30,32 +30,19 @@ import (
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/cmd/frontend/internal/bird"
+	feConfig "github.com/nordix/meridio/cmd/frontend/internal/config"
 	"github.com/nordix/meridio/cmd/frontend/internal/connectivity"
-	"github.com/nordix/meridio/cmd/frontend/internal/env"
 	"github.com/nordix/meridio/cmd/frontend/internal/utils"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/retry"
-	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
-	"google.golang.org/grpc"
 )
 
 // FrontEndService -
-func NewFrontEndService(c *env.Config) *FrontEndService {
+func NewFrontEndService(ctx context.Context, c *feConfig.Config) *FrontEndService {
 	logrus.Infof("NewFrontEndService")
-
-	conn, err := grpc.Dial(c.NSPService,
-		grpc.WithTransportCredentials(
-			credentials.GetClient(context.Background()),
-		),
-		grpc.WithDefaultCallOptions(
-			grpc.WaitForReady(true),
-		))
-	if err != nil {
-		logrus.Errorf("grpc.Dial err: %v", err)
-	}
-	targetRegistryClient := nspAPI.NewTargetRegistryClient(conn)
+	targetRegistryClient := nspAPI.NewTargetRegistryClient(c.NSPConn)
 
 	birdConfFile := c.BirdConfigPath + "/bird-fe-meridio.conf"
 	frontEndService := &FrontEndService{

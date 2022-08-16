@@ -32,9 +32,11 @@ import (
 	"google.golang.org/grpc"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	feConfig "github.com/nordix/meridio/cmd/frontend/internal/config"
 	"github.com/nordix/meridio/cmd/frontend/internal/env"
 	"github.com/nordix/meridio/cmd/frontend/internal/frontend"
 	"github.com/nordix/meridio/pkg/health"
+	"github.com/nordix/meridio/pkg/health/connection"
 	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/security/credentials"
 )
@@ -97,11 +99,36 @@ func main() {
 
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
-	if err := health.RegisterReadinesSubservices(ctx, health.FeReadinessServices...); err != nil {
+	if err := health.RegisterReadinesSubservices(ctx, health.FEReadinessServices...); err != nil {
 		logrus.Warnf("%v", err)
 	}
 
-	fe := frontend.NewFrontEndService(config)
+	// connect NSP
+	logrus.Infof("Dial NSP (%v)", config.NSPService)
+	conn, err := grpc.DialContext(ctx,
+		config.NSPService,
+		grpc.WithTransportCredentials(
+			credentials.GetClient(context.Background()),
+		),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+		))
+	if err != nil {
+		logrus.Fatalf("Dial NSP err: %v", err)
+	}
+	defer conn.Close()
+
+	// monitor status of NSP connection and adjust probe status accordingly
+	if err := connection.Monitor(ctx, health.NSPCliSvc, conn); err != nil {
+		logrus.Warnf("NSP connection state monitor err: %v", err)
+	}
+
+	// create and start frontend service
+	c := &feConfig.Config{
+		Config:  config,
+		NSPConn: conn,
+	}
+	fe := frontend.NewFrontEndService(ctx, c)
 	defer fe.CleanUp()
 	health.SetServingStatus(ctx, health.TargetRegistryCliSvc, true) // NewFrontEndService() creates Target Registry Client
 
@@ -118,18 +145,14 @@ func main() {
 	}()
 	exitOnErrCh(ctx, cancel, feErrCh)
 
-	/* time.Sleep(1 * time.Second)
-	if err := fe.VerifyConfig(ctx); err != nil {
-		logrus.Errorf("Failed to verify config")
-	} */
-
-	// monitor BIRD routing sessions
+	// monitor routing sessions
 	if err := fe.Monitor(ctx); err != nil {
 		cancel()
 		logrus.Errorf("Failed to start monitor: %v", err)
 	}
 
-	go watchConfig(ctx, cancel, config, fe)
+	// start watching events of interest via NSP
+	go watchConfig(ctx, cancel, c, fe)
 
 	<-ctx.Done()
 	logrus.Warnf("FE shutting down")
@@ -158,24 +181,12 @@ func exitOnErrCh(ctx context.Context, cancel context.CancelFunc, errCh <-chan er
 	}(ctx, errCh)
 }
 
-func watchConfig(ctx context.Context, cancel context.CancelFunc, c *env.Config, fe *frontend.FrontEndService) {
+func watchConfig(ctx context.Context, cancel context.CancelFunc, c *feConfig.Config, fe *frontend.FrontEndService) {
 	if err := fe.WaitStart(ctx); err != nil {
 		logrus.Errorf("Wait start: %v", err)
 		cancel()
 	}
-	conn, err := grpc.Dial(c.NSPService,
-		grpc.WithTransportCredentials(
-			credentials.GetClient(context.Background()),
-		),
-		grpc.WithDefaultCallOptions(
-			grpc.WaitForReady(true),
-		))
-	if err != nil {
-		logrus.Errorf("grpc.Dial err: %v", err)
-		cancel()
-	}
-	health.SetServingStatus(ctx, health.NSPCliSvc, true)
-	configurationManagerClient := nspAPI.NewConfigurationManagerClient(conn)
+	configurationManagerClient := nspAPI.NewConfigurationManagerClient(c.NSPConn)
 	attractorToWatch := &nspAPI.Attractor{
 		Name: c.AttractorName,
 		Trench: &nspAPI.Trench{
@@ -183,7 +194,7 @@ func watchConfig(ctx context.Context, cancel context.CancelFunc, c *env.Config, 
 		},
 	}
 
-	err = retry.Do(func() error {
+	err := retry.Do(func() error {
 		return watchAttractor(ctx, configurationManagerClient, attractorToWatch, fe)
 	}, retry.WithContext(ctx),
 		retry.WithDelay(500*time.Millisecond),
