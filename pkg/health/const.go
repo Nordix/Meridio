@@ -27,6 +27,8 @@ const (
 )
 
 const (
+	IPAMSvc              string = "IPAM"
+	IPAMCliSvc           string = "IPAMCli"
 	NSPCliSvc            string = "NSPCli"
 	EgressSvc            string = "Egress"
 	NSMEndpointSvc       string = "NSMEndpoint"
@@ -35,6 +37,7 @@ const (
 	FlowSvc              string = "Flow"
 )
 
-var LbReadinessServices []string = []string{NSPCliSvc, NSMEndpointSvc, EgressSvc, StreamSvc, FlowSvc}
-var FeReadinessServices []string = []string{NSPCliSvc, TargetRegistryCliSvc, EgressSvc}
-var ProxyReadinessServices []string = []string{NSPCliSvc, NSMEndpointSvc, EgressSvc}
+var LBReadinessServices []string = []string{NSPCliSvc, NSMEndpointSvc, EgressSvc, StreamSvc, FlowSvc}
+var FEReadinessServices []string = []string{NSPCliSvc, TargetRegistryCliSvc, EgressSvc}
+var ProxyReadinessServices []string = []string{IPAMCliSvc, NSPCliSvc, NSMEndpointSvc, EgressSvc}
+var IPAMReadinessServices []string = []string{NSPCliSvc, IPAMSvc}

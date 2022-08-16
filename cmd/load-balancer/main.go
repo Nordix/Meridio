@@ -42,6 +42,7 @@ import (
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"
+	"github.com/nordix/meridio/pkg/health/connection"
 	"github.com/nordix/meridio/pkg/health/probe"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/loadbalancer/nfqlb"
@@ -124,11 +125,13 @@ func main() {
 
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
-	if err := health.RegisterReadinesSubservices(ctx, health.LbReadinessServices...); err != nil {
+	if err := health.RegisterReadinesSubservices(ctx, health.LBReadinessServices...); err != nil {
 		logrus.Warnf("%v", err)
 	}
 
-	conn, err := grpc.Dial(config.NSPService,
+	logrus.Infof("Dial NSP (%v)", config.NSPService)
+	conn, err := grpc.DialContext(ctx,
+		config.NSPService,
 		grpc.WithTransportCredentials(
 			credentials.GetClient(context.Background()),
 		),
@@ -136,9 +139,15 @@ func main() {
 			grpc.WaitForReady(true),
 		))
 	if err != nil {
-		logrus.Errorf("grpc.Dial err: %v", err)
+		logrus.Fatalf("grpc.Dial err: %v", err)
 	}
-	health.SetServingStatus(ctx, health.NSPCliSvc, true)
+	defer conn.Close()
+
+	// monitor status of NSP connection and adjust probe status accordingly
+	if err := connection.Monitor(ctx, health.NSPCliSvc, conn); err != nil {
+		logrus.Warnf("NSP connection state monitor err: %v", err)
+	}
+
 	stream.SetInterfaceNamePrefix(config.ServiceName) // deduce the NSM interfacename prefix for the netfilter defrag rules
 	targetRegistryClient := nspAPI.NewTargetRegistryClient(conn)
 	configurationManagerClient := nspAPI.NewConfigurationManagerClient(conn)

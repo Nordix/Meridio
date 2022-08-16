@@ -27,6 +27,7 @@ import (
 	"github.com/nordix/meridio/pkg/ipam/trench"
 	"github.com/nordix/meridio/pkg/ipam/types"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -39,7 +40,7 @@ type IpamServer struct {
 // NewIpam -
 func NewServer(datastore string,
 	trenchName string,
-	nspService string,
+	nspConn *grpc.ClientConn,
 	cidrs map[ipamAPI.IPFamily]string,
 	prefixLengths map[ipamAPI.IPFamily]*types.PrefixLengths) (ipamAPI.IpamServer, error) {
 	is := &IpamServer{
@@ -62,7 +63,7 @@ func NewServer(datastore string,
 		is.Trenches[ipFamily] = newTrench
 		trenchWatchers = append(trenchWatchers, newTrench)
 	}
-	conduitWatcher, err := trench.NewConduitWatcher(context.TODO(), nspService, trenchName, trenchWatchers)
+	conduitWatcher, err := trench.NewConduitWatcher(context.TODO(), nspConn, trenchName, trenchWatchers)
 	if err != nil {
 		return nil, err
 	}

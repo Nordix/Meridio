@@ -131,6 +131,7 @@ func main() {
 	grpc_health_v1.RegisterHealthServer(server, healthServer)
 
 	listener, err := net.Listen("tcp", fmt.Sprintf("[::]:%s", config.Port))
+	logrus.Infof("NSP Service: Start the service (port: %v)", config.Port)
 	if err != nil {
 		logrus.Fatalf("NSP Service: failed to listen: %v", err)
 	}

@@ -157,6 +157,9 @@ func (apiClient *APIClient) Delete() {
 		logrus.Infof("apiClient: Delete")
 		apiClient.cancel()
 	}
+	if apiClient.GRPCClient != nil {
+		apiClient.GRPCClient.Close()
+	}
 }
 
 // NewAPIClient -

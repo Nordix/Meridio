@@ -22,11 +22,15 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/kelseyhightower/envconfig"
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
 	"github.com/nordix/meridio/pkg/health"
+	"github.com/nordix/meridio/pkg/health/connection"
+	"github.com/nordix/meridio/pkg/health/probe"
 	"github.com/nordix/meridio/pkg/ipam"
 	"github.com/nordix/meridio/pkg/ipam/types"
 	"github.com/nordix/meridio/pkg/security/credentials"
@@ -62,8 +66,21 @@ func main() {
 	logrus.SetOutput(os.Stdout)
 	logrus.SetLevel(logrus.DebugLevel)
 
+	ctx, cancel := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGHUP,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
+	defer cancel()
+
 	// create and start health server
-	_ = health.CreateChecker(context.Background())
+	ctx = health.CreateChecker(ctx)
+	if err := health.RegisterReadinesSubservices(ctx, health.IPAMReadinessServices...); err != nil {
+		logrus.Warnf("%v", err)
+	}
+
 	var config Config
 	err := envconfig.Process("ipam", &config)
 	if err != nil {
@@ -80,6 +97,26 @@ func main() {
 		return l
 	}())
 
+	// connect NSP
+	conn, err := grpc.DialContext(
+		ctx,
+		config.NSPService,
+		grpc.WithTransportCredentials(
+			credentials.GetClient(ctx),
+		),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+		))
+	if err != nil {
+		logrus.Fatalf("Dial NSP err: %v", err)
+	}
+	defer conn.Close()
+
+	// monitor status of NSP connection and adjust probe status accordingly
+	if err := connection.Monitor(ctx, health.NSPCliSvc, conn); err != nil {
+		logrus.Warnf("NSP connection state monitor err: %v", err)
+	}
+
 	prefixLengths := make(map[ipamAPI.IPFamily]*types.PrefixLengths)
 	cidrs := make(map[ipamAPI.IPFamily]string)
 	if strings.ToLower(config.IPFamily) == "ipv4" {
@@ -95,13 +132,14 @@ func main() {
 		cidrs[ipamAPI.IPFamily_IPV6] = config.PrefixIPv6
 	}
 
-	ipamServer, err := ipam.NewServer(config.Datasource, config.TrenchName, config.NSPService, cidrs, prefixLengths)
+	// cteate IPAM server
+	ipamServer, err := ipam.NewServer(config.Datasource, config.TrenchName, conn, cidrs, prefixLengths)
 	if err != nil {
 		logrus.Fatalf("Unable to create ipam server: %v", err)
 	}
 
 	server := grpc.NewServer(grpc.Creds(
-		credentials.GetServer(context.Background()),
+		credentials.GetServer(ctx),
 	))
 	ipamAPI.RegisterIpamServer(server, ipamServer)
 	healthServer := grpcHealth.NewServer()
@@ -110,10 +148,25 @@ func main() {
 	logrus.Infof("IPAM Service: Start the service (port: %v)", config.Port)
 	listener, err := net.Listen("tcp", fmt.Sprintf("[::]:%d", config.Port))
 	if err != nil {
-		logrus.Fatalf("NSP Service: failed to listen: %v", err)
+		logrus.Fatalf("IPAM Service: failed to listen: %v", err)
 	}
 
-	if err := server.Serve(listener); err != nil {
-		logrus.Errorf("NSP Service: failed to serve: %v", err)
+	// internal probe checking health of IPAM server
+	probe.CreateAndRunGRPCHealthProbe(ctx, health.IPAMSvc, probe.WithAddress(fmt.Sprintf(":%d", config.Port)), probe.WithSpiffe())
+
+	if err := startServer(ctx, server, listener); err != nil {
+		logrus.Errorf("IPAM Service: failed to serve: %v", err)
 	}
+}
+
+func startServer(ctx context.Context, server *grpc.Server, listener net.Listener) error {
+	defer func() {
+		_ = listener.Close()
+	}()
+	// montior context in separate goroutine to be able to stop server
+	go func() {
+		<-ctx.Done()
+		server.Stop()
+	}()
+	return server.Serve(listener)
 }
