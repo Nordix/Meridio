@@ -25,8 +25,16 @@ type ConduitList struct {
 }
 
 type Conduit struct {
-	Name   string `yaml:"name"`
-	Trench string `yaml:"trench"`
+	Name                string     `yaml:"name"`
+	Trench              string     `yaml:"trench"`
+	DestinationPortNats []*PortNat `yaml:"destination-port-nats,omitempty"`
+}
+
+type PortNat struct {
+	Port       uint16   `yaml:"port"`
+	TargetPort uint16   `yaml:"target-port"`
+	Vips       []string `yaml:"vips"`
+	Protocol   string   `yaml:"protocol"`
 }
 
 type StreamList struct {
@@ -51,7 +59,6 @@ type Flow struct {
 	Vips                  []string `yaml:"vips"`
 	Priority              int32    `yaml:"priority"`
 	Stream                string   `yaml:"stream"`
-	LocalPort             uint16   `yaml:"local-port,omitempty"`
 	ByteMatches           []string `yaml:"byte-matches,omitempty"`
 }
 

@@ -40,7 +40,6 @@ type LoadBalancer struct {
 	TargetRegistryClient       nspAPI.TargetRegistryClient
 	ConfigurationManagerClient nspAPI.ConfigurationManagerClient
 	nfqlb                      types.NFQueueLoadBalancer
-	nfth                       types.NftHandler
 	flows                      map[string]types.Flow
 	targets                    map[int]types.Target // key: Identifier
 	netUtils                   networking.Utils
@@ -67,10 +66,6 @@ func New(
 	if err != nil {
 		return nil, err
 	}
-	nfth, err := flow.NewNftHandler()
-	if err != nil {
-		return nil, err
-	}
 
 	loadBalancer := &LoadBalancer{
 		Stream:                     stream,
@@ -78,7 +73,6 @@ func New(
 		ConfigurationManagerClient: configurationManagerClient,
 		flows:                      make(map[string]types.Flow),
 		nfqlb:                      nfqlb,
-		nfth:                       nfth,
 		targets:                    make(map[int]types.Target),
 		netUtils:                   netUtils,
 		nfqueue:                    nfqueue,
@@ -271,7 +265,7 @@ func (lb *LoadBalancer) setFlows(flows []*nspAPI.Flow) {
 	for _, f := range flows {
 		fl, exists := lb.flows[f.GetName()]
 		if !exists { // create
-			newFlow, err := flow.New(f, lb.nfqlb, lb.nfth)
+			newFlow, err := flow.New(f, lb.nfqlb)
 			if err != nil {
 				logrus.Warnf("Stream '%v' new flow: %v", lb.GetName(), err)
 				continue

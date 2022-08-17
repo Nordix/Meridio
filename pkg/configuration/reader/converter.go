@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -38,9 +38,9 @@ func ConvertAll(
 	[]*nspAPI.Gateway,
 ) {
 	trenchConverted := ConvertTrench(trench)
-	conduitsConverted := ConvertConduits(conduits, trenchConverted)
-	streamsConverted := ConvertStreams(streams, conduitsConverted)
 	vipsConverted := ConvertVips(vips, trenchConverted)
+	conduitsConverted := ConvertConduits(conduits, trenchConverted, vipsConverted)
+	streamsConverted := ConvertStreams(streams, conduitsConverted)
 	flowsConverted := ConvertFlows(flows, streamsConverted, vipsConverted)
 	gatewaysConverted := ConvertGateways(gateways, trenchConverted)
 	attractorsConverted := ConvertAttractors(attractors, trenchConverted, vipsConverted, gatewaysConverted)
@@ -53,7 +53,7 @@ func ConvertTrench(trench *Trench) *nspAPI.Trench {
 	}
 }
 
-func ConvertConduits(conduits []*Conduit, trench *nspAPI.Trench) []*nspAPI.Conduit {
+func ConvertConduits(conduits []*Conduit, trench *nspAPI.Trench, vips []*nspAPI.Vip) []*nspAPI.Conduit {
 	resConduits := []*nspAPI.Conduit{}
 	if trench == nil {
 		return resConduits
@@ -63,8 +63,9 @@ func ConvertConduits(conduits []*Conduit, trench *nspAPI.Trench) []*nspAPI.Condu
 			continue
 		}
 		resConduits = append(resConduits, &nspAPI.Conduit{
-			Name:   conduit.Name,
-			Trench: trench,
+			Name:                conduit.Name,
+			Trench:              trench,
+			DestinationPortNats: ConvertPortNats(conduit.DestinationPortNats, vips),
 		})
 	}
 	return resConduits
@@ -109,7 +110,6 @@ func ConvertFlows(flows []*Flow, streams []*nspAPI.Stream, vips []*nspAPI.Vip) [
 			Priority:              flow.Priority,
 			Stream:                s,
 			Vips:                  getVips(flow.Vips, vips),
-			LocalPort:             uint32(flow.LocalPort),
 			ByteMatches:           flow.ByteMatches,
 		})
 	}
@@ -219,4 +219,17 @@ func getGateways(gateways []string, gatewaysAPI []*nspAPI.Gateway) []*nspAPI.Gat
 		resGateways = append(resGateways, gateway)
 	}
 	return resGateways
+}
+
+func ConvertPortNats(portNats []*PortNat, vipsAPI []*nspAPI.Vip) []*nspAPI.Conduit_PortNat {
+	resPortNats := []*nspAPI.Conduit_PortNat{}
+	for _, portNat := range portNats {
+		resPortNats = append(resPortNats, &nspAPI.Conduit_PortNat{
+			Port:       uint32(portNat.Port),
+			TargetPort: uint32(portNat.TargetPort),
+			Vips:       getVips(portNat.Vips, vipsAPI),
+			Protocol:   portNat.Protocol,
+		})
+	}
+	return resPortNats
 }

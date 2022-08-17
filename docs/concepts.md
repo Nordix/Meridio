@@ -25,6 +25,16 @@ Name | Type | Description | Required | Default
 --- | --- | --- | --- | ---
 name | string | Name of the Conduit | yes |
 trench | string | Name of the Trench the Conduit belongs to | yes | 
+destination-port-nats | []PortNat | List of destination ports to NAT. | no | 
+
+#### PortNat
+
+Name | Type | Description | Required | Default
+--- | --- | --- | --- | ---
+port | uint16 | Destination Port exposed by the service (exposed in flows). Traffic containing this property will be NATted. | yes |
+target-port | uint16 | Represents the port the traffic will be NATted to. Targets will receive traffic on that port. | yes | 
+vips | []string | VIPs exposed by the service (exposed in flows). Traffic containing this property will be NATted. | yes | 
+protocol | string | Protocol exposed by the service (exposed in flows). Traffic containing this property will be NATted. | yes | 
 
 ## Stream/Flow
 

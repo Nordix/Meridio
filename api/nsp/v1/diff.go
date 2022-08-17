@@ -14,13 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package types
+package v1
 
-import (
-	nspAPI "github.com/nordix/meridio/api/nsp/v1"
-)
+import "fmt"
 
-type Flow interface {
-	Update(*nspAPI.Flow) error
-	Delete() error
+// Checks the differences between 2 port nat list
+func PortNatDiff(set1 []*Conduit_PortNat, set2 []*Conduit_PortNat) []*Conduit_PortNat {
+	diff := []*Conduit_PortNat{}
+	set2Map := map[string]*Conduit_PortNat{}
+	for _, pn := range set2 {
+		set2Map[pn.GetNatName()] = pn
+	}
+	for _, pn := range set1 {
+		_, exists := set2Map[pn.GetNatName()]
+		if !exists {
+			diff = append(diff, pn)
+		}
+	}
+	return diff
+}
+
+func (pn *Conduit_PortNat) GetNatName() string {
+	return fmt.Sprintf("%d-%d-%s", pn.Port, pn.TargetPort, pn.Protocol)
 }

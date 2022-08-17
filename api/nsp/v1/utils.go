@@ -128,7 +128,6 @@ func (f *Flow) DeepEquals(f2 *Flow) bool {
 		return vipSlice
 	}
 	return f.Equals(f2) &&
-		f.LocalPort == f2.LocalPort &&
 		f.Priority == f2.Priority &&
 		compareSlice(f.GetDestinationPortRanges(), f2.GetDestinationPortRanges()) &&
 		compareSlice(f.GetProtocols(), f2.GetProtocols()) &&

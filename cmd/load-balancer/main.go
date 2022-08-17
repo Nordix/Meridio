@@ -47,6 +47,7 @@ import (
 	"github.com/nordix/meridio/pkg/loadbalancer/nfqlb"
 	"github.com/nordix/meridio/pkg/loadbalancer/stream"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
+	"github.com/nordix/meridio/pkg/nat"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
@@ -242,6 +243,7 @@ type SimpleNetworkService struct {
 	streamWatcherRunning        bool
 	lbFactory                   types.NFQueueLoadBalancerFactory
 	nfa                         types.NFAdaptor
+	natHandler                  *nat.NatHandler
 }
 
 /* // Request checks if allowed to serve the request
@@ -278,6 +280,10 @@ func newSimpleNetworkService(
 	lbFactory types.NFQueueLoadBalancerFactory,
 	nfa types.NFAdaptor,
 ) *SimpleNetworkService {
+	nh, err := nat.NewNatHandler()
+	if err != nil {
+		logrus.Fatalf("unable to init NAT %+v", err)
+	}
 	simpleNetworkService := &SimpleNetworkService{
 		Conduit:                     conduit,
 		targetRegistryClient:        targetRegistryClient,
@@ -291,6 +297,7 @@ func newSimpleNetworkService(
 		streamWatcherRunning:        false,
 		lbFactory:                   lbFactory,
 		nfa:                         nfa,
+		natHandler:                  nh,
 	}
 	return simpleNetworkService
 }
@@ -298,6 +305,7 @@ func newSimpleNetworkService(
 // Start -
 func (sns *SimpleNetworkService) Start() {
 	go sns.watchVips(sns.ctx)
+	go sns.watchConduit(sns.ctx)
 	go func() {
 		for {
 			select {
@@ -560,6 +568,41 @@ func (sns *SimpleNetworkService) watchVips(ctx context.Context) {
 		retry.WithErrorIngnored())
 	if err != nil {
 		logrus.Warnf("err watchVIPs: %v", err) // todo
+	}
+}
+
+// watchVips -
+func (sns *SimpleNetworkService) watchConduit(ctx context.Context) {
+	logrus.Infof("SimpleNetworkService: Watch Conduit")
+	err := retry.Do(func() error {
+		conduitToWatch := sns.Conduit
+		watchConduit, err := sns.ConfigurationManagerClient.WatchConduit(ctx, conduitToWatch)
+		if err != nil {
+			return err
+		}
+		for {
+			conduitResponse, err := watchConduit.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return err
+			}
+			if len(conduitResponse.GetConduits()) != 1 {
+				continue
+			}
+			conduit := conduitResponse.GetConduits()[0]
+			err = sns.natHandler.SetNats(conduit.GetDestinationPortNats())
+			if err != nil {
+				logrus.Errorf("watchConduit, err SetNats: %v", err)
+			}
+		}
+		return nil
+	}, retry.WithContext(ctx),
+		retry.WithDelay(500*time.Millisecond),
+		retry.WithErrorIngnored())
+	if err != nil {
+		logrus.Warnf("err watchConduit: %v", err) // todo
 	}
 }
 
