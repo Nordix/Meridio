@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,49 +17,70 @@ limitations under the License.
 package e2e_test
 
 import (
-	"fmt"
-
-	"github.com/nordix/meridio/test/e2e/utils"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("IngressTraffic", func() {
 
-	Context("When trench is with 2 VIP addresses (20.0.0.1:5000, [2000::1]:5000) and 4 target pods running ctraffic", func() {
+	Context("With one trench containing a stream with 2 VIP addresses and 4 target pods running", func() {
 
 		var (
-			lostConnections    map[string]int
+			lostConnections    int
 			lastingConnections map[string]int
-			vip                string
+			ipPort             string
+			protocol           string
 		)
 
 		JustBeforeEach(func() {
-			var err error
-			ipPort := fmt.Sprintf("%s:%s", vip, port)
-			lastingConnections, lostConnections, err = utils.SendTraffic(trafficGeneratorCMD, trenchAName, namespace, ipPort, 400, 100)
-			Expect(err).NotTo(HaveOccurred())
+			lastingConnections, lostConnections = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, ipPort, protocol)
 		})
 
-		When("sending traffic to a registered IPv4", func() {
+		When("sending TCP traffic to an IPv4", func() {
 			BeforeEach(func() {
-				vip = ipv4
+				ipPort = tcpIPv4
+				protocol = "tcp"
 			})
 			It("should receive the traffic correctly", func() {
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
-				Expect(len(lostConnections)).To(Equal(0))
-				Expect(len(lastingConnections)).To(Equal(4))
+				Expect(lostConnections).To(Equal(0))
+				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
 			})
 		})
 
-		When("sending traffic to a registered IPv6", func() {
+		When("sending TCP traffic to an IPv6", func() {
 			BeforeEach(func() {
-				vip = ipv6
+				ipPort = tcpIPv6
+				protocol = "tcp"
 			})
 			It("should receive the traffic correctly", func() {
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
-				Expect(len(lostConnections)).To(Equal(0))
-				Expect(len(lastingConnections)).To(Equal(4))
+				Expect(lostConnections).To(Equal(0))
+				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
+			})
+		})
+
+		When("sending UDP traffic to an IPv4", func() {
+			BeforeEach(func() {
+				ipPort = udpIPv4
+				protocol = "udp"
+			})
+			It("should receive the traffic correctly", func() {
+				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
+				Expect(lostConnections).To(Equal(0))
+				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
+			})
+		})
+
+		When("sending UDP traffic to an IPv6", func() {
+			BeforeEach(func() {
+				ipPort = udpIPv6
+				protocol = "udp"
+			})
+			It("should receive the traffic correctly", func() {
+				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
+				Expect(lostConnections).To(Equal(0))
+				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
 			})
 		})
 

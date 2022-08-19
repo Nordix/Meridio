@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,10 +19,9 @@ package e2e_test
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/nordix/meridio/test/e2e/utils"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,7 +29,7 @@ import (
 
 var _ = Describe("Scaling", func() {
 
-	Context("When trench is with 2 VIP addresses (20.0.0.1:5000, [2000::1]:5000) and 4 target pods running ctraffic", func() {
+	Context("With one trench containing a stream with 2 VIP addresses and 4 target pods running", func() {
 
 		var (
 			replicas int
@@ -38,10 +37,10 @@ var _ = Describe("Scaling", func() {
 		)
 
 		BeforeEach(func() {
-			replicas = numberOfTargets
+			replicas = numberOfTargetA
 			scale = &autoscalingv1.Scale{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      targetDeploymentName,
+					Name:      targetADeploymentName,
 					Namespace: namespace,
 				},
 				Spec: autoscalingv1.ScaleSpec{
@@ -51,36 +50,56 @@ var _ = Describe("Scaling", func() {
 		})
 
 		JustBeforeEach(func() {
+			// scale
 			scale.Spec.Replicas = int32(replicas)
-			_, err := clientset.AppsV1().Deployments(namespace).UpdateScale(context.Background(), targetDeploymentName, scale, metav1.UpdateOptions{})
+			_, err := clientset.AppsV1().Deployments(namespace).UpdateScale(context.Background(), targetADeploymentName, scale, metav1.UpdateOptions{})
 			Expect(err).NotTo(HaveOccurred())
+			// wait for all targets to be in Running mode
 			Eventually(func() bool {
-				deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), targetDeploymentName, metav1.GetOptions{})
+				deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), targetADeploymentName, metav1.GetOptions{})
 				if err != nil {
 					return false
 				}
 				listOptions := metav1.ListOptions{
-					LabelSelector: fmt.Sprintf("app=%s", targetDeploymentName),
+					LabelSelector: fmt.Sprintf("app=%s", targetADeploymentName),
 				}
 				pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
 				if err != nil {
 					return false
 				}
 				return len(pods.Items) == int(deployment.Status.Replicas) && deployment.Status.ReadyReplicas == deployment.Status.Replicas
+			}, timeout, interval).Should(BeTrue())
+			// wait for all identifiers to be in NFQLB
+			listOptions := metav1.ListOptions{
+				LabelSelector: fmt.Sprintf("app=%s", lbfeDeploymentName),
+			}
+			pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
+			Expect(err).NotTo(HaveOccurred())
+			Eventually(func() bool {
+				for _, pod := range pods.Items {
+					nfqlbOutput, err := utils.PodExec(&pod, "load-balancer", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", streamA1Name)})
+					Expect(err).NotTo(HaveOccurred())
+					if utils.ParseNFQLB(nfqlbOutput) != int(scale.Spec.Replicas) {
+						return false
+					}
+				}
+				return true
 			}, timeout, interval).Should(BeTrue())
 		})
 
 		AfterEach(func() {
-			scale.Spec.Replicas = numberOfTargets
-			_, err := clientset.AppsV1().Deployments(namespace).UpdateScale(context.Background(), targetDeploymentName, scale, metav1.UpdateOptions{})
+			// scale
+			scale.Spec.Replicas = int32(numberOfTargetA)
+			_, err := clientset.AppsV1().Deployments(namespace).UpdateScale(context.Background(), targetADeploymentName, scale, metav1.UpdateOptions{})
 			Expect(err).NotTo(HaveOccurred())
+			// wait for all targets to be in Running mode
 			Eventually(func() bool {
-				deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), targetDeploymentName, metav1.GetOptions{})
+				deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), targetADeploymentName, metav1.GetOptions{})
 				if err != nil {
 					return false
 				}
 				listOptions := metav1.ListOptions{
-					LabelSelector: fmt.Sprintf("app=%s", targetDeploymentName),
+					LabelSelector: fmt.Sprintf("app=%s", targetADeploymentName),
 				}
 				pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
 				if err != nil {
@@ -88,32 +107,44 @@ var _ = Describe("Scaling", func() {
 				}
 				return len(pods.Items) == int(deployment.Status.Replicas) && deployment.Status.ReadyReplicas == deployment.Status.Replicas
 			}, timeout, interval).Should(BeTrue())
+			// wait for all identifiers to be in NFQLB
+			listOptions := metav1.ListOptions{
+				LabelSelector: fmt.Sprintf("app=%s", lbfeDeploymentName),
+			}
+			pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
+			Expect(err).NotTo(HaveOccurred())
+			Eventually(func() bool {
+				for _, pod := range pods.Items {
+					nfqlbOutput, err := utils.PodExec(&pod, "load-balancer", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", streamA1Name)})
+					Expect(err).NotTo(HaveOccurred())
+					if utils.ParseNFQLB(nfqlbOutput) != int(scale.Spec.Replicas) {
+						return false
+					}
+				}
+				return true
+			}, timeout, interval).Should(BeTrue())
 		})
 
-		When("scaling targets down to 3", func() {
+		When("scaling targets down by 1", func() {
 			BeforeEach(func() {
-				replicas = 3
+				replicas = numberOfTargetA - 1
 			})
 			It("should receive the traffic correctly", func() {
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
-				lastingConnections, lostConnections, err := utils.SendTraffic(trafficGeneratorCMD, trenchAName, namespace, ipPort, 400, 100)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(len(lostConnections)).To(Equal(0))
+				lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, tcpIPv4, "tcp")
+				Expect(lostConnections).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(replicas))
 			})
 		})
 
-		When("scaling targets up to 5", func() {
+		When("scaling targets up by 1", func() {
 			BeforeEach(func() {
-				replicas = 5
+				replicas = numberOfTargetA + 1
 			})
 			It("should receive the traffic correctly", func() {
-				By("Waiting for the new targets to be registered")
-				time.Sleep(20 * time.Second)
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
-				lastingConnections, lostConnections, err := utils.SendTraffic(trafficGeneratorCMD, trenchAName, namespace, ipPort, 400, 100)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(len(lostConnections)).To(Equal(0))
+				lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, tcpIPv4, "tcp")
+				Expect(lostConnections).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(replicas))
 			})
 		})
