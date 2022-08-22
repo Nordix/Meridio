@@ -46,6 +46,26 @@ func NewBfdSpec(spec *nspAPI.Gateway_BfdSpec) *BfdSpec {
 	}
 }
 
+type BgpAuth struct {
+	KeyName   string
+	KeySource string
+}
+
+func (ba *BgpAuth) String() string {
+	return fmt.Sprintf("BgpAuth:{KeyName:%s KeySource:%s}",
+		ba.KeyName, ba.KeySource)
+}
+
+func NewBgpAuth(auth *nspAPI.Gateway_BgpAuth) *BgpAuth {
+	if auth == nil {
+		return nil
+	}
+	return &BgpAuth{
+		KeyName:   auth.GetKeyName(),
+		KeySource: auth.GetKeySource(),
+	}
+}
+
 type neighbor struct {
 	ip string // IP string format without subnet
 	af int    // AF family
@@ -64,19 +84,22 @@ type Gateway struct {
 	BFD        bool
 	BfdSpec    *BfdSpec
 	neighbor   *neighbor
+	BgpAuth    *BgpAuth
 }
 
 func (gw *Gateway) String() string {
 	return fmt.Sprintf("name:%v address:%v ipFamily:%v protocol:%v "+
-		"remoteASN:%v localASN:%v remotePort:%v localPort:%v holdTime:%v bfd:%v%v",
+		"remoteASN:%v localASN:%v remotePort:%v localPort:%v holdTime:%v "+
+		"bfd:%v%v, bgpAuth: %v",
 		gw.Name, gw.Address, gw.IPFamily, gw.Protocol, gw.RemoteASN, gw.LocalASN,
 		gw.RemotePort, gw.LocalPort, gw.HoldTime, gw.BFD, func() string {
-			if !gw.BFD {
+			if !gw.BFD || gw.BfdSpec == nil {
 				return ""
 			} else {
 				return " " + gw.BfdSpec.String()
 			}
-		}())
+		}(),
+		gw.BgpAuth)
 }
 
 func (gw *Gateway) GetNeighbor() string {
@@ -109,6 +132,7 @@ func NewGateway(gateway *nspAPI.Gateway) *Gateway {
 			ip: strings.Split(gateway.GetAddress(), "/")[0],
 			af: GetAF(gateway.GetAddress()),
 		},
+		BgpAuth: NewBgpAuth(gateway.GetBgpAuth()),
 	}
 }
 

@@ -183,6 +183,15 @@ func ConvertGateways(gateways []*Gateway, trench *nspAPI.Trench) []*nspAPI.Gatew
 					Multiplier: uint32(gateway.Multiplier),
 				}
 			}(),
+			BgpAuth: func() *nspAPI.Gateway_BgpAuth {
+				if gateway.BGPAuth == nil {
+					return nil
+				}
+				return &nspAPI.Gateway_BgpAuth{
+					KeyName:   gateway.BGPAuth.KeyName,
+					KeySource: gateway.BGPAuth.KeySource,
+				}
+			}(),
 			Trench: trench,
 		})
 	}

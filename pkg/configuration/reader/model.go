@@ -88,18 +88,24 @@ type GatewayList struct {
 }
 
 type Gateway struct {
-	Name       string `yaml:"name"`
-	Address    string `yaml:"address"`
-	RemoteASN  uint32 `yaml:"remote-asn,omitempty"`
-	LocalASN   uint32 `yaml:"local-asn,omitempty"`
-	RemotePort uint16 `yaml:"remote-port,omitempty"`
-	LocalPort  uint16 `yaml:"local-port,omitempty"`
-	IPFamily   string `yaml:"ip-family"`
-	BFD        bool   `yaml:"bfd"`
-	Protocol   string `yaml:"protocol"`
-	HoldTime   uint   `yaml:"hold-time,omitempty"`
-	MinTx      uint   `yaml:"min-tx,omitempty"`
-	MinRx      uint   `yaml:"min-rx,omitempty"`
-	Multiplier uint   `yaml:"multiplier,omitempty"`
-	Trench     string `yaml:"trench"`
+	Name       string   `yaml:"name"`
+	Address    string   `yaml:"address"`
+	RemoteASN  uint32   `yaml:"remote-asn,omitempty"`
+	LocalASN   uint32   `yaml:"local-asn,omitempty"`
+	RemotePort uint16   `yaml:"remote-port,omitempty"`
+	LocalPort  uint16   `yaml:"local-port,omitempty"`
+	IPFamily   string   `yaml:"ip-family"`
+	BFD        bool     `yaml:"bfd"`
+	Protocol   string   `yaml:"protocol"`
+	HoldTime   uint     `yaml:"hold-time,omitempty"`
+	MinTx      uint     `yaml:"min-tx,omitempty"`
+	MinRx      uint     `yaml:"min-rx,omitempty"`
+	Multiplier uint     `yaml:"multiplier,omitempty"`
+	Trench     string   `yaml:"trench"`
+	BGPAuth    *BgpAuth `yaml:"bgp-auth,omitempty"`
+}
+
+type BgpAuth struct {
+	KeyName   string `yaml:"key"`
+	KeySource string `yaml:"source"`
 }
