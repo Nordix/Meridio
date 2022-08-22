@@ -112,6 +112,11 @@ message Gateway {
     BfdSpec bfdSpec = 11;
     // Trench the gateway belongs to
     Trench trench = 12;
+    BgpAuth bgpAuth = 13;
+    message BgpAuth {
+        string keyName = 1;
+        string keySource = 2;
+    }
 }
 
 message TrenchResponse {
