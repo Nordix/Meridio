@@ -188,8 +188,8 @@ spec:
               add:
               - NET_ADMIN
               - NET_BIND_SERVICE
-              - DAC_OVERRIDE
               - NET_RAW
+              - DAC_OVERRIDE
               - SYS_PTRACE
       securityContext:
         fsGroup: {{.Values.fsGroup }}

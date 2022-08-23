@@ -35,6 +35,6 @@ COPY --from=build /app/frontend ./
 # Permissions for logging to file (bird) and interaction between bird and frontend
 # can be secured by writable volume mounts and by usage of "fsGroup".
 RUN setcap 'cap_net_admin+ep' ./frontend \
-  && setcap 'cap_net_admin,cap_net_bind_service+ep' /usr/sbin/bird
+  && setcap 'cap_net_admin,cap_net_bind_service,cap_net_raw+ep' /usr/sbin/bird
 USER ${UID}:${UID}
 CMD ["./frontend"]
