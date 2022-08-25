@@ -106,9 +106,6 @@ func (i *NseDeployment) insertParameters(dep *appsv1.Deployment) *appsv1.Deploym
 				container.LivenessProbe = common.GetProbe(common.LivenessTimer,
 					common.GetProbeCommand(true, fmt.Sprintf(":%d", common.VlanNsePort), ""))
 			}
-			if len(container.Ports) == 0 {
-				container.Ports = append([]corev1.ContainerPort{}, corev1.ContainerPort{HostPort: common.VlanNsePort, ContainerPort: common.VlanNsePort})
-			}
 			container.Env = i.getEnvVars(container.Env)
 			// set resource requirements for container (if not found, then values from model
 			// are kept even upon updates, as getReconciledDesiredStatus() overwrites containers)
