@@ -27,7 +27,6 @@ spec:
 {{include "meridio.livenessProbe" (dict "component" .Values.vlanNSE "root" $) | indent 12 }}
           ports:
             - containerPort: 5003
-              hostPort: 5003
           securityContext:
             runAsNonRoot: true
             runAsUser: {{ .Values.vlanNSE.userId }}
