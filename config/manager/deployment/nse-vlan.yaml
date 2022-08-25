@@ -72,7 +72,6 @@ spec:
             successThreshold: 1
           ports:  # will be filled by operator if not specified
             - containerPort: 5003
-              hostPort: 5003
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
