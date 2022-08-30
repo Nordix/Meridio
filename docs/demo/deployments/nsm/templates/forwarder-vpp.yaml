@@ -42,6 +42,11 @@ spec:
                   fieldPath: metadata.name
             - name: NSM_DEVICE_SELECTOR_FILE
               value: /var/lib/networkservicemesh/device-selector.yaml
+            # Used for forwarder-ovs
+            - name: NSM_L2_DEVICE_SELECTOR_FILE
+              value: /var/lib/networkservicemesh/device-selector.yaml
+            - name: NSM_BRIDGE_NAME
+              value: br-nsm
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
