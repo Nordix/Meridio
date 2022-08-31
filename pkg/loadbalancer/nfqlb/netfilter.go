@@ -221,7 +221,7 @@ func (na *netfilterAdaptor) configureChainAndRules() error {
 		Hooknum: nftables.ChainHookPrerouting,
 	})
 
-	if rules, _ := conn.GetRule(na.table, na.chain); len(rules) != 0 {
+	if rules, _ := conn.GetRules(na.table, na.chain); len(rules) != 0 {
 		logrus.Debugf("netfilterAdaptor: nft chain %v not empty (%v)", chainName, rules)
 		conn.FlushChain(na.chain)
 	}
@@ -331,7 +331,7 @@ func (na *netfilterAdaptor) configureLocalChainAndRules() error {
 		Hooknum: nftables.ChainHookOutput,
 	})
 
-	if rules, _ := conn.GetRule(na.table, na.localchain); len(rules) != 0 {
+	if rules, _ := conn.GetRules(na.table, na.localchain); len(rules) != 0 {
 		logrus.Debugf("netfilterAdaptor: nft chain %v not empty (%v)", chainName, rules)
 		conn.FlushChain(na.localchain)
 	}

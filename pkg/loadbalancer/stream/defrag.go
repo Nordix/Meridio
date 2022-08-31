@@ -102,7 +102,7 @@ func (d *Defrag) setupRules() error {
 	conn := &nftables.Conn{}
 
 	chain := d.chains[defragChain]
-	if rules, _ := conn.GetRule(d.table, chain); len(rules) == 0 {
+	if rules, _ := conn.GetRules(d.table, chain); len(rules) == 0 {
 		// disable defrag via notrack for packets arriving via interfaces matching excludedIfPrefix
 		conn.AddRule(&nftables.Rule{
 			Table: d.table,
@@ -129,7 +129,7 @@ func (d *Defrag) setupRules() error {
 	}
 
 	chain = d.chains[inChain]
-	if rules, _ := conn.GetRule(d.table, chain); len(rules) == 0 {
+	if rules, _ := conn.GetRules(d.table, chain); len(rules) == 0 {
 		// do not conntrack packets arriving to the POD
 		conn.AddRule(&nftables.Rule{
 			Table: d.table,
@@ -166,7 +166,7 @@ func (d *Defrag) setupRules() error {
 	}
 
 	chain = d.chains[outChain]
-	if rules, _ := conn.GetRule(d.table, chain); len(rules) == 0 {
+	if rules, _ := conn.GetRules(d.table, chain); len(rules) == 0 {
 		// do not conntrack packets originating from the POD
 		conn.AddRule(&nftables.Rule{
 			Table: d.table,

@@ -27,6 +27,7 @@ import (
 
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -175,7 +176,10 @@ func watch() error {
 }
 
 func getClient() (ambassadorAPI.TapClient, error) {
-	conn, err := grpc.Dial(os.Getenv("MERIDIO_AMBASSADOR_SOCKET"), grpc.WithInsecure(),
+	conn, err := grpc.Dial(os.Getenv("MERIDIO_AMBASSADOR_SOCKET"),
+		grpc.WithTransportCredentials(
+			insecure.NewCredentials(),
+		),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
 		))
