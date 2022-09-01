@@ -5,7 +5,7 @@
 
 ## Description
 
-The proxy allows targets (e.g. TCP application) to be connected to multiple network service instances (e.g. load-balancer) via a single network interface.
+The proxy allows targets (e.g. TCP application) to be connected to multiple network service instances (e.g. stateless-lb) via a single network interface.
 
 To create the full mesh between the proxy and the network service instances, the proxy uses the NSM API to monitor the NSEs, and requests the connection to each of them. For the targets, the proxy acts as a network service with the same network service name + proxy as prefix: `proxy.<conduit-name>.<trench-name>.<namespace>`.
 

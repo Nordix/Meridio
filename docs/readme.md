@@ -18,7 +18,7 @@
         * [Attractor](concepts.md#attractor)
         * [Gateway](concepts.md#gateway)
     * Components
-        * [Load-Balancer](load-balancer.md)
+        * [Stateless Load-Balancer](stateless-load-balancer.md)
         * [Front-End](front-end.md)
         * [Proxy](proxy.md)
         * [Target Access Point Ambassador (TAPA)](tapa.md)
