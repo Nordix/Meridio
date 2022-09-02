@@ -1,39 +1,35 @@
 ---
-# Source: meridio/templates/nse-vlan.yaml
+# Source: meridio/templates/nsp.yaml
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: nse-vlan
+  name: nsp
   labels:
-    app: nse-vlan
+    app: nsp
 spec:
-  progressDeadlineSeconds: 600
-  selector:
-    matchLabels:
-      app: nse-vlan
+  podManagementPolicy: OrderedReady
   replicas: 1
   revisionHistoryLimit: 10
-  strategy:
-    rollingUpdate:
-      maxSurge: 0
-      maxUnavailable: 100%
-    type: RollingUpdate
+  serviceName: nsp
+  selector:
+    matchLabels:
+      app: nsp
   template:
     metadata:
       labels:
-        app: nse-vlan
+        app: nsp
         "spiffe.io/spiffe-id": "true"
     spec:
+      serviceAccountName:  # to be filled by operator
       containers:
-        - name: nse
-          image:  # to be filled by operator
+        - name: nsp
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.nsp.image }}:{{ .Values.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
-          startupProbe:  # will be filled by operator if not specified
+          startupProbe:
             exec:
               command:
                 - /bin/grpc_health_probe
-                - -spiffe
-                - -addr=:5003
+                - -addr=unix:///tmp/health.sock
                 - -service=
                 - -connect-timeout=250ms
                 - -rpc-timeout=350ms
@@ -47,77 +43,88 @@ spec:
               command:
                 - /bin/grpc_health_probe
                 - -spiffe
-                - -addr=:5003
+                - -addr=:7778
                 - -service=
                 - -connect-timeout=250ms
                 - -rpc-timeout=350ms
+            failureThreshold: 5
             initialDelaySeconds: 0
             periodSeconds: 10
             timeoutSeconds: 3
-            failureThreshold: 5
             successThreshold: 1
           livenessProbe:  # will be filled by operator if not specified
             exec:
               command:
                 - /bin/grpc_health_probe
-                - -spiffe
-                - -addr=:5003
+                - -addr=unix:///tmp/health.sock
                 - -service=
                 - -connect-timeout=250ms
                 - -rpc-timeout=350ms
+            failureThreshold: 5
             initialDelaySeconds: 0
             periodSeconds: 10
             timeoutSeconds: 3
-            failureThreshold: 5
             successThreshold: 1
-          ports:  # will be filled by operator if not specified
-            - containerPort: 5003
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
               value: unix:///run/spire/sockets/agent.sock
-            - name: NSM_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: NSM_CONNECT_TO
+            - name: NSP_PORT
               value:  # to be filled by operator
-            - name: NSM_SERVICES
+            - name: NSP_NAMESPACE
               value:  # to be filled by operator
-            - name: NSM_CIDR_PREFIX
-              value:  # to be filled by operator according to Attractor
-            - name: NSE_POINT2POINT
-              value: "False"
-            - name: NSM_REGISTER_SERVICE
-              value: "True"
-            - name: NSM_LISTEN_ON  # will be filled by operator if not specified
+            - name: NSP_CONFIG_MAP_NAME
               value:  # to be filled by operator
-            - name: NSM_MAX_TOKEN_LIFETIME
-              value: "10m"
-            - name: NSM_LOG_LEVEL
+            - name: NSP_DATASOURCE
+              value: /run/nsp/data/registry.db
+            - name: NSP_LOG_LEVEL
               value:  # to be filled by operator
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
               readOnly: true
-            - name: nsm-socket
-              mountPath: /var/lib/networkservicemesh
+            - name: nsp-data
+              mountPath: /run/nsp/data
+              readOnly: false
+            - name: tmp
+              mountPath: /tmp
               readOnly: false
           securityContext:
             runAsNonRoot: true
-            runAsUser: 10000
-            runAsGroup: 10000
             readOnlyRootFilesystem: true
             capabilities:
               drop:
               - all
-          terminationMessagePath: /dev/termination-log
-          terminationMessagePolicy: File
+              add:
+              - DAC_OVERRIDE  # required by debug tools (netstat, ss)
+              - NET_RAW  # required by debug tool (ping)
+              - SYS_PTRACE  # required by debug tools (netstat, ss to list process names/ids)
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 2000
+        fsGroupChangePolicy: "OnRootMismatch"
+      terminationGracePeriodSeconds: 30
       volumes:
         - name: spire-agent-socket
           hostPath:
             path: /run/spire/sockets
             type: Directory
-        - name: nsm-socket
-          hostPath:
-            path: /var/lib/networkservicemesh
-            type: DirectoryOrCreate
+        - name: tmp
+          emptyDir:
+            medium: Memory
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
+  volumeClaimTemplates:
+    - metadata:
+        name: nsp-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi

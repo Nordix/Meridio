@@ -36,7 +36,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       initContainers:
         - name: sysctl-init
-          image:  # to be filled by operator
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.sysctlInit.image }}:{{ .Values.sysctlInit.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
           securityContext:
             privileged: true
@@ -46,7 +46,7 @@ spec:
           terminationMessagePolicy: File
       containers:
         - name: load-balancer
-          image:  # to be filled by operator
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.loadBalancer.image }}:{{ .Values.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
           startupProbe:  # will be filled by operator if not specified
             exec:
@@ -132,7 +132,7 @@ spec:
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
         - name: nsc
-          image:  # to be filled by operator if not specified
+          image: {{ .Values.registry }}/{{ .Values.nsm.organization }}/{{ .Values.vlanNSC.image }}:{{ .Values.nsm.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
@@ -173,7 +173,7 @@ spec:
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
         - name: fe
-          image:  # to be filled by operator
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.frontEnd.image }}:{{ .Values.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
           startupProbe:  # will be filled by operator if not specified
             exec:
