@@ -1,6 +1,7 @@
 
 .PHONY: default
-default: base-image load-balancer proxy tapa ipam nsp ctraffic frontend
+default:
+	$(MAKE) -s $(IMAGES)
 
 .PHONY: all
 all: default
@@ -11,6 +12,8 @@ help: ## Display this help.
 ############################################################################
 # Variables
 ############################################################################
+
+IMAGES ?= base-image load-balancer proxy tapa ipam nsp ctraffic frontend
 
 # Versions
 VERSION ?= latest
@@ -42,10 +45,13 @@ GINKGO = $(shell pwd)/bin/ginkgo
 MOCKGEN = $(shell pwd)/bin/mockgen
 PROTOC_GEN_GO = $(shell pwd)/bin/protoc-gen-go
 PROTOC_GEN_GO_GRPC = $(shell pwd)/bin/protoc-gen-go-grpc
+NANCY = $(shell pwd)/bin/nancy
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 
 BUILD_DIR ?= build
 BUILD_STEPS ?= build tag push
+
+OUTPUT_DIR ?= _output/
 
 #############################################################################
 # Container: Build, tag, push
@@ -67,7 +73,7 @@ push:
 
 .PHONY: base-image
 base-image: ## Build the base-image
-	VERSION=$(VERSION_BASE_IMAGE) IMAGE=base-image $(MAKE) $(BUILD_STEPS)
+	VERSION=$(VERSION_BASE_IMAGE) IMAGE=base-image $(MAKE) -s $(BUILD_STEPS)
 
 .PHONY: debug-image
 debug-image: ## Build the debug-image
@@ -75,31 +81,31 @@ debug-image: ## Build the debug-image
 
 .PHONY: load-balancer
 load-balancer: ## Build the load-balancer.
-	VERSION=$(VERSION_LOAD_BALANCER) IMAGE=load-balancer $(MAKE) $(BUILD_STEPS)
+	VERSION=$(VERSION_LOAD_BALANCER) IMAGE=load-balancer $(MAKE) -s $(BUILD_STEPS)
 
 .PHONY: proxy
 proxy: ## Build the proxy.
-	VERSION=$(VERSION_PROXY) IMAGE=proxy $(MAKE) $(BUILD_STEPS)
+	VERSION=$(VERSION_PROXY) IMAGE=proxy $(MAKE) -s $(BUILD_STEPS)
 
 .PHONY: tapa
 tapa: ## Build the tapa.
-	VERSION=$(VERSION_TAPA) IMAGE=tapa $(MAKE) $(BUILD_STEPS)
+	VERSION=$(VERSION_TAPA) IMAGE=tapa $(MAKE) -s $(BUILD_STEPS)
 
 .PHONY: ipam
 ipam: ## Build the ipam.
-	VERSION=$(VERSION_IPAM) IMAGE=ipam $(MAKE) $(BUILD_STEPS)
+	VERSION=$(VERSION_IPAM) IMAGE=ipam $(MAKE) -s $(BUILD_STEPS)
 
 .PHONY: nsp
 nsp: ## Build the nsp.
-	VERSION=$(VERSION_NSP) IMAGE=nsp $(MAKE) $(BUILD_STEPS)
+	VERSION=$(VERSION_NSP) IMAGE=nsp $(MAKE) -s $(BUILD_STEPS)
 
 .PHONY: ctraffic
 ctraffic: ## Build the ctraffic.
-	VERSION=$(VERSION_CTRAFFIC) IMAGE=ctraffic $(MAKE) $(BUILD_STEPS)
+	VERSION=$(VERSION_CTRAFFIC) IMAGE=ctraffic $(MAKE) -s $(BUILD_STEPS)
 
 .PHONY: frontend
 frontend: ## Build the frontend.
-	VERSION=$(VERSION_FRONTEND) IMAGE=frontend $(MAKE) $(BUILD_STEPS)
+	VERSION=$(VERSION_FRONTEND) IMAGE=frontend $(MAKE) -s $(BUILD_STEPS)
 
 #############################################################################
 ##@ Testing & Code check
@@ -134,6 +140,38 @@ cover:
 check: lint test ## Run the linter and the Unit tests.
 
 #############################################################################
+##@ Security Scan
+#############################################################################
+
+# https://github.com/anchore/grype
+.PHONY: grype
+grype: ## Run grype scanner on images.
+	@BUILD_STEPS=grype-scan $(MAKE) -s $(IMAGES)
+
+.PHONY: grype-scan
+grype-scan: output-dir
+	docker run --rm \
+	--volume /var/run/docker.sock:/var/run/docker.sock \
+	--name Grype anchore/grype:v0.47.0 \
+	$(REGISTRY)/$(IMAGE):$(VERSION) --add-cpes-if-none > $(OUTPUT_DIR)/grype_$(IMAGE)_$(VERSION).txt
+
+# https://github.com/aquasecurity/trivy
+.PHONY: trivy
+trivy: ## Run trivy scanner on images.
+	@BUILD_STEPS=trivy-scan $(MAKE) -s $(IMAGES)
+
+.PHONY: trivy-scan
+trivy-scan: output-dir
+	docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+    -v $(HOME)/Library/Caches:/root/.cache/ aquasec/trivy:0.31.3 image \
+	$(REGISTRY)/$(IMAGE):$(VERSION) > $(OUTPUT_DIR)/trivy_$(IMAGE)_$(VERSION).txt
+
+# https://github.com/sonatype-nexus-community/nancy
+.PHONY: nancy
+nancy: nancy-tool ## Run nancy scanner on dependencies.
+	go list -json -deps ./... | nancy sleuth
+	
+#############################################################################
 ##@ Code generation
 #############################################################################
 
@@ -159,6 +197,10 @@ proto: ipam-proto nsp-proto ambassador-proto ## Compile the proto.
 #############################################################################
 # Tools
 #############################################################################
+
+.PHONY: output-dir
+output-dir:
+	mkdir -p $(OUTPUT_DIR)
 
 .PHONY: golangci-lint
 golangci-lint:
@@ -188,6 +230,10 @@ mockgen:
 .PHONY: ginkgo
 ginkgo:
 	$(call go-get-tool,$(GINKGO),github.com/onsi/ginkgo/v2/ginkgo@v2.1.4)
+
+.PHONY: nancy-tool
+nancy-tool:
+	$(call go-get-tool,$(NANCY),github.com/sonatype-nexus-community/nancy@v1.0.37)
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 define go-get-tool
