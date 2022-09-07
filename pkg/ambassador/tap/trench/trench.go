@@ -22,14 +22,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/nordix/meridio/pkg/security/credentials"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
@@ -53,6 +54,7 @@ type Trench struct {
 	nspConn                    *grpc.ClientConn
 	conduits                   []*conduitConnect
 	mu                         sync.Mutex
+	logger                     logr.Logger
 }
 
 // New is the constructor of Trench.
@@ -78,6 +80,7 @@ func New(trench *ambassadorAPI.Trench,
 		StreamRegistry:       streamRegistry,
 		NetUtils:             netUtils,
 		conduits:             []*conduitConnect{},
+		logger:               log.Logger.WithValues("class", "Trench", "instance", trench.Name),
 	}
 
 	var err error
@@ -97,14 +100,14 @@ func New(trench *ambassadorAPI.Trench,
 		t.StreamRegistry,
 		t.NetUtils,
 		nspEntryTimeout)
-	logrus.Infof("Connect to trench: %v", t.Trench)
+	t.logger.Info("Created", "object", t)
 	return t, nil
 }
 
 func (t *Trench) Delete(ctx context.Context) error {
+	t.logger.Info("Delete")
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	logrus.Infof("Disconnect from trench: %v", t.Trench)
 	var errFinal error
 	var err error
 	// close streams
@@ -143,7 +146,7 @@ func (t *Trench) AddConduit(ctx context.Context, cndt *ambassadorAPI.Conduit) (t
 	if c != nil {
 		return c, nil
 	}
-	logrus.Infof("Add conduit: %v to trench: %v", cndt, t.Trench)
+	t.logger.Info("Add conduit", "conduit", cndt)
 	c, err := t.ConduitFactory.New(cndt)
 	if err != nil {
 		return nil, err
@@ -165,7 +168,7 @@ func (t *Trench) RemoveConduit(ctx context.Context, cndt *ambassadorAPI.Conduit)
 	if index < 0 {
 		return nil
 	}
-	logrus.Infof("Remove conduit: %v from trench: %v", cndt, t.Trench)
+	t.logger.Info("Remove conduit", "conduit", cndt)
 	c := t.conduits[index]
 	err := c.disconnect(ctx)
 	t.conduits = append(t.conduits[:index], t.conduits[index+1:]...)
@@ -201,7 +204,7 @@ func (t *Trench) GetTrench() *ambassadorAPI.Trench {
 
 func (t *Trench) connectNSPService(ctx context.Context, nspServiceName string, nspServicePort int) (*grpc.ClientConn, error) {
 	service := nsp.GetService(nspServiceName, t.Trench.GetName(), t.Namespace, nspServicePort)
-	logrus.Infof("Connect to NSP Service: %v", service)
+	t.logger.Info("Connect to NSP Service", "service", service)
 	return grpc.Dial(service,
 		grpc.WithTransportCredentials(
 			credentials.GetClient(ctx),

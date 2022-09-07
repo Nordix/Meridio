@@ -23,14 +23,12 @@ import (
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/stream"
 	"github.com/nordix/meridio/pkg/ambassador/tap/stream/mocks"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
 
 func Test_New(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	maxNumberOfTargets := 100
 	ctrl := gomock.NewController(t)

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package trench_test
+package trench
 
 import (
 	"context"
@@ -22,12 +22,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/golang/mock/gomock"
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
-	"github.com/nordix/meridio/pkg/ambassador/tap/trench"
 	"github.com/nordix/meridio/pkg/ambassador/tap/trench/mocks"
 	typesMocks "github.com/nordix/meridio/pkg/ambassador/tap/types/mocks"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
@@ -46,8 +45,9 @@ func Test_Equals(t *testing.T) {
 		Name: "trench-b",
 	}
 
-	trench := trench.Trench{
+	trench := Trench{
 		Trench: trnch,
+		logger: logr.Discard(),
 	}
 	assert.True(t, trench.Equals(trnch))
 	assert.False(t, trench.Equals(trnchB))
@@ -55,7 +55,6 @@ func Test_Equals(t *testing.T) {
 
 func Test_AddConduit_RemoveConduit(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	c := &ambassadorAPI.Conduit{
 		Name: "conduit-a",
@@ -79,9 +78,10 @@ func Test_AddConduit_RemoveConduit(t *testing.T) {
 	})
 	conduitA.EXPECT().Disconnect(gomock.Any()).Return(nil)
 
-	trench := trench.Trench{
+	trench := Trench{
 		Trench:         trnch,
 		ConduitFactory: conduitFactory,
+		logger:         logr.Discard(),
 	}
 
 	conduit, err := trench.AddConduit(context.TODO(), c)
@@ -99,7 +99,6 @@ func Test_AddConduit_RemoveConduit(t *testing.T) {
 
 func Test_AddConduit_RemoveConduit_WhileConnecting(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	c := &ambassadorAPI.Conduit{
 		Name: "conduit-a",
@@ -125,9 +124,10 @@ func Test_AddConduit_RemoveConduit_WhileConnecting(t *testing.T) {
 	conduitA.EXPECT().Connect(gomock.Any()).Return(errors.New("")).After(firstConnect).AnyTimes()
 	conduitA.EXPECT().Disconnect(gomock.Any()).Return(nil)
 
-	trench := trench.Trench{
+	trench := Trench{
 		Trench:         trnch,
 		ConduitFactory: conduitFactory,
+		logger:         logr.Discard(),
 	}
 
 	conduit, err := trench.AddConduit(context.TODO(), c)

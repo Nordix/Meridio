@@ -19,7 +19,7 @@ package tap
 import (
 	"hash/fnv"
 
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/log"
 )
 
 // Hash -
@@ -27,7 +27,7 @@ func Hash(s string, n int) int {
 	h := fnv.New32a()
 	_, err := h.Write([]byte(s))
 	if err != nil {
-		logrus.Fatalf("error hashing: %+v", err)
+		log.Fatal(log.Logger, "Hashing", "error", err)
 	}
 	return int(h.Sum32())%n + 1
 }

@@ -30,7 +30,6 @@ import (
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
 	typesMocks "github.com/nordix/meridio/pkg/ambassador/tap/types/mocks"
 	nsmMocks "github.com/nordix/meridio/pkg/nsm/mocks"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
@@ -39,7 +38,6 @@ import (
 
 func Test_Connect_Disconnect(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	c := &ambassadorAPI.Conduit{
 		Name: "conduit-a",
@@ -94,7 +92,6 @@ func Test_Connect_Disconnect(t *testing.T) {
 
 func Test_AddStream(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
@@ -131,7 +128,6 @@ func Test_AddStream(t *testing.T) {
 
 func Test_AddStream_Invalid(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
@@ -160,7 +156,6 @@ func Test_AddStream_Invalid(t *testing.T) {
 
 func Test_RemoveStream(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	c := &ambassadorAPI.Conduit{
 		Name: "conduit-a",

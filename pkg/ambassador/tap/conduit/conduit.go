@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -34,9 +35,9 @@ import (
 	"github.com/nordix/meridio/pkg/ambassador/tap/stream"
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
 	"github.com/nordix/meridio/pkg/conduit"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/retry"
-	"github.com/sirupsen/logrus"
 )
 
 // Conduit implements types.Conduit (/pkg/ambassador/tap/types)
@@ -60,6 +61,7 @@ type Conduit struct {
 	localIPs             []string
 	ctx                  context.Context
 	cancel               context.CancelFunc
+	logger               logr.Logger
 }
 
 // New is the constructor of Conduit.
@@ -87,6 +89,7 @@ func New(conduit *ambassadorAPI.Conduit,
 	c.StreamFactory = stream.NewFactory(targetRegistryClient, stream.MaxNumberOfTargets, c)
 	c.StreamManager = NewStreamManager(configurationManagerClient, targetRegistryClient, streamRegistry, c.StreamFactory, PendingTime, nspEntryTimeout)
 	c.Configuration = newConfigurationImpl(c.SetVIPs, c.StreamManager.SetStreams, c.Conduit.ToNSP(), configurationManagerClient)
+	c.logger = log.Logger.WithValues("class", "Conduit", "instance", conduit.Name)
 	return c, nil
 }
 
@@ -99,7 +102,7 @@ func (c *Conduit) Connect(ctx context.Context) error {
 		return nil
 	}
 	c.ctx, c.cancel = context.WithCancel(ctx)
-	logrus.Infof("Attempt to connect conduit: %v", c.Conduit)
+	c.logger.Info("Connect")
 	nsName := conduit.GetNetworkServiceNameWithProxy(c.Conduit.GetName(), c.Conduit.GetTrench().GetName(), c.Namespace)
 	connection, err := c.NetworkServiceClient.Request(c.ctx,
 		&networkservice.NetworkServiceRequest{
@@ -121,7 +124,7 @@ func (c *Conduit) Connect(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	logrus.Infof("Conduit connected: %v ; NSM Connection: %v", c.Conduit, connection)
+	c.logger.Info("Connected", "connection", connection)
 	c.connection = connection
 	c.localIPs = c.connection.GetContext().GetIpContext().GetSrcIpAddrs()
 
@@ -137,9 +140,9 @@ func (c *Conduit) Disconnect(ctx context.Context) error {
 	if c.cancel != nil {
 		c.cancel()
 	}
+	c.logger.Info("Disconnect")
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	logrus.Infof("Disconnect from conduit: %v", c.Conduit)
 	// Stops the configuration
 	c.Configuration.Stop()
 	var errFinal error
@@ -156,7 +159,7 @@ func (c *Conduit) Disconnect(ctx context.Context) error {
 
 // AddStream creates a stream based on its factory and will open it (in another goroutine)
 func (c *Conduit) AddStream(ctx context.Context, strm *ambassadorAPI.Stream) error {
-	logrus.Infof("Add stream: %v to conduit: %v", strm, c.Conduit)
+	c.logger.Info("AddStream", "stream", strm)
 	if !c.Equals(strm.GetConduit()) {
 		return errors.New("invalid stream for this conduit")
 	}
@@ -246,14 +249,14 @@ func (c *Conduit) SetVIPs(vips []string) error {
 		}
 		connection, err := c.NetworkServiceClient.Request(ctx, request)
 		if err != nil {
-			logrus.Errorf("error updating the VIPs in conduit: %v - %v", c.Conduit, err)
+			c.logger.Error(err, "Updating VIPs")
 			return err
 		}
 		c.connection = connection
 		return nil
 	}, retry.WithContext(c.ctx),
 		retry.WithDelay(500*time.Millisecond))
-	logrus.Infof("VIPs in conduit updated: %v - %v", c.Conduit, vips)
+	c.logger.Info("VIPs updated", "vips", vips)
 	return nil
 }
 

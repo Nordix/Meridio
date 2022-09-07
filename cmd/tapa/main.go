@@ -25,6 +25,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/go-logr/logr"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -38,11 +39,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	nsmlog "github.com/networkservicemesh/sdk/pkg/tools/log"
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap"
 	"github.com/nordix/meridio/pkg/health"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/sirupsen/logrus"
@@ -74,54 +76,38 @@ func main() {
 		os.Exit(0)
 	}
 
+	var config Config
+	err := envconfig.Process("meridio", &config)
+	if err != nil {
+		panic(err)
+	}
+
+	logger := log.New("Meridio-tapa", config.LogLevel)
 	ctx, cancel := signal.NotifyContext(
-		context.Background(),
+		logr.NewContext(context.Background(), logger),
 		os.Interrupt,
 		syscall.SIGHUP,
 		syscall.SIGTERM,
 		syscall.SIGQUIT,
 	)
 	defer cancel()
+	logger.Info("Config read", "config", config)
 
-	logrus.SetOutput(os.Stdout)
-
-	var config Config
-	err := envconfig.Process("meridio", &config)
-	if err != nil {
-		logrus.Fatalf("%v", err)
+	if config.LogLevel == "TRACE" {
+		nsmlog.EnableTracing(true) // enable tracing in NSM
+		logrus.SetLevel(logrus.TraceLevel)
 	}
-	logrus.Infof("rootConf: %+v", config)
-
-	logrus.SetLevel(func() logrus.Level {
-
-		l, err := logrus.ParseLevel(config.LogLevel)
-		if err != nil {
-			logrus.Fatalf("invalid log level %s", config.LogLevel)
-		}
-		if l == logrus.TraceLevel {
-			log.EnableTracing(true) // enable tracing in NSM
-		}
-		return l
-	}())
-
-	logrus.SetLevel(func() logrus.Level {
-		l, err := logrus.ParseLevel(config.LogLevel)
-		if err != nil {
-			logrus.Fatalf("invalid log level %s", config.LogLevel)
-		}
-		return l
-	}())
 
 	netUtils := &linuxKernel.KernelUtils{}
 
 	healthChecker, err := health.NewChecker(health.WithCtx(ctx))
 	if err != nil {
-		logrus.Fatalf("Unable to create Health checker: %v", err)
+		log.Fatal(logger, "Unable to create Health checker", "error", err)
 	}
 	go func() {
 		err := healthChecker.Start()
 		if err != nil {
-			logrus.Fatalf("Unable to start Health checker: %v", err)
+			log.Fatal(logger, "Unable to start Health checker", "error", err)
 		}
 	}()
 
@@ -155,26 +141,26 @@ func main() {
 	)
 
 	if err := os.RemoveAll(config.Socket); err != nil {
-		logrus.Fatalf("error removing socket: %v", err)
+		log.Fatal(logger, "removing socket", "error", err)
 	}
 	lis, err := net.Listen("unix", config.Socket)
 	if err != nil {
-		logrus.Fatalf("error listening on unix socket: %v", err)
+		log.Fatal(logger, "listen on unix socket", "error", err)
 	}
 	if err := os.Chmod(config.Socket, os.ModePerm); err != nil {
-		logrus.Errorf("error changing unix socket permission: %v", err)
+		logger.Error(err, "changing unix socket permission")
 	}
 	s := grpc.NewServer()
 	defer s.Stop()
 
 	ambassador, err := tap.New(config.Name, config.Namespace, config.Node, networkServiceClient, config.NSPServiceName, config.NSPServicePort, config.NSPEntryTimeout, netUtils)
 	if err != nil {
-		logrus.Fatalf("error creating new tap ambassador: %v", err)
+		log.Fatal(logger, "creating new tap ambassador", "error", err)
 	}
 	defer func() {
 		err = ambassador.Delete(context.TODO())
 		if err != nil {
-			logrus.Fatalf("Error deleting ambassador: %v", err)
+			logger.Error(err, "deleting ambassador")
 		}
 	}()
 
@@ -184,7 +170,7 @@ func main() {
 
 	go func() {
 		if err := s.Serve(lis); err != nil {
-			logrus.Errorf("TAP Ambassador: failed to serve: %v", err)
+			logger.Error(err, "Ambassador: failed to serve")
 		}
 	}()
 
