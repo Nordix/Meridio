@@ -21,10 +21,11 @@ import (
 	"io"
 	"time"
 
+	"github.com/go-logr/logr"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ipam/types"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/retry"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
@@ -33,6 +34,7 @@ type ConduitWatcher struct {
 	TrenchWatchers             []TrenchWatcher
 	TrenchName                 string
 	ConfigurationManagerClient nspAPI.ConfigurationManagerClient
+	logger                     logr.Logger
 }
 
 type TrenchWatcher interface {
@@ -48,6 +50,7 @@ func NewConduitWatcher(ctx context.Context, nspConn *grpc.ClientConn, trenchName
 		TrenchName:                 trenchName,
 		TrenchWatchers:             trenchWatchers,
 		ConfigurationManagerClient: configurationManagerClient,
+		logger:                     log.FromContextOrGlobal(ctx).WithValues("class", "ConduitWatcher"),
 	}
 	return cw, nil
 }
@@ -75,7 +78,7 @@ func (cw *ConduitWatcher) Start() {
 				for _, w := range cw.TrenchWatchers {
 					_, err := w.AddConduit(cw.Ctx, conduit.GetName())
 					if err != nil {
-						logrus.Warnf("err AddConduit: %v", err)
+						cw.logger.Error(err, "AddConduit")
 					}
 				}
 			}
@@ -85,6 +88,6 @@ func (cw *ConduitWatcher) Start() {
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
 	if err != nil {
-		logrus.Fatalf("ConduitWatcher err: %v", err)
+		log.Fatal(cw.logger, "ConduitWatcher", "error", err)
 	}
 }

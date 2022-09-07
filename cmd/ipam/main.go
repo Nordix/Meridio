@@ -26,13 +26,16 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/go-logr/logr"
 	"github.com/kelseyhightower/envconfig"
+	nsmlog "github.com/networkservicemesh/sdk/pkg/tools/log"
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/health/connection"
 	"github.com/nordix/meridio/pkg/health/probe"
 	"github.com/nordix/meridio/pkg/ipam"
 	"github.com/nordix/meridio/pkg/ipam/types"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -63,11 +66,16 @@ func main() {
 		os.Exit(0)
 	}
 
-	logrus.SetOutput(os.Stdout)
-	logrus.SetLevel(logrus.DebugLevel)
+	var config Config
+	err := envconfig.Process("ipam", &config)
+	if err != nil {
+		panic(err)
+	}
+	logger := log.New("Meridio-ipam", config.LogLevel)
+	logger.Info("Configuration read", "config", config)
 
 	ctx, cancel := signal.NotifyContext(
-		context.Background(),
+		logr.NewContext(context.Background(), logger),
 		os.Interrupt,
 		syscall.SIGHUP,
 		syscall.SIGTERM,
@@ -75,27 +83,19 @@ func main() {
 	)
 	defer cancel()
 
+	if config.LogLevel == "TRACE" {
+		nsmlog.EnableTracing(true)
+		// Work-around for hard-coded logrus dependency in NSM
+		logrus.SetLevel(logrus.TraceLevel)
+	}
+	logger.Info("NSM trace", "enabled", nsmlog.IsTracingEnabled())
+	ctx = nsmlog.WithLog(ctx, log.NSMLogger(logger)) // allow NSM logs
+
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
 	if err := health.RegisterReadinesSubservices(ctx, health.IPAMReadinessServices...); err != nil {
-		logrus.Warnf("%v", err)
+		logger.Error(err, "RegisterReadinesSubservices")
 	}
-
-	var config Config
-	err := envconfig.Process("ipam", &config)
-	if err != nil {
-		logrus.Fatalf("%v", err)
-	}
-	logrus.Infof("rootConf: %+v", config)
-
-	logrus.SetLevel(func() logrus.Level {
-
-		l, err := logrus.ParseLevel(config.LogLevel)
-		if err != nil {
-			logrus.Fatalf("invalid log level %s", config.LogLevel)
-		}
-		return l
-	}())
 
 	// connect NSP
 	conn, err := grpc.DialContext(
@@ -108,13 +108,13 @@ func main() {
 			grpc.WaitForReady(true),
 		))
 	if err != nil {
-		logrus.Fatalf("Dial NSP err: %v", err)
+		log.Fatal(logger, "Dial NSP err", "error", err)
 	}
 	defer conn.Close()
 
 	// monitor status of NSP connection and adjust probe status accordingly
 	if err := connection.Monitor(ctx, health.NSPCliSvc, conn); err != nil {
-		logrus.Warnf("NSP connection state monitor err: %v", err)
+		logger.Error(err, "NSP connection state monitor")
 	}
 
 	prefixLengths := make(map[ipamAPI.IPFamily]*types.PrefixLengths)
@@ -133,9 +133,10 @@ func main() {
 	}
 
 	// cteate IPAM server
-	ipamServer, err := ipam.NewServer(config.Datasource, config.TrenchName, conn, cidrs, prefixLengths)
+	ipamServer, err := ipam.NewServer(
+		ctx, config.Datasource, config.TrenchName, conn, cidrs, prefixLengths)
 	if err != nil {
-		logrus.Fatalf("Unable to create ipam server: %v", err)
+		logger.Error(err, "Unable to create ipam server")
 	}
 
 	server := grpc.NewServer(grpc.Creds(
@@ -145,17 +146,17 @@ func main() {
 	healthServer := grpcHealth.NewServer()
 	grpc_health_v1.RegisterHealthServer(server, healthServer)
 
-	logrus.Infof("IPAM Service: Start the service (port: %v)", config.Port)
+	logger.Info("Start the service", "port", config.Port)
 	listener, err := net.Listen("tcp", fmt.Sprintf("[::]:%d", config.Port))
 	if err != nil {
-		logrus.Fatalf("IPAM Service: failed to listen: %v", err)
+		log.Fatal(logger, "Failed to listen", "error", err)
 	}
 
 	// internal probe checking health of IPAM server
 	probe.CreateAndRunGRPCHealthProbe(ctx, health.IPAMSvc, probe.WithAddress(fmt.Sprintf(":%d", config.Port)), probe.WithSpiffe())
 
 	if err := startServer(ctx, server, listener); err != nil {
-		logrus.Errorf("IPAM Service: failed to serve: %v", err)
+		logger.Error(err, "IPAM Service: failed to serve: %v")
 	}
 }
 

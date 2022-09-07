@@ -21,29 +21,35 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/go-logr/logr"
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
 	"github.com/nordix/meridio/pkg/ipam/prefix"
 	"github.com/nordix/meridio/pkg/ipam/storage/sqlite"
 	"github.com/nordix/meridio/pkg/ipam/trench"
 	"github.com/nordix/meridio/pkg/ipam/types"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type IpamServer struct {
+	ctx    context.Context
+	logger logr.Logger
 	ipamAPI.UnimplementedIpamServer
 	Trenches      map[ipamAPI.IPFamily]types.Trench
 	PrefixLengths map[ipamAPI.IPFamily]*types.PrefixLengths
 }
 
 // NewIpam -
-func NewServer(datastore string,
+func NewServer(
+	ctx context.Context,
+	datastore string,
 	trenchName string,
 	nspConn *grpc.ClientConn,
 	cidrs map[ipamAPI.IPFamily]string,
 	prefixLengths map[ipamAPI.IPFamily]*types.PrefixLengths) (ipamAPI.IpamServer, error) {
 	is := &IpamServer{
+		ctx:           ctx,
+		logger:        logr.FromContextOrDiscard(ctx).WithValues("class", "IpamServer"),
 		Trenches:      make(map[ipamAPI.IPFamily]types.Trench),
 		PrefixLengths: prefixLengths,
 	}
@@ -56,14 +62,14 @@ func NewServer(datastore string,
 	for ipFamily, cidr := range cidrs {
 		name := getTrenchName(trenchName, ipFamily)
 		prefix := prefix.New(name, cidr, nil)
-		newTrench, err := trench.New(context.TODO(), prefix, store, is.PrefixLengths[ipFamily])
+		newTrench, err := trench.New(ctx, prefix, store, is.PrefixLengths[ipFamily])
 		if err != nil {
 			return nil, err
 		}
 		is.Trenches[ipFamily] = newTrench
 		trenchWatchers = append(trenchWatchers, newTrench)
 	}
-	conduitWatcher, err := trench.NewConduitWatcher(context.TODO(), nspConn, trenchName, trenchWatchers)
+	conduitWatcher, err := trench.NewConduitWatcher(ctx, nspConn, trenchName, trenchWatchers)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +79,7 @@ func NewServer(datastore string,
 }
 
 func (is *IpamServer) Allocate(ctx context.Context, child *ipamAPI.Child) (*ipamAPI.Prefix, error) {
-	logrus.Infof("Allocate: %v", child)
+	is.logger.Info("Allocate", "child", child)
 	trench, exists := is.Trenches[child.GetSubnet().GetIpFamily()]
 	if !exists {
 		return nil, fmt.Errorf("cannot allocate in this ip family")
@@ -113,14 +119,16 @@ func (is *IpamServer) Allocate(ctx context.Context, child *ipamAPI.Child) (*ipam
 	if err != nil {
 		return nil, err
 	}
-	return &ipamAPI.Prefix{
+	ret := &ipamAPI.Prefix{
 		Address:      ip.String(),
 		PrefixLength: int32(is.PrefixLengths[child.GetSubnet().GetIpFamily()].NodeLength),
-	}, nil
+	}
+	is.logger.Info("Allocated", "prefix", ret)
+	return ret, nil
 }
 
 func (is *IpamServer) Release(ctx context.Context, child *ipamAPI.Child) (*emptypb.Empty, error) {
-	logrus.Infof("Release: %v", child)
+	is.logger.Info("Release", "child", child)
 	trench, exists := is.Trenches[child.GetSubnet().GetIpFamily()]
 	if !exists {
 		return &emptypb.Empty{}, nil
