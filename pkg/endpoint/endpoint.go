@@ -26,12 +26,12 @@ import (
 	"github.com/edwarnicke/grpcfd"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
+	"github.com/go-logr/logr"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
@@ -40,6 +40,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/spiffejwt"
 	"github.com/networkservicemesh/sdk/pkg/tools/tracing"
+	"github.com/nordix/meridio/pkg/log"
 )
 
 // Endpoint -
@@ -53,7 +54,8 @@ type Endpoint struct {
 	networkServiceRegistryClient         registryapi.NetworkServiceRegistryClient
 	networkServiceEndpointRegistryClient registryapi.NetworkServiceEndpointRegistryClient
 
-	nse *registryapi.NetworkServiceEndpoint
+	nse    *registryapi.NetworkServiceEndpoint
+	logger logr.Logger
 }
 
 // Start -
@@ -95,7 +97,7 @@ func (e *Endpoint) StartWithoutRegister(additionalFunctionality ...networkservic
 	e.listenOn = &(url.URL{Scheme: "unix", Path: filepath.Join(e.tmpDir, "listen.on")})
 	srvErrCh := grpcutils.ListenAndServe(e.context, e.listenOn, server)
 	go e.errorHandler(srvErrCh)
-	logrus.Infof("Endpoint: grpc server started")
+	e.logger.Info("StartWithoutRegister")
 
 	e.nse = &registryapi.NetworkServiceEndpoint{
 		Name:                e.config.Name,
@@ -114,19 +116,20 @@ func (e *Endpoint) StartWithoutRegister(additionalFunctionality ...networkservic
 // ErrorHandler -
 func (e *Endpoint) errorHandler(errCh <-chan error) {
 	err := <-errCh
-	logrus.Error(err)
+	e.logger.Error(err, "errorHandler")
 }
 
 // Delete -
 func (e *Endpoint) Delete() {
-	logrus.Infof("Endpoint: Delete")
+	logger := e.logger.WithValues("func", "Delete")
+	logger.Info("Called")
 	ctx, cancel := context.WithTimeout(e.context, time.Duration(time.Second*3))
 	defer cancel()
 
 	if err := e.unregister(ctx); err != nil {
-		logrus.Warnf("Endpoint: unregister err: %v", err)
+		logger.Error(err, "unregister")
 	} else {
-		logrus.Infof("Endpoint: unregistered")
+		logger.Info("unregistered")
 	}
 	_ = os.Remove(e.tmpDir)
 }
@@ -141,7 +144,7 @@ func (e *Endpoint) setSource() error {
 	if err != nil {
 		return errors.Wrap(err, "Error getting x509 svid")
 	}
-	logrus.Infof("SVID: %q", svid.ID)
+	e.logger.Info("setSource", "sVID", svid.ID)
 	e.source = source
 	return nil
 }
@@ -151,7 +154,7 @@ func (e *Endpoint) register() error {
 		Name:    e.config.ServiceName,
 		Payload: payload.Ethernet,
 	})
-	logrus.Infof("Endpoint: ns: %+v", networkService)
+	e.logger.Info("register", "networkService", networkService)
 
 	if err != nil {
 		return errors.Wrap(err, "Error register network service")
@@ -159,7 +162,7 @@ func (e *Endpoint) register() error {
 
 	e.nse.ExpirationTime = nil
 	nse, err := e.networkServiceEndpointRegistryClient.Register(e.context, e.nse)
-	logrus.Infof("Endpoint: nse: %+v", nse)
+	e.logger.Info("register", "nse", nse)
 
 	return err
 }
@@ -169,10 +172,10 @@ func (e *Endpoint) unregister(ctx context.Context) error {
 		Seconds: -1,
 	}
 
-	logrus.Infof("Endpoint: unregister nse: %+v", e.nse)
+	e.logger.Info("unregister", "nse", e.nse)
 	_, err := e.networkServiceEndpointRegistryClient.Unregister(e.context, e.nse)
 	if err != nil {
-		logrus.Warnf("Error unregister network service: %+v", err)
+		e.logger.Error(err, "unregister")
 	}
 
 	return err
@@ -205,6 +208,7 @@ func NewEndpoint(
 		config:                               config,
 		networkServiceRegistryClient:         networkServiceRegistryClient,
 		networkServiceEndpointRegistryClient: networkServiceEndpointRegistryClient,
+		logger:                               log.FromContextOrGlobal(context).WithValues("class", "Endpoint", "instrance", config.Name),
 	}
 
 	err := endpoint.setSource()

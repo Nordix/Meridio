@@ -830,11 +830,11 @@ func (fes *FrontEndService) writeConfigVips(conf *string) (hasVIP4, hasVIP6 bool
 // Notes:
 // - These routes are configured with the highest (linux) metric (-> lowest prio)
 // - BIRD 2.0.7 has a strange behaviour that differs between IPv4 and IPv6:
-//		- IPv4: - seemingly all the default routes are installed to the OS kernel routing
-//                table including e.g. default blackhole routes with lower preference
-//              - BIRD fails to remove all the BGP related routes when there's a BIRD
-//                managed blackhole route for the same destination as well
-//		- IPv6: default route with the highest preference gets installed to OS kernel routing table
+//   - IPv4: - seemingly all the default routes are installed to the OS kernel routing
+//     table including e.g. default blackhole routes with lower preference
+//   - BIRD fails to remove all the BGP related routes when there's a BIRD
+//     managed blackhole route for the same destination as well
+//   - IPv6: default route with the highest preference gets installed to OS kernel routing table
 func (fes *FrontEndService) writeConfigDropIfNoPeer(conf *string, hasVIP4 bool, hasVIP6 bool) {
 	if hasVIP4 {
 		*conf += "protocol static BH4 {\n"

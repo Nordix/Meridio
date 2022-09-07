@@ -20,7 +20,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/log"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
@@ -34,14 +34,14 @@ func CreateChecker(ctx context.Context, options ...Option) context.Context {
 
 	healthChecker, err := NewChecker(opts...)
 	if err != nil {
-		logrus.Fatalf("Unable to create Health checker: %v", err)
+		log.Fatal(log.Logger, "Unable to create Health checker", "error", err)
 		return ctx
 	}
 
 	go func() {
 		err := healthChecker.Start()
 		if err != nil {
-			logrus.Fatalf("Unable to start Health checker: %v", err)
+			log.Fatal(log.Logger, "Unable to start Health checker", "error", err)
 			return
 		}
 	}()

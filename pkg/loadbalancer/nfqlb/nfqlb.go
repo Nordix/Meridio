@@ -23,9 +23,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-logr/logr"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/log"
 )
 
 type nfqlbFactory struct {
@@ -59,9 +60,10 @@ func NewLbFactory(options ...Option) *nfqlbFactory {
 // instead of relying on linux kernel's defragmentation hook for packets coming
 // from outside the cluster.
 func (nf *nfqlbFactory) Start(ctx context.Context) context.Context {
+	logger := log.FromContextOrGlobal(ctx).WithValues("class", "nfqlbFactory")
 	ctx, cancel := context.WithCancel(ctx)
 	go func() {
-		logrus.Infof("Starting nfqlb process")
+		logger.Info("Starting nfqlb process")
 		defer cancel()
 		cmd := exec.CommandContext(
 			ctx,
@@ -83,10 +85,10 @@ func (nf *nfqlbFactory) Start(ctx context.Context) context.Context {
 			// "--ft_ttl=",
 		)
 
-		logrus.Debugf("%v", cmd.String())
+		logger.V(1).Info("execute", "cmd", cmd.String())
 		stdoutStderr, err := cmd.CombinedOutput()
 		if err != nil {
-			logrus.Errorf("nfqlb terminated err: \"%v\", out: %s", err, stdoutStderr)
+			logger.Error(err, "nfqlb terminated", "output", stdoutStderr)
 		}
 	}()
 
@@ -106,9 +108,10 @@ func (nf *nfqlbFactory) getTargetSHM(name string) string {
 //---------------------------------------------------------
 
 type nfqlb struct {
-	name string
-	m    int
-	n    int
+	name   string
+	m      int
+	n      int
+	logger logr.Logger
 }
 
 // NewLb -
@@ -122,9 +125,10 @@ func NewLb(options ...LbOption) (*nfqlb, error) {
 	}
 
 	return &nfqlb{
-		name: opts.name,
-		m:    opts.m,
-		n:    opts.n,
+		name:   opts.name,
+		m:      opts.m,
+		n:      opts.n,
+		logger: log.Logger.WithValues("class", "nfqlb", "instance", opts.name),
 	}, nil
 }
 
@@ -142,7 +146,7 @@ func (n *nfqlb) Start() error {
 		fmt.Sprintf("--N=%d", n.n),
 	)
 
-	logrus.Infof("Start nfqlb shared mem lb: %v", cmd.String())
+	n.logger.Info("Start nfqlb", "cmd", cmd.String())
 	stdoutStderr, err := cmd.CombinedOutput()
 	if err != nil {
 		err = fmt.Errorf("%v; %s", err, stdoutStderr)
@@ -154,12 +158,12 @@ func (n *nfqlb) Start() error {
 // Delete decreases reference count of the file backing the shared mem lb
 //
 // Notes:
-// - The file is not removed by the OS unless no other references are held
-// - Flow rule also store references towards the shared mem lb it's associated with.
-//   So they must be removed as well to get rid of a shared mem lb. (But that is
-//   the responsiblility of the "user" i.e. the Stream construct.)
-// - Previously activated Targets are not deactivated, as that information shall
-//  disappear once the shared mem is destroyed.
+//   - The file is not removed by the OS unless no other references are held
+//   - Flow rule also store references towards the shared mem lb it's associated with.
+//     So they must be removed as well to get rid of a shared mem lb. (But that is
+//     the responsiblility of the "user" i.e. the Stream construct.)
+//   - Previously activated Targets are not deactivated, as that information shall
+//     disappear once the shared mem is destroyed.
 func (n *nfqlb) Delete() error {
 	ctx := context.TODO()
 	// unlink the shared mem file
@@ -170,7 +174,7 @@ func (n *nfqlb) Delete() error {
 		fmt.Sprintf("--shm=%s", n.name),
 	)
 
-	logrus.Infof("Delete nfqlb shared mem lb: %v", cmd.String())
+	n.logger.Info("Delete nfqlb", "cmd", cmd.String())
 	stdoutStderr, err := cmd.CombinedOutput()
 	if err != nil {
 		err = fmt.Errorf("%v; %s", err, stdoutStderr)
@@ -254,7 +258,7 @@ func (n *nfqlb) SetFlow(flow *nspAPI.Flow) error {
 		args...,
 	)
 
-	logrus.Debugf("cmd: %v", cmd.String())
+	n.logger.V(1).Info("SetFlow", "cmd", cmd.String())
 	stdoutStderr, err := cmd.CombinedOutput()
 	if err != nil {
 		err = fmt.Errorf("%v; %s", err, stdoutStderr)
@@ -277,7 +281,7 @@ func (n *nfqlb) DeleteFlow(flow *nspAPI.Flow) error {
 		args...,
 	)
 
-	logrus.Debugf("cmd: %v", cmd.String())
+	n.logger.V(1).Info("DeleteFlow", "cmd", cmd.String())
 	stdoutStderr, err := cmd.CombinedOutput()
 	if err != nil {
 		err = fmt.Errorf("%v; %s", err, stdoutStderr)

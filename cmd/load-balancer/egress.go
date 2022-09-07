@@ -23,12 +23,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/retry"
-	"github.com/sirupsen/logrus"
 )
 
 // FrontendNetworkService -
@@ -51,6 +52,7 @@ type FrontendNetworkService struct {
 	myHostName               string
 	serviceControlDispatcher *serviceControlDispatcher
 	feAnnounced              bool
+	logger                   logr.Logger
 }
 
 // Start -
@@ -62,7 +64,7 @@ func (fns *FrontendNetworkService) Start() {
 			Type:   nspAPI.Target_FRONTEND,
 		})
 		if err != nil {
-			logrus.Errorf("FrontendNetworkService: err MonitorType(%v): %v", nspAPI.Target_FRONTEND, err)
+			fns.logger.Error(err, "targetRegistryClient", "MonitorType", nspAPI.Target_FRONTEND)
 			return err
 		}
 		return fns.recv()
@@ -70,18 +72,19 @@ func (fns *FrontendNetworkService) Start() {
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
 	if err != nil {
-		logrus.Fatalf("frontendNetworkService start err: %v", err)
+		log.Fatal(fns.logger, "Start", "error", err)
 	}
 }
 
 func (fns *FrontendNetworkService) recv() error {
+	logger := fns.logger.WithValues("func", "recv")
 	for {
 		targetResponse, err := fns.targetRegistryStream.Recv()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			logrus.Errorf("SimpleNetworkService: event err: %v", err)
+			logger.Error(err, "Recv")
 			return err
 		}
 
@@ -93,10 +96,10 @@ func (fns *FrontendNetworkService) recv() error {
 		}
 		fns.feAnnounced = currentState
 
-		logrus.Debugf("FrontendNetworkService: event: %v", target)
+		logger.V(1).Info("event", "target", target)
 
 		if fns.feAnnounced {
-			logrus.Infof("FrontendNetworkService: (local) FE available: %v", target.GetContext()[types.IdentifierKey])
+			logger.Info("FE available", "IdentifierKey", target.GetContext()[types.IdentifierKey])
 			// inform controlled services they are allowed to operate:
 			// SimpleNetworkService is allowed to accept new Targets.
 			if fns.serviceControlDispatcher != nil {
@@ -106,12 +109,12 @@ func (fns *FrontendNetworkService) recv() error {
 			// establish NSM connection, and forward egress traffic to this LB)
 			err := fns.loadBalancerEndpoint.Announce()
 			if err != nil {
-				logrus.Errorf("FrontendNetworkService: endpoint announce err: %v", err)
+				logger.Error(err, "Announce")
 				continue
 			}
 			health.SetServingStatus(fns.ctx, health.EgressSvc, true)
 		} else {
-			logrus.Warnf("FrontendNetworkService: (local) FE unavailable: %v", target.GetContext()[types.IdentifierKey])
+			logger.Info("FE unavailable", "IdentifierKey", target.GetContext()[types.IdentifierKey])
 			// inform controlled services they must pause operation:
 			// SimpleNetworkService must not accept new Targets, and must
 			// clean-up known Targets. (The nsm interfaces in ingress routes become unusable
@@ -125,7 +128,7 @@ func (fns *FrontendNetworkService) recv() error {
 			// traffic; proxies monitor the LB NSE endpoints via registry)
 			err := fns.loadBalancerEndpoint.Denounce()
 			if err != nil {
-				logrus.Errorf("FrontendNetworkService: endpoint denounce err: %v", err)
+				logger.Error(err, "Denounce")
 				continue
 			}
 		}
@@ -154,6 +157,7 @@ func NewFrontendNetworkService(ctx context.Context, targetRegistryClient nspAPI.
 		targetRegistryClient:     targetRegistryClient,
 		serviceControlDispatcher: serviceControlDispatcher,
 		feAnnounced:              false,
+		logger:                   log.FromContextOrGlobal(ctx).WithValues("class", "FrontendNetworkService"),
 	}
 	frontendNetworkService.myHostName, _ = os.Hostname()
 	return frontendNetworkService

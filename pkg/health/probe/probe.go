@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/nordix/meridio/pkg/health"
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/log"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
@@ -79,7 +79,6 @@ func (ghp *GrpcHealthProbe) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("gRPC Health Probe err: %v, %s", err, stdoutStderr)
 	}
-	//logrus.Infof("%v: %v", ghp.cmd, stdoutStderr)
 
 	return nil
 }
@@ -92,10 +91,10 @@ func CreateAndRunGRPCHealthProbe(ctx context.Context, healthService string, opti
 	// create the probe for the servie
 	ghp, err := NewGRPCHealthProbe(options...)
 	if err != nil {
-		logrus.Errorf("Failed to create background gRPC Health Probe: %v", err)
+		log.Logger.Error(err, "Failed to create background gRPC Health Probe")
 		return
 	}
-	logrus.Debugf("Created background probe: %v", ghp)
+	log.Logger.V(1).Info("Created background probe", "probe", ghp)
 
 	runf := func(ctx context.Context) error {
 		cancelCtx, cancel := context.WithTimeout(ctx, 3*time.Second) // probe timeout
@@ -103,7 +102,7 @@ func CreateAndRunGRPCHealthProbe(ctx context.Context, healthService string, opti
 		servingStatus := grpc_health_v1.HealthCheckResponse_SERVING
 		if err := ghp.Run(cancelCtx); err != nil {
 			servingStatus = grpc_health_v1.HealthCheckResponse_NOT_SERVING
-			logrus.Debugf("Background %v", err)
+			log.Logger.V(1).Info("Background", "error", err)
 		}
 		if hs := health.HealthServer(ctx); hs != nil {
 			hs.SetServingStatus(healthService, servingStatus)

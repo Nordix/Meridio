@@ -26,7 +26,7 @@ import (
 	"path"
 	"sync"
 
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -57,7 +57,10 @@ func (c *Checker) RegisterServices(probeSvc string, services ...string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	logrus.Debugf("Health server: Register subservices for probeSvc=%v, services=%v", probeSvc, services)
+	logger := log.FromContextOrGlobal(c.ctx)
+	logger.V(1).Info(
+		"Health server: Register subservices", "probeSvc", probeSvc,
+		"services", services)
 
 	components, ok := c.subServices[probeSvc]
 	if !ok {
@@ -79,7 +82,6 @@ func (c *Checker) RegisterServices(probeSvc string, services ...string) {
 // Re-implements Check() function of grpc_health_v1.HealthServer interface
 // in order to log if a probe service is about to fail.
 func (c *Checker) Check(ctx context.Context, in *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {
-	//logrus.Debugf("Checker: Check service=%v", in.Service)
 
 	switch in.Service {
 	case Startup:
@@ -103,7 +105,10 @@ func (c *Checker) Check(ctx context.Context, in *grpc_health_v1.HealthCheckReque
 				}
 				svcInfo += `]`
 			}
-			logrus.Infof(`Probe service "%v" [%v]%v`, in.Service, resp.Status, svcInfo)
+			logger := log.FromContextOrGlobal(c.ctx)
+			logger.Info(
+				"Probe service", "Service", in.Service,
+				"Status", resp.Status, "svcInfo", svcInfo)
 		}
 		return resp, err
 	default:
@@ -117,7 +122,6 @@ func (c *Checker) SetServingStatus(service string, servingStatus grpc_health_v1.
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	//logrus.Debugf("Checker: Set serving status for service=%v, status=%v", service, servingStatus)
 	switch service {
 	case Startup:
 		fallthrough
@@ -149,7 +153,6 @@ func (c *Checker) SetServingStatus(service string, servingStatus grpc_health_v1.
 							}
 						}
 					}
-					//logrus.Debugf(`SetServingStatus: probe service "%v" [%v]`, probeSvc, probeStatus)
 					c.HealthServerStatusModifier.SetServingStatus(probeSvc, probeStatus)
 				}
 			}

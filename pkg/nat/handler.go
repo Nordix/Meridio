@@ -20,9 +20,9 @@ import (
 	"fmt"
 
 	"github.com/google/nftables"
-	"github.com/sirupsen/logrus"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/log"
 )
 
 /*
@@ -69,11 +69,9 @@ func (nh *NatHandler) initTable() error {
 func (nh *NatHandler) SetNats(portNats []*nspAPI.Conduit_PortNat) error {
 	var errFinal error
 	toRemove := nspAPI.PortNatDiff(nh.getPortNats(), portNats)
-	logrus.WithFields(logrus.Fields{
-		"Previous Port Nats": nh.getPortNats(),
-		"To add/update":      portNats,
-		"To remove":          toRemove,
-	}).Infof("NAT Handler: SetNats")
+	log.Logger.Info(
+		"SetNats", "oldPortNats", nh.getPortNats(), "newPortNats", portNats,
+		"toRemove", toRemove)
 	for _, n := range toRemove {
 		err := nh.deleteNat(n)
 		if err != nil {
