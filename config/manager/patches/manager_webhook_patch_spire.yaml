@@ -10,7 +10,7 @@ spec:
         spiffe.io/spiffe-id: "true"
     spec:
       containers:
-      - name: manager
+      - name: operator
         env:
         - name: SPIFFE_ENDPOINT_SOCKET
           value: unix:///run/spire/sockets/agent.sock

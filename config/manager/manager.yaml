@@ -39,9 +39,9 @@ spec:
         - /manager
         args:
         - --leader-elect
-        image: controller:latest
+        image: operator:latest
         imagePullPolicy: IfNotPresent
-        name: manager
+        name: operator
         env:
           - name: RESOURCE_NAME_PREFIX
             value: ""

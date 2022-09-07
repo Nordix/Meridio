@@ -18,10 +18,10 @@ configMapGenerator:
   - controller_manager_config.yaml
   name: manager-config
 - files:
-  - resource_requirements/load-balancer
+  - resource_requirements/stateless-lb
   - resource_requirements/nsc
-  - resource_requirements/fe
-  - resource_requirements/nse
+  - resource_requirements/frontend
+  - resource_requirements/nse-vlan
   - resource_requirements/proxy
   - resource_requirements/nsp
   - resource_requirements/ipam
@@ -30,6 +30,6 @@ configMapGenerator:
     disableNameSuffixHash: true
 
 images:
-- name: controller
-  newName: registry.nordix.org/cloud-native/meridio/meridio-operator
+- name: operator
+  newName: registry.nordix.org/cloud-native/meridio/operator
   newTag: latest

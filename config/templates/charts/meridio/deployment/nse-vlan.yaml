@@ -26,7 +26,7 @@ spec:
     spec:
       automountServiceAccountToken: false
       containers:
-        - name: nse
+        - name: nse-vlan
           image: {{ .Values.registry }}/{{ .Values.nsm.organization }}/{{ .Values.vlanNSE.image }}:{{ .Values.nsm.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
           startupProbe:  # will be filled by operator if not specified

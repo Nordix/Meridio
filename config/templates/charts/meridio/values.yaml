@@ -11,8 +11,8 @@ sysctlInit:
   image: busybox
   version: 1.29
 
-loadBalancer:
-  image: load-balancer
+statelessLB:
+  image: stateless-lb
 
 frontEnd:
   image: frontend

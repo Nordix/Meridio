@@ -89,7 +89,7 @@ func (i *NseDeployment) insertParameters(dep *appsv1.Deployment) *appsv1.Deploym
 
 	for x, container := range ret.Spec.Template.Spec.Containers {
 		switch name := container.Name; name {
-		case "nse":
+		case "nse-vlan":
 			if container.Image == "" {
 				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.OrganizationNsm, nseImage, nseImageTag)
 				container.ImagePullPolicy = corev1.PullAlways

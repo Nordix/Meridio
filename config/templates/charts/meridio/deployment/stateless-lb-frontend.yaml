@@ -1,16 +1,16 @@
 ---
-# Source: meridio/templates/lb-fe.yaml
+# Source: meridio/templates/stateless-lb-frontend.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: lb-fe
+  name: stateless-lb-frontend
   labels:
-    app: lb-fe
+    app: stateless-lb-frontend
 spec:
   progressDeadlineSeconds: 600
   selector:
     matchLabels:
-      app: lb-fe
+      app: stateless-lb-frontend
   replicas: 2
   revisionHistoryLimit: 10
   strategy:
@@ -21,7 +21,7 @@ spec:
   template:
     metadata:
       labels:
-        app: lb-fe
+        app: stateless-lb-frontend
         "spiffe.io/spiffe-id": "true"
     spec:
       affinity:
@@ -32,7 +32,7 @@ spec:
                   - key: app
                     operator: In
                     values:
-                      - "lb-fe"
+                      - "stateless-lb-frontend"
               topologyKey: kubernetes.io/hostname
       serviceAccountName:  # to be filled by operator
       initContainers:
@@ -46,8 +46,8 @@ spec:
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
       containers:
-        - name: load-balancer
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.loadBalancer.image }}:{{ .Values.version }}
+        - name: stateless-lb
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.statelessLB.image }}:{{ .Values.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
           startupProbe:  # will be filled by operator if not specified
             exec:
@@ -173,7 +173,7 @@ spec:
               - all
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
-        - name: fe
+        - name: frontend
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.frontEnd.image }}:{{ .Values.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
           startupProbe:  # will be filled by operator if not specified

@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	lbImage = "load-balancer"
+	lbImage = "stateless-lb"
 	feImage = "frontend"
 )
 
@@ -43,7 +43,7 @@ type LoadBalancer struct {
 }
 
 func (l *LoadBalancer) getModel() error {
-	model, err := common.GetDeploymentModel("deployment/lb-fe.yaml")
+	model, err := common.GetDeploymentModel("deployment/stateless-lb-frontend.yaml")
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 }
 
 func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployment {
-	// if status lb-fe deployment parameters are specified in the cr, use those
+	// if status stateless-lb-frontend deployment parameters are specified in the cr, use those
 	// else use the default parameters
 	ret := dep.DeepCopy()
 	ret.ObjectMeta.Name = lbFeDeploymentName
@@ -136,7 +136,7 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 
 	for i, container := range ret.Spec.Template.Spec.Containers {
 		switch name := container.Name; name {
-		case "load-balancer":
+		case "stateless-lb":
 			if container.Image == "" {
 				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, lbImage, common.Tag)
 				container.ImagePullPolicy = corev1.PullAlways
@@ -170,7 +170,7 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 			if err := common.SetContainerResourceRequirements(&l.attractor.ObjectMeta, &container); err != nil {
 				l.exec.LogInfo(fmt.Sprintf("attractor %s, %v", l.attractor.ObjectMeta.Name, err))
 			}
-		case "fe":
+		case "frontend":
 			if container.Image == "" {
 				container.Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, feImage, common.Tag)
 				container.ImagePullPolicy = corev1.PullAlways
@@ -225,7 +225,7 @@ func (l *LoadBalancer) getDesiredStatus() *appsv1.Deployment {
 	return l.insertParameters(l.model)
 }
 
-// getReconciledDesiredStatus gets the desired status of lb-fe deployment after it's created
+// getReconciledDesiredStatus gets the desired status of stateless-lb-frontend deployment after it's created
 // more paramters than what are defined in the model could be added by K8S
 func (l *LoadBalancer) getReconciledDesiredStatus(lb *appsv1.Deployment) *appsv1.Deployment {
 	template := lb.DeepCopy()
