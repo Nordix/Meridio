@@ -32,6 +32,9 @@ import (
 	"github.com/nordix/meridio/pkg/configuration/registry"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/nsp"
+	nspRegistry "github.com/nordix/meridio/pkg/nsp/registry"
+	"github.com/nordix/meridio/pkg/nsp/watchhandler"
+	"github.com/pkg/errors"
 
 	keepAliveRegistry "github.com/nordix/meridio/pkg/nsp/registry/keepalive"
 	sqliteRegistry "github.com/nordix/meridio/pkg/nsp/registry/sqlite"
@@ -97,31 +100,18 @@ func main() {
 	ctx = health.CreateChecker(ctx)
 
 	// configuration
-	configurationEventChan := make(chan *registry.ConfigurationEvent, 10)
-	configurationRegistry := registry.New(configurationEventChan)
-	configurationMonitor, err := monitor.New(config.ConfigMapName, config.Namespace, configurationRegistry)
+	configurationManagerServer, err := CreateConfigurationManagerServer(ctx, &config)
 	if err != nil {
-		logrus.Fatalf("Unable to start configuration monitor: %v", err)
+		logrus.Fatalf("CreateConfigurationManagerServer err: %v", err)
 	}
-	go configurationMonitor.Start(context.Background())
-	watcherNotifier := manager.NewWatcherNotifier(configurationRegistry, configurationEventChan)
-	go watcherNotifier.Start(context.Background())
-	configurationManagerServer := manager.NewServer(watcherNotifier)
 
 	// target registry
-	sqlr, err := sqliteRegistry.New(config.Datasource)
+	targetRegistryServer, err := CreateTargetRegistryServer(ctx, &config)
 	if err != nil {
-		logrus.Fatalf("Unable create sqlite registry: %v", err)
+		logrus.Fatalf("CreateTargetRegistryServer err: %v", err)
 	}
-	keepAliveRegistry, err := keepAliveRegistry.New(
-		keepAliveRegistry.WithRegistry(sqlr),
-		keepAliveRegistry.WithTimeout(config.EntryTimeout),
-	)
-	if err != nil {
-		logrus.Fatalf("Unable create keepalive registry: %v", err)
-	}
-	targetRegistryServer := nsp.NewServer(keepAliveRegistry)
 
+	// Create Server
 	server := grpc.NewServer(grpc.Creds(
 		credentials.GetServer(context.Background()),
 	))
@@ -141,4 +131,35 @@ func main() {
 	}
 
 	<-ctx.Done()
+}
+
+func CreateTargetRegistryServer(ctx context.Context, config *Config) (nspAPI.TargetRegistryServer, error) {
+	sqlr, err := sqliteRegistry.New(config.Datasource)
+	if err != nil {
+		return nil, errors.Wrap(err, "Unable create sqlite registry")
+	}
+	keepAliveRegistry, err := keepAliveRegistry.New(
+		keepAliveRegistry.WithRegistry(sqlr),
+		keepAliveRegistry.WithTimeout(config.EntryTimeout),
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "Unable create keepalive registry")
+	}
+	return nsp.NewServer(
+		nspRegistry.NewServer(keepAliveRegistry),
+		watchhandler.NewServer(keepAliveRegistry),
+	), nil
+}
+
+func CreateConfigurationManagerServer(ctx context.Context, config *Config) (nspAPI.ConfigurationManagerServer, error) {
+	configurationEventChan := make(chan *registry.ConfigurationEvent, 10)
+	configurationRegistry := registry.New(configurationEventChan)
+	configurationMonitor, err := monitor.New(config.ConfigMapName, config.Namespace, configurationRegistry)
+	if err != nil {
+		return nil, errors.Wrap(err, "Unable to start configuration monitor")
+	}
+	go configurationMonitor.Start(context.Background())
+	watcherNotifier := manager.NewWatcherNotifier(configurationRegistry, configurationEventChan)
+	go watcherNotifier.Start(context.Background())
+	return manager.NewServer(watcherNotifier), nil
 }
