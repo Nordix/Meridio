@@ -22,14 +22,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/stream/registry"
 	"github.com/nordix/meridio/pkg/ambassador/tap/trench"
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
-	"github.com/sirupsen/logrus"
 )
 
 // Tap implements ambassadorAPI.TapServer
@@ -46,6 +47,7 @@ type Tap struct {
 	StreamRegistry       types.Registry
 	currentTrench        types.Trench
 	mu                   sync.Mutex
+	logger               logr.Logger
 }
 
 func New(targetName string,
@@ -65,6 +67,7 @@ func New(targetName string,
 		NSPServicePort:       nspServicePort,
 		NSPEntryTimeout:      nspEntryTimeout,
 		NetUtils:             netUtils,
+		logger:               log.Logger.WithValues("class", "Tap"),
 	}
 	tap.StreamRegistry = registry.New()
 	return tap, nil
@@ -118,7 +121,7 @@ func (tap *Tap) Close(ctx context.Context, s *ambassadorAPI.Stream) (*empty.Empt
 		}
 		err := conduit.RemoveStream(context, s) // todo: retry
 		if err != nil {
-			logrus.Errorf("Error removing stream: %v", err)
+			tap.logger.Error(err, "removing stream")
 		}
 		if len(conduit.GetStreams()) > 0 {
 			return
@@ -126,7 +129,7 @@ func (tap *Tap) Close(ctx context.Context, s *ambassadorAPI.Stream) (*empty.Empt
 		// remove the conduit if it doesn't contain any more stream
 		err = tap.currentTrench.RemoveConduit(context, s.GetConduit()) // todo: retry
 		if err != nil {
-			logrus.Errorf("Error removing conduit: %v", err)
+			tap.logger.Error(err, "removing conduit")
 		}
 		if len(tap.currentTrench.GetConduits()) > 0 {
 			return
@@ -134,7 +137,7 @@ func (tap *Tap) Close(ctx context.Context, s *ambassadorAPI.Stream) (*empty.Empt
 		// delete the conduit if it doesn't contain any more conduit
 		err = tap.currentTrench.Delete(context)
 		if err != nil {
-			logrus.Errorf("Error deleting trench: %v", err)
+			tap.logger.Error(err, "deleting trench")
 		}
 		tap.currentTrench = nil
 	}()
@@ -191,7 +194,7 @@ func (tap *Tap) watcher(watcher ambassadorAPI.Tap_WatchServer, ch <-chan []*amba
 				StreamStatus: event,
 			})
 			if err != nil {
-				logrus.Errorf("err sending TrenchResponse: %v", err)
+				tap.logger.Error(err, "sending TrenchResponse")
 			}
 		case <-watcher.Context().Done():
 			return

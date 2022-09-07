@@ -25,10 +25,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	lbTypes "github.com/nordix/meridio/pkg/loadbalancer/types"
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/log"
 )
 
 // Stream implements types.Stream (/pkg/ambassador/tap/types)
@@ -44,8 +45,9 @@ type Stream struct {
 	targetStatus       nspAPI.Target_Status
 	// When opening the stream, the IPs are save, so, if the IPs of the conduit are changed
 	// before closing, this IP list will be used.
-	ips []string
-	mu  sync.Mutex
+	ips    []string
+	mu     sync.Mutex
+	logger logr.Logger
 }
 
 // New is the constructor of Stream.
@@ -62,6 +64,7 @@ func New(stream *ambassadorAPI.Stream,
 		MaxNumberOfTargets: maxNumberOfTargets,
 		identifier:         -1,
 		targetStatus:       nspAPI.Target_DISABLED,
+		logger:             log.Logger.WithValues("class", "Stream"),
 	}
 	return s, nil
 }
@@ -79,12 +82,12 @@ func (s *Stream) Open(ctx context.Context) error {
 	if s.targetStatus == nspAPI.Target_ENABLED && s.isIdentifierInRange(1, s.MaxNumberOfTargets) {
 		return s.refresh(ctx)
 	}
-	logrus.Infof("Attempt to open stream: %v", s.Stream)
+	s.logger.Info("Attempt to open stream", "stream", s.Stream)
 	err := s.open(ctx)
 	if err != nil {
 		return err
 	}
-	logrus.Infof("Stream opened (identifier: %v) : %v", strconv.Itoa(s.identifier), s.Stream)
+	s.logger.Info("Stream opened", "identifier", s.identifier, "stream", s.Stream)
 	return nil
 }
 
@@ -92,7 +95,7 @@ func (s *Stream) Open(ctx context.Context) error {
 func (s *Stream) Close(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	logrus.Infof("Close stream: %v", s.Stream)
+	s.logger.Info("Close stream", "stream", s.Stream)
 	err := s.TargetRegistry.Unregister(ctx, s.getTarget())
 	s.targetStatus = nspAPI.Target_DISABLED
 	s.identifier = -1

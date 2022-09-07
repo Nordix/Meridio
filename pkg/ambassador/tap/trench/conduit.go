@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/log"
 )
 
 const (
@@ -66,7 +66,7 @@ func (cc *conduitConnect) connect() {
 		err := cc.conduit.Connect(ctx)
 		cancel()
 		if err != nil {
-			logrus.Warnf("error connecting conduit: %v ; %v", cc.conduit.GetConduit(), err)
+			log.Logger.Error(err, "connecting conduit", "conduit", cc.conduit.GetConduit())
 			continue
 		}
 		cc.status = connected

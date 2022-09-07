@@ -25,8 +25,8 @@ import (
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/retry"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -161,7 +161,7 @@ func (sm *streamManager) SetStreams(streams []*nspAPI.Stream) {
 			err := sr.Close(ctx)
 			sr.setStatus(ambassadorAPI.StreamStatus_UNDEFINED)
 			if err != nil {
-				logrus.Errorf("error closing non available stream (%v): %v", sr.Stream.GetStream(), err)
+				log.Logger.Error(err, "closing non available stream", "stream", sr.Stream.GetStream())
 			}
 		}
 	}
@@ -254,7 +254,7 @@ func (sr *streamRetry) Open() {
 		_ = retry.Do(func() error {
 			err := sr.Stream.Open(openCtx)
 			if err != nil {
-				logrus.Warnf("error opening stream: %v ; %v", sr.Stream.GetStream(), err)
+				log.Logger.Error(err, "opening stream", "stream", sr.Stream.GetStream())
 				// opened unsuccessfully, set status to UNDEFINED (might be due to lack of identifier, no connection to NSP)
 				sr.setStatus(ambassadorAPI.StreamStatus_UNAVAILABLE)
 				return err

@@ -24,8 +24,8 @@ import (
 	"time"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/retry"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -88,7 +88,7 @@ func (c *configurationImpl) vipHandler(ctx context.Context) {
 		case vips := <-c.vipChan:
 			err := c.SetVips(vips)
 			if err != nil {
-				logrus.Warnf("err set vips: %v", err) // todo
+				log.Logger.Error(err, "set vips")
 			}
 		case <-ctx.Done():
 			return
@@ -138,7 +138,7 @@ func (c *configurationImpl) watchVIPs(ctx context.Context) {
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
 	if err != nil {
-		logrus.Warnf("err watchVIPs: %v", err) // todo
+		log.Logger.Error(err, "watchVIPs") // todo
 	}
 }
 
@@ -172,7 +172,7 @@ func (c *configurationImpl) watchStreams(ctx context.Context) {
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
 	if err != nil {
-		logrus.Warnf("err watchStreams: %v", err) // todo
+		log.Logger.Error(err, "watchStreams") // todo
 	}
 }
 

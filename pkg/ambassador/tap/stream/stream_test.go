@@ -27,14 +27,12 @@ import (
 	"github.com/nordix/meridio/pkg/ambassador/tap/stream"
 	"github.com/nordix/meridio/pkg/ambassador/tap/stream/mocks"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
 
 func Test_Open_Close(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
@@ -101,7 +99,6 @@ func Test_Open_Close(t *testing.T) {
 
 func Test_Open_NoIdentifierAvailable(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
@@ -133,7 +130,6 @@ func Test_Open_NoIdentifierAvailable(t *testing.T) {
 
 func Test_Open_Concurrent(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
@@ -210,7 +206,6 @@ func Test_Open_Concurrent(t *testing.T) {
 
 func Test_Open_Concurrent_NoIdentifierAvailable(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
@@ -269,7 +264,6 @@ func Test_Open_Concurrent_NoIdentifierAvailable(t *testing.T) {
 
 func Test_Open_Refresh(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
@@ -337,7 +331,6 @@ func Test_Open_Refresh(t *testing.T) {
 
 func Test_Open_Failed_Refresh(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	s := &ambassadorAPI.Stream{
 		Name: "stream-a",

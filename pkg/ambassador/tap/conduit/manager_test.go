@@ -28,7 +28,6 @@ import (
 	"github.com/nordix/meridio/pkg/ambassador/tap/conduit"
 	"github.com/nordix/meridio/pkg/ambassador/tap/conduit/mocks"
 	typesMocks "github.com/nordix/meridio/pkg/ambassador/tap/types/mocks"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
@@ -37,8 +36,6 @@ var timeout = 500 * time.Millisecond
 
 func Test_Manager_Run_Stop(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
-
 	manager := conduit.NewStreamManager(nil, nil, nil, nil, timeout, 30*time.Second)
 	manager.Run()
 	err := manager.Stop(context.TODO())
@@ -47,7 +44,6 @@ func Test_Manager_Run_Stop(t *testing.T) {
 
 func Test_RemoveStream_non_existing(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
@@ -76,7 +72,6 @@ func Test_RemoveStream_non_existing(t *testing.T) {
 // Check Close (Stream) has been called
 func Test_Manager_Running_AddStream_Stop(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
@@ -163,7 +158,6 @@ func Test_Manager_Running_AddStream_Stop(t *testing.T) {
 // Check Close (Stream) has been called
 func Test_Manager_RemoveStream(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
@@ -240,7 +234,6 @@ func Test_Manager_RemoveStream(t *testing.T) {
 
 func Test_Manager_Close_While_Opening(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
@@ -324,7 +317,6 @@ func Test_Manager_Close_While_Opening(t *testing.T) {
 // 10. Stop the stream manager
 func Test_Manager_Retry_Open(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
@@ -417,7 +409,6 @@ func Test_Manager_Retry_Open(t *testing.T) {
 // 12. Stop the stream manager
 func Test_Manager_Add_Non_Existing_Stream(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	s := &ambassadorAPI.Stream{
 		Name: "stream-a",
