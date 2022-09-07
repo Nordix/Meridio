@@ -26,14 +26,12 @@ import (
 	"github.com/nordix/meridio/pkg/nsp/registry/common"
 	keepAliveRegistry "github.com/nordix/meridio/pkg/nsp/registry/keepalive"
 	"github.com/nordix/meridio/pkg/nsp/types/mocks"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
 
 func Test_Set(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	target := &nspAPI.Target{
 		Ips:     []string{"192.168.1.1/32"},
@@ -79,7 +77,6 @@ func Test_Set(t *testing.T) {
 
 func Test_Remove(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	target := &nspAPI.Target{}
 
@@ -98,7 +95,6 @@ func Test_Remove(t *testing.T) {
 
 func Test_Watch(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	target := &nspAPI.Target{
 		Status: nspAPI.Target_ANY,
@@ -121,7 +117,6 @@ func Test_Watch(t *testing.T) {
 
 func Test_Get(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	logrus.SetLevel(logrus.FatalLevel)
 
 	target := &nspAPI.Target{}
 
