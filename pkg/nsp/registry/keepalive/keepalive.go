@@ -23,9 +23,9 @@ import (
 	"time"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/nsp/registry/sqlite"
 	"github.com/nordix/meridio/pkg/nsp/types"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -124,10 +124,10 @@ func (ka *KeepAlive) Get(ctx context.Context, target *nspAPI.Target) ([]*nspAPI.
 func (ka *KeepAlive) add(target *nspAPI.Target) {
 	kaTarget, exists := ka.targets[sqlite.GetTargetID(target)]
 	if exists {
-		logrus.Infof("Update/refresh: %v", target)
+		log.Logger.Info("Update/refresh", "target", target)
 		kaTarget.contextCancel()
 	} else {
-		logrus.Infof("Register: %v", target)
+		log.Logger.Info("Register", "target", target)
 	}
 	ctx, cancel := context.WithCancel(context.TODO())
 	ka.targets[sqlite.GetTargetID(target)] = &keepAliveTarget{
@@ -142,7 +142,7 @@ func (ka *KeepAlive) add(target *nspAPI.Target) {
 
 func (ka *KeepAlive) remove(ctx context.Context, target *nspAPI.Target) error {
 	delete(ka.targets, sqlite.GetTargetID(target))
-	logrus.Infof("Unregister: %v", target)
+	log.Logger.Info("Unegister", "target", target)
 	if ka.TargetRegistry == nil {
 		return nil
 	}
@@ -163,7 +163,7 @@ func (ka *KeepAlive) timeout(ctx context.Context, target *nspAPI.Target) {
 		defer cancel()
 		err := ka.remove(removeCtx, target)
 		if err != nil {
-			logrus.Errorf("error removing target after it expired: %v", err)
+			log.Logger.Error(err, "Removing target after it expired")
 		}
 	case <-ctx.Done():
 		// cancel to refresh

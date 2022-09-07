@@ -21,8 +21,8 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/nsp/types"
-	"github.com/sirupsen/logrus"
 )
 
 type Server struct {
@@ -65,7 +65,7 @@ func (s *Server) watcher(watcher nspAPI.TargetRegistry_WatchServer, ch <-chan []
 				Targets: event,
 			})
 			if err != nil {
-				logrus.Errorf("err sending TrenchResponse: %v", err)
+				log.Logger.Error(err, "Sending TrenchResponse")
 			}
 		case <-watcher.Context().Done():
 			return
