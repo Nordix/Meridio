@@ -22,11 +22,12 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/go-logr/logr"
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/kernel"
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/log"
 	"golang.org/x/sys/unix"
 )
 
@@ -73,20 +74,27 @@ func NewNetfilterAdaptor(options ...Option) (*netfilterAdaptor, error) {
 	}
 
 	ku := &netfilterAdaptor{
-		targetNFQueue: opts.nfqueue,
+		TargetNFQueue: opts.nfqueue,
 		fanout:        opts.fanout,
 		table:         opts.table,
 		nftqueueTotal: 1,
 	}
 
+	ku.logger = log.Logger.WithValues(
+		"class", "netfilterAdaptor", "instance", ku.TargetNFQueue)
 	if err := ku.configure(); err != nil {
+		ku.logger.Error(err, "configure")
 		return nil, err
 	}
+
+	ku.logger.V(1).Info(
+		"Created", "num", ku.nftqueueNum, "total", ku.nftqueueTotal, "flag", ku.nftqueueFlag)
+
 	return ku, nil
 }
 
 type netfilterAdaptor struct {
-	targetNFQueue      string // single number or a range e.g. "0:3"
+	TargetNFQueue      string // single number or a range e.g. "0:3"
 	fanout             bool   // enable netfilter queue fanout
 	table              *nftables.Table
 	chain              *nftables.Chain
@@ -98,6 +106,7 @@ type netfilterAdaptor struct {
 	nftqueueFlag       expr.QueueFlag
 	nftqueueNum        uint16 // start of nqueue range
 	nftqueueTotal      uint16 // number of nfqueues in use
+	logger             logr.Logger
 }
 
 // Delete -
@@ -113,30 +122,25 @@ func (na *netfilterAdaptor) Delete() error {
 
 func (na *netfilterAdaptor) configure() error {
 	if err := na.configureNFQueue(); err != nil {
-		logrus.Errorf("err: %v", err)
 		return err
 	}
 
 	if na.table == nil {
 		// create nf table
 		if err := na.configureTable(); err != nil {
-			logrus.Errorf("err: %v", err)
 			return err
 		}
 	}
 
 	if err := na.configureSets(); err != nil {
-		logrus.Errorf("err: %v", err)
 		return err
 	}
 
 	if err := na.configureChainAndRules(); err != nil {
-		logrus.Errorf("err: %v", err)
 		return err
 	}
 
 	if err := na.configureLocalChainAndRules(); err != nil {
-		logrus.Errorf("err: %v", err)
 		return err
 	}
 
@@ -146,7 +150,7 @@ func (na *netfilterAdaptor) configure() error {
 // configureNFQueue -
 // Parses targetNFQueue to be used by nftables rules
 func (na *netfilterAdaptor) configureNFQueue() error {
-	nfqueues := strings.Split(na.targetNFQueue, ":")
+	nfqueues := strings.Split(na.TargetNFQueue, ":")
 
 	num, err := strconv.ParseUint(nfqueues[0], 10, 16)
 	if err != nil {
@@ -157,7 +161,7 @@ func (na *netfilterAdaptor) configureNFQueue() error {
 	if len(nfqueues) >= 2 {
 		end, err := strconv.ParseUint(nfqueues[1], 10, 16)
 		if err != nil {
-			return nil
+			return err
 		}
 		na.nftqueueTotal = uint16(end - num + 1)
 	}
@@ -166,8 +170,6 @@ func (na *netfilterAdaptor) configureNFQueue() error {
 		na.nftqueueFlag = expr.QueueFlagFanout
 	}
 
-	logrus.Debugf("netlinkAdaptor: nfqueue: %v, num: %v, total: %v, flag: %v",
-		na.targetNFQueue, na.nftqueueNum, na.nftqueueTotal, na.nftqueueFlag)
 	return nil
 }
 
@@ -222,7 +224,7 @@ func (na *netfilterAdaptor) configureChainAndRules() error {
 	})
 
 	if rules, _ := conn.GetRules(na.table, na.chain); len(rules) != 0 {
-		logrus.Debugf("netfilterAdaptor: nft chain %v not empty (%v)", chainName, rules)
+		na.logger.V(1).Info("nft chain not empty", "name", chainName, "rules", rules)
 		conn.FlushChain(na.chain)
 	}
 
@@ -332,7 +334,7 @@ func (na *netfilterAdaptor) configureLocalChainAndRules() error {
 	})
 
 	if rules, _ := conn.GetRules(na.table, na.localchain); len(rules) != 0 {
-		logrus.Debugf("netfilterAdaptor: nft chain %v not empty (%v)", chainName, rules)
+		na.logger.V(1).Info("nft chain not empty", "name", chainName, "rules", rules)
 		conn.FlushChain(na.localchain)
 	}
 
@@ -466,7 +468,7 @@ func (na *netfilterAdaptor) configureLocalChainAndRules() error {
 // Update nftables Set based on the VIPs so that all traffic with VIP destination
 // could be handled by the user space application connected to the configured queue(s)
 func (na *netfilterAdaptor) SetDestinationIPs(vips []*nspAPI.Vip) error {
-	logrus.Tracef("netlinkAdaptor: SetDestinationIPs: %v", vips)
+	na.logger.V(2).Info("SetDestinationIPs", "vips", vips)
 	ips := []string{}
 	for _, vip := range vips {
 		ips = append(ips, vip.Address)

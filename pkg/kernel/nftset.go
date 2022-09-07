@@ -22,8 +22,9 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/go-logr/logr"
 	"github.com/google/nftables"
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/log"
 )
 
 const (
@@ -42,6 +43,7 @@ type NFSetIP struct {
 	name       string
 	family     int
 	mu         sync.Mutex
+	logger     logr.Logger
 }
 
 func NewNFSetIP(name string, family int, table *nftables.Table) (*NFSetIP, error) {
@@ -50,13 +52,13 @@ func NewNFSetIP(name string, family int, table *nftables.Table) (*NFSetIP, error
 		family:     family,
 		table:      table,
 		ipAdresses: []string{},
+		logger:     log.Logger.WithValues("class", "NFSetIP", "instance", name),
 	}
 
 	err := nfSet.configure()
 	if err != nil {
 		return nil, err
 	}
-
 	return nfSet, nil
 }
 
@@ -64,7 +66,7 @@ func (nfs *NFSetIP) Update(ips []string) error {
 	nfs.mu.Lock()
 	defer nfs.mu.Unlock()
 	var errFinal error
-	logrus.Tracef("%v: Update: %v", nfs.name, ips)
+	nfs.logger.V(2).Info("Update", "IPs", ips)
 	err := nfs.setIPs(ips)
 	if err != nil {
 		errFinal = fmt.Errorf("%w; %v", errFinal, err)
@@ -75,14 +77,13 @@ func (nfs *NFSetIP) Update(ips []string) error {
 func (nfs *NFSetIP) Delete() error {
 	nfs.mu.Lock()
 	defer nfs.mu.Unlock()
-	logrus.Debugf("%v: Delete", nfs.name)
+	nfs.logger.V(1).Info("Delete")
 	conn := &nftables.Conn{}
 	conn.DelSet(nfs.Set)
 	return conn.Flush()
 }
 
 func (nfs *NFSetIP) configure() error {
-	logrus.Debugf("%v: configure", nfs.name)
 	conn := &nftables.Conn{}
 	var err error
 
@@ -112,7 +113,7 @@ func (nfs *NFSetIP) configure() error {
 func (nfs *NFSetIP) setIPs(ips []string) error {
 	var errFinal error
 	var err error
-	logrus.Tracef("%v: setIPs: %v", nfs.name, ips)
+	nfs.logger.V(2).Info("setIPs", "IPs", ips)
 	nfs.ipAdresses, err = nfs.updateIPs(nfs.family, ips, nfs.ipAdresses, nfs.Set)
 	if err != nil {
 		errFinal = fmt.Errorf("%w; %v", errFinal, err)
@@ -121,23 +122,24 @@ func (nfs *NFSetIP) setIPs(ips []string) error {
 }
 
 func (nfs *NFSetIP) updateIPs(family int, newIPs []string, oldIPs []string, set *nftables.Set) ([]string, error) {
-	logrus.Tracef("%v: updateIPs: new: %v, old: %v", nfs.name, newIPs, oldIPs)
+	nfs.logger.V(2).Info("updateIPs", "newIPs", newIPs, "oldIPs", oldIPs)
 	ips := getValidIPs(family, newIPs)
 	return ips, setElements(ips, oldIPs, set, ipToSetElement)
 }
 
 func setElements(newElements []string, oldElements []string, set *nftables.Set, tse toSetElement) error {
+	logger := log.Logger.WithValues("func", "setElements")
+	logger.V(2).Info("Called", "newElements", newElements, "oldElements", oldElements, "set", set)
 	conn := &nftables.Conn{}
 	var errFinal error
 	toAdd := stringArrayDiff(newElements, oldElements)
 	toRemove := stringArrayDiff(oldElements, newElements)
-	logrus.Tracef("setElements: new: %v, old: %v (set %v)", newElements, oldElements, set)
 	// remove has to be before add to avoid overlapping errors
 	for _, element := range toRemove {
 		element := tse(element)
 		err := conn.SetDeleteElements(set, element)
 		if err != nil {
-			logrus.Debugf("setElements: SetDeleteElements err: %v", err)
+			logger.V(1).Info("SetDeleteElements", "error", err)
 			errFinal = fmt.Errorf("%w; %v", errFinal, err)
 		}
 	}
@@ -145,13 +147,13 @@ func setElements(newElements []string, oldElements []string, set *nftables.Set, 
 		element := tse(element)
 		err := conn.SetAddElements(set, element)
 		if err != nil {
-			logrus.Debugf("setElements: SetAddElements err: %v", err)
+			logger.V(1).Info("SetAddElements", "error", err)
 			errFinal = fmt.Errorf("%w; %v", errFinal, err)
 		}
 	}
 	err := conn.Flush()
 	if err != nil {
-		logrus.Debugf("setElements: Flush err: %v", err)
+		logger.V(1).Info("Flush", "error", err)
 		errFinal = fmt.Errorf("%w; %v", errFinal, err)
 	}
 	return errFinal

@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/nordix/meridio/pkg/health"
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 )
@@ -43,11 +43,11 @@ func Monitor(ctx context.Context, healthService string, cc interface{}) error {
 			ClientConn:    cc,
 		}
 		go func() {
-			defer logrus.Debugf("Connection monitor exit (%s)", m.healthService)
+			defer log.Logger.V(1).Info("Connection monitor exit", "service", m.healthService)
 			for {
 				s := m.GetState()
 				health.SetServingStatus(ctx, m.healthService, s == connectivity.Ready)
-				logrus.Tracef("Connection (%s) state %s", m.healthService, s)
+				log.Logger.V(2).Info("Connection", "service", m.healthService, "state", s)
 
 				// Note: gRPC will NOT establish underlying transport connection except for the
 				// initial "dial" or unless the user tries to send sg and there's no backing connection.

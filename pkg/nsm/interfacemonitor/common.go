@@ -19,10 +19,11 @@ package interfacemonitor
 import (
 	"sync"
 
+	"github.com/go-logr/logr"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
-	"github.com/sirupsen/logrus"
 )
 
 type ipList []string
@@ -41,6 +42,7 @@ type interfaceMonitor struct {
 	interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber
 	netUtils                   networkingUtils
 	pendingInterfaces          sync.Map // map[string]*pendingInterface
+	logger                     logr.Logger
 }
 
 type pendingInterface struct {
@@ -112,13 +114,12 @@ func (im *interfaceMonitor) advertiseInterfaceCreation(index int, pendingInterfa
 	newInterface.SetNeighborPrefixes(pendingInterface.neighborIPs)
 	newInterface.SetGatewayPrefixes(pendingInterface.gateways)
 	newInterface.SetInterfaceType(pendingInterface.InterfaceType)
-	logrus.Debugf("interfaceMonitor: advertise created intf %v", newInterface)
+	im.logger.V(1).Info("advertise created", "interface", newInterface)
 	im.interfaceMonitorSubscriber.InterfaceCreated(newInterface)
 }
 
 func (im *interfaceMonitor) advertiseInterfaceDeletion(intf networking.Iface) {
-	logrus.Debugf("interfaceMonitor: advertise deleted intf %v", intf)
-	im.interfaceMonitorSubscriber.InterfaceDeleted(intf)
+	im.logger.V(1).Info("advertise deleted", "interface", intf)
 }
 
 func newInterfaceMonitor(networkInterfaceMonitor networking.InterfaceMonitor, interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber, netUtils networkingUtils) *interfaceMonitor {
@@ -126,6 +127,7 @@ func newInterfaceMonitor(networkInterfaceMonitor networking.InterfaceMonitor, in
 		networkInterfaceMonitor:    networkInterfaceMonitor,
 		interfaceMonitorSubscriber: interfaceMonitorSubscriber,
 		netUtils:                   netUtils,
+		logger:                     log.Logger.WithValues("class", "interfaceMonitor"),
 	}
 	if networkInterfaceMonitor != nil {
 		networkInterfaceMonitor.Subscribe(im)

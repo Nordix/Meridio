@@ -28,6 +28,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -37,8 +38,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
+	nsmlog "github.com/networkservicemesh/sdk/pkg/tools/log"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"
@@ -48,6 +48,7 @@ import (
 	"github.com/nordix/meridio/pkg/loadbalancer/nfqlb"
 	"github.com/nordix/meridio/pkg/loadbalancer/stream"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/nat"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
@@ -87,50 +88,44 @@ func main() {
 		os.Exit(0)
 	}
 
+	var config Config
+	err := envconfig.Process("nsm", &config)
+	if err != nil {
+		panic(err)
+	}
+	logger := log.New("Meridio-LB", config.LogLevel)
+	logger.Info("Configuration read", "config", config)
+
 	ctx, cancel := signal.NotifyContext(
-		context.Background(),
+		logr.NewContext(context.Background(), logger),
 		os.Interrupt,
 		syscall.SIGHUP,
 		syscall.SIGTERM,
 		syscall.SIGQUIT,
 	)
 	defer cancel()
-
-	logrus.SetOutput(os.Stdout)
-	logrus.SetLevel(logrus.DebugLevel)
-
-	var config Config
-	err := envconfig.Process("nsm", &config)
-	if err != nil {
-		logrus.Fatalf("%v", err)
-	}
-	logrus.Infof("rootConf: %+v", config)
 	if err := config.IsValid(); err != nil {
-		logrus.Fatalf("invalid config - %v", err)
+		log.Fatal(logger, "invalid config", "error", err)
 	}
 
-	logrus.SetLevel(func() logrus.Level {
-
-		l, err := logrus.ParseLevel(config.LogLevel)
-		if err != nil {
-			logrus.Fatalf("invalid log level %s", config.LogLevel)
-		}
-		if l == logrus.TraceLevel {
-			log.EnableTracing(true) // enable tracing in NSM
-		}
-		return l
-	}())
-	ctx = log.WithLog(ctx, logruslogger.New(ctx)) // allow NSM logs
+	if config.LogLevel == "TRACE" {
+		nsmlog.EnableTracing(true)
+		// Work-around for hard-coded logrus dependency in NSM
+		logrus.SetLevel(logrus.TraceLevel)
+	}
+	logger.Info("NSM trace", "enabled", nsmlog.IsTracingEnabled())
+	// Doesn't work, see https://github.com/networkservicemesh/sdk/issues/1272
+	ctx = nsmlog.WithLog(ctx, log.NSMLogger(logger)) // allow NSM logs
 
 	netUtils := &linuxKernel.KernelUtils{}
 
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
 	if err := health.RegisterReadinesSubservices(ctx, health.LBReadinessServices...); err != nil {
-		logrus.Warnf("%v", err)
+		logger.Error(err, "RegisterReadinesSubservices")
 	}
 
-	logrus.Infof("Dial NSP (%v)", config.NSPService)
+	logger.Info("Dial NSP", "NSPService", config.NSPService)
 	conn, err := grpc.DialContext(ctx,
 		config.NSPService,
 		grpc.WithTransportCredentials(
@@ -140,13 +135,13 @@ func main() {
 			grpc.WaitForReady(true),
 		))
 	if err != nil {
-		logrus.Fatalf("grpc.Dial err: %v", err)
+		log.Fatal(logger, "Dial NSP", "error", err)
 	}
 	defer conn.Close()
 
 	// monitor status of NSP connection and adjust probe status accordingly
 	if err := connection.Monitor(ctx, health.NSPCliSvc, conn); err != nil {
-		logrus.Warnf("NSP connection state monitor err: %v", err)
+		logger.Error(err, "NSP connection state monitor")
 	}
 
 	stream.SetInterfaceNamePrefix(config.ServiceName) // deduce the NSM interfacename prefix for the netfilter defrag rules
@@ -162,11 +157,11 @@ func main() {
 	lbFactory := nfqlb.NewLbFactory(nfqlb.WithNFQueue(config.Nfqueue))
 	nfa, err := nfqlb.NewNetfilterAdaptor(nfqlb.WithNFQueue(config.Nfqueue), nfqlb.WithNFQueueFanout(config.NfqueueFanout))
 	if err != nil {
-		logrus.Fatalf("Netfilter adaptor err: %v", err)
+		log.Fatal(logger, "NewNetfilterAdaptor", "error", err)
 	}
 	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
 	if err != nil {
-		logrus.Fatalf("Error creating link monitor: %+v", err)
+		log.Fatal(logger, "NewInterfaceMonitor", "error", err)
 	}
 	sns := newSimpleNetworkService(
 		netUtils.WithInterfaceMonitor(ctx, interfaceMonitor),
@@ -215,13 +210,13 @@ func main() {
 		nsmAPIClient.NetworkServiceEndpointRegistryClient,
 	)
 	if err != nil {
-		logrus.Fatalf("unable to create a new nse %+v", err)
+		log.Fatal(logger, "Unable to create a new nse", "error", err)
 	}
 
 	defer ep.Delete() // let endpoint unregister with NSM to inform proxies in time
 	err = ep.StartWithoutRegister(responderEndpoint...)
 	if err != nil {
-		logrus.Fatalf("unable to start nse %+v", err)
+		log.Fatal(logger, "Unable to start nse", "error", err)
 	}
 
 	probe.CreateAndRunGRPCHealthProbe(ctx, health.NSMEndpointSvc, probe.WithAddress(ep.GetUrl()), probe.WithSpiffe())
@@ -242,6 +237,7 @@ type SimpleNetworkService struct {
 	ConfigurationManagerClient  nspAPI.ConfigurationManagerClient
 	interfaces                  sync.Map
 	ctx                         context.Context
+	logger                      logr.Logger
 	streams                     map[string]types.Stream
 	netUtils                    networking.Utils
 	nfqueueIndex                int
@@ -289,15 +285,17 @@ func newSimpleNetworkService(
 	lbFactory types.NFQueueLoadBalancerFactory,
 	nfa types.NFAdaptor,
 ) *SimpleNetworkService {
+	logger := log.FromContextOrGlobal(ctx).WithValues("class", "SimpleNetworkService")
 	nh, err := nat.NewNatHandler()
 	if err != nil {
-		logrus.Fatalf("unable to init NAT %+v", err)
+		log.Fatal(logger, "Unable to init NAT", "error", err)
 	}
 	simpleNetworkService := &SimpleNetworkService{
 		Conduit:                     conduit,
 		targetRegistryClient:        targetRegistryClient,
 		ConfigurationManagerClient:  configurationManagerClient,
 		ctx:                         ctx,
+		logger:                      logger,
 		netUtils:                    netUtils,
 		nfqueueIndex:                1,
 		streams:                     make(map[string]types.Stream),
@@ -308,6 +306,7 @@ func newSimpleNetworkService(
 		nfa:                         nfa,
 		natHandler:                  nh,
 	}
+	logger.Info("Created", "object", simpleNetworkService)
 	return simpleNetworkService
 }
 
@@ -320,12 +319,8 @@ func (sns *SimpleNetworkService) Start() {
 			select {
 			case allowService, ok := <-sns.serviceCtrCh:
 				if ok {
+					sns.logger.Info("serviceCtrCh", "allowService", allowService)
 					sns.mu.Lock()
-					pfx := ""
-					if allowService {
-						pfx = "un"
-					}
-					logrus.Infof("simpleNetworkService: %vblock service (allowService=%v)", pfx, allowService)
 
 					sns.simpleNetworkServiceBlocked = !allowService
 					// When service is blocked it implies that NSE facing the proxies gets also removed.
@@ -378,14 +373,14 @@ func (sns *SimpleNetworkService) startStreamWatcher() {
 			retry.WithDelay(500*time.Millisecond),
 			retry.WithErrorIngnored())
 		if err != nil {
-			logrus.Errorf("watchStreams err: %v", err)
+			sns.logger.Error(err, "watchStreams")
 		}
 	}()
 }
 
 // InterfaceCreated -
 func (sns *SimpleNetworkService) InterfaceCreated(intf networking.Iface) {
-	logrus.Infof("SimpleNetworkService: InterfaceCreated: %v", intf)
+	sns.logger.Info("InterfaceCreated", "interface", intf)
 	if sns.serviceBlocked() {
 		// if service blocked, do not process new interface events (which
 		// might appear until the block takes effect on NSC side)
@@ -398,7 +393,7 @@ func (sns *SimpleNetworkService) InterfaceCreated(intf networking.Iface) {
 
 // InterfaceDeleted -
 func (sns *SimpleNetworkService) InterfaceDeleted(intf networking.Iface) {
-	logrus.Infof("SimpleNetworkService: InterfaceDeleted: Intf %v", intf)
+	sns.logger.Info("InterfaceDeleted", "interface", intf)
 	sns.interfaces.Delete(intf.GetIndex())
 }
 
@@ -420,7 +415,7 @@ func (sns *SimpleNetworkService) watchStreams(ctx context.Context) error {
 		}
 		err = sns.updateStreams(streamResponse.Streams)
 		if err != nil {
-			logrus.Errorf("updateStreams err: %v", err)
+			sns.logger.Error(err, "updateStreams")
 		}
 	}
 	return nil
@@ -481,7 +476,7 @@ func (sns *SimpleNetworkService) addStream(strm *nspAPI.Stream) error {
 	go func() {
 		err := s.Start(sns.ctx)
 		if err != nil {
-			logrus.Errorf("stream start err: %v", err)
+			sns.logger.Error(err, "stream start")
 		}
 	}()
 	sns.nfqueueIndex = sns.nfqueueIndex + 1
@@ -511,11 +506,11 @@ func (sns *SimpleNetworkService) GetServiceControlChannel() interface{} {
 }
 
 func (sns *SimpleNetworkService) evictStreams() {
-	logrus.Infof("SimpleNetworkService: Evict Streams")
+	sns.logger.Info("Evict Streams")
 	for _, stream := range sns.streams {
 		err := stream.Delete()
 		if err != nil {
-			logrus.Errorf("stream delete err: %v", err)
+			sns.logger.Error(err, "stream delete")
 		}
 	}
 	sns.streams = make(map[string]types.Stream)
@@ -526,7 +521,7 @@ func (sns *SimpleNetworkService) evictStreams() {
 // operation. Meaning old interfaces not yet removed by NSM must not get associated
 // with routes inserted for Targets after the block is lifted.
 func (sns *SimpleNetworkService) disableInterfaces() {
-	logrus.Infof("SimpleNetworkService: Disable Interfaces")
+	sns.logger.Info("Disable Interfaces")
 	sns.interfaces.Range(func(key interface{}, value interface{}) bool {
 		sns.disableInterface(value.(networking.Iface))
 		sns.interfaces.Delete(key)
@@ -537,19 +532,19 @@ func (sns *SimpleNetworkService) disableInterfaces() {
 // disableInterface -
 // Set interface state down
 func (sns *SimpleNetworkService) disableInterface(intf networking.Iface) {
-	logrus.Debugf("SimpleNetworkService: Disable Intf %v", intf)
+	sns.logger.V(1).Info("Disable", "interface", intf)
 	la := netlink.NewLinkAttrs()
 	la.Index = intf.GetIndex()
 	err := netlink.LinkSetDown(&netlink.Dummy{LinkAttrs: la})
 	if err != nil {
-		logrus.Warnf("SimpleNetworkService: err Disable Intf (%v): %v", la.Index, err)
+		sns.logger.Error(err, "LinkSetDown", "interface", intf)
 	}
 }
 
 // watchVips -
 // Monitors VIP changes in Trench via NSP
 func (sns *SimpleNetworkService) watchVips(ctx context.Context) {
-	logrus.Infof("SimpleNetworkService: Watch VIPs")
+	sns.logger.Info("Watch VIPs")
 	err := retry.Do(func() error {
 		vipsToWatch := &nspAPI.Vip{
 			Trench: sns.Conduit.GetTrench(),
@@ -568,7 +563,7 @@ func (sns *SimpleNetworkService) watchVips(ctx context.Context) {
 			}
 			err = sns.updateVips(vipResponse.GetVips())
 			if err != nil {
-				logrus.Errorf("updateVips err: %v", err)
+				sns.logger.Error(err, "updateVips")
 			}
 		}
 		return nil
@@ -576,13 +571,14 @@ func (sns *SimpleNetworkService) watchVips(ctx context.Context) {
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
 	if err != nil {
-		logrus.Warnf("err watchVIPs: %v", err) // todo
+		sns.logger.Error(err, "watchVIPs") // todo
 	}
 }
 
 // watchVips -
 func (sns *SimpleNetworkService) watchConduit(ctx context.Context) {
-	logrus.Infof("SimpleNetworkService: Watch Conduit")
+	logger := sns.logger.WithValues("func", "watchConduit")
+	logger.Info("Called")
 	err := retry.Do(func() error {
 		conduitToWatch := sns.Conduit
 		watchConduit, err := sns.ConfigurationManagerClient.WatchConduit(ctx, conduitToWatch)
@@ -603,7 +599,7 @@ func (sns *SimpleNetworkService) watchConduit(ctx context.Context) {
 			conduit := conduitResponse.GetConduits()[0]
 			err = sns.natHandler.SetNats(conduit.GetDestinationPortNats())
 			if err != nil {
-				logrus.Errorf("watchConduit, err SetNats: %v", err)
+				logger.Error(err, "SetNats")
 			}
 		}
 		return nil
@@ -611,13 +607,13 @@ func (sns *SimpleNetworkService) watchConduit(ctx context.Context) {
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
 	if err != nil {
-		logrus.Warnf("err watchConduit: %v", err) // todo
+		sns.logger.Error(err, "retry")
 	}
 }
 
 // updateVips -
 // Sends list of VIPs to Netfilter Adaptor to adjust kerner based rules
 func (sns *SimpleNetworkService) updateVips(vips []*nspAPI.Vip) error {
-	logrus.Debugf("SimpleNetworkService: updateVips %v", vips)
+	sns.logger.V(1).Info("updateVips", "vips", vips)
 	return sns.nfa.SetDestinationIPs(vips)
 }

@@ -29,9 +29,9 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/spiffejwt"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 	"github.com/networkservicemesh/sdk/pkg/tools/tracing"
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/log"
+	creds "github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
-	"github.com/spiffe/go-spiffe/v2/svid/x509svid"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -51,20 +51,6 @@ type APIClient struct {
 	NetworkServiceEndpointRegistryClient registry.NetworkServiceEndpointRegistryClient
 	NetworkServiceRegistryClient         registry.NetworkServiceRegistryClient
 	GRPCDialOption                       []grpc.DialOption
-}
-
-func (apiClient *APIClient) getX509Source() *workloadapi.X509Source {
-	source, err := workloadapi.NewX509Source(apiClient.context)
-	if err != nil {
-		logrus.Errorf("error getting x509 source: %v", err)
-	}
-	var svid *x509svid.SVID
-	svid, err = source.GetX509SVID()
-	if err != nil {
-		logrus.Errorf("error getting x509 svid: %v", err)
-	}
-	logrus.Infof("sVID: %q", svid.ID)
-	return source
 }
 
 func (apiClient *APIClient) GetClientOptions() []grpc.DialOption {
@@ -104,7 +90,8 @@ func (apiClient *APIClient) setNetworkServiceRegistryClient() {
 func (apiClient *APIClient) dial() {
 	var err error
 
-	apiClient.x509source = apiClient.getX509Source()
+	//apiClient.x509source = apiClient.getX509Source()
+	apiClient.x509source = creds.GetX509Source(apiClient.context)
 
 	connectCtx, cancel := context.WithTimeout(apiClient.context, apiClient.Config.DialTimeout)
 	defer cancel()
@@ -128,7 +115,7 @@ func (apiClient *APIClient) dial() {
 			))...,
 	)
 	if err != nil {
-		logrus.Errorf("error dial Context: %v", err.Error())
+		log.Logger.Error(err, "dial Context")
 	}
 }
 
@@ -154,7 +141,7 @@ func (apiClient *APIClient) dialOptions() {
 // Cancels the context to tear down apiClient
 func (apiClient *APIClient) Delete() {
 	if apiClient.cancel != nil {
-		logrus.Infof("apiClient: Delete")
+		log.Logger.Info("apiClient: Delete")
 		apiClient.cancel()
 	}
 	if apiClient.GRPCClient != nil {
