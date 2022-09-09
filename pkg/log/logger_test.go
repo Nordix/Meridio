@@ -78,6 +78,7 @@ func TestNSMLogger(t *testing.T) {
 	if nsmlogger == nil {
 		return
 	}
+	nsmlogger.WithField("scope", "x").Info("Hello")
 	nsmlogger.Info("one", "two", "three")
 	nsmlogger.Infof("%v, %v, %v", "one", "two", "three")
 	nsmlogger.Object(44, "Key is an int")

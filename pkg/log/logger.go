@@ -196,7 +196,9 @@ func (l *nsmLogger) Object(k, v interface{}) {
 	l.z.Info("Object", zap.Any(fmt.Sprintf("%v", k), v))
 }
 func (l *nsmLogger) WithField(key, value interface{}) nsmlog.Logger {
+	z := l.z.With(zap.Any(fmt.Sprintf("%v", key), value))
 	return &nsmLogger{
-		z: l.z.With(zap.Any(fmt.Sprintf("%v", key), value)),
+		z: z,
+		s: z.Sugar(),
 	}
 }
