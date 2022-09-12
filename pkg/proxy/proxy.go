@@ -23,11 +23,12 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/go-logr/logr"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
-	"github.com/sirupsen/logrus"
 )
 
 // Proxy -
@@ -41,6 +42,7 @@ type Proxy struct {
 	netUtils   networking.Utils
 	nexthops   []string
 	tableID    int
+	logger     logr.Logger
 }
 
 func (p *Proxy) isNSMInterface(intf networking.Iface) bool {
@@ -52,11 +54,11 @@ func (p *Proxy) InterfaceCreated(intf networking.Iface) {
 	if !p.isNSMInterface(intf) {
 		return
 	}
-	logrus.Infof("Proxy: interface created: %v (nexthops: %v)", intf, p.nexthops)
+	p.logger.Info("InterfaceCreated", "intf", intf, "nexthops", p.nexthops)
 	// Link the interface to the bridge
 	err := p.bridge.LinkInterface(intf)
 	if err != nil {
-		logrus.Errorf("Proxy: Error LinkInterface: %v", err)
+		p.logger.Error(err, "LinkInterface")
 	}
 	if intf.GetInterfaceType() == networking.NSC {
 		// 	Add the neighbor IPs of the interface to the nexthops (outgoing traffic)
@@ -64,7 +66,7 @@ func (p *Proxy) InterfaceCreated(intf networking.Iface) {
 			for _, vip := range p.vips {
 				err = vip.AddNexthop(ip)
 				if err != nil {
-					logrus.Errorf("Proxy: Error adding nexthop: %v", err)
+					p.logger.Error(err, "Adding nexthop")
 				}
 			}
 			// append nexthop if not known
@@ -87,11 +89,11 @@ func (p *Proxy) InterfaceDeleted(intf networking.Iface) {
 	if !p.isNSMInterface(intf) {
 		return
 	}
-	logrus.Infof("Proxy: interface removed: %v (nexthops: %v)", intf, p.nexthops)
+	p.logger.Info("InterfaceDeleted", "intf", intf, "nexthops", p.nexthops)
 	// Unlink the interface from the bridge
 	err := p.bridge.UnLinkInterface(intf)
 	if err != nil {
-		logrus.Errorf("Proxy: Error UnLinkInterface: %v", err)
+		p.logger.Error(err, "UnLinkInterface")
 	}
 	if intf.GetInterfaceType() == networking.NSC {
 		// 	Remove the neighbor IPs of the interface from the nexthops (outgoing traffic)
@@ -99,7 +101,7 @@ func (p *Proxy) InterfaceDeleted(intf networking.Iface) {
 			for _, vip := range p.vips {
 				err = vip.RemoveNexthop(ip)
 				if err != nil {
-					logrus.Errorf("Proxy: Error removing nexthop: %v", err)
+					p.logger.Error(err, "Removing nexthop")
 				}
 			}
 
@@ -222,7 +224,7 @@ func (p *Proxy) SetVIPs(vips []string) {
 		if _, ok := currentVIPs[vip]; !ok {
 			newVIP, err := newVirtualIP(vip, p.tableID, p.netUtils)
 			if err != nil {
-				logrus.Errorf("Proxy: Error adding SourceBaseRoute: %v", err)
+				p.logger.Error(err, "Adding SourceBaseRoute")
 				continue
 			}
 			p.tableID++
@@ -230,7 +232,7 @@ func (p *Proxy) SetVIPs(vips []string) {
 			for _, nexthop := range p.nexthops {
 				err = newVIP.AddNexthop(nexthop)
 				if err != nil {
-					logrus.Errorf("Proxy: Error adding nexthop: %v", err)
+					p.logger.Error(err, "Adding nexthop")
 				}
 			}
 		}
@@ -244,7 +246,7 @@ func (p *Proxy) SetVIPs(vips []string) {
 			index--
 			err := vip.Delete()
 			if err != nil {
-				logrus.Errorf("Proxy: Error deleting vip: %v", err)
+				p.logger.Error(err, "Deleting vip")
 			}
 		}
 	}
@@ -252,9 +254,10 @@ func (p *Proxy) SetVIPs(vips []string) {
 
 // NewProxy -
 func NewProxy(conduit *nspAPI.Conduit, nodeName string, ipamClient ipamAPI.IpamClient, ipFamily string, netUtils networking.Utils) *Proxy {
+	logger := log.Logger.WithValues("class", "Proxy")
 	bridge, err := netUtils.NewBridge("bridge0")
 	if err != nil {
-		logrus.Errorf("Proxy: Error creating the bridge: %v", err)
+		logger.Error(err, "Creating the bridge")
 	}
 	proxy := &Proxy{
 		bridge:     bridge,
@@ -265,6 +268,7 @@ func NewProxy(conduit *nspAPI.Conduit, nodeName string, ipamClient ipamAPI.IpamC
 		tableID:    1,
 		Subnets:    make(map[ipamAPI.IPFamily]*ipamAPI.Subnet),
 		ipamClient: ipamClient,
+		logger:     logger,
 	}
 
 	if strings.ToLower(ipFamily) == "ipv4" {
@@ -293,7 +297,7 @@ func NewProxy(conduit *nspAPI.Conduit, nodeName string, ipamClient ipamAPI.IpamC
 	}
 	err = proxy.setBridgeIPs()
 	if err != nil {
-		logrus.Errorf("Proxy: Error setting the bridge IP: %v", err)
+		logger.Error(err, "Setting the bridge IP")
 	}
 	return proxy
 }

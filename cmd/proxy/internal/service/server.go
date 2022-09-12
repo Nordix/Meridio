@@ -30,13 +30,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	endpointOld "github.com/nordix/meridio/pkg/endpoint"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/endpoint"
 	"github.com/nordix/meridio/pkg/nsm/ipcontext"
 	"github.com/nordix/meridio/pkg/nsm/mtu"
 	"github.com/nordix/meridio/pkg/nsm/service"
 	"github.com/nordix/meridio/pkg/proxy"
-	"github.com/sirupsen/logrus"
 )
 
 func StartNSE(ctx context.Context,
@@ -45,7 +45,8 @@ func StartNSE(ctx context.Context,
 	p *proxy.Proxy,
 	interfaceMonitorServer networkservice.NetworkServiceServer) *endpoint.Endpoint {
 
-	logrus.Infof("Start NSE")
+	logger := log.FromContextOrGlobal(ctx)
+	logger.Info("Start NSE")
 	additionalFunctionality := []networkservice.NetworkServiceServer{
 		// Note: naming the interface is left to NSM (refer to getNameFromConnection())
 		// However NSM does not seem to ensure uniqueness either. Might need to revisit...
@@ -78,12 +79,12 @@ func StartNSE(ctx context.Context,
 			},
 		},
 	}
-	logrus.Debugf("Create NS: %v", ns)
+	logger.V(1).Info("Create NS", "ns", ns)
 
 	service := service.New(nsmAPIClient.NetworkServiceRegistryClient, ns)
 	err := service.Register(ctx)
 	if err != nil {
-		logrus.Fatalf("Err registering NS: %v", err)
+		log.Fatal(logger, "Registering NS", "error", err)
 	}
 
 	nse := &registry.NetworkServiceEndpoint{
@@ -95,18 +96,18 @@ func StartNSE(ctx context.Context,
 			},
 		},
 	}
-	logrus.Debugf("Create NSE: %v", nse)
+	logger.V(1).Info("Create NSE", "nse", nse)
 
 	endpoint, err := endpoint.New(config.MaxTokenLifetime,
 		nsmAPIClient.NetworkServiceEndpointRegistryClient,
 		nse,
 		additionalFunctionality...)
 	if err != nil {
-		logrus.Fatalf("Err creating NSE: %v", err)
+		log.Fatal(logger, "Creating NSE", "error", err)
 	}
 	err = endpoint.Register(ctx)
 	if err != nil {
-		logrus.Fatalf("Err registering NSE: %v", err)
+		log.Fatal(logger, "Registering NSE", "error", err)
 	}
 	return endpoint
 }

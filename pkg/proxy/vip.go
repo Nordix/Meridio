@@ -19,8 +19,8 @@ package proxy
 import (
 	"net"
 
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
-	"github.com/sirupsen/logrus"
 )
 
 type virtualIP struct {
@@ -62,7 +62,7 @@ func (vip *virtualIP) RemoveNexthop(ip string) error {
 func (vip *virtualIP) createSourceBaseRoute(tableID int) error {
 	var err error
 	vip.sourceBasedRoute, err = vip.netUtils.NewSourceBasedRoute(tableID, vip.prefix)
-	logrus.Infof("Proxy: sourceBasedRoute index - vip: %v - %v", tableID, vip.prefix)
+	log.Logger.Info("Proxy: sourceBasedRoute", "tableID", tableID, "prefix", vip.prefix)
 	if err != nil {
 		return err
 	}
