@@ -23,9 +23,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/retry"
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/log"
 )
 
 const (
@@ -40,6 +41,7 @@ type SimpleNetworkServiceClient struct {
 	requestCtx           context.Context
 	requestCancel        context.CancelFunc
 	mu                   sync.Mutex
+	logger               logr.Logger
 }
 
 // Request -
@@ -58,7 +60,7 @@ func (snsc *SimpleNetworkServiceClient) Request(request *networkservice.NetworkS
 	if err != nil {
 		return err
 	}
-	logrus.Debugf("Network Service Client: Got connection: %v", resp)
+	snsc.logger.V(1).Info("Got connection", "resp", resp)
 	snsc.connection = resp
 	snsc.printConnectionExpTime()
 
@@ -85,7 +87,7 @@ func (snsc *SimpleNetworkServiceClient) Close() error {
 		ctx := snsc.ctx
 
 		if ctx.Err() != nil {
-			logrus.Tracef("Network Service Client: Close with new context, old not usable (%v)", ctx.Err())
+			snsc.logger.V(2).Info("Close with new context", "error", ctx.Err())
 			ctx = context.Background()
 		}
 
@@ -100,10 +102,10 @@ func (snsc *SimpleNetworkServiceClient) Close() error {
 
 		defer func() {
 			cancel()
-			logrus.Debugf("Network Service Client: Close concluded (%v)", details)
+			snsc.logger.V(1).Info("Close concluded", "details", details)
 		}()
 
-		logrus.Debugf("Network Service Client: Close connection (%v)", details)
+		snsc.logger.V(1).Info("Close connection", "details", details)
 		_, _ = snsc.networkServiceClient.Close(ctx, snsc.connection)
 	}
 
@@ -138,7 +140,7 @@ func (snsc *SimpleNetworkServiceClient) printConnectionExpTime() {
 			scale = 0.2 + 0.2*float64(path.Index)/float64(len(path.PathSegments))
 		}
 		duration := time.Duration(float64(time.Until(expireTime)) * scale)
-		logrus.Debugf("Network Service Client: connection duration (local): %v", duration)
+		snsc.logger.V(1).Info("Connection duration (local)", "duration", duration)
 	}
 
 	// expiration time based on NSM@8e96470 updatepath (considers all path segments)
@@ -163,7 +165,7 @@ func (snsc *SimpleNetworkServiceClient) printConnectionExpTime() {
 			}
 		}
 		if minTimeout != nil {
-			logrus.Debugf("expiration after %s at %s", minTimeout.String(), expireTime.UTC())
+			snsc.logger.V(1).Info("Expiration", "minTimeout", minTimeout.String(), "expireTime", expireTime.UTC())
 		}
 		if minTimeout != nil && *minTimeout > 0 {
 			scale := 1. / 3.
@@ -172,7 +174,7 @@ func (snsc *SimpleNetworkServiceClient) printConnectionExpTime() {
 				scale = 0.2 + 0.2*float64(path.Index)/float64(len(path.PathSegments))
 			}
 			duration := time.Duration(float64(*minTimeout) * scale)
-			logrus.Debugf("Network Service Client: connection duration (end-to-end): %v", duration)
+			snsc.logger.V(1).Info("Connection duration (end-to-end)", "duration", duration)
 		}
 	}
 }
@@ -189,6 +191,7 @@ func NewSimpleNetworkServiceClient(ctx context.Context, config *Config, client n
 		ctx:                  ctx,
 		requestCtx:           cancelCtx,
 		requestCancel:        cancel,
+		logger:               log.FromContextOrGlobal(ctx).WithValues("class", "SimpleNetworkServiceClient"),
 	}
 
 	return simpleNetworkServiceClient

@@ -27,8 +27,7 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
+	nsmlog "github.com/networkservicemesh/sdk/pkg/tools/log"
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/cmd/proxy/internal/config"
@@ -43,6 +42,8 @@ import (
 	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/nordix/meridio/pkg/retry"
 
+	"github.com/go-logr/logr"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/proxy"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
@@ -72,27 +73,35 @@ func main() {
 		os.Exit(0)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	logrus.SetOutput(os.Stdout)
-	logrus.SetLevel(logrus.DebugLevel)
-
 	var config config.Config
 	err := envconfig.Process("nsm", &config)
 	if err != nil {
-		logrus.Fatalf("%v", err)
+		panic(err)
 	}
-	logrus.Infof("rootConf: %+v", config)
+
+	logger := log.New("Meridio-proxy", config.LogLevel)
+	logger.Info("Configuration read", "config", config)
 	if err := config.IsValid(); err != nil {
-		logrus.Fatalf("%v", err)
+		log.Fatal(logger, "config.IsValid", "error", err)
 	}
-	ctx = setLogging(ctx, &config)
+
+	ctx, cancel := context.WithCancel(
+		logr.NewContext(context.Background(), logger))
+	defer cancel()
+
+	// allow NSM logs
+	if config.LogLevel == "TRACE" {
+		nsmlog.EnableTracing(true)
+		// Work-around for hard-coded logrus dependency in NSM
+		logrus.SetLevel(logrus.TraceLevel)
+	}
+	logger.Info("NSM trace", "enabled", nsmlog.IsTracingEnabled())
+	ctx = nsmlog.WithLog(ctx, log.NSMLogger(logger))
 
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
 	if err := health.RegisterReadinesSubservices(ctx, health.ProxyReadinessServices...); err != nil {
-		logrus.Warnf("%v", err)
+		logger.Error(err, "RegisterReadinesSubservices")
 	}
 
 	// context enabling graceful termiantion on signals
@@ -108,11 +117,11 @@ func main() {
 	netUtils := &linuxKernel.KernelUtils{}
 	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
 	if err != nil {
-		logrus.Fatalf("Error creating link monitor: %+v", err)
+		log.Fatal(logger, "Creating link monitor", "error", err)
 	}
 
 	// connect IPAM the proxy relies on to assign IPs both locally and remote via nsc and nse
-	logrus.Infof("Dial IPAM (%v)", config.IPAMService)
+	logger.Info("Dial IPAM", "service", config.IPAMService)
 	conn, err := grpc.DialContext(signalCtx,
 		config.IPAMService,
 		grpc.WithTransportCredentials(
@@ -122,13 +131,13 @@ func main() {
 			grpc.WaitForReady(true),
 		))
 	if err != nil {
-		logrus.Fatalf("Error dialing IPAM: %+v", err)
+		log.Fatal(logger, "Dialing IPAM", "error", err)
 	}
 	defer conn.Close()
 
 	// monitor status of IPAM connection and adjust probe status accordingly
 	if err := connection.Monitor(signalCtx, health.IPAMCliSvc, conn); err != nil {
-		logrus.Warnf("IPAM connection state monitor err: %v", err)
+		logger.Error(err, "IPAM connection state monitor")
 	}
 
 	ipamClient := ipamAPI.NewIpamClient(conn)
@@ -177,7 +186,7 @@ func main() {
 		deleteCtx, deleteClose := context.WithTimeout(ctx, 3*time.Second)
 		defer deleteClose()
 		if err := ep.Delete(deleteCtx); err != nil {
-			logrus.Errorf("Err delete NSE: %v", err)
+			logger.Error(err, "Delete NSE")
 		}
 	}()
 	// internal probe checking health of NSE
@@ -186,7 +195,7 @@ func main() {
 	// connect NSP and start watching config events of interest
 	configurationContext, configurationCancel := context.WithCancel(signalCtx)
 	defer configurationCancel()
-	logrus.Infof("Dial NSP (%v)", nsp.GetService(config.NSPServiceName, config.Trench, config.Namespace, config.NSPServicePort))
+	logger.Info("Dial NSP", "service", nsp.GetService(config.NSPServiceName, config.Trench, config.Namespace, config.NSPServicePort))
 	nspConn, err := grpc.DialContext(signalCtx,
 		nsp.GetService(config.NSPServiceName, config.Trench, config.Namespace, config.NSPServicePort),
 		grpc.WithTransportCredentials(
@@ -196,21 +205,21 @@ func main() {
 			grpc.WaitForReady(true),
 		))
 	if err != nil {
-		logrus.Fatalf("Error dialing NSP: %v", err)
+		log.Fatal(logger, "Dialing NSP", "error", err)
 	}
 	defer nspConn.Close()
 
 	// monitor status of NSP connection and adjust probe status accordingly
 	if err := connection.Monitor(signalCtx, health.NSPCliSvc, nspConn); err != nil {
-		logrus.Warnf("NSP connection state monitor err: %v", err)
+		logger.Error(err, "NSP connection state monitor")
 	}
 
 	configurationManagerClient := nspAPI.NewConfigurationManagerClient(nspConn)
 	if err != nil {
-		logrus.Fatalf("WatchVip err: %v", err)
+		log.Fatal(logger, "WatchVip", "error", err)
 	}
 
-	logrus.Debugf("Watch configuration")
+	logger.V(1).Info("Watch configuration")
 	err = retry.Do(func() error {
 		vipWatcher, err := configurationManagerClient.WatchVip(configurationContext, &nspAPI.Vip{
 			Trench: &nspAPI.Trench{
@@ -235,23 +244,7 @@ func main() {
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
 	if err != nil {
-		logrus.Errorf("WatchVip err: %v", err)
+		logger.Error(err, "WatchVip")
 	}
-	logrus.Infof("Shutting done...")
-}
-
-func setLogging(ctx context.Context,
-	config *config.Config) context.Context {
-	logrus.SetLevel(func() logrus.Level {
-		l, err := logrus.ParseLevel(config.LogLevel)
-		if err != nil {
-			logrus.Fatalf("invalid log level %s", config.LogLevel)
-		}
-		if l == logrus.TraceLevel {
-			log.EnableTracing(true) // enable tracing in NSM
-		}
-		return l
-	}())
-
-	return log.WithLog(ctx, logruslogger.New(ctx)) // allow NSM logs
+	logger.Info("Shutting done...")
 }

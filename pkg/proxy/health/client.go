@@ -24,7 +24,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/nordix/meridio/pkg/health"
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/log"
 	"google.golang.org/grpc"
 )
 
@@ -49,8 +49,9 @@ func (h *healthServiceClient) Request(ctx context.Context, request *networkservi
 	resp, err := next.Client(ctx).Request(ctx, request, opts...)
 
 	if err == nil {
+		logger := log.FromContextOrGlobal(ctx)
+		logger.V(2).Info("HealthServiceClient:Request", "id", id)
 		h.mu.Lock()
-		logrus.Tracef("HealthServiceClient:Request id=%v", id)
 		h.connIds[id] = struct{}{}
 		health.SetServingStatus(ctx, health.EgressSvc, true)
 		h.mu.Unlock()
@@ -61,11 +62,12 @@ func (h *healthServiceClient) Request(ctx context.Context, request *networkservi
 
 // Close -
 func (h *healthServiceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+	logger := log.FromContextOrGlobal(ctx)
+	logger.V(2).Info("HealthServiceClient:Close", "id", conn.Id)
 	h.mu.Lock()
-	logrus.Tracef("HealthServiceClient:Close id=%v", conn.Id)
 	delete(h.connIds, conn.Id)
 	if len(h.connIds) == 0 {
-		logrus.Debugf("HealthServiceClient:Close No conns left!")
+		logger.V(2).Info("HealthServiceClient:Close No conns left!")
 		health.SetServingStatus(ctx, health.EgressSvc, false)
 	}
 	h.mu.Unlock()

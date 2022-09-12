@@ -24,14 +24,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	registryrefresh "github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/retry"
-	"github.com/sirupsen/logrus"
 )
 
 type FullMeshNetworkServiceClient struct {
@@ -44,6 +45,7 @@ type FullMeshNetworkServiceClient struct {
 	networkServiceDiscoveryStream        registry.NetworkServiceEndpointRegistry_FindClient
 	mu                                   sync.Mutex
 	serviceClosed                        bool
+	logger                               logr.Logger
 }
 
 // Request -
@@ -54,13 +56,13 @@ func (fmnsc *FullMeshNetworkServiceClient) Request(request *networkservice.Netwo
 	}
 	fmnsc.baseRequest = request
 	query := fmnsc.prepareQuery()
-	logrus.Debugf("Full Mesh Client: Request: %v", query)
+	fmnsc.logger.V(1).Info("Request", "query", query)
 
 	err := retry.Do(func() error {
 		var err error
 		fmnsc.networkServiceDiscoveryStream, err = fmnsc.networkServiceEndpointRegistryClient.Find(fmnsc.ctx, query)
 		if err != nil {
-			logrus.Debugf("Full Mesh Client: Find err: %v", err)
+			fmnsc.logger.V(1).Info("Find", "error", err)
 			return err
 		}
 		return fmnsc.recv()
@@ -68,7 +70,7 @@ func (fmnsc *FullMeshNetworkServiceClient) Request(request *networkservice.Netwo
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
 	if err != nil {
-		logrus.Errorf("Full Mesh Client: err: %v", err)
+		fmnsc.logger.Error(err, "Find")
 	}
 
 	return err
@@ -77,13 +79,13 @@ func (fmnsc *FullMeshNetworkServiceClient) Request(request *networkservice.Netwo
 // Close -
 // Note: adding further clients once closed must be avoided
 func (fmnsc *FullMeshNetworkServiceClient) Close() error {
-	logrus.Infof("Full Mesh Client: Close")
+	fmnsc.logger.Info("Close")
 	fmnsc.mu.Lock()
 	fmnsc.serviceClosed = true
 	fmnsc.mu.Unlock()
 
 	for networkServiceEndpointName := range fmnsc.networkServiceClients {
-		logrus.Debugf("Full Mesh Client: Close %v", networkServiceEndpointName)
+		fmnsc.logger.V(1).Info("Close", "endpoint", networkServiceEndpointName)
 		fmnsc.deleteNetworkServiceClient(networkServiceEndpointName)
 	}
 	return nil
@@ -96,14 +98,14 @@ func (fmnsc *FullMeshNetworkServiceClient) recv() error {
 			break
 		}
 		if err != nil {
-			logrus.Debugf("Full Mesh Client: Recv err: %v", err)
+			fmnsc.logger.V(1).Info("Recv", "error", err)
 			return err
 		}
 		networkServiceEndpoint := resp.NetworkServiceEndpoint
 		if !expirationTimeIsNull(networkServiceEndpoint.ExpirationTime) && !resp.Deleted {
 			fmnsc.addNetworkServiceClient(networkServiceEndpoint.Name)
 		} else {
-			logrus.Infof("Full Mesh Client: endpoint deleted or expired: %v", resp)
+			fmnsc.logger.Info("Endpoint deleted or expired", "resp", resp)
 			fmnsc.deleteNetworkServiceClient(networkServiceEndpoint.Name)
 		}
 	}
@@ -124,7 +126,7 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 	request.Connection.NetworkServiceEndpointName = networkServiceEndpointName
 	// UUID part at the start of the conn id will be used by NSM to generate the interface name (we want it to be unique)
 	request.Connection.Id = fmt.Sprintf("%s-%s-%s-%s", uuid.New().String(), fmnsc.config.Name, request.Connection.NetworkService, request.Connection.NetworkServiceEndpointName)
-	logrus.Infof("Full Mesh Client: Add endpoint %v (service=%v, id=%v)", networkServiceEndpointName, request.Connection.NetworkService, request.Connection.Id)
+	fmnsc.logger.Info("Add endpoint", "service", networkServiceEndpointName, "id", request.Connection.NetworkService, request.Connection.Id)
 
 	// Request would try forever, but what if the NetworkServiceEndpoint is removed in the meantime?
 	// The recv() method must not be blocked by a pending Request that might not ever succeed.
@@ -134,7 +136,7 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 	go func() {
 		err := networkServiceClient.Request(request)
 		if err != nil {
-			logrus.Errorf("Full Mesh Client: addNetworkServiceClient %v err: %v", networkServiceEndpointName, err)
+			fmnsc.logger.Error(err, "addNetworkServiceClient")
 		}
 	}()
 }
@@ -149,11 +151,11 @@ func (fmnsc *FullMeshNetworkServiceClient) deleteNetworkServiceClient(networkSer
 	if !exists {
 		return
 	}
-	logrus.Infof("Full Mesh Client: Delete endpoint %v (service: %v)", networkServiceEndpointName, fmnsc.baseRequest.Connection.NetworkService)
+	fmnsc.logger.Info("Delete endpoint", "endpoint", networkServiceEndpointName, "service", fmnsc.baseRequest.Connection.NetworkService)
 	err := networkServiceClient.Close()
 	delete(fmnsc.networkServiceClients, networkServiceEndpointName)
 	if err != nil {
-		logrus.Errorf("Full Mesh Client: deleteNetworkServiceClient err: %v", err)
+		fmnsc.logger.Error(err, "deleteNetworkServiceClient")
 	}
 }
 
@@ -200,6 +202,7 @@ func NewFullMeshNetworkServiceClient(ctx context.Context, config *Config, additi
 		client:                client,
 		ctx:                   ctx,
 		config:                config,
+		logger:                log.FromContextOrGlobal(ctx).WithValues("class", "FullMeshNetworkServiceClient"),
 	}
 
 	fullMeshNetworkServiceClient.networkServiceEndpointRegistryClient = registrychain.NewNetworkServiceEndpointRegistryClient(

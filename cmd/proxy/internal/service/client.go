@@ -31,13 +31,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/nordix/meridio/cmd/proxy/internal/client"
 	"github.com/nordix/meridio/cmd/proxy/internal/config"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/fullmeshtracker"
 	"github.com/nordix/meridio/pkg/nsm/ipcontext"
 	"github.com/nordix/meridio/pkg/nsm/mtu"
 	"github.com/nordix/meridio/pkg/proxy"
 	proxyHealth "github.com/nordix/meridio/pkg/proxy/health"
-	"github.com/sirupsen/logrus"
 )
 
 func GetNSC(ctx context.Context,
@@ -46,7 +46,8 @@ func GetNSC(ctx context.Context,
 	p *proxy.Proxy,
 	interfaceMonitorClient networkservice.NetworkServiceClient) client.NetworkServiceClient {
 
-	logrus.Infof("Create Full Mesh NSC")
+	logger := log.FromContextOrGlobal(ctx)
+	logger.Info("Create Full Mesh NSC")
 	clientConfig := &client.Config{
 		Name:           config.Name,
 		RequestTimeout: config.RequestTimeout,
@@ -73,7 +74,7 @@ func GetNSC(ctx context.Context,
 }
 
 func StartNSC(fullMeshClient client.NetworkServiceClient, networkServiceName string) {
-	logrus.Infof("Start Full Mesh NSC")
+	log.Logger.Info("Start Full Mesh NSC")
 	err := fullMeshClient.Request(&networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkService: networkServiceName,
@@ -87,7 +88,7 @@ func StartNSC(fullMeshClient client.NetworkServiceClient, networkServiceName str
 		},
 	})
 	if err != nil {
-		logrus.Errorf("fullMeshClient.Request err: %+v", err)
+		log.Logger.Error(err, "fullMeshClient.Request")
 	}
-	logrus.Warnf("Full Mesh NSC stopped")
+	log.Logger.Info("Full Mesh NSC stopped")
 }
