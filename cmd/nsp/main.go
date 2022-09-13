@@ -35,9 +35,11 @@ import (
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/nsp"
 
+	nsmlog "github.com/networkservicemesh/sdk/pkg/tools/log"
 	keepAliveRegistry "github.com/nordix/meridio/pkg/nsp/registry/keepalive"
 	sqliteRegistry "github.com/nordix/meridio/pkg/nsp/registry/sqlite"
 	"github.com/nordix/meridio/pkg/security/credentials"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	grpcHealth "google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -82,6 +84,14 @@ func main() {
 		syscall.SIGQUIT,
 	)
 	defer cancel()
+
+	if config.LogLevel == "TRACE" {
+		nsmlog.EnableTracing(true)
+		// Work-around for hard-coded logrus dependency in NSM
+		logrus.SetLevel(logrus.TraceLevel)
+	}
+	logger.Info("NSM trace", "enabled", nsmlog.IsTracingEnabled())
+	ctx = nsmlog.WithLog(ctx, log.NSMLogger(logger)) // allow NSM logs
 
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
