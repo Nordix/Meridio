@@ -120,6 +120,7 @@ func (im *interfaceMonitor) advertiseInterfaceCreation(index int, pendingInterfa
 
 func (im *interfaceMonitor) advertiseInterfaceDeletion(intf networking.Iface) {
 	im.logger.V(1).Info("advertise deleted", "interface", intf)
+	im.interfaceMonitorSubscriber.InterfaceDeleted(intf)
 }
 
 func newInterfaceMonitor(networkInterfaceMonitor networking.InterfaceMonitor, interfaceMonitorSubscriber networking.InterfaceMonitorSubscriber, netUtils networkingUtils) *interfaceMonitor {
