@@ -17,8 +17,9 @@ limitations under the License.
 package kernel
 
 import (
-	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+
+	"github.com/nordix/meridio/pkg/log"
 )
 
 // FWMarkRoute -
@@ -49,7 +50,7 @@ func (fwmr *FWMarkRoute) Delete() error {
 func (fwmr *FWMarkRoute) Verify() bool {
 	routes, err := netlink.RouteListFiltered(fwmr.family(), fwmr.route, netlink.RT_FILTER_GW|netlink.RT_FILTER_TABLE)
 	if err != nil {
-		logrus.Debugf("Verify FWMarkRoute (table: %v ; fwmark: %v) err: %v", fwmr.tableID, fwmr.fwmark, err)
+		log.Logger.V(1).Info("Verify FWMarkRoute", "table", fwmr.tableID, "fwmark", fwmr.fwmark, "error", err)
 		return false
 	}
 	return len(routes) > 0

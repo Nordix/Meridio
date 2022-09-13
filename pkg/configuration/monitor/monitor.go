@@ -20,9 +20,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/nordix/meridio/pkg/configuration/reader"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/retry"
-	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -36,6 +37,7 @@ type ConfigMapMonitor struct {
 	Namespace             string
 	Clientset             *kubernetes.Clientset
 	watcher               watch.Interface
+	logger                logr.Logger
 }
 
 func New(configMapName string, namespace string, ConfigurationRegistry ConfigurationRegistry) (*ConfigMapMonitor, error) {
@@ -53,6 +55,7 @@ func New(configMapName string, namespace string, ConfigurationRegistry Configura
 		Namespace:             namespace,
 		Clientset:             clientset,
 		ConfigurationRegistry: ConfigurationRegistry,
+		logger:                log.Logger.WithValues("class", "ConfigMapMonitor"),
 	}
 	return configMapMonitor, nil
 }
@@ -63,7 +66,7 @@ func (cmm *ConfigMapMonitor) Start(ctx context.Context) {
 		objectMeta := metav1.ObjectMeta{Name: cmm.ConfigMapName, Namespace: cmm.Namespace}
 		cmm.watcher, err = cmm.Clientset.CoreV1().ConfigMaps(cmm.Namespace).Watch(ctx, metav1.SingleObject(objectMeta))
 		if err != nil {
-			logrus.Errorf("Unable to watch configmap: %v", err)
+			cmm.logger.Error(err, "Unable to watch configmap")
 			return err
 		}
 		cmm.watchEvent(cmm.watcher.ResultChan())
@@ -72,7 +75,7 @@ func (cmm *ConfigMapMonitor) Start(ctx context.Context) {
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
 	if err != nil {
-		logrus.Errorf("ConfigMapMonitor start err: %v", err)
+		cmm.logger.Error(err, "Start")
 	}
 }
 
@@ -97,12 +100,12 @@ func (cmm *ConfigMapMonitor) watchEvent(eventChannel <-chan watch.Event) {
 func (cmm *ConfigMapMonitor) eventHandler(event *watch.Event) {
 	configmap, ok := event.Object.(*corev1.ConfigMap)
 	if !ok {
-		logrus.Errorf("failed to cast event.Object to %T", &corev1.ConfigMap{})
+		cmm.logger.Info("Failed to cast event.Object")
 		return
 	}
 	trench, conduits, streams, flows, vips, attractors, gateways, err := reader.UnmarshalConfig(configmap.Data)
 	if err != nil {
-		logrus.Errorf("err unmarshal: %v", err)
+		cmm.logger.Error(err, "unmarshal")
 		return
 	}
 	trenchConverted, conduitsConverted, streamsConverted, flowsConverted, vipsConverted, attractorsConverted, gatewaysConverted := reader.ConvertAll(

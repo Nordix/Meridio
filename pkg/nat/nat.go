@@ -22,18 +22,20 @@ import (
 	"net"
 	"strings"
 
+	"github.com/go-logr/logr"
 	"github.com/google/nftables"
 	"github.com/google/nftables/expr"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/log"
 )
 
 type DestinationPortNat struct {
 	Table   *nftables.Table
 	PortNat *nspAPI.Conduit_PortNat
 	Vips    []*nspAPI.Vip
+	logger  logr.Logger
 }
 
 func NewDestinationPortNat(table *nftables.Table, portNat *nspAPI.Conduit_PortNat) (*DestinationPortNat, error) {
@@ -41,6 +43,7 @@ func NewDestinationPortNat(table *nftables.Table, portNat *nspAPI.Conduit_PortNa
 		Table:   table,
 		PortNat: portNat,
 		Vips:    []*nspAPI.Vip{},
+		logger:  log.Logger.WithValues("class", "DestinationPortNat"),
 	}
 	err := dpn.init()
 	if err != nil {
@@ -50,12 +53,9 @@ func NewDestinationPortNat(table *nftables.Table, portNat *nspAPI.Conduit_PortNa
 }
 
 func (dpn *DestinationPortNat) init() error {
-	logrus.WithFields(logrus.Fields{
-		"Port":       dpn.PortNat.Port,
-		"TargetPort": dpn.PortNat.TargetPort,
-		"Protocol":   dpn.PortNat.Protocol,
-		"VIPs":       dpn.PortNat.Vips,
-	}).Infof("NAT: init")
+	dpn.logger.Info(
+		"Init", "Port", dpn.PortNat.Port, "TargetPort", dpn.PortNat.TargetPort,
+		"Protocol", dpn.PortNat.Protocol, "VIPs", dpn.PortNat.Vips)
 	conn := &nftables.Conn{}
 	chain := conn.AddChain(dpn.getChain())
 	conn.FlushChain(chain)
@@ -85,13 +85,9 @@ func (dpn *DestinationPortNat) init() error {
 }
 
 func (dpn *DestinationPortNat) SetVips(vips []*nspAPI.Vip) error {
-	logrus.WithFields(logrus.Fields{
-		"Port":          dpn.PortNat.Port,
-		"TargetPort":    dpn.PortNat.TargetPort,
-		"Protocol":      dpn.PortNat.Protocol,
-		"Previous VIPs": dpn.Vips,
-		"New VIPs":      vips,
-	}).Infof("NAT: SetVips")
+	dpn.logger.Info(
+		"SetVips", "Port", dpn.PortNat.Port, "TargetPort", dpn.PortNat.TargetPort,
+		"Protocol", dpn.PortNat.Protocol, "PreviousVIPs", dpn.Vips, "NewVIPs", vips)
 	var errFinal error
 	conn := &nftables.Conn{}
 	ipv4Set := dpn.getIpv4Set()
@@ -116,17 +112,17 @@ func (dpn *DestinationPortNat) SetVips(vips []*nspAPI.Vip) error {
 				IntervalEnd: true,
 			},
 		}
-		logrus.Debugf("NAT:SetDeleteElements:%v", element)
+		dpn.logger.V(1).Info("SetDeleteElements", "element", element)
 		if net.IP.To4() != nil {
 			err = conn.SetDeleteElements(ipv4Set, element)
 			if err != nil {
-				logrus.Errorf("NAT:SetDeleteElements ipv4:%v", err)
+				dpn.logger.Error(err, "SetDeleteElements ipv4")
 				errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 			}
 		} else {
 			err = conn.SetDeleteElements(ipv6Set, element)
 			if err != nil {
-				logrus.Errorf("NAT:SetDeleteElements ipv6:%v", err)
+				dpn.logger.Error(err, "SetDeleteElements ipv6")
 				errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 			}
 		}
@@ -147,17 +143,18 @@ func (dpn *DestinationPortNat) SetVips(vips []*nspAPI.Vip) error {
 				IntervalEnd: true,
 			},
 		}
-		logrus.Debugf("NAT:SetAddElements:%v", element)
+
+		dpn.logger.V(1).Info("SetAddElements", "element", element)
 		if net.IP.To4() != nil {
 			err = conn.SetAddElements(ipv4Set, element)
 			if err != nil {
-				logrus.Errorf("NAT:SetAddElements ipv4:%v", err)
+				dpn.logger.Error(err, "SetAddElements ipv4")
 				errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 			}
 		} else {
 			err = conn.SetAddElements(ipv6Set, element)
 			if err != nil {
-				logrus.Errorf("NAT:SetAddElements ipv6:%v", err)
+				dpn.logger.Error(err, "SetAddElements ipv6")
 				errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 			}
 		}
