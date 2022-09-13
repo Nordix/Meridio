@@ -17,8 +17,9 @@ limitations under the License.
 package manager
 
 import (
+	"github.com/go-logr/logr"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/log"
 )
 
 const (
@@ -29,12 +30,14 @@ const (
 type Server struct {
 	nspAPI.UnimplementedConfigurationManagerServer
 	WatcherRegistry WatcherRegistry
+	logger          logr.Logger
 }
 
 // NewServer is the constructor of Server
 func NewServer(watcherRegistry WatcherRegistry) nspAPI.ConfigurationManagerServer {
 	networkServicePlateformService := &Server{
 		WatcherRegistry: watcherRegistry,
+		logger:          log.Logger.WithValues("class", "Server"),
 	}
 
 	return networkServicePlateformService
@@ -125,7 +128,7 @@ func (s *Server) trenchWatcher(watcher nspAPI.ConfigurationManager_WatchTrenchSe
 				Trench: event,
 			})
 			if err != nil {
-				logrus.Errorf("err sending TrenchResponse: %v", err)
+				s.logger.Error(err, "Sending TrenchResponse")
 			}
 		case <-watcher.Context().Done():
 			return
@@ -141,7 +144,7 @@ func (s *Server) conduitWatcher(watcher nspAPI.ConfigurationManager_WatchConduit
 				Conduits: event,
 			})
 			if err != nil {
-				logrus.Errorf("err sending TrenchResponse: %v", err)
+				s.logger.Error(err, "Sending ConduitResponse")
 			}
 		case <-watcher.Context().Done():
 			return
@@ -157,7 +160,7 @@ func (s *Server) streamWatcher(watcher nspAPI.ConfigurationManager_WatchStreamSe
 				Streams: event,
 			})
 			if err != nil {
-				logrus.Errorf("err sending TrenchResponse: %v", err)
+				s.logger.Error(err, "Sending StreamResponse")
 			}
 		case <-watcher.Context().Done():
 			return
@@ -173,7 +176,7 @@ func (s *Server) flowWatcher(watcher nspAPI.ConfigurationManager_WatchFlowServer
 				Flows: event,
 			})
 			if err != nil {
-				logrus.Errorf("err sending TrenchResponse: %v", err)
+				s.logger.Error(err, "Sending FlowResponse")
 			}
 		case <-watcher.Context().Done():
 			return
@@ -189,7 +192,7 @@ func (s *Server) vipWatcher(watcher nspAPI.ConfigurationManager_WatchVipServer, 
 				Vips: event,
 			})
 			if err != nil {
-				logrus.Errorf("err sending TrenchResponse: %v", err)
+				s.logger.Error(err, "Sending VipResponse")
 			}
 		case <-watcher.Context().Done():
 			return
@@ -205,7 +208,7 @@ func (s *Server) attractorWatcher(watcher nspAPI.ConfigurationManager_WatchAttra
 				Attractors: event,
 			})
 			if err != nil {
-				logrus.Errorf("err sending TrenchResponse: %v", err)
+				s.logger.Error(err, "Sending AttractorResponse")
 			}
 		case <-watcher.Context().Done():
 			return
@@ -221,7 +224,7 @@ func (s *Server) gatewayWatcher(watcher nspAPI.ConfigurationManager_WatchGateway
 				Gateways: event,
 			})
 			if err != nil {
-				logrus.Errorf("err sending TrenchResponse: %v", err)
+				s.logger.Error(err, "Sending GatewayResponse")
 			}
 		case <-watcher.Context().Done():
 			return

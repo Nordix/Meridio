@@ -24,7 +24,7 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/log"
 )
 
 type Endpoint struct {
@@ -62,7 +62,7 @@ func New(maxTokenLifetime time.Duration,
 }
 
 func (e *Endpoint) Delete(ctx context.Context) error {
-	logrus.Infof("Endpoint Delete")
+	log.Logger.Info("Endpoint Delete")
 	var errFinal error
 	err := e.Unregister(ctx)
 	if err != nil {

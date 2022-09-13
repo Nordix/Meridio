@@ -31,8 +31,8 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/spiffejwt"
 	"github.com/networkservicemesh/sdk/pkg/tools/tracing"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/security/credentials"
-	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"google.golang.org/grpc"
@@ -109,7 +109,7 @@ func (s *Server) GetUrl() string {
 
 func (s *Server) errorHandler(errCh <-chan error) {
 	err := <-errCh
-	logrus.Errorf("err ListenAndServe on NSE server: %v", err)
+	log.Logger.Error(err, "ListenAndServe on NSE server")
 }
 
 func (s *Server) getSource(ctx context.Context) *workloadapi.X509Source {
