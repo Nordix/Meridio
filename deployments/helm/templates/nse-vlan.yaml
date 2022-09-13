@@ -62,9 +62,6 @@ spec:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
               readOnly: true
-            - name: nsm-socket
-              mountPath: /var/lib/networkservicemesh
-              readOnly: false
           resources:
             requests:
               cpu: 200m
@@ -76,7 +73,3 @@ spec:
           hostPath:
             path: /run/spire/sockets
             type: Directory
-        - name: nsm-socket
-          hostPath:
-            path: /var/lib/networkservicemesh
-            type: DirectoryOrCreate
