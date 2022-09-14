@@ -30,11 +30,6 @@ type BfdSpec struct {
 	Multiplier uint32
 }
 
-func (b *BfdSpec) String() string {
-	return fmt.Sprintf("BfdSpec:{MinTx:%v MinRx:%v Multiplier:%v}",
-		b.MinTx, b.MinRx, b.Multiplier)
-}
-
 func NewBfdSpec(spec *nspAPI.Gateway_BfdSpec) *BfdSpec {
 	if spec == nil {
 		return nil
@@ -49,11 +44,6 @@ func NewBfdSpec(spec *nspAPI.Gateway_BfdSpec) *BfdSpec {
 type BgpAuth struct {
 	KeyName   string
 	KeySource string
-}
-
-func (ba *BgpAuth) String() string {
-	return fmt.Sprintf("BgpAuth:{KeyName:%s KeySource:%s}",
-		ba.KeyName, ba.KeySource)
 }
 
 func NewBgpAuth(auth *nspAPI.Gateway_BgpAuth) *BgpAuth {
@@ -88,15 +78,15 @@ type Gateway struct {
 }
 
 func (gw *Gateway) String() string {
-	return fmt.Sprintf("name:%v address:%v ipFamily:%v protocol:%v "+
+	return fmt.Sprintf("{name:%v address:%v ipFamily:%v protocol:%v "+
 		"remoteASN:%v localASN:%v remotePort:%v localPort:%v holdTime:%v "+
-		"bfd:%v%v, bgpAuth: %v",
+		"bfd:%v%v bgpAuth: %+v}",
 		gw.Name, gw.Address, gw.IPFamily, gw.Protocol, gw.RemoteASN, gw.LocalASN,
 		gw.RemotePort, gw.LocalPort, gw.HoldTime, gw.BFD, func() string {
 			if !gw.BFD || gw.BfdSpec == nil {
 				return ""
 			} else {
-				return " " + gw.BfdSpec.String()
+				return fmt.Sprintf(" %+v", gw.BfdSpec)
 			}
 		}(),
 		gw.BgpAuth)

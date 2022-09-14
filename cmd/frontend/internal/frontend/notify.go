@@ -44,7 +44,7 @@ func announceFrontend(targetRegistryClient nspAPI.TargetRegistryClient) error {
 	targetContext := map[string]string{
 		types.IdentifierKey: hn,
 	}
-	logrus.Tracef("announceFrontend: hostname: %v, targetType: %v", hn, nspAPI.Target_FRONTEND)
+	logrus.Tracef("Announce frontend: hostname=%v, targetType=%v", hn, nspAPI.Target_FRONTEND)
 	_, err := targetRegistryClient.Register(context.Background(), &nspAPI.Target{
 		Ips:     []string{hn},
 		Type:    nspAPI.Target_FRONTEND,
@@ -61,7 +61,7 @@ func denounceFrontend(targetRegistryClient nspAPI.TargetRegistryClient) error {
 	targetContext := map[string]string{
 		types.IdentifierKey: hn,
 	}
-	logrus.Infof("denounceFrontend: hostname: %v, targetType: %v", hn, nspAPI.Target_FRONTEND)
+	logrus.Infof("Denounce frontend: hostname=%v, targetType=%v", hn, nspAPI.Target_FRONTEND)
 	_, err := targetRegistryClient.Unregister(context.Background(), &nspAPI.Target{
 		Ips:     []string{hn},
 		Type:    nspAPI.Target_FRONTEND,

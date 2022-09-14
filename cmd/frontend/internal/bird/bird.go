@@ -30,8 +30,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var regexWarn *regexp.Regexp = regexp.MustCompile(`Error|<ERROR>|<BUG>|<FATAL>|<WARNING>`)
-var regexInfo *regexp.Regexp = regexp.MustCompile(`<INFO>|BGP session|Connected|Received:|Started|Neighbor|Startup delayed`)
+var regexError *regexp.Regexp = regexp.MustCompile(`Error|<ERROR>|<BUG>|<FATAL>`)
+var regexInfo *regexp.Regexp = regexp.MustCompile(`<INFO>|<WARNING>|BGP session|Connected|Received:|Started|Neighbor|Startup delayed`)
 
 func NewService(commSocket string, configFile string) *Service {
 	return &Service{
@@ -99,16 +99,14 @@ func (b *Service) CheckCli(ctx context.Context, lp string) error {
 func (b *Service) Run(ctx context.Context, monitorLogs bool) error {
 	if !monitorLogs {
 		if stdoutStderr, err := exec.CommandContext(ctx, "bird", "-d", "-c", b.configFile, "-s", b.communicationSocket).CombinedOutput(); err != nil {
-			logrus.Errorf("BIRD Start: err: \"%v\", out: %s", err, stdoutStderr)
-			return err
+			return fmt.Errorf("error starting/running BIRD: %v, out: %s", err, stdoutStderr)
 		}
 	} else {
 		cmd := exec.CommandContext(ctx, "bird", "-d", "-c", b.configFile, "-s", b.communicationSocket)
 		// get stderr pipe reader that will be connected with the process' stderr by Start()
 		pipe, err := cmd.StderrPipe()
 		if err != nil {
-			logrus.Errorf("BIRD Start: stderr pipe err: \"%v\"", err)
-			return err
+			return fmt.Errorf("error creating stderr pipe for BIRD: %v", err)
 		}
 
 		// Note: Probably not needed at all, as due to the use of CommandContext()
@@ -130,18 +128,15 @@ func (b *Service) Run(ctx context.Context, monitorLogs bool) error {
 
 		// start the process (BIRD)
 		if err := cmd.Start(); err != nil {
-			logrus.Errorf("BIRD Start: start err: \"%v\"", err)
-			return err
+			return fmt.Errorf("error starting BIRD: %v", err)
 		}
 		if err := b.monitorOutput(pipe); err != nil {
-			logrus.Errorf("BIRD Start: scanner err: \"%v\"", err)
-			return err
+			return fmt.Errorf("error during BIRD output monitoring: %v", err)
 		}
 		// wait until process concludes
 		// (should only get here after stderr got closed or scanner returned error)
 		if err := cmd.Wait(); err != nil {
-			logrus.Errorf("BIRD Start: err: \"%v\"", err)
-			return err
+			return fmt.Errorf("error running BIRD: %v", err)
 		}
 	}
 	return nil
@@ -163,8 +158,8 @@ func (b *Service) ShutDown(ctx context.Context, lp string) error {
 func (b *Service) monitorOutput(r io.Reader) error {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		if ok := regexWarn.MatchString(scanner.Text()); ok {
-			logrus.Warnf("[bird] %v", scanner.Text())
+		if ok := regexError.MatchString(scanner.Text()); ok {
+			logrus.Errorf("[bird] %v", scanner.Text())
 		} else if ok := regexInfo.MatchString(scanner.Text()); ok {
 			logrus.Infof("[bird] %v", scanner.Text())
 		}

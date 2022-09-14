@@ -100,7 +100,7 @@ func main() {
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
 	if err := health.RegisterReadinesSubservices(ctx, health.FEReadinessServices...); err != nil {
-		logrus.Warnf("%v", err)
+		logrus.Infof("%v", err)
 	}
 
 	// connect NSP
@@ -120,7 +120,7 @@ func main() {
 
 	// monitor status of NSP connection and adjust probe status accordingly
 	if err := connection.Monitor(ctx, health.NSPCliSvc, conn); err != nil {
-		logrus.Warnf("NSP connection state monitor err: %v", err)
+		logrus.Infof("NSP connection state monitor err: %v", err)
 	}
 
 	// create and start frontend service
@@ -137,33 +137,49 @@ func main() {
 		logrus.Fatalf("Init failed: %v", err)
 	}
 
-	feErrCh := fe.Start(rootCtx)
+	feErrCh := make(chan error, 1)
+	defer close(feErrCh)
+	fe.Start(rootCtx, feErrCh)
 	defer func() {
 		deleteCtx, deleteClose := context.WithTimeout(rootCtx, 3*time.Second)
 		defer deleteClose()
 		fe.Stop(deleteCtx)
 	}()
-	exitOnErrCh(ctx, cancel, feErrCh)
+	startError := func(err error) {
+		logrus.Errorf("FE error: %v", err)
+		cancel()
+	}
+	exitOnErrCh(ctx, startError, feErrCh)
 
 	// monitor routing sessions
-	if err := fe.Monitor(ctx); err != nil {
+	monErrCh := make(chan error, 1)
+	defer close(monErrCh)
+	fe.Monitor(ctx, monErrCh)
+	monitorError := func(err error) {
+		logrus.Errorf("FE monitor error: %v", err)
 		cancel()
-		logrus.Errorf("Failed to start monitor: %v", err)
 	}
+	exitOnErrCh(ctx, monitorError, monErrCh)
 
 	// start watching events of interest via NSP
-	go watchConfig(ctx, cancel, c, fe)
+	watchError := func(err error) {
+		logrus.Errorf("FE config watcher error: %v", err)
+		cancel()
+	}
+	go watchConfig(ctx, watchError, c, fe)
 
 	<-ctx.Done()
-	logrus.Warnf("FE shutting down")
+	logrus.Infof("FE shutting down")
 }
 
-func exitOnErrCh(ctx context.Context, cancel context.CancelFunc, errCh <-chan error) {
+type onError func(err error)
+
+func exitOnErrCh(ctx context.Context, efn onError, errCh <-chan error) {
 	// If we already have an error, log it and exit
 	select {
 	case err, ok := <-errCh:
 		if ok {
-			logrus.Errorf("exitOnErrCh(0): %v", err)
+			efn(err)
 		}
 	default:
 	}
@@ -174,17 +190,15 @@ func exitOnErrCh(ctx context.Context, cancel context.CancelFunc, errCh <-chan er
 			logrus.Debugf("exitOnErrCh: context closed")
 		case err, ok := <-errCh:
 			if ok {
-				logrus.Errorf("exitOnErrCh(1): %v", err)
+				efn(err)
 			}
-			cancel()
 		}
 	}(ctx, errCh)
 }
 
-func watchConfig(ctx context.Context, cancel context.CancelFunc, c *feConfig.Config, fe *frontend.FrontEndService) {
+func watchConfig(ctx context.Context, efn onError, c *feConfig.Config, fe *frontend.FrontEndService) {
 	if err := fe.WaitStart(ctx); err != nil {
-		logrus.Errorf("Wait start: %v", err)
-		cancel()
+		efn(err)
 	}
 	configurationManagerClient := nspAPI.NewConfigurationManagerClient(c.NSPConn)
 	attractorToWatch := &nspAPI.Attractor{
@@ -200,8 +214,7 @@ func watchConfig(ctx context.Context, cancel context.CancelFunc, c *feConfig.Con
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
 	if err != nil {
-		logrus.Errorf("Attractor watcher: %v", err)
-		cancel()
+		efn(fmt.Errorf("cannot watch Attractor: %v", err))
 	}
 }
 
@@ -219,8 +232,8 @@ func watchAttractor(ctx context.Context, cli nspAPI.ConfigurationManagerClient, 
 			logrus.Infof("Attractor watcher closing down")
 			return err
 		}
-		logrus.Infof("Attractor config change event")
-		if err := fe.SetNewConfig(attractorResponse.Attractors); err != nil {
+		logrus.Infof("Attractor change event")
+		if err := fe.SetNewConfig(ctx, attractorResponse.Attractors); err != nil {
 			return err
 		}
 	}
