@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -40,6 +41,7 @@ import (
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
 	"github.com/nordix/meridio/pkg/nsp"
+	"github.com/nordix/meridio/pkg/profiling"
 	"github.com/nordix/meridio/pkg/retry"
 
 	"github.com/go-logr/logr"
@@ -88,6 +90,17 @@ func main() {
 	ctx, cancel := context.WithCancel(
 		logr.NewContext(context.Background(), logger))
 	defer cancel()
+
+	if config.ProfilingEnabled {
+		go func() {
+			mux := http.NewServeMux()
+			profiling.AddProfilerHandlers(mux)
+			err := http.ListenAndServe(fmt.Sprintf(":%d", config.ProfilingPort), mux)
+			if err != nil {
+				logger.Error(err, "err starting profiling")
+			}
+		}()
+	}
 
 	// allow NSM logs
 	if config.LogLevel == "TRACE" {

@@ -22,6 +22,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/signal"
 	"sync"
@@ -53,6 +54,7 @@ import (
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
+	"github.com/nordix/meridio/pkg/profiling"
 	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
@@ -106,6 +108,17 @@ func main() {
 	defer cancel()
 	if err := config.IsValid(); err != nil {
 		log.Fatal(logger, "invalid config", "error", err)
+	}
+
+	if config.ProfilingEnabled {
+		go func() {
+			mux := http.NewServeMux()
+			profiling.AddProfilerHandlers(mux)
+			err := http.ListenAndServe(fmt.Sprintf(":%d", config.ProfilingPort), mux)
+			if err != nil {
+				logger.Error(err, "err starting profiling")
+			}
+		}()
 	}
 
 	if config.LogLevel == "TRACE" {

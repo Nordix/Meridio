@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -47,6 +48,7 @@ import (
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacename"
+	"github.com/nordix/meridio/pkg/profiling"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	grpcHealth "google.golang.org/grpc/health"
@@ -92,6 +94,17 @@ func main() {
 	)
 	defer cancel()
 	logger.Info("Config read", "config", config)
+
+	if config.ProfilingEnabled {
+		go func() {
+			mux := http.NewServeMux()
+			profiling.AddProfilerHandlers(mux)
+			err := http.ListenAndServe(fmt.Sprintf(":%d", config.ProfilingPort), mux)
+			if err != nil {
+				logger.Error(err, "err starting profiling")
+			}
+		}()
+	}
 
 	if config.LogLevel == "TRACE" {
 		nsmlog.EnableTracing(true) // enable tracing in NSM

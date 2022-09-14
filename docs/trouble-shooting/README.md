@@ -521,3 +521,54 @@ nsc: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 9000
 default via fd00::ac10:201 dev nsc metric 1024 onlink pref medium
 # kubectl exec -n red meridio-app-74f796dd77-9xbmh -c tapa -- ping -c1 -W1 fd00::ac10:201
 ```
+
+## Debugger
+
+// TDOD
+
+## Profiler
+
+Pprof can be enabled on every component to collect the profiling data. By default, the data are exposed on port 9995 (Except for FE container which uses 9996 to avoid port collision with the load-balancer container) and can be read over a file or over http. 
+
+To reach the exposed data, multiple ways are possible:
+- Port forwarding: e.g. `kubectl port-forward load-balancer-trench-a-7f5dcd6765-d2285 -n red 9995:9995`
+- Ephemeral container (Doesn't require the profiling to be expose externally)
+- From another pod (Doesn't require the profiling to be expose externally if the pod can access to pod network namespace (privileges + hostnetwork))
+- A service
+
+List of profiling data with their description:
+| Profile | Description |
+| - | - |
+| allocs | A sampling of all past memory allocations |
+| block | Stack traces that led to blocking on synchronization primitives |
+| cmdline | The command line invocation of the current program |
+| goroutine | Stack traces of all current goroutines |
+| heap | A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample. |
+| mutex | Stack traces of holders of contended mutexes |
+| profile | CPU profile. You can specify the duration in the seconds GET parameter. After you get the profile file, use the go tool pprof command to investigate the profile. |
+| threadcreate | Stack traces that led to the creation of new OS threads |
+| trace | A trace of execution of the current program. You can specify the duration in the seconds GET parameter. After you get the trace file, use the go tool trace command to investigate the trace. |
+
+Install pprof and graphviz (prerequisites for visualization/analysis):
+```
+go install github.com/google/pprof@latest
+sudo apt install graphviz
+```
+
+Example of commands to read goroutine profile:
+```
+# Download profile
+curl http://localhost:9995/debug/pprof/goroutine --output goroutine.tar.gz
+# CLI profile visualization from tar.gz
+go tool pprof -top goroutine.tar.gz
+# Web graph profile visualization from tar.gz
+go tool pprof -web goroutine.tar.gz
+# Web profile visualization from tar.gz
+go tool pprof -http :9090 goroutine.tar.gz
+# CLI profile visualization
+go tool pprof -top http://localhost:9995/debug/pprof/goroutine
+# Web graph profile visualization
+go tool pprof -web http://localhost:9995/debug/pprof/goroutine
+# Web profile visualization
+go tool pprof -http :9090 http://localhost:9995/debug/pprof/goroutine
+```

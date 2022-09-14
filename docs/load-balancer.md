@@ -29,6 +29,8 @@ NSM_TRENCH_NAME | string | Trench the pod is running on | default
 NSM_LOG_LEVEL | string | Log level | DEBUG
 NSM_NFQUEUE | string | netfilter queue(s) to be used by nfqlb | 0:3
 NSM_NFQUEUE_FANOUT | bool | enable fanout nfqueue option | false
+NSM_PROFILING_ENABLED | bool | Enable profiling | false
+NSM_NFQUEUE_FANOUT | int | port of the profiling http server | 9995
 
 ## Command Line 
 

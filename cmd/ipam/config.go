@@ -30,4 +30,7 @@ type Config struct {
 	NodePrefixLengthIPv6    int    `default:"64" desc:"node prefix length which will be allocated" envconfig:"node_prefix_length_ipv6"`
 	IPFamily                string `default:"dualstack" desc:"ip family" envconfig:"ip_family"`
 	LogLevel                string `default:"DEBUG" desc:"Log level" split_words:"true"`
+
+	ProfilingEnabled bool `default:"false" desc:"enable profiling" split_words:"true"`
+	ProfilingPort    int  `default:"9995" desc:"port of the profiling http server" split_words:"true"`
 }

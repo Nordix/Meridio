@@ -26,4 +26,7 @@ type Config struct {
 	Datasource    string        `default:"/run/nsp/data/registry.db" desc:"Path and file name of the sqlite database" split_words:"true"`
 	LogLevel      string        `default:"DEBUG" desc:"Log level" split_words:"true"`
 	EntryTimeout  time.Duration `default:"60s" desc:"Timeout of the entries" split_words:"true"`
+
+	ProfilingEnabled bool `default:"false" desc:"enable profiling" split_words:"true"`
+	ProfilingPort    int  `default:"9995" desc:"port of the profiling http server" split_words:"true"`
 }

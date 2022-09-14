@@ -57,6 +57,8 @@ MERIDIO_TIMEOUT | time.Duration | timeout of NSM request/close, NSP register/unr
 MERIDIO_DIAL_TIMEOUT | time.Duration | timeout to dial NSMgr | 5s
 MERIDIO_MAX_TOKEN_LIFETIME | time.Duration | maximum lifetime of tokens | 24h
 MERIDIO_LOG_LEVEL | string | Log level | DEBUG
+MERIDIO_PROFILING_ENABLED | bool | Enable profiling | false
+MERIDIO_NFQUEUE_FANOUT | int | port of the profiling http server | 9995
 
 ## Command Line 
 

@@ -40,6 +40,8 @@ NSM_PORT | string | Trench the pod is running on | 7778
 NSM_CONFIG_MAP_NAME | string | Name of the ConfigMap containing the configuration | meridio-configuration
 NSM_DATASOURCE | string | Path and file name of the sqlite database | /run/nsp/data/registry.db
 NSM_LOG_LEVEL | string | Log level | DEBUG
+NSM_PROFILING_ENABLED | bool | Enable profiling | false
+NSM_NFQUEUE_FANOUT | int | port of the profiling http server | 9995
 
 ## Command Line 
 

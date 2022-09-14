@@ -73,6 +73,8 @@ spec:
               value: "DEBUG"
             - name: NSM_MTU
               value: "1500"
+            - name: NSM_PROFILING_ENABLED
+              value: "{{ .Values.profilingEnabled }}"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

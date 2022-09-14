@@ -41,6 +41,8 @@ spec:
               value: {{ template "meridio.configuration" . }}
             - name: NSP_DATASOURCE
               value: /run/nsp/data/registry.db
+            - name: NSM_PROFILING_ENABLED
+              value: "{{ .Values.profilingEnabled }}"
           securityContext:
             runAsNonRoot: true
             readOnlyRootFilesystem: true

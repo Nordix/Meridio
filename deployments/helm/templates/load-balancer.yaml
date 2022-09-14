@@ -68,6 +68,8 @@ spec:
               value: {{ .Values.maxTokenLifetime }}
             - name: NSM_LOG_LEVEL
               value: "DEBUG"
+            - name: NSM_PROFILING_ENABLED
+              value: "{{ .Values.profilingEnabled }}"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
@@ -163,6 +165,8 @@ spec:
               value: {{ .Values.trench.name }}
             - name: NFE_ATTRACTOR_NAME
               value: "attractor-a"
+            - name: NFE_PROFILING_ENABLED
+              value: "{{ .Values.profilingEnabled }}"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
