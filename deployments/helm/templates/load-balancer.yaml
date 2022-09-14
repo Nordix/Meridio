@@ -39,6 +39,7 @@ spec:
           args:
             - -c
             - {{ template "meridio.loadBalancer.sysctls" . }}
+      serviceAccountName: {{ template "meridio.authServiceAccount" . }}
       containers:
         - name: load-balancer
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.loadBalancer.image }}:{{ .Values.loadBalancer.version }}

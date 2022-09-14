@@ -64,6 +64,10 @@ Set IP Family
 {{- printf "meridio-%s" .Values.trench.name -}}
 {{- end -}}
 
+{{- define "meridio.authServiceAccount" -}}
+{{- printf "meridio-auth-%s" .Values.trench.name -}}
+{{- end -}}
+
 {{- define "meridio.startupProbe" -}}
 {{- $healthAddr := .root.Values.probe.addr -}}
 {{- $healthService := .root.Values.probe.service -}}

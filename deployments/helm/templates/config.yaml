@@ -104,3 +104,32 @@ roleRef:
   kind: Role
   name: meridio-configuration-role-{{ .Values.trench.name }}
   apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ template "meridio.authServiceAccount" . }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: meridio-auth-configuration-role-{{ .Values.trench.name }}
+rules:
+- apiGroups: 
+  - ""
+  resources: 
+  - secrets
+  verbs: 
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: meridio-auth-configuration-role-binding-{{ .Values.trench.name }}
+subjects:
+- kind: ServiceAccount
+  name: {{ template "meridio.authServiceAccount" . }}
+roleRef:
+  kind: Role
+  name: meridio-auth-configuration-role-{{ .Values.trench.name }}
+  apiGroup: rbac.authorization.k8s.io
