@@ -136,9 +136,19 @@ func main() {
 		log.Fatal(logger, "NSP Service: failed to listen", "error", err)
 	}
 
-	if err := server.Serve(listener); err != nil {
+	if err := startServer(ctx, server, listener); err != nil {
 		logger.Error(err, "NSP Service: failed to serve")
 	}
+}
 
-	<-ctx.Done()
+func startServer(ctx context.Context, server *grpc.Server, listener net.Listener) error {
+	defer func() {
+		_ = listener.Close()
+	}()
+	// montior context in separate goroutine to be able to stop server
+	go func() {
+		<-ctx.Done()
+		server.Stop()
+	}()
+	return server.Serve(listener)
 }
