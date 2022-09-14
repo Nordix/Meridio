@@ -474,15 +474,6 @@ func (fes *FrontEndService) promoteConfigNoLock(ctx context.Context) error {
 // Can be used both for the initial config and for later changes as well. (BIRD can
 // reconfigure itself based on loading the new config file - refer to reconfigurationAgent())
 func (fes *FrontEndService) writeConfig() error {
-	file, err := os.Create(fes.birdConfFile)
-	if err != nil {
-		logrus.Errorf("FrontEndService: failed to create %v, err: %v", fes.birdConfFile, err)
-		return err
-	}
-	defer file.Close()
-
-	//conf := "include \"bird-common.conf\";\n"
-	//conf += "\n"
 	conf := ""
 	fes.writeConfigBase(&conf)
 	hasVIP4, hasVIP6 := fes.writeConfigVips(&conf)
@@ -494,14 +485,12 @@ func (fes *FrontEndService) writeConfig() error {
 	fes.writeConfigKernel(&conf, hasVIP4, hasVIP6)
 	fes.writeConfigGW(&conf)
 
-	logrus.Infof("FrontEndService: BIRD config generated")
-	logrus.Debugf("\n%v", conf)
-	_, err = file.WriteString(conf)
-	if err != nil {
-		logrus.Errorf("FrontEndService: failed to write %v, err: %v", fes.birdConfFile, err)
-	}
+	routingConfig := bird.NewRoutingConfig(fes.birdConfFile)
+	routingConfig.Append(conf)
+	logrus.Infof("FrontEndService: Routing configuration generated")
+	logrus.Debugf("\n%v", routingConfig)
 
-	return err
+	return routingConfig.Apply()
 }
 
 // writeConfigBase -
@@ -646,7 +635,6 @@ func (fes *FrontEndService) writeConfigGW(conf *string) {
 							continue
 						}
 						password = key
-						// TODO: make sure password is not logged
 					}
 
 					*conf += fmt.Sprintf("protocol bgp '%v' from LINK {\n", name)
