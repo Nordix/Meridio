@@ -18,84 +18,75 @@ package monitor
 
 import (
 	"context"
-	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/nordix/meridio/pkg/configuration/reader"
+	"github.com/nordix/meridio/pkg/k8s/watcher"
 	"github.com/nordix/meridio/pkg/log"
-	"github.com/nordix/meridio/pkg/retry"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
 type ConfigMapMonitor struct {
+	watcher.MonitorInterface
 	ConfigurationRegistry ConfigurationRegistry
 	ConfigMapName         string
 	Namespace             string
-	Clientset             *kubernetes.Clientset
-	watcher               watch.Interface
 	logger                logr.Logger
 }
 
 func New(configMapName string, namespace string, ConfigurationRegistry ConfigurationRegistry) (*ConfigMapMonitor, error) {
-	clientCfg, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	clientset, err := kubernetes.NewForConfig(clientCfg)
-	if err != nil {
-		return nil, err
-	}
 	configMapMonitor := &ConfigMapMonitor{
 		ConfigMapName:         configMapName,
 		Namespace:             namespace,
-		Clientset:             clientset,
 		ConfigurationRegistry: ConfigurationRegistry,
 		logger:                log.Logger.WithValues("class", "ConfigMapMonitor"),
 	}
+
+	monitor, err := watcher.NewObjectMonitor(
+		configMapName,
+		namespace,
+		watcher.WatchEventHandler(configMapMonitor),
+		func(namespace string) (watcher.WatchObject, error) {
+			clientCfg, err := rest.InClusterConfig()
+			if err != nil {
+				return nil, err
+			}
+
+			clientset, err := kubernetes.NewForConfig(clientCfg)
+			if err != nil {
+				return nil, err
+			}
+
+			return clientset.CoreV1().ConfigMaps(namespace), err
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	configMapMonitor.MonitorInterface = monitor
+
 	return configMapMonitor, nil
 }
 
-func (cmm *ConfigMapMonitor) Start(ctx context.Context) {
-	err := retry.Do(func() error {
-		var err error
-		objectMeta := metav1.ObjectMeta{Name: cmm.ConfigMapName, Namespace: cmm.Namespace}
-		cmm.watcher, err = cmm.Clientset.CoreV1().ConfigMaps(cmm.Namespace).Watch(ctx, metav1.SingleObject(objectMeta))
-		if err != nil {
-			cmm.logger.Error(err, "Unable to watch configmap")
-			return err
-		}
-		cmm.watchEvent(cmm.watcher.ResultChan())
-		return nil
-	}, retry.WithContext(ctx),
-		retry.WithDelay(500*time.Millisecond),
-		retry.WithErrorIngnored())
-	if err != nil {
-		cmm.logger.Error(err, "Start")
+func (cmm *ConfigMapMonitor) Handle(ctx context.Context, event *watch.Event) {
+	if event == nil {
+		return
+	}
+
+	switch event.Type {
+	case watch.Added:
+		cmm.eventHandler(event)
+	case watch.Modified:
+		cmm.eventHandler(event)
+	case watch.Deleted:
+	default:
 	}
 }
 
-func (cmm *ConfigMapMonitor) watchEvent(eventChannel <-chan watch.Event) {
-	for {
-		event, open := <-eventChannel
-		if open {
-			switch event.Type {
-			case watch.Added:
-				cmm.eventHandler(&event)
-			case watch.Modified:
-				cmm.eventHandler(&event)
-			case watch.Deleted:
-			default:
-			}
-		} else {
-			return
-		}
-	}
-}
+func (cmm *ConfigMapMonitor) End(ctx context.Context, namespace, name string) {}
 
 func (cmm *ConfigMapMonitor) eventHandler(event *watch.Event) {
 	configmap, ok := event.Object.(*corev1.ConfigMap)
