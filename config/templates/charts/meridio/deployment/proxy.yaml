@@ -24,6 +24,7 @@ spec:
             privileged: true
           command: ["/bin/sh"]
           args:  # to be filled by operator according to the Trench
+      automountServiceAccountToken: false
       containers:
         - name: proxy
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.proxy.image }}:{{ .Values.version }}

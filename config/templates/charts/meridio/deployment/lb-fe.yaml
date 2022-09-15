@@ -44,6 +44,7 @@ spec:
           args:  # to be filled by operator according to trench
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
+      automountServiceAccountToken: false
       containers:
         - name: load-balancer
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.loadBalancer.image }}:{{ .Values.version }}

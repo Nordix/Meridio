@@ -24,6 +24,7 @@ spec:
         app: nse-vlan
         "spiffe.io/spiffe-id": "true"
     spec:
+      automountServiceAccountToken: false
       containers:
         - name: nse
           image: {{ .Values.registry }}/{{ .Values.nsm.organization }}/{{ .Values.vlanNSE.image }}:{{ .Values.nsm.version }}
