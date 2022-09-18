@@ -28,6 +28,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-logr/logr"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/cmd/frontend/internal/bird"
 	feConfig "github.com/nordix/meridio/cmd/frontend/internal/config"
@@ -36,14 +37,14 @@ import (
 	"github.com/nordix/meridio/cmd/frontend/internal/utils"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/k8s/watcher"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/retry"
-	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
 // FrontEndService -
 func NewFrontEndService(ctx context.Context, c *feConfig.Config) *FrontEndService {
-	logrus.Infof("NewFrontEndService")
+	logger := log.FromContextOrGlobal(ctx).WithValues("class", "FrontEndService")
 	targetRegistryClient := nspAPI.NewTargetRegistryClient(c.NSPConn)
 
 	birdConfFile := c.BirdConfigPath + "/bird-fe-meridio.conf"
@@ -77,11 +78,12 @@ func NewFrontEndService(ctx context.Context, c *feConfig.Config) *FrontEndServic
 		advertiseVIP:         false,
 		logNextMonitorStatus: true,
 		nspEntryTimeout:      c.NSPEntryTimeout,
-		routingService:       bird.NewService(c.BirdCommunicationSock, birdConfFile),
+		routingService:       bird.NewRoutingService(ctx, c.BirdCommunicationSock, birdConfFile),
 		namespace:            c.Namespace,
 		secretDatabase:       sdb,
-		secretManager:        watcher.NewObjectMonitorManager(c.Namespace, sdb, secret.CreateSecretInterface),
+		secretManager:        watcher.NewObjectMonitorManager(ctx, c.Namespace, sdb, secret.CreateSecretInterface),
 		authCh:               authCh,
+		logger:               logger,
 	}
 
 	if len(frontEndService.vrrps) > 0 {
@@ -89,6 +91,7 @@ func NewFrontEndService(ctx context.Context, c *feConfig.Config) *FrontEndServic
 		frontEndService.dropIfNoPeer = false
 	}
 
+	logger.Info("Created", "object", frontEndService)
 	return frontEndService
 }
 
@@ -120,17 +123,18 @@ type FrontEndService struct {
 	logNextMonitorStatus bool
 	targetRegistryClient nspAPI.TargetRegistryClient
 	nspEntryTimeout      time.Duration
-	routingService       *bird.Service
+	routingService       *bird.RoutingService
 	namespace            string
-	secretDatabase       secret.DatabaseInterface        // stores contents of Secrets referenced by configuration
-	secretManager        watcher.MonitorManagerInterface // keeps track changes of Secrets
-	authCh               chan struct{}                   // used by secretDatabase to signal updates to FE Service
+	secretDatabase       secret.DatabaseInterface              // stores contents of Secrets referenced by configuration
+	secretManager        watcher.ObjectMonitorManagerInterface // keeps track changes of Secrets
+	authCh               chan struct{}                         // used by secretDatabase to signal updates to FE Service
+	logger               logr.Logger
 }
 
 // CleanUp -
 // Basic clean-up of FrontEndService
 func (fes *FrontEndService) CleanUp() {
-	logrus.Infof("FrontEndService: CleanUp")
+	fes.logger.Info("CleanUp")
 
 	close(fes.reconfCh)
 	close(fes.authCh)
@@ -138,7 +142,7 @@ func (fes *FrontEndService) CleanUp() {
 }
 
 func (fes *FrontEndService) Init() error {
-	logrus.Infof("FrontEndService: Init")
+	fes.logger.Info("Init")
 
 	return fes.writeConfig()
 }
@@ -146,7 +150,7 @@ func (fes *FrontEndService) Init() error {
 // Start -
 // Start BIRD with the generated config
 func (fes *FrontEndService) Start(ctx context.Context, errCh chan<- error) {
-	logrus.Infof("FrontEndService: Starting")
+	fes.logger.Info("Start")
 
 	go fes.start(ctx, errCh)
 	go fes.reconfigurationAgent(ctx, fes.reconfCh, errCh)
@@ -156,23 +160,24 @@ func (fes *FrontEndService) Start(ctx context.Context, errCh chan<- error) {
 // Stop -
 // Stop BIRD (attempt graceful shutdown)
 func (fes *FrontEndService) Stop(ctx context.Context) {
-	logrus.Infof("FrontEndService: Stop")
+	fes.logger.Info("Stop")
 	fes.stop(ctx)
 }
 
 // WaitStart -
 // Wait until BIRD started by checking birdc availability
 func (fes *FrontEndService) WaitStart(ctx context.Context) error {
+	logger := fes.logger.WithValues("func", "WaitStart")
 	lp, err := fes.routingService.LookupCli()
 	if err != nil {
-		return fmt.Errorf("WaitStart: routing service cli not found: %v", err)
+		return fmt.Errorf("routing service cli not found: %v", err)
 	}
 	var timeoutScale time.Duration = 1000000 // 1 ms
 	i := 1
 	for {
 		select {
 		case <-ctx.Done():
-			logrus.Infof("WaitStart: Shutting down")
+			logger.Info("shutting down")
 			return nil
 		case <-time.After(timeoutScale * time.Nanosecond): //timeout
 		}
@@ -182,7 +187,7 @@ func (fes *FrontEndService) WaitStart(ctx context.Context) error {
 			if i <= 10 {
 				timeoutScale += 10000000 // 10 ms
 			}
-			logrus.Debugf("WaitStart: not ready yet...\n%v", err)
+			logger.V(1).Info("not ready yet", "out", err)
 		} else {
 			break
 		}
@@ -200,7 +205,8 @@ func (fes *FrontEndService) RemoveVIPRules() error {
 // Adjust BIRD config on the fly
 func (fes *FrontEndService) SetNewConfig(ctx context.Context, c interface{}) error {
 	configChange := false
-	logrus.Debugf("FrontEndService: Set new configuration")
+	fes.logger.V(1).Info("SetNewConfig")
+	logger := fes.logger.WithValues("func", "SetNewConfig")
 
 	fes.cfgMu.Lock()
 	defer fes.cfgMu.Unlock()
@@ -209,7 +215,7 @@ func (fes *FrontEndService) SetNewConfig(ctx context.Context, c interface{}) err
 	case []*nspAPI.Attractor:
 		// FE watches 1 Attractor that it is associated with
 		if len(c) == 1 {
-			logrus.Debugf("Attractor: %+v", c)
+			logger.V(1).Info("Attractor", "Attractor", c)
 			c := c[0]
 			if err := fes.setVIPs(c.Vips, &configChange); err != nil {
 				return err
@@ -219,13 +225,13 @@ func (fes *FrontEndService) SetNewConfig(ctx context.Context, c interface{}) err
 				return err
 			}
 			if gwConfigChange {
-				logrus.Tracef("FrontEndService: Change in gateway configuration")
+				logger.V(2).Info("Gateway configuration changed")
 				fes.checkAuthentication(ctx)
 			}
 			configChange = configChange || gwConfigChange
 		}
 	default:
-		logrus.Infof("FrontEndService: Configuration format not known")
+		logger.Info("Unknown format")
 	}
 
 	if configChange {
@@ -245,9 +251,10 @@ func (fes *FrontEndService) SetNewConfig(ctx context.Context, c interface{}) err
 // VIPs must be added to BIRD only if the frontend is considered up.
 // (Note: IPv4/IPv6 backplane not separated).
 func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
+	logger := fes.logger.WithValues("func", "Monitor")
 	lp, err := fes.routingService.LookupCli()
 	if err != nil {
-		errCh <- fmt.Errorf("monitor: routing service cli not found: %v", err)
+		errCh <- fmt.Errorf("routing service cli not found: %v", err)
 		return
 	}
 
@@ -272,7 +279,7 @@ func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 		for {
 			select {
 			case <-ctx.Done():
-				logrus.Infof("Monitor: shutting down")
+				logger.Info("Shutting down")
 				if refreshCancel != nil {
 					refreshCancel()
 				}
@@ -284,7 +291,7 @@ func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 			forced := logForced() // force status logs after config updates
 			protocolOut, err := fes.routingService.ShowProtocolSessions(ctx, lp, `NBR-*`)
 			if err != nil {
-				logrus.Infof("Monitor: %v: %v", err, protocolOut)
+				logger.Info("protocol output", "err", err, "out", strings.Split(protocolOut, "\n"))
 				//Note: if birdc is not yet running, no need to bail out
 				//linkCh <- "Failed to fetch protocol status"
 			} else if strings.Contains(protocolOut, bird.NoProtocolsLog) {
@@ -295,13 +302,13 @@ func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 					_ = denounceFrontend(fes.targetRegistryClient)
 					noConnectivity = true
 					connectivityMap = map[string]bool{}
-					logrus.Infof("Monitor: %v", protocolOut)
+					logger.Info("protocol output", "out", protocolOut)
 					//linkCh <- "No protocols match"
 				}
 			} else {
 				bfdOut, err := fes.routingService.ShowBfdSessions(ctx, lp, `NBR-BFD`)
 				if err != nil {
-					logrus.Infof("Monitor: %v: %v", err, bfdOut)
+					logger.Info("BFD output", "err", err, "out", strings.Split(bfdOut, "\n"))
 					//Note: if birdc is not yet running, no need to bail out
 					//linkCh <- "Failed to fetch bfd status"
 					break
@@ -323,7 +330,7 @@ func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 							refreshCancel()
 						}
 						if err := denounceFrontend(fes.targetRegistryClient); err != nil {
-							logrus.Infof("FrontEndService: failed to denounce frontend connectivity (err: %v)", err)
+							logger.Error(err, "Denounce frontend connectivity")
 						}
 						fes.denounceVIP(ctx, errCh)
 					}
@@ -331,9 +338,9 @@ func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 					if noConnectivity {
 						noConnectivity = false
 						health.SetServingStatus(ctx, health.EgressSvc, true)
-						logrus.Infof("FrontEndService: announce frontend")
+						logger.Info("Announce frontend")
 						if err := announceFrontend(fes.targetRegistryClient); err != nil {
-							logrus.Infof("FrontEndService: failed to announce frontend connectivity (err: %v)", err)
+							logger.Error(err, "Announce frontend connectivity")
 						}
 						// refresh NSP entry
 						var refreshCtx context.Context
@@ -353,9 +360,9 @@ func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 				// log gateway connectivity information upon config or protocol status changes
 				if forced || !reflect.DeepEqual(connectivityMap, status.StatusMap()) {
 					if status.AnyGatewayDown() {
-						logrus.Errorf("Monitor: (status=%v) %v", status.Status(), status.Log())
+						logger.Error(fmt.Errorf("gateway down"), "connectivity", "status", status.Status(), "out", strings.Split(status.Log(), "\n"))
 					} else {
-						logrus.Infof("Monitor: (status=%v) %v", status.Status(), status.Log())
+						logger.Info("connectivity", "status", status.Status(), "out", strings.Split(status.Log(), "\n"))
 					}
 
 				}
@@ -395,7 +402,6 @@ func (fes *FrontEndService) parseStatusOutput(output string, bfdOutput string) *
 	}
 
 	bird.ParseProtocols(output, cs.Logp(), func(name string, options ...bird.Option) {
-		//logrus.Infof("parseStatusOutput: name: %v", name)
 		gw, family := fes.getGatewayByName(name)
 		if gw == nil { // no configured gateway found for the name
 			return
@@ -425,17 +431,16 @@ func (fes *FrontEndService) parseStatusOutput(output string, bfdOutput string) *
 //
 // prerequisite: BIRD must be running so that birdc could talk to it
 func (fes *FrontEndService) VerifyConfig(ctx context.Context) error {
+	logger := fes.logger.WithValues("func", "VerifyConfig")
 	lp, err := fes.routingService.LookupCli()
 	if err != nil {
-		logrus.Errorf("VerifyConfig: Birdc not found!")
 		return err
 	} else {
 		stringOut, err := fes.routingService.Verify(ctx, lp)
 		if err != nil {
-			logrus.Errorf("VerifyConfig: %v: %v", err, stringOut)
-			return err
+			return fmt.Errorf("%v; %v", err, stringOut)
 		} else {
-			logrus.Debugf("VerifyConfig: %v", stringOut)
+			logger.V(1).Info("OK", "out", strings.Split(stringOut, "\n"))
 			return nil
 		}
 	}
@@ -459,7 +464,7 @@ func (fes *FrontEndService) promoteConfigNoLock(ctx context.Context) error {
 		return fmt.Errorf("error writing configuration: %v", err)
 	}
 	// send signal to reconfiguration agent to apply the new config
-	logrus.Debugf("FrontEndService: Promote configuration change")
+	fes.logger.V(1).Info("promote configuration change")
 	select {
 	case fes.reconfCh <- struct{}{}:
 	case <-ctx.Done():
@@ -487,8 +492,8 @@ func (fes *FrontEndService) writeConfig() error {
 
 	routingConfig := bird.NewRoutingConfig(fes.birdConfFile)
 	routingConfig.Append(conf)
-	logrus.Infof("FrontEndService: Routing configuration generated")
-	logrus.Debugf("\n%v", routingConfig)
+	fes.logger.Info("routing configuration generated")
+	fes.logger.V(1).Info("routing configuration", "config", strings.Split(routingConfig.String(), "\n"))
 
 	return routingConfig.Apply()
 }
@@ -598,7 +603,7 @@ func (fes *FrontEndService) writeConfigGW(conf *string) {
 	for _, gw := range fes.gateways {
 		if af := gw.GetAF(); af == syscall.AF_INET || af == syscall.AF_INET6 {
 			if gw.Protocol != "bgp" && gw.Protocol != "static" {
-				logrus.Infof("writeConfigGW: Unkown gateway protocol %v", gw.Protocol)
+				fes.logger.Info("Unkown gateway protocol", "protocol", gw.Protocol)
 				continue
 			}
 
@@ -631,7 +636,7 @@ func (fes *FrontEndService) writeConfigGW(conf *string) {
 					if gw.BgpAuth != nil && gw.BgpAuth.KeySource != "" {
 						key, err := fes.secretDatabase.Load(fes.namespace, gw.BgpAuth.KeySource, gw.BgpAuth.KeyName)
 						if err != nil {
-							logrus.Infof("Skip gateway %s; %v", gw.Name, err)
+							fes.logger.Info("Skip gateway", "name", gw.Name, "reason", err)
 							continue
 						}
 						password = key
@@ -886,8 +891,8 @@ func (fes *FrontEndService) writeConfigVRRPs(conf *string, hasVIP4, hasVIP6 bool
 // Based on logBird settings stderr of the started BIRD process can be monitored,
 // so that important log snippets get appended to the container's log.
 func (fes *FrontEndService) start(ctx context.Context, errCh chan<- error) {
-	logrus.Infof("FrontEndService: start (monitor BIRD logs=%v)", fes.logBird)
-	defer logrus.Infof("FrontEndService: Run fnished")
+	fes.logger.Info("start routing service", "log", fes.logBird)
+	defer fes.logger.Info("routing service stopped running")
 
 	if err := fes.routingService.Run(ctx, fes.logBird); err != nil {
 		select {
@@ -902,15 +907,15 @@ func (fes *FrontEndService) start(ctx context.Context, errCh chan<- error) {
 func (fes *FrontEndService) stop(ctx context.Context) {
 	lp, err := fes.routingService.LookupCli()
 	if err != nil {
-		logrus.Infof("FrontEndService: stop; routing service cli not found: %v", err)
+		fes.logger.Info("routing service cli not found", "err", err)
 		return
 	}
 	if err := fes.routingService.CheckCli(ctx, lp); err != nil {
-		logrus.Infof("FrontEndService: stop; routing service cli not running: %v", err)
+		fes.logger.Info("routing service cli not running", "err", err)
 		return
 	}
 	if err := fes.routingService.ShutDown(ctx, lp); err != nil {
-		logrus.Infof("FrontEndService: stop; failure during routing service shutdown: %v", err)
+		fes.logger.Info("failure during routing service shutdown", "err", err)
 		return
 	}
 }
@@ -930,11 +935,11 @@ func (fes *FrontEndService) reconfigurationAgent(ctx context.Context, reconfCh <
 		}
 
 		// listen for reconf signals
-		logrus.Infof("FrontEndService: Reconfiguration agent Ready")
+		fes.logger.Info("reconfiguration agent Ready")
 		for {
 			select {
 			case <-ctx.Done():
-				logrus.Infof("Shutting down reconfiguration agent")
+				fes.logger.Info("reconfiguration agent shutting down")
 				return
 			case _, ok := <-fes.reconfCh:
 				if ok {
@@ -960,8 +965,8 @@ func (fes *FrontEndService) reconfigure(ctx context.Context, path string) error 
 	if err != nil {
 		return err
 	} else {
-		logrus.Debugf("Routing service: %v", stringOut)
-		logrus.Infof("FrontEndService: Routing service configuration applied")
+		fes.logger.V(1).Info("routing service reconfigured", "out", strings.Split(stringOut, "\n"))
+		fes.logger.Info("routing service configuration applied")
 		return nil
 	}
 }
@@ -992,7 +997,7 @@ func (fes *FrontEndService) checkAuthentication(ctx context.Context) {
 // available yet at the time the Gateway configuration is received from NSP.)
 func (fes *FrontEndService) authenticationAgent(ctx context.Context, errCh chan<- error) {
 	checkf := func() {
-		logrus.Tracef("FrontEndService: Authentication agent initiating reconfiguration")
+		fes.logger.V(2).Info("authentication agent initiating reconfiguration")
 		if err := fes.promoteConfig(ctx); err != nil {
 			select {
 			case errCh <- fmt.Errorf("authentication agent error: %v", err):
@@ -1020,7 +1025,7 @@ func (fes *FrontEndService) authenticationAgent(ctx context.Context, errCh chan<
 				checkf()
 			}
 		case <-ctx.Done():
-			logrus.Infof("Shutting down authentication agent")
+			fes.logger.Info("authentication agent shutting down")
 			return
 		}
 	}
@@ -1039,16 +1044,16 @@ func (fes *FrontEndService) setVIPs(vips interface{}, change *bool) error {
 			list = append(list, vip.GetAddress())
 		}
 		added, removed = utils.Difference(fes.vips, list)
-		logrus.Debugf("SetVIPs: got: %+v, (added: %v, removed: %v)", vips, added, removed)
+		fes.logger.V(1).Info("setVIPs", "got", vips, "added", added, "removed", removed)
 		fes.vips = list
 	default:
-		logrus.Debugf("VIP configuration format not supported")
+		fes.logger.Info("VIP configuration format not supported")
 	}
 
 	if len(added) > 0 || len(removed) > 0 {
 		*change = true
 		if err := fes.setVIPRules(added, removed); err != nil {
-			logrus.Fatalf("FAILED to adjust VIP src routes: %v", err)
+			log.Fatal(fes.logger, "Failed to adjust VIP src routes", "error", err) // TODO: no fatal burreed deep
 			return err
 		}
 	}
@@ -1062,13 +1067,13 @@ func (fes *FrontEndService) setGateways(gateways interface{}, change *bool) erro
 	switch gateways := gateways.(type) {
 	case []*nspAPI.Gateway:
 		list := utils.ConvertGateways(gateways)
-		logrus.Debugf("SetGateways: \ngot: %+v \nhave: %+v", list, fes.gateways)
+		fes.logger.V(1).Info("setGateways", "got", list, "have", fes.gateways)
 		if utils.DiffGateways(list, fes.gateways) {
 			fes.gateways = list
 			*change = true
 		}
 	default:
-		logrus.Debugf("Gateway configuration format not supported")
+		fes.logger.V(1).Info("Gateway configuration format not supported")
 	}
 
 	return nil
@@ -1077,10 +1082,11 @@ func (fes *FrontEndService) setGateways(gateways interface{}, change *bool) erro
 // setVIPRules -
 // Add/remove VIP src routing rules based on changes
 func (fes *FrontEndService) setVIPRules(vipsAdded, vipsRemoved []string) error {
+	logger := fes.logger.WithValues("func", "setVIPRules")
 	if len(vipsAdded) > 0 || len(vipsRemoved) > 0 {
 		handler, err := netlink.NewHandle()
 		if err != nil {
-			logrus.Errorf("FAILED to open netlink handler: %v", err)
+			logger.Error(err, "open netlink handler")
 			return err
 		}
 		defer handler.Close()
@@ -1091,9 +1097,9 @@ func (fes *FrontEndService) setVIPRules(vipsAdded, vipsRemoved []string) error {
 			rule.Table = fes.kernelTableId
 			rule.Src = utils.StrToIPNet(vip)
 
-			logrus.Infof("Remove VIP rule: %v", rule)
+			logger.Info("Remove VIP rule", "rule", rule)
 			if err := handler.RuleDel(rule); err != nil {
-				logrus.Errorf("FAILED to remove VIP rule: %v", err)
+				logger.Error(err, "Remove VIP rule")
 				//TODO: return with error unless error refers to ENOENT/ESRCH
 			}
 		}
@@ -1104,10 +1110,10 @@ func (fes *FrontEndService) setVIPRules(vipsAdded, vipsRemoved []string) error {
 			rule.Table = fes.kernelTableId
 			rule.Src = utils.StrToIPNet(vip)
 
-			logrus.Infof("Add VIP rule: %v", rule)
+			logger.Info("Add VIP rule", "rule", rule)
 			if err := handler.RuleAdd(rule); err != nil {
 				if errors.Is(err, os.ErrNotExist) {
-					logrus.Errorf("FAILED to add VIP rule: %v", err)
+					logger.Error(err, "Add VIP rule")
 					return err
 				}
 			}
@@ -1135,20 +1141,20 @@ func (fes *FrontEndService) getGatewayByName(name string) (*utils.Gateway, int) 
 // TODO: when there's only static, no need to play with announce/denounceVIP...
 
 func (fes *FrontEndService) announceVIP(ctx context.Context, errCh chan<- error) {
-	logrus.Infof("Announce VIPs")
+	fes.logger.Info("announceVIP")
 	fes.cfgMu.Lock()
 	fes.advertiseVIP = true
 	fes.cfgMu.Unlock()
 
 	go func() {
 		if err := fes.promoteConfig(ctx); err != nil {
-			errCh <- fmt.Errorf("announce VIP error: %v", err)
+			errCh <- fmt.Errorf("announceVIP error: %v", err)
 		}
 	}()
 }
 
 func (fes *FrontEndService) denounceVIP(ctx context.Context, errCh chan<- error) {
-	logrus.Infof("Denounce VIPs")
+	fes.logger.Info("denounceVIP")
 
 	if !func() bool {
 		fes.cfgMu.Lock()
@@ -1160,13 +1166,13 @@ func (fes *FrontEndService) denounceVIP(ctx context.Context, errCh chan<- error)
 		return advertised
 	}() {
 		// no need to rewrite config, VIPs not advertised in old config
-		logrus.Debugf("Denounce VIPs: no VIPs advertised")
+		fes.logger.V(1).Info("denounceVIP: no VIPs advertised")
 		return
 	}
 
 	go func() {
 		if err := fes.promoteConfig(ctx); err != nil {
-			errCh <- fmt.Errorf("denounce VIP error: %v", err)
+			errCh <- fmt.Errorf("denounceVIP error: %v", err)
 		}
 	}()
 }

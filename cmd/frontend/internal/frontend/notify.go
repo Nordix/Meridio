@@ -22,7 +22,7 @@ import (
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
-	"github.com/sirupsen/logrus"
+	"github.com/nordix/meridio/pkg/log"
 )
 
 // Notify Meridio whether the particular frontend has external connectivity or not.
@@ -44,7 +44,7 @@ func announceFrontend(targetRegistryClient nspAPI.TargetRegistryClient) error {
 	targetContext := map[string]string{
 		types.IdentifierKey: hn,
 	}
-	logrus.Tracef("Announce frontend: hostname=%v, targetType=%v", hn, nspAPI.Target_FRONTEND)
+	log.Logger.V(2).Info("Announce frontend", "hostname", hn, "targetType", nspAPI.Target_FRONTEND)
 	_, err := targetRegistryClient.Register(context.Background(), &nspAPI.Target{
 		Ips:     []string{hn},
 		Type:    nspAPI.Target_FRONTEND,
@@ -61,7 +61,7 @@ func denounceFrontend(targetRegistryClient nspAPI.TargetRegistryClient) error {
 	targetContext := map[string]string{
 		types.IdentifierKey: hn,
 	}
-	logrus.Infof("Denounce frontend: hostname=%v, targetType=%v", hn, nspAPI.Target_FRONTEND)
+	log.Logger.Info("Denounce frontend", "hostname", hn, "targetType", nspAPI.Target_FRONTEND)
 	_, err := targetRegistryClient.Unregister(context.Background(), &nspAPI.Target{
 		Ips:     []string{hn},
 		Type:    nspAPI.Target_FRONTEND,

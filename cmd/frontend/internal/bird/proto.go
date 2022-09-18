@@ -31,7 +31,6 @@ var regexBirdcTitle *regexp.Regexp = regexp.MustCompile(`BIRD|Name\s+Proto`)
 // to out log string)
 func ParseProtocols(input string, out *string, f func(name string, options ...Option)) {
 	scanner := bufio.NewScanner(strings.NewReader(input))
-	//logrus.Infof("ParseProtocols: \ninput: %v", input)
 
 	for scanner.Scan() {
 		if match := regexProto.FindStringSubmatch(scanner.Text()); match != nil {
@@ -40,7 +39,6 @@ func ParseProtocols(input string, out *string, f func(name string, options ...Op
 			}
 			// get name and other attributes of the particular BIRD protocol session
 			name := match[1]
-			//logrus.Infof("ParseProtocols: name: %v", name)
 			opts := []Option{
 				WithName(name),
 				WithProto(match[2]),

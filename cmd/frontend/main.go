@@ -26,9 +26,8 @@ import (
 	"syscall"
 	"time"
 
-	nested "github.com/antonfisher/nested-logrus-formatter"
+	"github.com/go-logr/logr"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
@@ -37,6 +36,7 @@ import (
 	"github.com/nordix/meridio/cmd/frontend/internal/frontend"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/health/connection"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/security/credentials"
 )
@@ -64,29 +64,18 @@ func main() {
 		os.Exit(0)
 	}
 
-	rootCtx, cancelRootCtx := context.WithCancel(context.Background())
-	defer cancelRootCtx()
-
-	logrus.SetOutput(os.Stdout)
-	logrus.SetLevel(logrus.DebugLevel)
-	logrus.SetFormatter(&nested.Formatter{})
-
 	config := &env.Config{}
 	if err := envconfig.Usage("nfe", config); err != nil {
-		logrus.Fatal(err)
+		panic(err)
 	}
 	if err := envconfig.Process("nfe", config); err != nil {
-		logrus.Fatalf("%v", err)
+		panic(err)
 	}
-	logrus.Infof("rootConf: %+v", config)
+	logger := log.New("Meridio-frontend", config.LogLevel)
+	logger.Info("Config read", "config", config)
 
-	logrus.SetLevel(func() logrus.Level {
-		l, err := logrus.ParseLevel(config.LogLevel)
-		if err != nil {
-			logrus.Fatalf("invalid log level %s", config.LogLevel)
-		}
-		return l
-	}())
+	rootCtx, cancelRootCtx := context.WithCancel(logr.NewContext(context.Background(), logger))
+	defer cancelRootCtx()
 
 	ctx, cancel := signal.NotifyContext(
 		rootCtx,
@@ -100,11 +89,11 @@ func main() {
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
 	if err := health.RegisterReadinesSubservices(ctx, health.FEReadinessServices...); err != nil {
-		logrus.Infof("%v", err)
+		logger.Error(err, "RegisterReadinesSubservices")
 	}
 
 	// connect NSP
-	logrus.Infof("Dial NSP (%v)", config.NSPService)
+	logger.Info("Dial NSP", "NSPService", config.NSPService)
 	conn, err := grpc.DialContext(ctx,
 		config.NSPService,
 		grpc.WithTransportCredentials(
@@ -114,13 +103,13 @@ func main() {
 			grpc.WaitForReady(true),
 		))
 	if err != nil {
-		logrus.Fatalf("Dial NSP err: %v", err)
+		log.Fatal(logger, "Dial NSP", "error", err)
 	}
 	defer conn.Close()
 
 	// monitor status of NSP connection and adjust probe status accordingly
 	if err := connection.Monitor(ctx, health.NSPCliSvc, conn); err != nil {
-		logrus.Infof("NSP connection state monitor err: %v", err)
+		logger.Error(err, "NSP connection state monitor")
 	}
 
 	// create and start frontend service
@@ -134,7 +123,7 @@ func main() {
 
 	if err := fe.Init(); err != nil {
 		cancel()
-		logrus.Fatalf("Init failed: %v", err)
+		log.Fatal(logger, "Init failed", "error", err)
 	}
 
 	feErrCh := make(chan error, 1)
@@ -145,41 +134,29 @@ func main() {
 		defer deleteClose()
 		fe.Stop(deleteCtx)
 	}()
-	startError := func(err error) {
-		logrus.Errorf("FE error: %v", err)
-		cancel()
-	}
-	exitOnErrCh(ctx, startError, feErrCh)
+	exitOnErrCh(logr.NewContext(ctx, logger.WithValues("func", "Start")), cancel, feErrCh)
 
 	// monitor routing sessions
 	monErrCh := make(chan error, 1)
 	defer close(monErrCh)
 	fe.Monitor(ctx, monErrCh)
-	monitorError := func(err error) {
-		logrus.Errorf("FE monitor error: %v", err)
-		cancel()
-	}
-	exitOnErrCh(ctx, monitorError, monErrCh)
+	exitOnErrCh(logr.NewContext(ctx, logger.WithValues("func", "Monitor")), cancel, monErrCh)
 
 	// start watching events of interest via NSP
-	watchError := func(err error) {
-		logrus.Errorf("FE config watcher error: %v", err)
-		cancel()
-	}
-	go watchConfig(ctx, watchError, c, fe)
+	go watchConfig(ctx, cancel, c, fe)
 
 	<-ctx.Done()
-	logrus.Infof("FE shutting down")
+	logger.Info("FE shutting down")
 }
 
-type onError func(err error)
-
-func exitOnErrCh(ctx context.Context, efn onError, errCh <-chan error) {
+func exitOnErrCh(ctx context.Context, cancel context.CancelFunc, errCh <-chan error) {
+	logger := log.FromContextOrGlobal(ctx).WithValues("func", "exitOnErrCh")
 	// If we already have an error, log it and exit
 	select {
 	case err, ok := <-errCh:
 		if ok {
-			efn(err)
+			logger.Error(err, "already have an error")
+			cancel()
 		}
 	default:
 	}
@@ -187,18 +164,21 @@ func exitOnErrCh(ctx context.Context, efn onError, errCh <-chan error) {
 	go func(ctx context.Context, errCh <-chan error) {
 		select {
 		case <-ctx.Done():
-			logrus.Debugf("exitOnErrCh: context closed")
+			logger.V(1).Info("context closed")
 		case err, ok := <-errCh:
 			if ok {
-				efn(err)
+				logger.Error(err, "got an error")
+				cancel()
 			}
 		}
 	}(ctx, errCh)
 }
 
-func watchConfig(ctx context.Context, efn onError, c *feConfig.Config, fe *frontend.FrontEndService) {
+func watchConfig(ctx context.Context, cancel context.CancelFunc, c *feConfig.Config, fe *frontend.FrontEndService) {
+	logger := log.FromContextOrGlobal(ctx).WithValues("func", "watchConfig")
 	if err := fe.WaitStart(ctx); err != nil {
-		efn(err)
+		logger.Error(err, "WaitStart")
+		cancel()
 	}
 	configurationManagerClient := nspAPI.NewConfigurationManagerClient(c.NSPConn)
 	attractorToWatch := &nspAPI.Attractor{
@@ -214,11 +194,13 @@ func watchConfig(ctx context.Context, efn onError, c *feConfig.Config, fe *front
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
 	if err != nil {
-		efn(fmt.Errorf("cannot watch Attractor: %v", err))
+		logger.Error(err, "Attractor watcher")
+		cancel()
 	}
 }
 
 func watchAttractor(ctx context.Context, cli nspAPI.ConfigurationManagerClient, toWatch *nspAPI.Attractor, fe *frontend.FrontEndService) error {
+	logger := log.FromContextOrGlobal(ctx)
 	watchAttractor, err := cli.WatchAttractor(ctx, toWatch)
 	if err != nil {
 		return err
@@ -229,10 +211,10 @@ func watchAttractor(ctx context.Context, cli nspAPI.ConfigurationManagerClient, 
 			break
 		}
 		if err != nil {
-			logrus.Infof("Attractor watcher closing down")
+			logger.Info("Attractor watcher closing down")
 			return err
 		}
-		logrus.Infof("Attractor change event")
+		logger.Info("Attractor config change event")
 		if err := fe.SetNewConfig(ctx, attractorResponse.Attractors); err != nil {
 			return err
 		}
