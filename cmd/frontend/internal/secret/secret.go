@@ -21,7 +21,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/sirupsen/logrus"
+	"github.com/go-logr/logr"
+	"github.com/nordix/meridio/pkg/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
@@ -44,6 +45,7 @@ type Database struct {
 	channel chan<- struct{} // write to channel to indicate change in storage
 	rm      sync.RWMutex
 	ctx     context.Context
+	logger  logr.Logger
 }
 
 func NewDatabase(ctx context.Context, channel chan<- struct{}) *Database {
@@ -51,16 +53,17 @@ func NewDatabase(ctx context.Context, channel chan<- struct{}) *Database {
 		storage: make(map[databaseKey]map[string][]byte),
 		channel: channel,
 		ctx:     ctx,
+		logger:  log.FromContextOrGlobal(ctx).WithValues("class", "Database"),
 	}
 }
 
 // Load -
 // Searches the database for key in secret referenced by name.
-func (sd *Database) Load(namespace, name, key string) ([]byte, error) {
+func (db *Database) Load(namespace, name, key string) ([]byte, error) {
 	dbKey := databaseKey{name: name, namespace: namespace}
-	sd.rm.RLock()
-	defer sd.rm.RUnlock()
-	if dbVal, ok := sd.storage[dbKey]; ok {
+	db.rm.RLock()
+	defer db.rm.RUnlock()
+	if dbVal, ok := db.storage[dbKey]; ok {
 		if val, ok := dbVal[key]; ok {
 			return val, nil
 		}
@@ -71,26 +74,26 @@ func (sd *Database) Load(namespace, name, key string) ([]byte, error) {
 
 // Handle -
 // Handles update of database based on the event Object.
-func (sd *Database) Handle(ctx context.Context, event *watch.Event) {
+func (db *Database) Handle(ctx context.Context, event *watch.Event) {
 	if event.Type == watch.Error {
-		logrus.Debugf("Database: ERROR event; %s", event.Object)
+		db.logger.V(1).Info("Handle Error event", "event", event.Object)
 		return
 	}
 
 	secret, ok := event.Object.(*corev1.Secret)
 	if !ok {
-		logrus.Errorf("Database: FAILED to cast event.Object to %T", &corev1.Secret{})
+		db.logger.Error(fmt.Errorf("cast failed"), "unexpected event object", "event", event.Object)
 		return
 	}
 
-	logrus.Tracef("Database: event (%s)", event.Type)
+	db.logger.V(2).Info("Handle", "type", event.Type)
 	switch event.Type {
 	case watch.Added:
 		fallthrough
 	case watch.Modified:
-		sd.update(secret)
+		db.update(secret)
 	case watch.Deleted:
-		sd.delete(secret)
+		db.delete(secret)
 	default:
 	}
 }
@@ -99,65 +102,65 @@ func (sd *Database) Handle(ctx context.Context, event *watch.Event) {
 // Removes secret with namespace and name from database, and signals change.
 // Note: monitoring of particular secret was ordered to stop, because it is
 // no longer of interest. Thus there's no point keeping related information.
-func (sd *Database) End(ctx context.Context, namespace, name string) {
+func (db *Database) End(ctx context.Context, namespace, name string) {
 	dbKey := databaseKey{name: name, namespace: namespace}
 	ok := false
-	logrus.Debugf("Database: End %s", dbKey)
+	db.logger.V(1).Info("End", "key", dbKey)
 
-	sd.rm.Lock()
-	if _, ok = sd.storage[dbKey]; ok {
-		sd.storage[dbKey] = nil
+	db.rm.Lock()
+	if _, ok = db.storage[dbKey]; ok {
+		db.storage[dbKey] = nil
 	}
-	sd.rm.Unlock()
+	db.rm.Unlock()
 
 	if ok {
-		sd.signal()
+		db.signal()
 	}
 }
 
 // update -
 // Overwrites matching database entry with secret, and signals change.
-func (sd *Database) update(secret *corev1.Secret) {
+func (db *Database) update(secret *corev1.Secret) {
 	dbVal := make(map[string][]byte)
 	dbKey := databaseKey{name: secret.Name, namespace: secret.Namespace}
-	logrus.Debugf("Database: update %s", dbKey)
+	db.logger.V(1).Info("update", "key", dbKey)
 
 	for key, val := range secret.Data {
 		dbVal[key] = val
 	}
 
-	sd.rm.Lock()
-	sd.storage[dbKey] = dbVal
-	sd.rm.Unlock()
+	db.rm.Lock()
+	db.storage[dbKey] = dbVal
+	db.rm.Unlock()
 
-	sd.signal()
+	db.signal()
 }
 
 // delete -
 // Deletes matching database entry representing a secret, and signals change.
-func (sd *Database) delete(secret *corev1.Secret) {
+func (db *Database) delete(secret *corev1.Secret) {
 	dbKey := databaseKey{name: secret.Name, namespace: secret.Namespace}
 	ok := false
-	logrus.Debugf("Database: delete %s", dbKey)
+	db.logger.V(1).Info("delete", "key", dbKey)
 
-	sd.rm.Lock()
-	if _, ok = sd.storage[dbKey]; ok {
-		sd.storage[dbKey] = nil
+	db.rm.Lock()
+	if _, ok = db.storage[dbKey]; ok {
+		db.storage[dbKey] = nil
 	}
-	sd.rm.Unlock()
+	db.rm.Unlock()
 
 	if ok {
-		sd.signal()
+		db.signal()
 	}
 }
 
 // signal -
 // Indicates that database has changed.
-func (sd *Database) signal() {
-	if sd.channel != nil {
+func (db *Database) signal() {
+	if db.channel != nil {
 		select {
-		case sd.channel <- struct{}{}:
-		case <-sd.ctx.Done():
+		case db.channel <- struct{}{}:
+		case <-db.ctx.Done():
 		}
 	}
 }

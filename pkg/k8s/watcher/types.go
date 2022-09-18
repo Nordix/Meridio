@@ -7,12 +7,12 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-type MonitorInterface interface {
+type ObjectMonitorInterface interface {
 	Start(ctx context.Context)
 	Stop(ctx context.Context)
 }
 
-type MonitorManagerInterface interface {
+type ObjectMonitorManagerInterface interface {
 	Manage(ctx context.Context, names []string)
 }
 

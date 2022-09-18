@@ -30,7 +30,7 @@ import (
 )
 
 type ConfigMapMonitor struct {
-	watcher.MonitorInterface
+	watcher.ObjectMonitorInterface
 	ConfigurationRegistry ConfigurationRegistry
 	ConfigMapName         string
 	Namespace             string
@@ -46,6 +46,7 @@ func New(configMapName string, namespace string, ConfigurationRegistry Configura
 	}
 
 	monitor, err := watcher.NewObjectMonitor(
+		context.TODO(),
 		configMapName,
 		namespace,
 		watcher.WatchEventHandler(configMapMonitor),
@@ -66,7 +67,7 @@ func New(configMapName string, namespace string, ConfigurationRegistry Configura
 	if err != nil {
 		return nil, err
 	}
-	configMapMonitor.MonitorInterface = monitor
+	configMapMonitor.ObjectMonitorInterface = monitor
 
 	return configMapMonitor, nil
 }

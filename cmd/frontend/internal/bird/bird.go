@@ -27,37 +27,40 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/sirupsen/logrus"
+	"github.com/go-logr/logr"
+	"github.com/nordix/meridio/pkg/log"
 )
 
 var regexError *regexp.Regexp = regexp.MustCompile(`Error|<ERROR>|<BUG>|<FATAL>`)
 var regexInfo *regexp.Regexp = regexp.MustCompile(`<INFO>|<WARNING>|BGP session|Connected|Received:|Started|Neighbor|Startup delayed`)
 
-func NewService(commSocket string, configFile string) *Service {
-	return &Service{
+func NewRoutingService(ctx context.Context, commSocket string, configFile string) *RoutingService {
+	return &RoutingService{
 		communicationSocket: commSocket,
 		configFile:          configFile,
+		logger:              log.FromContextOrGlobal(ctx).WithValues("class", "RoutingService", "instance", "BIRD"),
 	}
 }
 
-type Service struct {
+type RoutingService struct {
 	communicationSocket string // filename (with path) to communicate with birdc
 	configFile          string // configuration file (with path)
+	logger              logr.Logger
 }
 
 // LookupCli -
 // Looks up birdc path
-func (b *Service) LookupCli() (string, error) {
+func (b *RoutingService) LookupCli() (string, error) {
 	path, err := exec.LookPath("birdc")
 	if err != nil {
-		err = errors.New("Birdc not found, err: " + err.Error())
+		err = fmt.Errorf("birdc not found: %v", err.Error())
 	}
 	return path, err
 }
 
 // CliCmd -
 // Executes birdc commands
-func (b *Service) CliCmd(ctx context.Context, lp string, arg ...string) (string, error) {
+func (b *RoutingService) CliCmd(ctx context.Context, lp string, arg ...string) (string, error) {
 	if lp == "" {
 		path, err := b.LookupCli()
 		if err != nil {
@@ -74,7 +77,7 @@ func (b *Service) CliCmd(ctx context.Context, lp string, arg ...string) (string,
 
 // CheckCli -
 // Checks if birdc is available
-func (b *Service) CheckCli(ctx context.Context, lp string) error {
+func (b *RoutingService) CheckCli(ctx context.Context, lp string) error {
 	if lp == "" {
 		path, err := b.LookupCli()
 		if err != nil {
@@ -87,7 +90,7 @@ func (b *Service) CheckCli(ctx context.Context, lp string) error {
 	stdoutStderr, err := cmd.CombinedOutput()
 	stringOut := string(stdoutStderr)
 	if err != nil {
-		return errors.New(cmd.String() + ": " + err.Error() + ": " + stringOut)
+		return fmt.Errorf("%v; %v; %v", cmd.String(), err.Error(), stringOut)
 	}
 	return nil
 }
@@ -96,7 +99,7 @@ func (b *Service) CheckCli(ctx context.Context, lp string) error {
 // Starts BIRD process with the config file (blocks)
 // Based on monitorLogs settings stderr of the started BIRD process can be monitored,
 // in order to append important log snippets to the container's log
-func (b *Service) Run(ctx context.Context, monitorLogs bool) error {
+func (b *RoutingService) Run(ctx context.Context, monitorLogs bool) error {
 	if !monitorLogs {
 		if stdoutStderr, err := exec.CommandContext(ctx, "bird", "-d", "-c", b.configFile, "-s", b.communicationSocket).CombinedOutput(); err != nil {
 			return fmt.Errorf("error starting/running BIRD: %v, out: %s", err, stdoutStderr)
@@ -117,20 +120,20 @@ func (b *Service) Run(ctx context.Context, monitorLogs bool) error {
 			w, ok := cmd.Stderr.(*os.File)
 			if !ok {
 				// not considered a deal-breaker at the moment; see above note
-				logrus.Debugf("BIRD Start: cmd.Stderr not *os.File")
+				b.logger.V(1).Info("cmd.Stderr not *os.File")
 				return
 			}
 			// when context is done, close File thus signalling EOF to bufio Scan()
 			defer w.Close()
 			<-ctx.Done()
-			logrus.Infof("BIRD Start: context closed, terminate log monitoring...")
+			b.logger.Info("Context closed, terminate log monitoring")
 		}()
 
 		// start the process (BIRD)
 		if err := cmd.Start(); err != nil {
 			return fmt.Errorf("error starting BIRD: %v", err)
 		}
-		if err := b.monitorOutput(pipe); err != nil {
+		if err := b.monitorOutput(ctx, pipe); err != nil {
 			return fmt.Errorf("error during BIRD output monitoring: %v", err)
 		}
 		// wait until process concludes
@@ -144,7 +147,7 @@ func (b *Service) Run(ctx context.Context, monitorLogs bool) error {
 
 // ShutDown -
 // Shuts BIRD down via birdc
-func (b *Service) ShutDown(ctx context.Context, lp string) error {
+func (b *RoutingService) ShutDown(ctx context.Context, lp string) error {
 	out, err := b.CliCmd(ctx, lp, "down")
 	if err != nil {
 		err = fmt.Errorf("%v - %v", err, out)
@@ -155,13 +158,13 @@ func (b *Service) ShutDown(ctx context.Context, lp string) error {
 // monitorOutput -
 // Keeps reading the output of a BIRD process and adds important
 // log snippets to the containers log for debugging purposes
-func (b *Service) monitorOutput(r io.Reader) error {
+func (b *RoutingService) monitorOutput(ctx context.Context, r io.Reader) error {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		if ok := regexError.MatchString(scanner.Text()); ok {
-			logrus.Errorf("[bird] %v", scanner.Text())
+			b.logger.Error(fmt.Errorf("BIRD error log"), "monitor output", "out", scanner.Text())
 		} else if ok := regexInfo.MatchString(scanner.Text()); ok {
-			logrus.Infof("[bird] %v", scanner.Text())
+			b.logger.Info("monitor output", "out", scanner.Text())
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -172,7 +175,7 @@ func (b *Service) monitorOutput(r io.Reader) error {
 
 // Configure -
 // Orders BIRD via birdc to (try and) apply the config
-func (b *Service) Configure(ctx context.Context, lp string) (string, error) {
+func (b *RoutingService) Configure(ctx context.Context, lp string) (string, error) {
 	arg := `"` + b.configFile + `"`
 	stringOut, err := b.CliCmd(ctx, lp, "configure", arg)
 
@@ -187,7 +190,7 @@ func (b *Service) Configure(ctx context.Context, lp string) (string, error) {
 
 // Verify -
 // Verifies content of config file via birdc
-func (b *Service) Verify(ctx context.Context, lp string) (string, error) {
+func (b *RoutingService) Verify(ctx context.Context, lp string) (string, error) {
 	arg := `"` + b.configFile + `"`
 	stringOut, err := b.CliCmd(ctx, lp, "configure", "check", arg)
 	if err != nil {
@@ -201,7 +204,7 @@ func (b *Service) Verify(ctx context.Context, lp string) (string, error) {
 
 // ShowProtocolSessions -
 // Retrieves detailed routing protocol information via birdc
-func (b *Service) ShowProtocolSessions(ctx context.Context, lp, pattern string) (string, error) {
+func (b *RoutingService) ShowProtocolSessions(ctx context.Context, lp, pattern string) (string, error) {
 	args := []string{
 		"show",
 		"protocols",
@@ -215,7 +218,7 @@ func (b *Service) ShowProtocolSessions(ctx context.Context, lp, pattern string) 
 
 // ShowProtocolSessions -
 // Retrieves information on the available BFD sessions (for the given BFD protocol name if any)
-func (b *Service) ShowBfdSessions(ctx context.Context, lp, name string) (string, error) {
+func (b *RoutingService) ShowBfdSessions(ctx context.Context, lp, name string) (string, error) {
 	args := []string{
 		"show",
 		"bfd",
