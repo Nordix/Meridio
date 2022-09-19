@@ -163,3 +163,14 @@ periodSeconds: 10
 timeoutSeconds: 3
 failureThreshold: 5
 {{- end -}}
+
+{{- define "meridio.bgpAuth" -}}
+{{- if .component.bgpAuth -}}
+{{- if .component.bgpAuth.bgpAuthKey -}}
+{{- if .component.bgpAuth.bgpAuthKeySource -}}
+key: {{ .component.bgpAuth.bgpAuthKey }}
+source: {{ .component.bgpAuth.bgpAuthKeySource }}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
