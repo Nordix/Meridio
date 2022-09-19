@@ -74,6 +74,8 @@ data:
       bfd: {{ .bfd }}
       protocol: {{ .protocol }}
       trench: {{ $.Values.trench.name }}
+      bgp-auth:
+{{ include "meridio.bgpAuth" (dict "component" .) | indent 8}}
     {{- end }} 
 ---
 apiVersion: v1
