@@ -28,11 +28,11 @@ import (
 )
 
 const (
-	SAName                = "meridio-sa"
 	ResourceNamePrefixEnv = "RESOURCE_NAME_PREFIX"
 	ImagePullSecretEnv    = "IMAGE_PULL_SECRET"
 	NSMRegistryServiceEnv = "NSM_REGISTRY_SERVICE"
 	LogLevelEnv           = "LOG_LEVEL"
+	NspServiceAccountEnv  = "NSP_SERVICE_ACCOUNT"
 
 	Registry        = "registry.nordix.org"
 	Organization    = "cloud-native/meridio"
@@ -63,8 +63,7 @@ const (
 	IpamName                = "ipam"
 	NseName                 = "nse-vlan"
 	NspName                 = "nsp"
-	RlName                  = "meridio-configuration-role"
-	RBName                  = "meridio-configuration-role-binding"
+	NspServiceAccountName   = "meridio-sa"
 	CMName                  = "meridio-configuration"
 
 	NetworkServiceName = "external-vlan"
@@ -73,8 +72,8 @@ const (
 	ResourceRequirementTemplatePath = "template/resource"
 )
 
-func ServiceAccountName(trench *meridiov1alpha1.Trench) string {
-	return GetSuffixedName(SAName, trench.ObjectMeta.Name)
+func NSPServiceAccountName() string {
+	return os.Getenv(NspServiceAccountEnv)
 }
 
 func IPAMServiceName(trench *meridiov1alpha1.Trench) string {
@@ -107,14 +106,6 @@ func NSEDeploymentName(attractor *meridiov1alpha1.Attractor) string {
 
 func NSPStatefulSetName(trench *meridiov1alpha1.Trench) string {
 	return GetSuffixedName(NspName, trench.ObjectMeta.Name)
-}
-
-func RoleName(trench *meridiov1alpha1.Trench) string {
-	return GetSuffixedName(RlName, trench.ObjectMeta.Name)
-}
-
-func RoleBindingName(trench *meridiov1alpha1.Trench) string {
-	return GetSuffixedName(RBName, trench.ObjectMeta.Name)
 }
 
 func ConfigMapName(trench *meridiov1alpha1.Trench) string {

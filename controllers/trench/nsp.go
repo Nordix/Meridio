@@ -72,7 +72,7 @@ func (i *NspStatefulSet) insertParameters(init *appsv1.StatefulSet) *appsv1.Stat
 	ret.Spec.Selector.MatchLabels["app"] = nspStatefulSetName
 	ret.Spec.ServiceName = nspStatefulSetName
 	ret.Spec.Template.ObjectMeta.Labels["app"] = nspStatefulSetName
-	ret.Spec.Template.Spec.ServiceAccountName = common.ServiceAccountName(i.trench)
+	ret.Spec.Template.Spec.ServiceAccountName = common.NSPServiceAccountName()
 
 	imagePullSecrets := common.GetImagePullSecrets()
 	if len(imagePullSecrets) > 0 {
