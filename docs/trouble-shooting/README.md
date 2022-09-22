@@ -113,30 +113,26 @@ look for. So it is important to check logs in a healthy system quite
 closely, what is logged on setup for instance. Check logs with;
 
 ```
-# kubectl logs -n red -c load-balancer meridio-load-balancer-5785674d6-46qjc
+# kubectl logs -n red -c load-balancer meridio-load-balancer-5785674d6-46qjc | jq
 ...
 ```
 
 For PODs with multiple containers you must specify the container with
 the `-c` option.
 
+Meridio uses [structured logging](../logging.md) so logs are printed
+in `json` format. The [jq](https://stedolan.github.io/jq/) program can
+be used for formatting and filter. NSM [cannot be configured](
+https://github.com/networkservicemesh/sdk/pull/1348) for structured
+logging so unformatted log records may still be emitted.
+
 
 ### Log levels
 
-Meridio uses [logrus](https://github.com/sirupsen/logrus) for logging.
-The logrus log levels are;
-
-* `PANIC`
-* `FATAL`
-* `ERROR`
-* `WARN`, `WARNING`
-* `INFO` - default
-* `DEBUG`
-* `TRACE` - *very* verbose
-
-
-The log level for a container is specified with an environment variable
-in the manifest. Example;
+True to the concepts of [logr](https://github.com/go-logr/logr) you
+can only set `DEBUG` and `TRACE` levels.  The log level for a
+container is specified with an environment variable in the
+manifest. Example;
 
 ```
           env:
