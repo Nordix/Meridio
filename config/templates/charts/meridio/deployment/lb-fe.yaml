@@ -34,6 +34,7 @@ spec:
                     values:
                       - "lb-fe"
               topologyKey: kubernetes.io/hostname
+      serviceAccountName:  # to be filled by operator
       initContainers:
         - name: sysctl-init
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.sysctlInit.image }}:{{ .Values.sysctlInit.version }}
@@ -44,7 +45,6 @@ spec:
           args:  # to be filled by operator according to trench
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
-      automountServiceAccountToken: false
       containers:
         - name: load-balancer
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.loadBalancer.image }}:{{ .Values.version }}

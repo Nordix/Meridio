@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/faisal-memon/sviddisk v0.0.0-20211007205134-77ccea0b9271
 	github.com/go-logr/logr v1.2.3
-	github.com/nordix/meridio v0.8.0
+	github.com/nordix/meridio v0.8.1-0.20220919155640-275784fb7603
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.20.1
 	github.com/spiffe/go-spiffe/v2 v2.1.1
@@ -35,7 +35,7 @@ require (
 	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
-	github.com/go-logr/zapr v1.2.0 // indirect
+	github.com/go-logr/zapr v1.2.3 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.19.5 // indirect
 	github.com/go-openapi/swag v0.19.14 // indirect
@@ -65,7 +65,7 @@ require (
 	github.com/zeebo/errs v1.2.2 // indirect
 	go.uber.org/atomic v1.8.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
-	go.uber.org/zap v1.19.1 // indirect
+	go.uber.org/zap v1.23.0 // indirect
 	golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd // indirect
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
 	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261 // indirect

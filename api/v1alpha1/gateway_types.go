@@ -72,6 +72,10 @@ type BgpSpec struct {
 	// BGP listening port of the Attractor FrontEnds.
 	// +optional
 	LocalPort *uint16 `json:"local-port,omitempty"`
+
+	// BGP authentication (RFC2385).
+	// +optional
+	Auth *BgpAuth `json:"auth,omitempty"`
 }
 
 // StaticSpec defines the parameters to set up static routes
@@ -108,6 +112,26 @@ type BfdSpec struct {
 	// When this number of bfd packets failed to receive, bfd session will go down.
 	// +optional
 	Multiplier *uint16 `json:"multiplier,omitempty"`
+}
+
+// BgpAuth defines the parameters to configure BGP authentication
+type BgpAuth struct {
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern=`^[A-Za-z0-9\.-_]+`
+
+	// Name of the BGP authentication key, used internally as a reference.
+	// KeyName is a key in the data section of a Secret. The associated value in
+	// the Secret is the password (pre-shared key) to be used for authentication.
+	// Must consist of alphanumeric characters, ".", "-" or "_".
+	KeyName string `json:"key-name,omitempty"`
+
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern=`^[A-Za-z0-9](?:[A-Za-z0-9-\.]{0,61}?[A-Za-z0-9])?$`
+
+	// Name of the kubernetes Secret containing the password (pre-shared key)
+	// that can be looked up based on KeyName.
+	// Must be a valid  DNS subdomain name.
+	KeySource string `json:"key-source,omitempty"`
 }
 
 // GatewayStatus defines the observed state of Gateway

@@ -57,6 +57,24 @@ spec:
                   is bgp, the minimal parameters to be defined in bgp properties are
                   RemoteASN and LocalASN
                 properties:
+                  auth:
+                    description: BGP authentication (RFC2385).
+                    properties:
+                      key-name:
+                        description: Name of the BGP authentication key, used internally
+                          as a reference. KeyName is a key in the data section of
+                          a Secret. The associated value in the Secret is the password
+                          (pre-shared key) to be used for authentication. Must consist
+                          of alphanumeric characters, ".", "-" or "_".
+                        pattern: ^[A-Za-z0-9\.-_]+
+                        type: string
+                      key-source:
+                        description: Name of the kubernetes Secret containing the
+                          password (pre-shared key) that can be looked up based on
+                          KeyName. Must be a valid  DNS subdomain name.
+                        pattern: ^[A-Za-z0-9](?:[A-Za-z0-9-\.]{0,61}?[A-Za-z0-9])?$
+                        type: string
+                    type: object
                   bfd:
                     description: BFD monitoring of BGP session.
                     properties:

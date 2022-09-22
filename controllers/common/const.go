@@ -33,6 +33,7 @@ const (
 	NSMRegistryServiceEnv = "NSM_REGISTRY_SERVICE"
 	LogLevelEnv           = "LOG_LEVEL"
 	NspServiceAccountEnv  = "NSP_SERVICE_ACCOUNT"
+	FeServiceAccountEnv   = "FE_SERVICE_ACCOUNT"
 
 	Registry        = "registry.nordix.org"
 	Organization    = "cloud-native/meridio"
@@ -74,6 +75,10 @@ const (
 
 func NSPServiceAccountName() string {
 	return os.Getenv(NspServiceAccountEnv)
+}
+
+func FEServiceAccountName() string {
+	return os.Getenv(FeServiceAccountEnv)
 }
 
 func IPAMServiceName(trench *meridiov1alpha1.Trench) string {

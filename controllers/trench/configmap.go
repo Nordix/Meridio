@@ -248,6 +248,12 @@ func (c *ConfigMap) getGatewaysData() ([]byte, error) {
 				cmGw.RemotePort = *gw.Spec.Bgp.RemotePort
 				cmGw.LocalPort = *gw.Spec.Bgp.LocalPort
 				cmGw.HoldTime = ht
+				if gw.Spec.Bgp.Auth != nil {
+					cmGw.BGPAuth = &reader.BgpAuth{
+						KeyName:   gw.Spec.Bgp.Auth.KeyName,
+						KeySource: gw.Spec.Bgp.Auth.KeySource,
+					}
+				}
 
 				cmGw.BFD, cmGw.MinRx, cmGw.MinTx, cmGw.Multiplier = writBfdInGateway(gw.Spec.Bgp.BFD)
 
