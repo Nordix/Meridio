@@ -14,9 +14,12 @@ generatorOptions:
   disableNameSuffixHash: true
 
 configMapGenerator:
-- files:
-  - controller_manager_config.yaml
-  name: manager-config
+# The patch to use this controller_manager_config.yaml was commented before (now it is completely removed).
+# So this file is probably not needed.
+# https://github.com/Nordix/Meridio-Operator/blob/e9676d18ad2d4baaf0788ec15596cdcbc41cfcb8/config/default/kustomization.yaml#L35
+# - files:
+#   - controller_manager_config.yaml
+#   name: manager-config
 - files:
   - resource_requirements/stateless-lb
   - resource_requirements/nsc
