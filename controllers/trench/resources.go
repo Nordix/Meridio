@@ -30,9 +30,6 @@ type Resources interface {
 type Meridio struct {
 	ipamStatefulSet *IpamStatefulSet
 	ipamService     *IpamService
-	serviceAccount  *ServiceAccount
-	role            *Role
-	roleBinding     *RoleBinding
 	nspStatefulSet  *NspStatefulSet
 	nspService      *NspService
 	configmap       *ConfigMap
@@ -44,18 +41,6 @@ func NewMeridio(e *common.Executor, trench *meridiov1alpha1.Trench) (*Meridio, e
 		return nil, err
 	}
 	ipam, err := NewIPAM(e, trench)
-	if err != nil {
-		return nil, err
-	}
-	sa, err := NewServiceAccount(e, trench)
-	if err != nil {
-		return nil, err
-	}
-	role, err := NewRole(e, trench)
-	if err != nil {
-		return nil, err
-	}
-	rb, err := NewRoleBinding(e, trench)
 	if err != nil {
 		return nil, err
 	}
@@ -71,9 +56,6 @@ func NewMeridio(e *common.Executor, trench *meridiov1alpha1.Trench) (*Meridio, e
 	return &Meridio{
 		ipamStatefulSet: ipam,
 		ipamService:     ipamsvc,
-		serviceAccount:  sa,
-		role:            role,
-		roleBinding:     rb,
 		nspStatefulSet:  nspd,
 		nspService:      nsps,
 		configmap:       cfg,
@@ -82,9 +64,6 @@ func NewMeridio(e *common.Executor, trench *meridiov1alpha1.Trench) (*Meridio, e
 
 func (m Meridio) ReconcileAll() error {
 	resources := []Resources{
-		m.serviceAccount,
-		m.role,
-		m.roleBinding,
 		m.nspStatefulSet,
 		m.nspService,
 		m.ipamStatefulSet,
