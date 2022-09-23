@@ -109,7 +109,7 @@ func (db *Database) End(ctx context.Context, namespace, name string) {
 
 	db.rm.Lock()
 	if _, ok = db.storage[dbKey]; ok {
-		db.storage[dbKey] = nil
+		delete(db.storage, dbKey)
 	}
 	db.rm.Unlock()
 
@@ -145,7 +145,7 @@ func (db *Database) delete(secret *corev1.Secret) {
 
 	db.rm.Lock()
 	if _, ok = db.storage[dbKey]; ok {
-		db.storage[dbKey] = nil
+		delete(db.storage, dbKey)
 	}
 	db.rm.Unlock()
 
