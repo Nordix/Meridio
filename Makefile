@@ -85,7 +85,7 @@ help: ## Display this help.
 ##@ Development
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=operator-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -153,7 +153,7 @@ configure-webhook:
 	ENABLE_MUTATING_WEBHOOK=$(ENABLE_MUTATING_WEBHOOK) WEBHOOK_SUPPORT=$(WEBHOOK_SUPPORT) hack/webhook-switch.sh
 
 deploy: manifests kustomize namespace configure-webhook set-templates-values ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image operator=${IMG}
+	cd config/operator && $(KUSTOMIZE) edit set image operator=${IMG}
 	$(KUSTOMIZE) build config/default --enable-helm | kubectl apply -f -
 
 undeploy: namespace configure-webhook ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
@@ -169,7 +169,7 @@ apply-samples: ## Undeploy controller from the K8s cluster specified in ~/.kube/
 	kubectl apply -f config/samples/meridio_v1alpha1_flow.yaml -n ${NAMESPACE}
 
 print-manifests: manifests kustomize namespace  configure-webhook ## Generate manifests to be deployed in the cluster
-	cd config/manager && $(KUSTOMIZE) edit set image operator=${IMG}
+	cd config/operator && $(KUSTOMIZE) edit set image operator=${IMG}
 	$(KUSTOMIZE) build config/default --enable-helm
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
@@ -201,7 +201,7 @@ endef
 .PHONY: bundle
 bundle: manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
 	operator-sdk generate kustomize manifests -q
-	cd config/manager && $(KUSTOMIZE) edit set image operator=$(IMG)
+	cd config/operator && $(KUSTOMIZE) edit set image operator=$(IMG)
 	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
 	operator-sdk bundle validate ./bundle
 

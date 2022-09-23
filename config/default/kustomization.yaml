@@ -1,7 +1,7 @@
 # Adds namespace to all resources.
 namespace: meridio-operator-system
 
-namePrefix: meridio-operator-
+namePrefix: meridio-
 
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -9,7 +9,7 @@ kind: Kustomization
 resources:
 - ../crd
 - ../rbac
-- ../manager
+- ../operator
 - ../spire # [SPIRE] To enable spire, you need to uncomment all the sections with [SPIRE], including config/manager/kustomization.yaml
 # - ../certmanager # [CERTMANAGER] To enable certmanager, you need to uncomment all the sections with [CERTMANAGER], including config/crd/kustomization.yaml and config/manager/kustomization.yaml
 #- ../prometheus

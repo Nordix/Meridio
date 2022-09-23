@@ -2,24 +2,24 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-- manager.yaml
+- operator.yaml
 - ../templates
 
 # - patches/manager_webhook_patch_certmanager.yaml # [CERTMANAGER] To enable cert-manager, you need to uncomment all the sections with [CERTMANAGER]
 patchesStrategicMerge:
-- patches/manager_webhook_patch_spire.yaml
-- patches/manager_resource_templates_patch.yaml
+- patches/operator_webhook_patch_spire.yaml
+- patches/operator_resource_templates_patch.yaml
 
 generatorOptions:
   disableNameSuffixHash: true
 
-configMapGenerator:
 # The patch to use this controller_manager_config.yaml was commented before (now it is completely removed).
 # So this file is probably not needed.
 # https://github.com/Nordix/Meridio-Operator/blob/e9676d18ad2d4baaf0788ec15596cdcbc41cfcb8/config/default/kustomization.yaml#L35
 # - files:
 #   - controller_manager_config.yaml
 #   name: manager-config
+configMapGenerator:
 - files:
   - resource_requirements/stateless-lb
   - resource_requirements/nsc
