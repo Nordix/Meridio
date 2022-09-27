@@ -139,3 +139,14 @@ min-tx | int |  | yes |
 min-rx | int |  | yes | 
 multiplier | int |  | yes | 
 trench | string | Name of the Trench the Gateway belongs to | yes | 
+bgp-auth | BgpAuth | Enables BGP authentication. | no | 
+
+#### BgpAuth
+
+Name | Type | Description | Required | Default
+--- | --- | --- | --- | ---
+source | string | Name of the kubernetes Secret object containing the pre-shard key to be used for BGP authentication. | yes|
+key | string | The key in the kubernetes Secret object's data section identifying the pre-shared key to be used for BGP authentication. | yes|
+
+Note: Adding the kubernetes Secret object is outside the scope of Meridio, but it must share the kubernetes namespace
+with the Trench.
