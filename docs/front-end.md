@@ -86,3 +86,4 @@ Sysctl: net.ipv4.conf.default.rp_filter=0 |
 NET_ADMIN | The frontend creates IP rules to handle outbound traffic from VIP sources. BIRD interacts with kernel routing tables.
 NET_BIND_SERVICE | Allows BIRD to bind to privileged ports depending on the config (for example to BGP port 173).
 NET_RAW | Allows BIRD to use the SO_BINDTODEVICE socket option.
+Kubernetes API | The Frontend watches Secrets taking part in BGP authentication.
