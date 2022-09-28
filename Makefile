@@ -51,7 +51,9 @@ PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 BUILD_DIR ?= build
 BUILD_STEPS ?= build tag push
 
-OUTPUT_DIR ?= _output/
+OUTPUT_DIR ?= _output
+
+SECURITY_SCAN_VOLUME ?= --volume /var/run/docker.sock:/var/run/docker.sock --volume $(HOME)/Library/Caches:/root/.cache/
 
 #############################################################################
 # Container: Build, tag, push
@@ -150,10 +152,9 @@ grype: ## Run grype scanner on images.
 
 .PHONY: grype-scan
 grype-scan: output-dir
-	docker run --rm \
-	--volume /var/run/docker.sock:/var/run/docker.sock \
+	docker run --rm $(SECURITY_SCAN_VOLUME) \
 	--name Grype anchore/grype:v0.47.0 \
-	$(REGISTRY)/$(IMAGE):$(VERSION) --add-cpes-if-none > $(OUTPUT_DIR)/grype_$(IMAGE)_$(VERSION).txt
+	$(REGISTRY)/$(IMAGE):$(VERSION) -o json --add-cpes-if-none > $(OUTPUT_DIR)/grype_$(IMAGE)_$(VERSION).json
 
 # https://github.com/aquasecurity/trivy
 .PHONY: trivy
@@ -162,14 +163,14 @@ trivy: ## Run trivy scanner on images.
 
 .PHONY: trivy-scan
 trivy-scan: output-dir
-	docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-    -v $(HOME)/Library/Caches:/root/.cache/ aquasec/trivy:0.31.3 image \
-	$(REGISTRY)/$(IMAGE):$(VERSION) > $(OUTPUT_DIR)/trivy_$(IMAGE)_$(VERSION).txt
+	docker run --rm $(SECURITY_SCAN_VOLUME) \
+	aquasec/trivy:0.31.3 image \
+	-f json $(REGISTRY)/$(IMAGE):$(VERSION) > $(OUTPUT_DIR)/trivy_$(IMAGE)_$(VERSION).json
 
 # https://github.com/sonatype-nexus-community/nancy
 .PHONY: nancy
-nancy: nancy-tool ## Run nancy scanner on dependencies.
-	go list -json -deps ./... | nancy sleuth
+nancy: nancy-tool output-dir ## Run nancy scanner on dependencies.
+	go list -json -deps ./... | nancy sleuth -o json-pretty > $(OUTPUT_DIR)/nancy.json || true
 	
 #############################################################################
 ##@ Code generation
