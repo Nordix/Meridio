@@ -39,6 +39,8 @@ NSM_NSP_SERVICE_NAME | string | IP (or domain) of the NSP Service | nsp-service
 NSM_NSP_SERVICE_PORT | int | port of the NSP Service | 7778
 NSM_IP_FAMILY | string | ip family | dualstack
 NSM_LOG_LEVEL | string | Log level | DEBUG
+NSM_PROFILING_ENABLED | bool | Enable profiling | false
+NSM_NFQUEUE_FANOUT | int | port of the profiling http server | 9995
 
 ## Command Line 
 

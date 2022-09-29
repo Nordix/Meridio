@@ -3,7 +3,7 @@
 <img src="docs/resources/Logo.svg" width="118" height="100">
 
 [![GitHub release](https://img.shields.io/github/release/nordix/meridio)](https://GitHub.com/nordix/meridio/releases/)
-[![Build Status](https://jenkins.nordix.org/job/nordix-nsm-meridio-ctraffic-verify-build-master/badge/icon)](https://jenkins.nordix.org/job/nordix-nsm-meridio-ctraffic-verify-build-master/)
+[![Build Status](https://jenkins.nordix.org/view/all/job/meridio-periodic/badge/icon)](https://jenkins.nordix.org/view/all/job/meridio-periodic/)
 [![Go Reference](https://img.shields.io/badge/godoc-reference-blue)](https://pkg.go.dev/github.com/nordix/meridio)
 [![go.mod version](https://img.shields.io/github/go-mod/go-version/nordix/meridio)](https://github.com/nordix/meridio)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nordix/meridio)](https://goreportcard.com/report/github.com/nordix/meridio)

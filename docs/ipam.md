@@ -49,6 +49,8 @@ IPAM_CONDUIT_PREFIX_LENGTH_IPV6 | int | Conduit prefix length which will be allo
 IPAM_NODE_PREFIX_LENGTH_IPV6 | int | node prefix length which will be allocated | 64
 IPAM_IP_FAMILY | string | IP family (ipv4, ipv6, dualstack) | dualstack
 IPAM_LOG_LEVEL | string | Log level (TRACE, DEBUG, INFO, WARNING, ERROR, FATAL, PANIC) | DEBUG
+NSM_PROFILING_ENABLED | bool | Enable profiling | false
+NSM_NFQUEUE_FANOUT | int | port of the profiling http server | 9995
 
 ## Command Line 
 

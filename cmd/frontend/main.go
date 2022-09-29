@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -37,6 +38,7 @@ import (
 	"github.com/nordix/meridio/cmd/frontend/internal/frontend"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/health/connection"
+	"github.com/nordix/meridio/pkg/profiling"
 	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/security/credentials"
 )
@@ -96,6 +98,17 @@ func main() {
 		syscall.SIGQUIT,
 	)
 	defer cancel()
+
+	if config.ProfilingEnabled {
+		go func() {
+			mux := http.NewServeMux()
+			profiling.AddProfilerHandlers(mux)
+			err := http.ListenAndServe(fmt.Sprintf(":%d", config.ProfilingPort), mux)
+			if err != nil {
+				logrus.Errorf("err starting profiling: %v", err)
+			}
+		}()
+	}
 
 	// create and start health server
 	ctx = health.CreateChecker(ctx)

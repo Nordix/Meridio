@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -34,12 +35,12 @@ import (
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/nsp"
+	"github.com/nordix/meridio/pkg/profiling"
 
 	nsmlog "github.com/networkservicemesh/sdk/pkg/tools/log"
 	keepAliveRegistry "github.com/nordix/meridio/pkg/nsp/registry/keepalive"
 	sqliteRegistry "github.com/nordix/meridio/pkg/nsp/registry/sqlite"
 	"github.com/nordix/meridio/pkg/security/credentials"
-	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	grpcHealth "google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
@@ -85,10 +86,19 @@ func main() {
 	)
 	defer cancel()
 
+	if config.ProfilingEnabled {
+		go func() {
+			mux := http.NewServeMux()
+			profiling.AddProfilerHandlers(mux)
+			err := http.ListenAndServe(fmt.Sprintf(":%d", config.ProfilingPort), mux)
+			if err != nil {
+				logger.Error(err, "err starting profiling")
+			}
+		}()
+	}
+
 	if config.LogLevel == "TRACE" {
 		nsmlog.EnableTracing(true)
-		// Work-around for hard-coded logrus dependency in NSM
-		logrus.SetLevel(logrus.TraceLevel)
 	}
 	logger.Info("NSM trace", "enabled", nsmlog.IsTracingEnabled())
 	ctx = nsmlog.WithLog(ctx, log.NSMLogger(logger)) // allow NSM logs

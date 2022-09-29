@@ -53,6 +53,8 @@ NFE_NSP_SERVICE | string | IP (or domain) and port of the NSP Service | nsp-serv
 NFE_TRENCH_NAME | string | Name of the Trench the frontend is associated with | default
 NFE_ATTRACTOR_NAME | string | Name of the Attractor the frontend is associated with | default
 NFE_LOG_LEVEL | string | Log level | DEBUG
+NFE_PROFILING_ENABLED | bool | Enable profiling | false
+NFE_NFQUEUE_FANOUT | int | port of the profiling http server | 9996
 
 ## Command Line 
 

@@ -8,6 +8,8 @@ pullPolicy: IfNotPresent
 maxTokenLifetime: 10m
 fsGroup: 3000
 
+profilingEnabled: false
+
 nsm:
   namespace: nsm
   registryService: nsm-registry-svc

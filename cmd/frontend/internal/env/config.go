@@ -39,4 +39,7 @@ type Config struct {
 	AttractorName         string        `default:"default" desc:"Name of the Attractor the frontend is associated with" split_words:"true"`
 	LogLevel              string        `default:"DEBUG" desc:"Log level" split_words:"true"`
 	NSPEntryTimeout       time.Duration `default:"30s" desc:"Timeout of the entries" envconfig:"nsp_entry_timeout"`
+
+	ProfilingEnabled bool `default:"false" desc:"enable profiling" split_words:"true"`
+	ProfilingPort    int  `default:"9996" desc:"port of the profiling http server" split_words:"true"`
 }

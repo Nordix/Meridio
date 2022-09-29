@@ -39,6 +39,9 @@ type Config struct {
 	LogLevel         string        `default:"DEBUG" desc:"Log level" split_words:"true"`
 	Nfqueue          string        `default:"0:3" desc:"netfilter queue(s) to be used by nfqlb" split_words:"true"`
 	NfqueueFanout    bool          `default:"false" desc:"enable fanout nfqueue option" split_words:"true"`
+
+	ProfilingEnabled bool `default:"false" desc:"enable profiling" split_words:"true"`
+	ProfilingPort    int  `default:"9995" desc:"port of the profiling http server" split_words:"true"`
 }
 
 // IsValid checks if the configuration is valid
