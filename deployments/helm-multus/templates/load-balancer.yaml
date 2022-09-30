@@ -1,0 +1,185 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: load-balancer-{{ .Values.trench.name }}
+  labels:
+    app: load-balancer-{{ .Values.trench.name }}
+spec:
+  selector:
+    matchLabels:
+      app: load-balancer-{{ .Values.trench.name }}
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: load-balancer-{{ .Values.trench.name }}
+        "spiffe.io/spiffe-id": "true"
+      annotations:
+        k8s.v1.cni.cncf.io/networks: '[
+         { "name" : "meridio-{{ .Values.vlan.id }}",
+           "namespace": "default",
+           "interface": "ext-vlan.{{ .Values.vlan.id }}" }
+        ]'
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - "load-balancer-{{ .Values.trench.name }}"
+            topologyKey: kubernetes.io/hostname
+      initContainers:
+        - name: sysctl-init
+          image: {{ .Values.registry }}/{{ .Values.organization }}/busybox:1.29
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: nsm-socket
+              mountPath: /var/lib/networkservicemesh
+              readOnly: false
+          command: ["/bin/sh"]
+          args:
+            - -c
+            - {{ template "meridio.loadBalancer.sysctls" . }}
+      serviceAccountName: {{ template "meridio.authServiceAccount" . }}
+      containers:
+        - name: load-balancer
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.loadBalancer.image }}:{{ .Values.loadBalancer.version }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          startupProbe:
+{{include "meridio.startupProbe" (dict "component" .Values.loadBalancer "root" $) | indent 12 }}
+          readinessProbe:
+{{include "meridio.readinessProbe" (dict "component" .Values.loadBalancer "root" $) | indent 12 }}
+          livenessProbe:
+{{include "meridio.livenessProbe" (dict "component" .Values.loadBalancer "root" $) | indent 12 }}
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NSM_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NSM_SERVICE_NAME
+              value: {{ template "meridio.loadBalancer.networkServiceName" . }}
+            - name: NSM_CONDUIT_NAME
+              value: {{ .Values.loadBalancer.networkServiceName }}
+            - name: NSM_TRENCH_NAME
+              value: {{ .Values.trench.name }}
+            - name: NSM_NSP_SERVICE
+              value: {{ template "meridio.nsp.serviceName" . }}:{{ .Values.nsp.targetPort }}
+            - name: NSM_MAX_TOKEN_LIFETIME
+              value: {{ .Values.maxTokenLifetime }}
+            - name: NSM_LOG_LEVEL
+              value: "DEBUG"
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: nsm-socket
+              mountPath: /var/lib/networkservicemesh
+              readOnly: false
+            - name: tmp-lb
+              mountPath: /tmp
+              readOnly: false
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+              - all
+              add:
+              - NET_ADMIN
+              - DAC_OVERRIDE
+              - IPC_LOCK
+              - IPC_OWNER
+              - NET_RAW
+              - SYS_PTRACE
+        - name: fe
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.frontEnd.image }}:{{ .Values.frontEnd.version }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          startupProbe:
+{{include "meridio.startupProbe" (dict "component" .Values.frontEnd "root" $) | indent 12 }}
+          livenessProbe:
+{{include "meridio.livenessProbe" (dict "component" .Values.frontEnd "root" $) | indent 12 }}
+          readinessProbe:
+{{include "meridio.readinessProbe" (dict "component" .Values.frontEnd "root" $) | indent 12 }}
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NFE_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NFE_LOG_BIRD
+              value: "true"
+            - name: NFE_ECMP
+              value: "true"
+            - name: NFE_EXTERNAL_INTERFACE
+              value: {{ template "meridio.vlan.extInterfaceName" . }}
+            - name: NFE_NSP_SERVICE
+              value: {{ template "meridio.nsp.serviceName" . }}:{{ .Values.nsp.targetPort }}
+            - name: NFE_CONFIG_MAP_NAME
+              value: {{ template "meridio.configuration" . }}
+            - name: NFE_TRENCH_NAME
+              value: {{ .Values.trench.name }}
+            - name: NFE_ATTRACTOR_NAME
+              value: "attractor-a"
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: tmp-fe
+              mountPath: /tmp
+              readOnly: false
+            - name: run
+              mountPath: /var/run/bird
+              readOnly: false
+            - name: etc
+              mountPath: /etc/bird
+              readOnly: false
+            - name: log
+              mountPath: /var/log
+              readOnly: false
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+              - all
+              add:
+              - NET_ADMIN
+              - NET_BIND_SERVICE
+              - NET_RAW
+              - DAC_OVERRIDE
+              - SYS_PTRACE
+      securityContext:
+        fsGroup: {{.Values.fsGroup }}
+        fsGroupChangePolicy: "OnRootMismatch"
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory
+        - name: nsm-socket
+          hostPath:
+            path: /var/lib/networkservicemesh
+            type: DirectoryOrCreate
+        - name: tmp-lb
+          emptyDir:
+            medium: Memory
+        - name: tmp-fe
+          emptyDir:
+            medium: Memory
+        - name: run
+          emptyDir:
+            medium: Memory
+        - name: etc
+          emptyDir:
+            medium: Memory
+        - name: log
+          emptyDir:
+            medium: Memory

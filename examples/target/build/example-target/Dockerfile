@@ -25,9 +25,9 @@ ARG USER
 ARG UID
 ARG HOME
 
-RUN apt-get update -y --fix-missing \
-  && apt-get install -y iproute2 tcpdump net-tools iputils-ping netcat wget screen xz-utils strace \
-  && setcap 'cap_sys_ptrace,cap_dac_override+ep' /usr/bin/ss \
+RUN apt-get update --fix-missing; true
+RUN apt-get install -y iproute2 tcpdump net-tools iputils-ping netcat wget screen xz-utils strace; true
+RUN setcap 'cap_sys_ptrace,cap_dac_override+ep' /usr/bin/ss \
   && setcap 'cap_sys_ptrace,cap_dac_override+ep' /usr/bin/netstat \
   && setcap 'cap_net_raw+ep' /usr/bin/ping \
   && setcap 'cap_net_raw+ep' /usr/bin/tcpdump \

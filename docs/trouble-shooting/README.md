@@ -171,7 +171,7 @@ but require the feature-gate `EphemeralContainers=true` in earlier versions.
 
 ```
 ns=red
-pod=meridio-load-balancer-5785674d6-w9jxd
+pod=$(kubectl get pods -n red -o name | grep load-balancer | sort | head -1)
 kubectl debug --container meridio-debug --image registry.nordix.org/cloud-native/meridio/debug:latest -n $ns $pod -it -- sh
 ```
 
@@ -188,7 +188,7 @@ container. Then you can reconnect later with;
 
 ```
 ns=red
-pod=meridio-load-balancer-5785674d6-557hj
+pod=$(kubectl get pods -n red -o name | grep load-balancer | sort | head -1)
 kubectl attach -n $ns $pod -c meridio-debug -it
 ```
 

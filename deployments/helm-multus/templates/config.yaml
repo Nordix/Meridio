@@ -1,0 +1,137 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "meridio.configuration" . }}
+data:
+  trench: |
+    name: {{ .Values.trench.name }}
+  conduits: |
+    items:
+    - name: {{ .Values.loadBalancer.networkServiceName }}
+      trench: {{ .Values.trench.name }}
+  streams: |
+    items:
+    - name: stream-a
+      conduit: {{ .Values.loadBalancer.networkServiceName }}
+    - name: stream-b
+      conduit: {{ .Values.loadBalancer.networkServiceName }}
+  flows: |
+    items:
+    - name: flow-a
+      vips:
+        - vip1
+        - vip2
+      source-subnets:
+        - 0.0.0.0/0
+        - 0:0:0:0:0:0:0:0/0
+      destination-port-ranges:
+        - 5000
+        - 4000
+      source-port-ranges:
+        - 1024-65535
+      protocols:
+        - tcp
+      stream: stream-a
+    - name: flow-b
+      vips:
+        - vip3
+      source-subnets:
+        - 0.0.0.0/0
+        - 0:0:0:0:0:0:0:0/0
+      destination-port-ranges:
+        - 5000
+        - 4000
+      source-port-ranges:
+        - 1024-65535
+      protocols:
+        - tcp
+      stream: stream-b
+  vips: |
+    items:
+    {{- range .Values.vips }}
+    - name: {{ .name }}
+      address: {{ .address }}
+      trench: {{ $.Values.trench.name }}
+    {{- end }}
+  attractors: |
+    items:
+    - name: {{ .Values.attractor.name }}
+      vips:
+        - vip1
+        - vip2
+        - vip3
+      gateways:
+        - gateway1
+        - gateway2
+      trench: {{ .Values.trench.name }}
+  gateways: |
+    items:
+    {{- range .Values.vlan.fe.gateways }}
+    - name: {{ .name }}
+      address: {{ .address }}
+      ip-family: {{ .ipFamily }}
+      bfd: {{ .bfd }}
+      protocol: {{ .protocol }}
+      trench: {{ $.Values.trench.name }}
+      bgp-auth:
+{{ include "meridio.bgpAuth" (dict "component" .) | indent 8}}
+    {{- end }} 
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ template "meridio.serviceAccount" . }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: meridio-configuration-role-{{ .Values.trench.name }}
+rules:
+- apiGroups: 
+  - ""
+  resources: 
+  - configmaps
+  verbs: 
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: meridio-configuration-role-binding-{{ .Values.trench.name }}
+subjects:
+- kind: ServiceAccount
+  name: {{ template "meridio.serviceAccount" . }}
+roleRef:
+  kind: Role
+  name: meridio-configuration-role-{{ .Values.trench.name }}
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ template "meridio.authServiceAccount" . }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: meridio-auth-configuration-role-{{ .Values.trench.name }}
+rules:
+- apiGroups: 
+  - ""
+  resources: 
+  - secrets
+  verbs: 
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: meridio-auth-configuration-role-binding-{{ .Values.trench.name }}
+subjects:
+- kind: ServiceAccount
+  name: {{ template "meridio.authServiceAccount" . }}
+roleRef:
+  kind: Role
+  name: meridio-auth-configuration-role-{{ .Values.trench.name }}
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,131 @@
+---
+
+registry: registry.nordix.org
+organization: cloud-native/meridio
+tag: latest
+pullPolicy: IfNotPresent
+
+maxTokenLifetime: 10m
+fsGroup: 3000
+
+nsm:
+  namespace: nsm
+  registryService: nsm-registry-svc
+  registryPort: 5002
+
+trench:
+  name: trench-a
+
+attractor:
+  name: attractor-a
+
+configuration:
+  configmap: meridio-configuration
+
+loadBalancer:
+  image: load-balancer
+  version: latest
+  networkServiceName: load-balancer
+  probe:
+    readiness:
+      service: "Readiness"
+
+frontEnd:
+  image: frontend
+  version: latest
+  probe:
+    readiness:
+      service: "Readiness"
+
+proxy:
+  image: proxy
+  version: latest
+  networkServiceName: proxy.load-balancer
+  probe:
+    readiness:
+      service: "Readiness"
+
+ctraffic:
+  image: ctraffic
+  version: latest
+
+ipam:
+  image: ipam
+  version: latest
+  port: 7777
+  targetPort: 7777
+  serviceName: ipam-service
+  probe:
+    readiness:
+      service: "Readiness"
+
+nsp:
+  image: nsp
+  version: latest
+  port: 7778
+  targetPort: 7778
+  serviceName: nsp-service
+  probe:
+    readiness:
+      service: ""
+      addr: :7778
+      spiffe: true
+
+ipFamily: ipv4  # ipv4 / ipv6 / dualstack
+
+vips:
+  - name: vip1
+    address: 20.0.0.1/32
+  - name: vip2
+    address: 2000::1/128
+  - name: vip3
+    address: 40.0.0.0/24
+
+subnetPool:
+  ipv4: 172.16.0.0/16
+  ipv6: fd00::/48
+  conduitPrefixLength:
+    ipv4: 20
+    ipv6: 56
+  nodePrefixLength:
+    ipv4: 24
+    ipv6: 64
+
+vlanNSE:
+  image: cmd-nse-remote-vlan
+  version: v1.5.0
+  probe:
+    addr: :5003
+    spiffe: true
+  userId: 10000
+
+vlanNSC:
+  image: cmd-nsc
+  version: v1.5.0
+  userId: 10000
+
+vlan:
+  networkServiceName: external-vlan
+  id: 100
+  interface: eth0
+  ipv4Prefix: 169.254.100.0/24
+  ipv6Prefix: 100:100::/64
+  fe:
+    gateways:
+      - name: gateway1
+        address: 169.254.100.150
+        ipFamily: ipv4
+        bfd: false
+        protocol: bgp
+      - name: gateway2
+        address: 100:100::150
+        ipFamily: ipv6
+        bfd: false
+        protocol: bgp
+    vrrp:
+#        - 169.254.100.252/24
+#        - fe80::beed/64
+
+probe:
+  addr: unix:///tmp/health.sock
+  service: ""
