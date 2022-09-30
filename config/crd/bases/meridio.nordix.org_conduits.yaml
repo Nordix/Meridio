@@ -44,6 +44,41 @@ spec:
           spec:
             description: ConduitSpec defines the desired state of Conduit
             properties:
+              destination-port-nats:
+                description: List of destination ports to NAT.
+                items:
+                  description: PortNatSpec defines the parameters to set up a destination
+                    port natting in the conduit
+                  properties:
+                    port:
+                      description: Destination Port exposed by the service (exposed
+                        in flows). Traffic containing this property will be NATted.
+                      type: integer
+                    protocol:
+                      description: Protocol exposed by the service (exposed in flows).
+                        Traffic containing this property will be NATted.
+                      enum:
+                      - tcp
+                      - udp
+                      - sctp
+                      type: string
+                    target-port:
+                      description: TargetPort represent the port the traffic will
+                        be NATted to. Targets will receive traffic on that port.
+                      type: integer
+                    vips:
+                      description: VIPs exposed by the service (exposed in flows).
+                        Traffic containing this property will be NATted.
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - port
+                  - protocol
+                  - target-port
+                  - vips
+                  type: object
+                type: array
               type:
                 default: stateless-lb
                 description: Type is the type of network service for this conduit

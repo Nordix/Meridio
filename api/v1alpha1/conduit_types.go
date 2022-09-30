@@ -25,13 +25,34 @@ import (
 type ConduitSpec struct {
 	// +kubebuilder:default=stateless-lb
 	// +kubebuilder:validation:Enum=stateless-lb
-
 	// Type is the type of network service for this conduit
 	Type string `json:"type"`
+
+	// List of destination ports to NAT.
+	DestinationPortNats []PortNatSpec `json:"destination-port-nats,omitempty"`
 }
 
 // ConduitStatus defines the observed state of Conduit
 type ConduitStatus struct {
+}
+
+// PortNatSpec defines the parameters to set up a destination port natting in the conduit
+type PortNatSpec struct {
+	// Destination Port exposed by the service (exposed in flows).
+	// Traffic containing this property will be NATted.
+	Port uint16 `json:"port"`
+
+	// TargetPort represent the port the traffic will be NATted to.
+	// Targets will receive traffic on that port.
+	TargetPort uint16 `json:"target-port"`
+
+	// VIPs exposed by the service (exposed in flows).
+	// Traffic containing this property will be NATted.
+	Vips []string `json:"vips"`
+
+	// Protocol exposed by the service (exposed in flows).
+	// Traffic containing this property will be NATted.
+	Protocol TransportProtocol `json:"protocol"`
 }
 
 //+kubebuilder:object:root=true

@@ -88,11 +88,57 @@ func (r *Conduit) validateConduit() error {
 	if r.Spec.Type == "" {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("spec").Child("type"), r.Spec.Type, "cannot be empty"))
 	}
+	err := r.validatePortNat()
+	if err != nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("spec").Child("destination-port-nats"), r.Spec.DestinationPortNats,
+			fmt.Sprintf("destination port nats: %s", err.Error())))
+	}
 	if len(allErrs) == 0 {
 		return nil
 	}
 
 	return apierrors.NewInvalid(r.GroupKind(), r.Name, allErrs)
+}
+
+func (r *Conduit) validatePortNat() error {
+	targetPortVipProtocolMap := map[string]int{}
+	portVipProtocolMap := map[string]int{}
+	portTargetPortProtocolMap := map[string]int{}
+	for i, pn := range r.Spec.DestinationPortNats {
+		portTargetPortProtocol := fmt.Sprintf("%d-%d-%s", pn.Port, pn.TargetPort, pn.Protocol)
+		index, exists := portTargetPortProtocolMap[portTargetPortProtocol]
+		if exists {
+			return fmt.Errorf("[%d] and [%d] must be merged", index, i)
+		}
+		portTargetPortProtocolMap[portTargetPortProtocol] = i
+		for _, vip := range pn.Vips {
+			targetPortVipProtocol := fmt.Sprintf("%d-%s-%s", pn.TargetPort, vip, pn.Protocol)
+			portVipProtocol := fmt.Sprintf("%d-%s-%s", pn.Port, vip, pn.Protocol)
+			index, exists := targetPortVipProtocolMap[targetPortVipProtocol]
+			if exists {
+				return portNatCollisionError(r.Spec.DestinationPortNats, index, i)
+			}
+			index, exists = targetPortVipProtocolMap[portVipProtocol]
+			if exists {
+				return portNatCollisionError(r.Spec.DestinationPortNats, index, i)
+			}
+			index, exists = portVipProtocolMap[targetPortVipProtocol]
+			if exists {
+				return portNatCollisionError(r.Spec.DestinationPortNats, index, i)
+			}
+			index, exists = portVipProtocolMap[portVipProtocol]
+			if exists {
+				return portNatCollisionError(r.Spec.DestinationPortNats, index, i)
+			}
+			targetPortVipProtocolMap[targetPortVipProtocol] = i
+			portVipProtocolMap[portVipProtocol] = i
+		}
+	}
+	return nil
+}
+
+func portNatCollisionError(destinationPortNats []PortNatSpec, indexA int, indexB int) error {
+	return fmt.Errorf("[%d] and [%d] are colliding", indexA, indexB)
 }
 
 func (r *Conduit) validateUpdate(oldObj runtime.Object) error {
