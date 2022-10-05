@@ -5,6 +5,10 @@ organization: cloud-native/meridio
 tag: latest
 pullPolicy: IfNotPresent
 
+meridio_seccomp:
+  enabled: true
+  profile: "profiles/seccomp-defaults.json"
+
 maxTokenLifetime: 10m
 fsGroup: 3000
 

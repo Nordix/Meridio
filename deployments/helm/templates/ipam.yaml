@@ -57,6 +57,11 @@ spec:
             - name: IPAM_IP_FAMILY
               value: "{{ .Values.ipFamily }}"
           securityContext:
+{{ if .Values.meridio_seccomp.enabled }}
+            seccompProfile:
+              type: Localhost
+              localhostProfile: {{ .Values.meridio_seccomp.profile }}
+{{ end }}
             runAsNonRoot: true
             readOnlyRootFilesystem: true
             capabilities:
