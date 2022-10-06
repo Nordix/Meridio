@@ -40,8 +40,8 @@ var _ = Describe("Scaling", func() {
 			replicas = numberOfTargetA
 			scale = &autoscalingv1.Scale{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      targetADeploymentName,
-					Namespace: namespace,
+					Name:      config.targetADeploymentName,
+					Namespace: config.k8sNamespace,
 				},
 				Spec: autoscalingv1.ScaleSpec{
 					Replicas: int32(replicas),
@@ -52,18 +52,18 @@ var _ = Describe("Scaling", func() {
 		JustBeforeEach(func() {
 			// scale
 			scale.Spec.Replicas = int32(replicas)
-			_, err := clientset.AppsV1().Deployments(namespace).UpdateScale(context.Background(), targetADeploymentName, scale, metav1.UpdateOptions{})
+			_, err := clientset.AppsV1().Deployments(config.k8sNamespace).UpdateScale(context.Background(), config.targetADeploymentName, scale, metav1.UpdateOptions{})
 			Expect(err).NotTo(HaveOccurred())
 			// wait for all targets to be in Running mode
 			Eventually(func() bool {
-				deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), targetADeploymentName, metav1.GetOptions{})
+				deployment, err := clientset.AppsV1().Deployments(config.k8sNamespace).Get(context.Background(), config.targetADeploymentName, metav1.GetOptions{})
 				if err != nil {
 					return false
 				}
 				listOptions := metav1.ListOptions{
-					LabelSelector: fmt.Sprintf("app=%s", targetADeploymentName),
+					LabelSelector: fmt.Sprintf("app=%s", config.targetADeploymentName),
 				}
-				pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
+				pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
 				if err != nil {
 					return false
 				}
@@ -71,13 +71,13 @@ var _ = Describe("Scaling", func() {
 			}, timeout, interval).Should(BeTrue())
 			// wait for all identifiers to be in NFQLB
 			listOptions := metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("app=%s", lbfeDeploymentName),
+				LabelSelector: fmt.Sprintf("app=%s", config.statelessLbFeDeploymentName),
 			}
-			pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
+			pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
 			Expect(err).NotTo(HaveOccurred())
 			Eventually(func() bool {
 				for _, pod := range pods.Items {
-					nfqlbOutput, err := utils.PodExec(&pod, "load-balancer", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", streamA1Name)})
+					nfqlbOutput, err := utils.PodExec(&pod, "load-balancer", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
 					Expect(err).NotTo(HaveOccurred())
 					if utils.ParseNFQLB(nfqlbOutput) != int(scale.Spec.Replicas) {
 						return false
@@ -90,18 +90,18 @@ var _ = Describe("Scaling", func() {
 		AfterEach(func() {
 			// scale
 			scale.Spec.Replicas = int32(numberOfTargetA)
-			_, err := clientset.AppsV1().Deployments(namespace).UpdateScale(context.Background(), targetADeploymentName, scale, metav1.UpdateOptions{})
+			_, err := clientset.AppsV1().Deployments(config.k8sNamespace).UpdateScale(context.Background(), config.targetADeploymentName, scale, metav1.UpdateOptions{})
 			Expect(err).NotTo(HaveOccurred())
 			// wait for all targets to be in Running mode
 			Eventually(func() bool {
-				deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), targetADeploymentName, metav1.GetOptions{})
+				deployment, err := clientset.AppsV1().Deployments(config.k8sNamespace).Get(context.Background(), config.targetADeploymentName, metav1.GetOptions{})
 				if err != nil {
 					return false
 				}
 				listOptions := metav1.ListOptions{
-					LabelSelector: fmt.Sprintf("app=%s", targetADeploymentName),
+					LabelSelector: fmt.Sprintf("app=%s", config.targetADeploymentName),
 				}
-				pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
+				pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
 				if err != nil {
 					return false
 				}
@@ -109,13 +109,13 @@ var _ = Describe("Scaling", func() {
 			}, timeout, interval).Should(BeTrue())
 			// wait for all identifiers to be in NFQLB
 			listOptions := metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("app=%s", lbfeDeploymentName),
+				LabelSelector: fmt.Sprintf("app=%s", config.statelessLbFeDeploymentName),
 			}
-			pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
+			pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
 			Expect(err).NotTo(HaveOccurred())
 			Eventually(func() bool {
 				for _, pod := range pods.Items {
-					nfqlbOutput, err := utils.PodExec(&pod, "load-balancer", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", streamA1Name)})
+					nfqlbOutput, err := utils.PodExec(&pod, "load-balancer", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
 					Expect(err).NotTo(HaveOccurred())
 					if utils.ParseNFQLB(nfqlbOutput) != int(scale.Spec.Replicas) {
 						return false
@@ -131,7 +131,7 @@ var _ = Describe("Scaling", func() {
 			})
 			It("should receive the traffic correctly", func() {
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
-				lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, tcpIPv4, "tcp")
+				lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
 				Expect(lostConnections).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(replicas))
 			})
@@ -143,7 +143,7 @@ var _ = Describe("Scaling", func() {
 			})
 			It("should receive the traffic correctly", func() {
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
-				lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, tcpIPv4, "tcp")
+				lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
 				Expect(lostConnections).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(replicas))
 			})

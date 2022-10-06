@@ -40,9 +40,9 @@ var _ = Describe("Target", func() {
 				return
 			}
 			listOptions := metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("app=%s", targetADeploymentName),
+				LabelSelector: fmt.Sprintf("app=%s", config.targetADeploymentName),
 			}
-			pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
+			pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(len(pods.Items)).To(BeNumerically(">", 0))
 			targetPod = &pods.Items[0]
@@ -54,7 +54,7 @@ var _ = Describe("Target", func() {
 			)
 
 			BeforeEach(func() {
-				_, err := utils.PodExec(targetPod, "example-target", []string{"./target-client", "close", "-t", trenchAName, "-c", conduitA1Name, "-s", streamA1Name})
+				_, err := utils.PodExec(targetPod, "example-target", []string{"./target-client", "close", "-t", config.trenchA, "-c", config.conduitA1, "-s", config.streamAI})
 				Expect(err).NotTo(HaveOccurred())
 				Eventually(func() bool {
 					targetWatchOutput, err := utils.PodExec(targetPod, "example-target", []string{"timeout", "--preserve-status", "0.5", "./target-client", "watch"})
@@ -65,13 +65,13 @@ var _ = Describe("Target", func() {
 			})
 
 			AfterEach(func() {
-				_, err = utils.PodExec(targetPod, "example-target", []string{"./target-client", "open", "-t", trenchAName, "-c", conduitA1Name, "-s", streamA1Name})
+				_, err = utils.PodExec(targetPod, "example-target", []string{"./target-client", "open", "-t", config.trenchA, "-c", config.conduitA1, "-s", config.streamAI})
 				Expect(err).NotTo(HaveOccurred())
 				Eventually(func() bool {
 					targetWatchOutput, err := utils.PodExec(targetPod, "example-target", []string{"timeout", "--preserve-status", "0.5", "./target-client", "watch"})
 					Expect(err).NotTo(HaveOccurred())
 					streamStatus := utils.ParseTargetWatch(targetWatchOutput)
-					if len(streamStatus) == 1 && streamStatus[0].Status == "OPEN" && streamStatus[0].Trench == trenchAName && streamStatus[0].Conduit == conduitA1Name && streamStatus[0].Stream == streamA1Name {
+					if len(streamStatus) == 1 && streamStatus[0].Status == "OPEN" && streamStatus[0].Trench == config.trenchA && streamStatus[0].Conduit == config.conduitA1 && streamStatus[0].Stream == config.streamAI {
 						return true
 					}
 					return false
@@ -80,7 +80,7 @@ var _ = Describe("Target", func() {
 
 			It("should receive traffic anymore", func() {
 				By("Checking the target has not receive traffic")
-				lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, tcpIPv4, "tcp")
+				lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
 				Expect(lostConnections).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA - 1))
 				_, exists := lastingConnections[targetPod.Name]

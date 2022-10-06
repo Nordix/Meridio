@@ -110,3 +110,7 @@ func getProtocolParameter(protocol string) string {
 	}
 	return ""
 }
+
+func VIPPort(vip string, port int) string {
+	return fmt.Sprintf("%s:%d", vip, port)
+}

@@ -40,9 +40,9 @@ var _ = Describe("MultiTrenches", func() {
 				return
 			}
 			listOptions := metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("app=%s", targetADeploymentName),
+				LabelSelector: fmt.Sprintf("app=%s", config.targetADeploymentName),
 			}
-			pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
+			pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(len(pods.Items)).To(BeNumerically(">", 0))
 			targetPod = &pods.Items[0]
@@ -62,11 +62,11 @@ var _ = Describe("MultiTrenches", func() {
 				trenchBDone := make(chan bool)
 				var trenchBErr error
 				go func() {
-					trenchALastingConns, trenchALostConns = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, tcpIPv4, "tcp")
+					trenchALastingConns, trenchALostConns = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
 					trenchADone <- true
 				}()
 				go func() {
-					trenchBLastingConns, trenchBLostConns = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchBName, namespace, tcpIPv4, "tcp")
+					trenchBLastingConns, trenchBLostConns = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
 					trenchBDone <- true
 				}()
 				<-trenchADone
@@ -85,15 +85,15 @@ var _ = Describe("MultiTrenches", func() {
 
 		When("a target disconnects from a trench and connect to another one", func() {
 			BeforeEach(func() {
-				_, err := utils.PodExec(targetPod, "example-target", []string{"./target-client", "close", "-t", trenchAName, "-c", conduitA1Name, "-s", streamA1Name})
+				_, err := utils.PodExec(targetPod, "example-target", []string{"./target-client", "close", "-t", config.trenchA, "-c", config.conduitA1, "-s", config.streamAI})
 				Expect(err).NotTo(HaveOccurred())
-				_, err = utils.PodExec(targetPod, "example-target", []string{"./target-client", "open", "-t", trenchBName, "-c", conduitB1Name, "-s", streamB1Name})
+				_, err = utils.PodExec(targetPod, "example-target", []string{"./target-client", "open", "-t", config.trenchB, "-c", config.conduitB1, "-s", config.streamBI})
 				Expect(err).NotTo(HaveOccurred())
 				Eventually(func() bool {
 					targetWatchOutput, err := utils.PodExec(targetPod, "example-target", []string{"timeout", "--preserve-status", "0.5", "./target-client", "watch"})
 					Expect(err).NotTo(HaveOccurred())
 					streamStatus := utils.ParseTargetWatch(targetWatchOutput)
-					if len(streamStatus) == 1 && streamStatus[0].Status == "OPEN" && streamStatus[0].Trench == trenchBName && streamStatus[0].Conduit == conduitB1Name && streamStatus[0].Stream == streamB1Name {
+					if len(streamStatus) == 1 && streamStatus[0].Status == "OPEN" && streamStatus[0].Trench == config.trenchB && streamStatus[0].Conduit == config.conduitB1 && streamStatus[0].Stream == config.streamBI {
 						return true
 					}
 					return false
@@ -101,15 +101,15 @@ var _ = Describe("MultiTrenches", func() {
 			})
 
 			AfterEach(func() {
-				_, err := utils.PodExec(targetPod, "example-target", []string{"./target-client", "close", "-t", trenchBName, "-c", conduitB1Name, "-s", streamB1Name})
+				_, err := utils.PodExec(targetPod, "example-target", []string{"./target-client", "close", "-t", config.trenchB, "-c", config.conduitB1, "-s", config.streamBI})
 				Expect(err).NotTo(HaveOccurred())
-				_, err = utils.PodExec(targetPod, "example-target", []string{"./target-client", "open", "-t", trenchAName, "-c", conduitA1Name, "-s", streamA1Name})
+				_, err = utils.PodExec(targetPod, "example-target", []string{"./target-client", "open", "-t", config.trenchA, "-c", config.conduitA1, "-s", config.streamAI})
 				Expect(err).NotTo(HaveOccurred())
 				Eventually(func() bool {
 					targetWatchOutput, err := utils.PodExec(targetPod, "example-target", []string{"timeout", "--preserve-status", "0.5", "./target-client", "watch"})
 					Expect(err).NotTo(HaveOccurred())
 					streamStatus := utils.ParseTargetWatch(targetWatchOutput)
-					if len(streamStatus) == 1 && streamStatus[0].Status == "OPEN" && streamStatus[0].Trench == trenchAName && streamStatus[0].Conduit == conduitA1Name && streamStatus[0].Stream == streamA1Name {
+					if len(streamStatus) == 1 && streamStatus[0].Status == "OPEN" && streamStatus[0].Trench == config.trenchA && streamStatus[0].Conduit == config.conduitA1 && streamStatus[0].Stream == config.streamAI {
 						return true
 					}
 					return false
@@ -118,12 +118,12 @@ var _ = Describe("MultiTrenches", func() {
 
 			It("should receive the traffic on the other trench", func() {
 				By("Verifying trench-a has only 3 targets")
-				lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, tcpIPv4, "tcp")
+				lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
 				Expect(lostConn).To(Equal(0))
 				Expect(len(lastingConn)).To(Equal(numberOfTargetA - 1))
 
 				By("Verifying trench-b has only 5 targets")
-				lastingConn, lostConn = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchBName, namespace, tcpIPv4, "tcp")
+				lastingConn, lostConn = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
 				Expect(lostConn).To(Equal(0))
 				Expect(len(lastingConn)).To(Equal(numberOfTargetB + 1))
 			})
