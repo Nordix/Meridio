@@ -6,7 +6,7 @@
 
 #### Initial Deployment
 
-The picture below shows the initial deployment that should be installed in a kubernetes cluster in order to execute the complete e2e test suite. Elements between `[]` are configurable via parameters, see the `Configuration` section.
+The picture below shows the initial deployment that should be installed in a kubernetes cluster in order to execute the complete e2e test suite in dualstack. With only IPv4, elements containing `v6` are not used, and with only IPv6, elements containing `v4` are not used. Elements between `[]` are configurable via parameters, see the `Configuration` section. 
 
 ![Initial-Deployment-E2E](resources/Initial-Deployment-E2E.svg)
 
@@ -40,7 +40,7 @@ The picture below shows the initial deployment that should be installed in a kub
 | vip-2-v6 | string | Address of the vip v6 number 2 |
 |  |  |  |
 | stateless-lb-fe-deployment-name | string | Name of stateless-lb-fe deployment in `trench-a` |
-<!-- TODO: | ip-family | string | IP Family | -->
+| ip-family | string | IP Family |
 
 For more details about each parameter, check the picture above in the `Initial Deployment` section.
 

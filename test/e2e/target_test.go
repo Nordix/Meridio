@@ -79,12 +79,22 @@ var _ = Describe("Target", func() {
 			})
 
 			It("should receive traffic anymore", func() {
-				By("Checking the target has not receive traffic")
-				lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
-				Expect(lostConnections).To(Equal(0))
-				Expect(len(lastingConnections)).To(Equal(numberOfTargetA - 1))
-				_, exists := lastingConnections[targetPod.Name]
-				Expect(exists).ToNot(BeTrue())
+				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
+					By("Checking the target has not receive ipv4 traffic")
+					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
+					Expect(lostConnections).To(Equal(0))
+					Expect(len(lastingConnections)).To(Equal(numberOfTargetA - 1))
+					_, exists := lastingConnections[targetPod.Name]
+					Expect(exists).ToNot(BeTrue())
+				}
+				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
+					By("Checking the target has not receive ipv6 traffic")
+					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0), "tcp")
+					Expect(lostConnections).To(Equal(0))
+					Expect(len(lastingConnections)).To(Equal(numberOfTargetA - 1))
+					_, exists := lastingConnections[targetPod.Name]
+					Expect(exists).ToNot(BeTrue())
+				}
 			})
 		})
 

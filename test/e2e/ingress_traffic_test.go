@@ -43,6 +43,9 @@ var _ = Describe("IngressTraffic", func() {
 				protocol = "tcp"
 			})
 			It("should receive the traffic correctly", func() {
+				if utils.IsIPv6(config.ipFamily) {
+					Skip("The test runs only IPv6")
+				}
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
 				Expect(lostConnections).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
@@ -55,6 +58,9 @@ var _ = Describe("IngressTraffic", func() {
 				protocol = "tcp"
 			})
 			It("should receive the traffic correctly", func() {
+				if utils.IsIPv4(config.ipFamily) {
+					Skip("The test runs only IPv4")
+				}
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
 				Expect(lostConnections).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
@@ -67,6 +73,9 @@ var _ = Describe("IngressTraffic", func() {
 				protocol = "udp"
 			})
 			It("should receive the traffic correctly", func() {
+				if utils.IsIPv6(config.ipFamily) {
+					Skip("The test runs only IPv6")
+				}
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
 				Expect(lostConnections).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
@@ -79,6 +88,9 @@ var _ = Describe("IngressTraffic", func() {
 				protocol = "udp"
 			})
 			It("should receive the traffic correctly", func() {
+				if utils.IsIPv4(config.ipFamily) {
+					Skip("The test runs only IPv4")
+				}
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
 				Expect(lostConnections).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))

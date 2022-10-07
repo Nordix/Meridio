@@ -70,6 +70,7 @@ type e2eTestConfiguration struct {
 	vip2V6                    string
 
 	statelessLbFeDeploymentName string
+	ipFamily                    string
 }
 
 const (
@@ -105,6 +106,7 @@ func init() {
 	flag.StringVar(&config.vip2V6, "vip-2-v6", "", "Address of the vip v6 number 2")
 
 	flag.StringVar(&config.statelessLbFeDeploymentName, "stateless-lb-fe-deployment-name", "", "Name of stateless-lb-fe deployment in trench-a")
+	flag.StringVar(&config.ipFamily, "ip-family", "", "IP Family")
 }
 
 func TestE2e(t *testing.T) {

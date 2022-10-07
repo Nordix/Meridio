@@ -49,10 +49,18 @@ var _ = Describe("Configuration", func() {
 			})
 
 			It("should receive the traffic correctly", func() {
-				By("Checking if all targets have receive traffic via the new VIP with no traffic interruption (no lost connection)")
-				lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip2V4, config.flowAZTcpDestinationPort0), "tcp")
-				Expect(lostConnections).To(Equal(0))
-				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
+				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
+					By("Checking if all targets have receive ipv4 traffic via the new VIP with no traffic interruption (no lost connection)")
+					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip2V4, config.flowAZTcpDestinationPort0), "tcp")
+					Expect(lostConnections).To(Equal(0))
+					Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
+				}
+				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
+					By("Checking if all targets have receive ipv6 traffic via the new VIP with no traffic interruption (no lost connection)")
+					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip2V6, config.flowAZTcpDestinationPort0), "tcp")
+					Expect(lostConnections).To(Equal(0))
+					Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
+				}
 			})
 		})
 

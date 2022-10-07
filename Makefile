@@ -29,7 +29,7 @@ LOCAL_VERSION ?= $(VERSION)
 
 # E2E tests
 E2E_FOCUS ?= ""
-E2E_PARAMETERS ?= $(shell cat ./test/e2e/environment/kind-helm/config.txt | tr '\n' ' ')
+E2E_PARAMETERS ?= $(shell cat ./test/e2e/environment/kind-helm/dualstack/config.txt | tr '\n' ' ')
 E2E_SEED ?= $(shell shuf -i 1-2147483647 -n1)
 
 # Contrainer Registry
