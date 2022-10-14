@@ -45,10 +45,6 @@ proxy:
     readiness:
       service: "Readiness"
 
-ctraffic:
-  image: ctraffic
-  version: latest
-
 ipam:
   image: ipam
   version: latest

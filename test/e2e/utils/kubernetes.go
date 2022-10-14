@@ -92,7 +92,7 @@ func PodExec(pod *corev1.Pod, container string, command []string) (string, error
 }
 
 func PodHasNetworkInterface(pod *corev1.Pod, container string, interfaceSubName string) (bool, error) {
-	interfaces, err := PodExec(pod, "ctraffic", []string{"ip", "-o", "link", "show"})
+	interfaces, err := PodExec(pod, "example-target", []string{"ip", "-o", "link", "show"})
 	if err != nil {
 		return false, err
 	}

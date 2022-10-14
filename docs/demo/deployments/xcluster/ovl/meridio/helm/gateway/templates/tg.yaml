@@ -57,8 +57,8 @@ spec:
             - -c
             - sysctl -w net.ipv4.fib_multipath_hash_policy=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1
   containers:
-        - name: ctraffic
-          image: {{ .Values.registry }}/{{ .Values.organization }}/ctraffic:latest
+        - name: example-target
+          image: {{ .Values.registry }}/{{ .Values.organization }}/example-target:latest
           imagePullPolicy: {{ .Values.pullPolicy }}
           securityContext:
             privileged: true

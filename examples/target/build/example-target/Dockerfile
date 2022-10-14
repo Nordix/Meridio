@@ -15,7 +15,9 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"' -o target-client ./test/applications/target-client
+WORKDIR /app/examples/target
+
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags '-extldflags "-static"' -o target-client ./cmd/target-client
 
 FROM ubuntu:22.04
 
@@ -45,7 +47,7 @@ ADD https://github.com/Nordix/mconnect/releases/download/v2.2.0/mconnect.xz mcon
 RUN unxz mconnect.xz \
   && chmod a+x mconnect
 
-COPY --from=build /app/target-client .
+COPY --from=build /app/examples/target/target-client .
 
 USER ${UID}:${UID}
 CMD ./ctraffic -server -address [::]:5000

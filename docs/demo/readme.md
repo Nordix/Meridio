@@ -39,7 +39,7 @@ helm install deployments/helm/ --generate-name --create-namespace --namespace re
 
 Install targets
 ```
-helm install examples/target/helm/ --generate-name --create-namespace --namespace red --set applicationName=target-a --set default.trench.name=trench-a
+helm install examples/target/deployments/helm/ --generate-name --create-namespace --namespace red --set applicationName=target-a --set default.trench.name=trench-a
 ```
 
 ### External host / External connectivity

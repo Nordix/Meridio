@@ -24,8 +24,8 @@ tapa:
   image: tapa
   version: latest
 
-ctraffic:
-  image: ctraffic
+exampleTarget:
+  image: example-target
   version: latest
 
 nsp:

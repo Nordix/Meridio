@@ -265,7 +265,7 @@ EOF
 
 Install targets connected to trench-a and conduit "load-balancer"
 ```
-helm install examples/target/helm/ --generate-name --namespace default --set applicationName=target-a --set default.trench.name=trench-a --set default.conduit.name=load-balancer
+helm install examples/target/deployments/helm/ --generate-name --namespace default --set applicationName=target-a --set default.trench.name=trench-a --set default.conduit.name=load-balancer
 ```
 
 ## Traffic

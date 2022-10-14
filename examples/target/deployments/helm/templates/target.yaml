@@ -17,8 +17,8 @@ spec:
         "spiffe.io/spiffe-id": "true"
     spec:
       containers:
-        - name: ctraffic
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ctraffic.image }}:{{ .Values.ctraffic.version }}
+        - name: example-target
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.exampleTarget.image }}:{{ .Values.exampleTarget.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           args:
             - ./target-client open -t {{ .Values.default.trench.name }} -c {{ .Values.default.conduit.name }} -s {{ .Values.default.stream.name }} ;
