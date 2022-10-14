@@ -1,7 +1,7 @@
 # Contributing
 
 List of projects:
-1. ctraffic
+1. example-target
 2. ipam
 3. stateless-lb
 4. nsp

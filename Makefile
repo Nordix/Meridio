@@ -13,7 +13,7 @@ help: ## Display this help.
 # Variables
 ############################################################################
 
-IMAGES ?= base-image stateless-lb proxy tapa ipam nsp ctraffic frontend
+IMAGES ?= base-image stateless-lb proxy tapa ipam nsp example-target frontend
 
 # Versions
 VERSION ?= latest
@@ -22,7 +22,7 @@ VERSION_PROXY ?= $(VERSION)
 VERSION_TAPA ?= $(VERSION)
 VERSION_IPAM ?= $(VERSION)
 VERSION_NSP ?= $(VERSION)
-VERSION_CTRAFFIC ?= $(VERSION)
+VERSION_EXAMPLE_TARGET ?= $(VERSION)
 VERSION_FRONTEND ?= $(VERSION)
 VERSION_BASE_IMAGE ?= $(VERSION)
 LOCAL_VERSION ?= $(VERSION)
@@ -101,9 +101,9 @@ ipam: ## Build the ipam.
 nsp: ## Build the nsp.
 	VERSION=$(VERSION_NSP) IMAGE=nsp $(MAKE) -s $(BUILD_STEPS)
 
-.PHONY: ctraffic
-ctraffic:
-	VERSION=$(VERSION_CTRAFFIC) BUILD_DIR=examples/target/build IMAGE=ctraffic $(MAKE) $(BUILD_STEPS)
+.PHONY: example-target
+example-target:
+	VERSION=$(VERSION_EXAMPLE_TARGET) BUILD_DIR=examples/target/build IMAGE=example-target $(MAKE) $(BUILD_STEPS)
 
 .PHONY: frontend
 frontend: ## Build the frontend.
