@@ -58,7 +58,7 @@ The picture below provides an overview of the communication within Meridio.
 
 For more details, please read the documentation of each component:
 * [table of contents](readme.md)
-    * [Load-Balancer](load-balancer.md)
+    * [Stateless Load-Balancer](stateless-load-balancer.md)
     * [Front-End](front-end.md)
     * [Proxy](proxy.md)
     * [Target Access Point Ambassador (TAPA)](tapa.md)

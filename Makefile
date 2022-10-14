@@ -13,11 +13,11 @@ help: ## Display this help.
 # Variables
 ############################################################################
 
-IMAGES ?= base-image load-balancer proxy tapa ipam nsp ctraffic frontend
+IMAGES ?= base-image stateless-lb proxy tapa ipam nsp ctraffic frontend
 
 # Versions
 VERSION ?= latest
-VERSION_LOAD_BALANCER ?= $(VERSION)
+VERSION_STATELESS_LB ?= $(VERSION)
 VERSION_PROXY ?= $(VERSION)
 VERSION_TAPA ?= $(VERSION)
 VERSION_IPAM ?= $(VERSION)
@@ -78,12 +78,12 @@ base-image: ## Build the base-image
 	VERSION=$(VERSION_BASE_IMAGE) IMAGE=base-image $(MAKE) -s $(BUILD_STEPS)
 
 .PHONY: debug-image
-debug-image: ## Build the debug-image
+debug-image: ## Build the debug-image.
 	docker build -t $(DEBUG_IMAGE) -f ./build/debug/Dockerfile .
 
-.PHONY: load-balancer
-load-balancer: ## Build the load-balancer.
-	VERSION=$(VERSION_LOAD_BALANCER) IMAGE=load-balancer $(MAKE) -s $(BUILD_STEPS)
+.PHONY: stateless-lb
+stateless-lb: ## Build the stateless-lb.
+	VERSION=$(VERSION_STATELESS_LB) IMAGE=stateless-lb $(MAKE) -s $(BUILD_STEPS)
 
 .PHONY: proxy
 proxy: ## Build the proxy.

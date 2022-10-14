@@ -15,7 +15,7 @@ COPY go.sum .
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-extldflags -static -X main.version=${meridio_version}" -o load-balancer ./cmd/load-balancer
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-extldflags -static -X main.version=${meridio_version}" -o stateless-lb ./cmd/stateless-lb
 
 FROM ${base_image} as lb-builder
 WORKDIR /
@@ -31,10 +31,10 @@ RUN addgroup --gid $UID $USER \
   && adduser $USER --home $HOME --uid $UID -G $USER --disabled-password \
   && chown -R :root "${HOME}" && chmod -R g+s=u "${HOME}"
 WORKDIR $HOME
-COPY --from=build /app/load-balancer .
+COPY --from=build /app/stateless-lb .
 COPY --from=lb-builder /bin/nfqlb /bin/nfqlb
-RUN setcap 'cap_net_admin+ep' ./load-balancer \
+RUN setcap 'cap_net_admin+ep' ./stateless-lb \
   && chown root:root /bin/nfqlb && setcap 'cap_net_admin,cap_ipc_lock,cap_ipc_owner+ep' /bin/nfqlb \
   && setcap 'cap_net_admin+ep' /usr/sbin/nft
 USER ${UID}:${UID}
-CMD ["./load-balancer"]
+CMD ["./stateless-lb"]

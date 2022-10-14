@@ -3,7 +3,7 @@
 List of projects:
 1. ctraffic
 2. ipam
-3. load-balancer
+3. stateless-lb
 4. nsp
 5. proxy
 6. target

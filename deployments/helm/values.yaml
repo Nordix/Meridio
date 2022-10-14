@@ -23,7 +23,7 @@ configuration:
   configmap: meridio-configuration
 
 loadBalancer:
-  image: load-balancer
+  image: stateless-lb
   version: latest
   networkServiceName: load-balancer
   probe:

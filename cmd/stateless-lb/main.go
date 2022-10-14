@@ -67,8 +67,8 @@ const (
 
 func printHelp() {
 	fmt.Println(`
-load-balancer --
-  The load-balancer process in https://github.com/Nordix/Meridio
+stateless-lb --
+  The stateless-lb process in https://github.com/Nordix/Meridio
   sets up load-balancing using https://github.com/Nordix/nfqueue-loadbalancer.
   This program shall be started in a Kubernetes container.`)
 }

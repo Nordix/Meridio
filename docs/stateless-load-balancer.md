@@ -1,7 +1,7 @@
-# Load-balancer
+# Stateless Load-balancer
 
-* [cmd](https://github.com/Nordix/Meridio/tree/master/cmd/load-balancer)
-* [Dockerfile](https://github.com/Nordix/Meridio/tree/master/build/load-balancer)
+* [cmd](https://github.com/Nordix/Meridio/tree/master/cmd/stateless-lb)
+* [Dockerfile](https://github.com/Nordix/Meridio/tree/master/build/stateless-lb)
 
 ## Description
 
