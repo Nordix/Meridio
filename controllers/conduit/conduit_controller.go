@@ -84,7 +84,7 @@ func (r *ConduitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		// create/update lb-fe & nse-vlan deployment
+		// create/update stateless-lb-frontend & nse-vlan deployment
 		executor.SetOwner(conduit)
 
 		proxy, err := NewProxy(executor, trench, conduit)

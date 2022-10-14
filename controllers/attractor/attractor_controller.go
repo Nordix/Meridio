@@ -72,7 +72,7 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	if trench != nil {
 		// update attractor
 		executor.SetOwnerReference(attr, trench)
-		// create/update lb-fe & nse-vlan deployment
+		// create/update stateless-lb-frontend & nse-vlan deployment
 		executor.SetOwner(attr)
 
 		nse, err := NewNSE(executor, attr, trench)

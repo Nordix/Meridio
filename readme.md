@@ -93,7 +93,7 @@ deployment.apps/nsp-trench-a    1/1     1            1           1m
 
 ### Attractor
 
-An attractor resource is responsible for the creation of NSE-VLAN and LB-FE. The resources created will be suffixed with either attractor or trench's name.
+An attractor resource is responsible for the creation of NSE-VLAN and stateless-lb-frontend. The resources created will be suffixed with either attractor or trench's name.
 
 To be noted, meridio-operator currently have a limitation to have one attractor each trench.
 
@@ -111,11 +111,11 @@ kubectl apply -f ./config/samples/meridio_v1alpha1_attractor.yaml
 
 $ kubectl get all
 NAME                                  READY   STATUS    RESTARTS   AGE
-pod/lb-fe-attr-1-57c865cf4c-mzwpj     3/3     Running   0          5s
+pod/stateless-lb-frontend-attr-1-57c865cf4c-mzwpj     3/3     Running   0          5s
 pod/nse-vlan-attr1-7844574dc-dlgkr    1/1     Running   0          5s
 
 NAME                             READY   UP-TO-DATE   AVAILABLE   AGE
-deployment.apps/lb-fe-attr-1     1/1     1            1           5s
+deployment.apps/stateless-lb-frontend-attr-1     1/1     1            1           5s
 deployment.apps/nse-vlan-attr1   1/1     1            1           5s
 
 $ kubectl get attractor
