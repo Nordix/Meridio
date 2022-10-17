@@ -1,4 +1,5 @@
-FROM ubuntu:21.04
+FROM ubuntu:22.04
+
 
 RUN apt-get update -y --fix-missing\
   && apt-get install -y iproute2 tcpdump iptables net-tools iputils-ping ipvsadm netcat wget bird2 ethtool conntrack xz-utils
@@ -17,7 +18,9 @@ RUN unxz mconnect.xz \
   && mkdir -p /etc/bird/ \
   && mkdir -p /run/bird
 
-COPY docs/demo/scripts/kind/bird/bird-common.conf /etc/bird/
-COPY docs/demo/scripts/kind/bird/bird-gw.conf /etc/bird/
+ARG BIRD_CONFIG_PATH=docs/demo/scripts/kind/bird
+
+COPY $BIRD_CONFIG_PATH/bird-common.conf /etc/bird/
+COPY $BIRD_CONFIG_PATH/bird-gw.conf /etc/bird/
 
 CMD sleep 5 ; /usr/sbin/bird -d -c /etc/bird/bird-gw.conf
