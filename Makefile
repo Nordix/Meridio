@@ -29,9 +29,8 @@ LOCAL_VERSION ?= $(VERSION)
 
 # E2E tests
 E2E_FOCUS ?= ""
-TRAFFIC_GENERATOR_CMD ?= "docker exec -i {trench}"
-NAMESPACE ?= red
-E2E_SCRIPT ?= "./data/kind/test.sh"
+E2E_PARAMETERS ?= $(shell cat ./test/e2e/environment/kind-helm/dualstack/config.txt | tr '\n' ' ')
+E2E_SEED ?= $(shell shuf -i 1-2147483647 -n1)
 
 # Contrainer Registry
 REGISTRY ?= localhost:5000/meridio
@@ -119,15 +118,7 @@ lint: golangci-lint ## Run linter against code.
 
 .PHONY: e2e
 e2e: ginkgo ## Run the E2E tests.
-	ginkgo -v --focus=$(E2E_FOCUS) --repeat=0 --timeout=1h ./test/e2e/... -- \
-		-traffic-generator-cmd=$(TRAFFIC_GENERATOR_CMD) \
-		-namespace=${NAMESPACE} \
-		-script=${E2E_SCRIPT} \
-		-conduit-a-1-name=load-balancer \
-		-conduit-b-1-name=load-balancer \
-		-stream-a-1-name=stream-a \
-		-stream-b-1-name=stream-a \
-		-lb-fe-deployment-name=load-balancer-trench-a
+	ginkgo -v --focus=$(E2E_FOCUS) --seed=$(E2E_SEED) --repeat=0 --timeout=1h ./test/e2e/... -- $(E2E_PARAMETERS)
 
 .PHONY: test
 test: ## Run the Unit tests.

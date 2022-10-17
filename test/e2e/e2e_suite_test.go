@@ -32,36 +32,46 @@ import (
 )
 
 var (
-	trafficGeneratorCMD string
-	namespace           string
-	script              string
-
-	trenchAName   string
-	trenchBName   string
-	conduitA1Name string
-	conduitB1Name string
-	streamA1Name  string
-	streamB1Name  string
-
-	tcpIPv4 string
-	tcpIPv6 string
-	udpIPv4 string
-	udpIPv6 string
-
-	newTCPVIP string
-
-	lbfeDeploymentName string
-
-	targetADeploymentName string
-	numberOfTargetA       int
-	targetBDeploymentName string
-	numberOfTargetB       int
-
 	clientset *kubernetes.Clientset
 
 	trafficGeneratorHost *utils.TrafficGeneratorHost
 	trafficGenerator     utils.TrafficGenerator
+
+	numberOfTargetA int
+	numberOfTargetB int
+
+	config *e2eTestConfiguration
 )
+
+type e2eTestConfiguration struct {
+	trafficGeneratorCMD string
+	script              string
+
+	k8sNamespace              string
+	targetADeploymentName     string
+	trenchA                   string
+	attractorA1               string
+	conduitA1                 string
+	streamAI                  string
+	streamAII                 string
+	flowAZTcp                 string
+	flowAZTcpDestinationPort0 int
+	flowAZUdp                 string
+	flowAZUdpDestinationPort0 int
+	flowAXTcp                 string
+	flowAXTcpDestinationPort0 int
+	vip1V4                    string
+	vip1V6                    string
+	targetBDeploymentName     string
+	trenchB                   string
+	conduitB1                 string
+	streamBI                  string
+	vip2V4                    string
+	vip2V6                    string
+
+	statelessLbFeDeploymentName string
+	ipFamily                    string
+}
 
 const (
 	timeout  = time.Minute * 3
@@ -69,23 +79,34 @@ const (
 )
 
 func init() {
-	flag.StringVar(&trafficGeneratorCMD, "traffic-generator-cmd", "docker exec -i {trench}", "Command to use to connect to the traffic generator. All occurences of '{trench}' will be replaced with the trench name.")
-	flag.StringVar(&namespace, "namespace", "red", "the namespace where expects operator to exist")
-	flag.StringVar(&script, "script", "./data/kind/test.sh", "path + script used by the e2e tests")
-	flag.StringVar(&trenchAName, "trench-a-name", "trench-a", "Name of trench-a (see e2e documentation diagram)")
-	flag.StringVar(&trenchBName, "trench-b-name", "trench-b", "Name of trench-b (see e2e documentation diagram)")
-	flag.StringVar(&conduitA1Name, "conduit-a-1-name", "conduit-a-1", "Name of conduit-a-1 (see e2e documentation diagram)")
-	flag.StringVar(&conduitB1Name, "conduit-b-1-name", "conduit-b-1", "Name of conduit-b-1 (see e2e documentation diagram)")
-	flag.StringVar(&streamA1Name, "stream-a-1-name", "stream-a-1", "Name of stream-a-1 (see e2e documentation diagram)")
-	flag.StringVar(&streamB1Name, "stream-b-1-name", "stream-b-1", "Name of stream-b-1 (see e2e documentation diagram)")
-	flag.StringVar(&lbfeDeploymentName, "lb-fe-deployment-name", "lb-fe-attractor-a-1", "Name of load-balancer deployment in trench-a")
-	flag.StringVar(&targetADeploymentName, "target-a-deployment-name", "target-a", "Name of target-a deployment in trench-a")
-	flag.StringVar(&targetBDeploymentName, "target-b-deployment-name", "target-b", "Name of target-b deployment in trench-b")
-	flag.StringVar(&tcpIPv4, "tcp-ipv4", "20.0.0.1:4000", "IP + Port used for testing IPv4 TCP")
-	flag.StringVar(&tcpIPv6, "tcp-ipv6", "[2000::1]:4000", "IP + Port used for testing IPv6 TCP")
-	flag.StringVar(&udpIPv4, "udp-ipv4", "20.0.0.1:4003", "IP + Port used for testing IPv4 UDP")
-	flag.StringVar(&udpIPv6, "udp-ipv6", "[2000::1]:4003", "IP + Port used for testing IPv6 UDP")
-	flag.StringVar(&newTCPVIP, "new-tcp-vip", "60.0.0.150:4000", "IP + Port used for testing a new VIP with TCP")
+	config = &e2eTestConfiguration{}
+	flag.StringVar(&config.trafficGeneratorCMD, "traffic-generator-cmd", "", "Command to use to connect to the traffic generator. All occurences of '{trench}' will be replaced with the trench name.")
+	flag.StringVar(&config.script, "script", "", "Path + script used by the e2e tests")
+
+	flag.StringVar(&config.k8sNamespace, "k8s-namespace", "", "Name of the namespace")
+	flag.StringVar(&config.targetADeploymentName, "target-a-deployment-name", "", "Name of the namespace")
+	flag.StringVar(&config.trenchA, "trench-a", "", "Name of the trench")
+	flag.StringVar(&config.attractorA1, "attractor-a-1", "", "Name of the attractor")
+	flag.StringVar(&config.conduitA1, "conduit-a-1", "", "Name of the conduit")
+	flag.StringVar(&config.streamAI, "stream-a-I", "", "Name of the stream")
+	flag.StringVar(&config.streamAII, "stream-a-II", "", "Name of the stream")
+	flag.StringVar(&config.flowAZTcp, "flow-a-z-tcp", "", "Name of the flow")
+	flag.IntVar(&config.flowAZTcpDestinationPort0, "flow-a-z-tcp-destination-port-0", 4000, "Destination port 0")
+	flag.StringVar(&config.flowAZUdp, "flow-a-z-udp", "", "Name of the flow")
+	flag.IntVar(&config.flowAZUdpDestinationPort0, "flow-a-z-udp-destination-port-0", 4000, "Destination port 0")
+	flag.StringVar(&config.flowAXTcp, "flow-a-x-tcp", "", "Name of the flow")
+	flag.IntVar(&config.flowAXTcpDestinationPort0, "flow-a-x-tcp-destination-port-0", 4000, "Destination port 0")
+	flag.StringVar(&config.vip1V4, "vip-1-v4", "", "Address of the vip v4 number 1")
+	flag.StringVar(&config.vip1V6, "vip-1-v6", "", "Address of the vip v6 number 1")
+	flag.StringVar(&config.targetBDeploymentName, "target-b-deployment-name", "", "Name of the target deployment")
+	flag.StringVar(&config.trenchB, "trench-b", "", "Name of the trench")
+	flag.StringVar(&config.conduitB1, "conduit-b-1", "", "Name of the conduit")
+	flag.StringVar(&config.streamBI, "stream-b-I", "", "Name of the stream")
+	flag.StringVar(&config.vip2V4, "vip-2-v4", "", "Address of the vip v4 number 2")
+	flag.StringVar(&config.vip2V6, "vip-2-v6", "", "Address of the vip v6 number 2")
+
+	flag.StringVar(&config.statelessLbFeDeploymentName, "stateless-lb-fe-deployment-name", "", "Name of stateless-lb-fe deployment in trench-a")
+	flag.StringVar(&config.ipFamily, "ip-family", "", "IP Family")
 }
 
 func TestE2e(t *testing.T) {
@@ -102,30 +123,30 @@ var _ = BeforeSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 
 	trafficGeneratorHost = &utils.TrafficGeneratorHost{
-		TrafficGeneratorCommand: trafficGeneratorCMD,
+		TrafficGeneratorCommand: config.trafficGeneratorCMD,
 	}
 	trafficGenerator = &utils.MConnect{
 		NConn: 400,
 	}
 
-	cmd := exec.Command(script, "init")
+	cmd := exec.Command(config.script, "init")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	err = cmd.Run()
 	Expect(stderr.String()).To(BeEmpty())
 	Expect(err).ToNot(HaveOccurred())
 
-	deploymentTargetA, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), targetADeploymentName, metav1.GetOptions{})
+	deploymentTargetA, err := clientset.AppsV1().Deployments(config.k8sNamespace).Get(context.Background(), config.targetADeploymentName, metav1.GetOptions{})
 	Expect(err).ToNot(HaveOccurred())
 	numberOfTargetA = int(*deploymentTargetA.Spec.Replicas)
 
-	deploymentTargetB, err := clientset.AppsV1().Deployments(namespace).Get(context.Background(), targetADeploymentName, metav1.GetOptions{})
+	deploymentTargetB, err := clientset.AppsV1().Deployments(config.k8sNamespace).Get(context.Background(), config.targetADeploymentName, metav1.GetOptions{})
 	Expect(err).ToNot(HaveOccurred())
 	numberOfTargetB = int(*deploymentTargetB.Spec.Replicas)
 })
 
 var _ = AfterSuite(func() {
-	cmd := exec.Command(script, "end")
+	cmd := exec.Command(config.script, "end")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	err := cmd.Run()

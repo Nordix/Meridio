@@ -1,0 +1,77 @@
+data:
+  trench: |
+    name: trench-a
+  conduits: |
+    items:
+    - name: load-balancer
+      trench: trench-a
+  streams: |
+    items:
+    - name: stream-a
+      conduit: load-balancer
+    - name: stream-b
+      conduit: load-balancer
+  flows: |
+    items:
+    - name: flow-a
+      vips:
+        - vip1
+        - vip3
+      source-subnets:
+        - 0.0.0.0/0
+      destination-port-ranges:
+        - 4000
+      source-port-ranges:
+        - 1024-65535
+      protocols:
+        - tcp
+      stream: stream-a
+    - name: flow-b
+      vips:
+        - vip1
+      source-subnets:
+        - 0.0.0.0/0
+      destination-port-ranges:
+        - 4003
+      source-port-ranges:
+        - 1024-65535
+      protocols:
+        - udp
+      stream: stream-a
+    - name: flow-b
+      vips:
+        - vip1
+      source-subnets:
+        - 0.0.0.0/0
+      destination-port-ranges:
+        - 4001
+      source-port-ranges:
+        - 1024-65535
+      protocols:
+        - tcp
+      stream: stream-b
+  vips: |
+    items:
+    - name: vip1
+      address: 20.0.0.1/32
+      trench: trench-a
+    - name: vip3
+      address: 60.0.0.150/32
+      trench: trench-a
+  attractors: |
+    items:
+    - name: attractor-a
+      vips:
+        - vip1
+        - vip3
+      gateways:
+        - gateway1
+      trench: trench-a
+  gateways: |
+    items:
+    - name: gateway1
+      address: 169.254.100.150
+      ip-family: ipv4
+      bfd: false
+      protocol: bgp
+      trench: trench-a

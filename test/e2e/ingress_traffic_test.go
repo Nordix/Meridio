@@ -17,6 +17,7 @@ limitations under the License.
 package e2e_test
 
 import (
+	"github.com/nordix/meridio/test/e2e/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -33,15 +34,18 @@ var _ = Describe("IngressTraffic", func() {
 		)
 
 		JustBeforeEach(func() {
-			lastingConnections, lostConnections = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, ipPort, protocol)
+			lastingConnections, lostConnections = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
 		})
 
 		When("sending TCP traffic to an IPv4", func() {
 			BeforeEach(func() {
-				ipPort = tcpIPv4
+				ipPort = utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
 				protocol = "tcp"
 			})
 			It("should receive the traffic correctly", func() {
+				if utils.IsIPv6(config.ipFamily) {
+					Skip("The test runs only IPv6")
+				}
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
 				Expect(lostConnections).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
@@ -50,10 +54,13 @@ var _ = Describe("IngressTraffic", func() {
 
 		When("sending TCP traffic to an IPv6", func() {
 			BeforeEach(func() {
-				ipPort = tcpIPv6
+				ipPort = utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0)
 				protocol = "tcp"
 			})
 			It("should receive the traffic correctly", func() {
+				if utils.IsIPv4(config.ipFamily) {
+					Skip("The test runs only IPv4")
+				}
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
 				Expect(lostConnections).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
@@ -62,10 +69,13 @@ var _ = Describe("IngressTraffic", func() {
 
 		When("sending UDP traffic to an IPv4", func() {
 			BeforeEach(func() {
-				ipPort = udpIPv4
+				ipPort = utils.VIPPort(config.vip1V4, config.flowAZUdpDestinationPort0)
 				protocol = "udp"
 			})
 			It("should receive the traffic correctly", func() {
+				if utils.IsIPv6(config.ipFamily) {
+					Skip("The test runs only IPv6")
+				}
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
 				Expect(lostConnections).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
@@ -74,10 +84,13 @@ var _ = Describe("IngressTraffic", func() {
 
 		When("sending UDP traffic to an IPv6", func() {
 			BeforeEach(func() {
-				ipPort = udpIPv6
+				ipPort = utils.VIPPort(config.vip1V6, config.flowAZUdpDestinationPort0)
 				protocol = "udp"
 			})
 			It("should receive the traffic correctly", func() {
+				if utils.IsIPv4(config.ipFamily) {
+					Skip("The test runs only IPv4")
+				}
 				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
 				Expect(lostConnections).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))

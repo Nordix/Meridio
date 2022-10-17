@@ -40,9 +40,9 @@ var _ = Describe("MultiTrenches", func() {
 				return
 			}
 			listOptions := metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("app=%s", targetADeploymentName),
+				LabelSelector: fmt.Sprintf("app=%s", config.targetADeploymentName),
 			}
-			pods, err := clientset.CoreV1().Pods(namespace).List(context.Background(), listOptions)
+			pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(len(pods.Items)).To(BeNumerically(">", 0))
 			targetPod = &pods.Items[0]
@@ -50,50 +50,72 @@ var _ = Describe("MultiTrenches", func() {
 
 		When("traffic is sent on 2 trenches at the same time with the same VIP address", func() {
 			var (
-				trenchALastingConns map[string]int
-				trenchALostConns    int
-				trenchBLastingConns map[string]int
-				trenchBLostConns    int
+				trenchALastingConnsV4 map[string]int
+				trenchALostConnsV4    int
+				trenchBLastingConnsV4 map[string]int
+				trenchBLostConnsV4    int
+				trenchALastingConnsV6 map[string]int
+				trenchALostConnsV6    int
+				trenchBLastingConnsV6 map[string]int
+				trenchBLostConnsV6    int
 			)
 
 			BeforeEach(func() {
 				trenchADone := make(chan bool)
-				var trenchAErr error
 				trenchBDone := make(chan bool)
-				var trenchBErr error
-				go func() {
-					trenchALastingConns, trenchALostConns = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, tcpIPv4, "tcp")
-					trenchADone <- true
-				}()
-				go func() {
-					trenchBLastingConns, trenchBLostConns = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchBName, namespace, tcpIPv4, "tcp")
-					trenchBDone <- true
-				}()
-				<-trenchADone
-				<-trenchBDone
-				Expect(trenchAErr).NotTo(HaveOccurred())
-				Expect(trenchBErr).NotTo(HaveOccurred())
+				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
+					go func() {
+						trenchALastingConnsV4, trenchALostConnsV4 = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
+						trenchADone <- true
+					}()
+					go func() {
+						trenchBLastingConnsV4, trenchBLostConnsV4 = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
+						trenchBDone <- true
+					}()
+					<-trenchADone
+					<-trenchBDone
+				}
+				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
+					go func() {
+						trenchALastingConnsV6, trenchALostConnsV6 = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0), "tcp")
+						trenchADone <- true
+					}()
+					go func() {
+						trenchBLastingConnsV6, trenchBLostConnsV6 = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0), "tcp")
+						trenchBDone <- true
+					}()
+					<-trenchADone
+					<-trenchBDone
+				}
 			})
 
 			It("should be possible to send traffic on the 2 trenches using the same VIP", func() {
-				Expect(trenchALostConns).To(Equal(0))
-				Expect(len(trenchALastingConns)).To(Equal(numberOfTargetA))
-				Expect(trenchBLostConns).To(Equal(0))
-				Expect(len(trenchBLastingConns)).To(Equal(numberOfTargetB))
+				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
+					Expect(trenchALostConnsV4).To(Equal(0))
+					Expect(len(trenchALastingConnsV4)).To(Equal(numberOfTargetA))
+					Expect(trenchBLostConnsV4).To(Equal(0))
+					Expect(len(trenchBLastingConnsV4)).To(Equal(numberOfTargetB))
+				}
+				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
+					Expect(trenchALostConnsV6).To(Equal(0))
+					Expect(len(trenchALastingConnsV6)).To(Equal(numberOfTargetA))
+					Expect(trenchBLostConnsV6).To(Equal(0))
+					Expect(len(trenchBLastingConnsV6)).To(Equal(numberOfTargetB))
+				}
 			})
 		})
 
 		When("a target disconnects from a trench and connect to another one", func() {
 			BeforeEach(func() {
-				_, err := utils.PodExec(targetPod, "example-target", []string{"./target-client", "close", "-t", trenchAName, "-c", conduitA1Name, "-s", streamA1Name})
+				_, err := utils.PodExec(targetPod, "example-target", []string{"./target-client", "close", "-t", config.trenchA, "-c", config.conduitA1, "-s", config.streamAI})
 				Expect(err).NotTo(HaveOccurred())
-				_, err = utils.PodExec(targetPod, "example-target", []string{"./target-client", "open", "-t", trenchBName, "-c", conduitB1Name, "-s", streamB1Name})
+				_, err = utils.PodExec(targetPod, "example-target", []string{"./target-client", "open", "-t", config.trenchB, "-c", config.conduitB1, "-s", config.streamBI})
 				Expect(err).NotTo(HaveOccurred())
 				Eventually(func() bool {
 					targetWatchOutput, err := utils.PodExec(targetPod, "example-target", []string{"timeout", "--preserve-status", "0.5", "./target-client", "watch"})
 					Expect(err).NotTo(HaveOccurred())
 					streamStatus := utils.ParseTargetWatch(targetWatchOutput)
-					if len(streamStatus) == 1 && streamStatus[0].Status == "OPEN" && streamStatus[0].Trench == trenchBName && streamStatus[0].Conduit == conduitB1Name && streamStatus[0].Stream == streamB1Name {
+					if len(streamStatus) == 1 && streamStatus[0].Status == "OPEN" && streamStatus[0].Trench == config.trenchB && streamStatus[0].Conduit == config.conduitB1 && streamStatus[0].Stream == config.streamBI {
 						return true
 					}
 					return false
@@ -101,15 +123,15 @@ var _ = Describe("MultiTrenches", func() {
 			})
 
 			AfterEach(func() {
-				_, err := utils.PodExec(targetPod, "example-target", []string{"./target-client", "close", "-t", trenchBName, "-c", conduitB1Name, "-s", streamB1Name})
+				_, err := utils.PodExec(targetPod, "example-target", []string{"./target-client", "close", "-t", config.trenchB, "-c", config.conduitB1, "-s", config.streamBI})
 				Expect(err).NotTo(HaveOccurred())
-				_, err = utils.PodExec(targetPod, "example-target", []string{"./target-client", "open", "-t", trenchAName, "-c", conduitA1Name, "-s", streamA1Name})
+				_, err = utils.PodExec(targetPod, "example-target", []string{"./target-client", "open", "-t", config.trenchA, "-c", config.conduitA1, "-s", config.streamAI})
 				Expect(err).NotTo(HaveOccurred())
 				Eventually(func() bool {
 					targetWatchOutput, err := utils.PodExec(targetPod, "example-target", []string{"timeout", "--preserve-status", "0.5", "./target-client", "watch"})
 					Expect(err).NotTo(HaveOccurred())
 					streamStatus := utils.ParseTargetWatch(targetWatchOutput)
-					if len(streamStatus) == 1 && streamStatus[0].Status == "OPEN" && streamStatus[0].Trench == trenchAName && streamStatus[0].Conduit == conduitA1Name && streamStatus[0].Stream == streamA1Name {
+					if len(streamStatus) == 1 && streamStatus[0].Status == "OPEN" && streamStatus[0].Trench == config.trenchA && streamStatus[0].Conduit == config.conduitA1 && streamStatus[0].Stream == config.streamAI {
 						return true
 					}
 					return false
@@ -117,15 +139,31 @@ var _ = Describe("MultiTrenches", func() {
 			})
 
 			It("should receive the traffic on the other trench", func() {
-				By("Verifying trench-a has only 3 targets")
-				lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, trenchAName, namespace, tcpIPv4, "tcp")
-				Expect(lostConn).To(Equal(0))
-				Expect(len(lastingConn)).To(Equal(numberOfTargetA - 1))
+				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
+					By("Verifying 5 targets receive ipv4 traffic trench-a")
+					lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
+					Expect(lostConn).To(Equal(0))
+					Expect(len(lastingConn)).To(Equal(numberOfTargetA - 1))
+				}
+				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
+					By("Verifying 5 targets receive ipv6 traffic trench-a")
+					lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0), "tcp")
+					Expect(lostConn).To(Equal(0))
+					Expect(len(lastingConn)).To(Equal(numberOfTargetA - 1))
+				}
 
-				By("Verifying trench-b has only 5 targets")
-				lastingConn, lostConn = trafficGeneratorHost.SendTraffic(trafficGenerator, trenchBName, namespace, tcpIPv4, "tcp")
-				Expect(lostConn).To(Equal(0))
-				Expect(len(lastingConn)).To(Equal(numberOfTargetB + 1))
+				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
+					By("Verifying 5 targets receive ipv4 traffic trench-b")
+					lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
+					Expect(lostConn).To(Equal(0))
+					Expect(len(lastingConn)).To(Equal(numberOfTargetB + 1))
+				}
+				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
+					By("Verifying 5 targets receive ipv6 traffic trench-b")
+					lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0), "tcp")
+					Expect(lostConn).To(Equal(0))
+					Expect(len(lastingConn)).To(Equal(numberOfTargetB + 1))
+				}
 			})
 		})
 

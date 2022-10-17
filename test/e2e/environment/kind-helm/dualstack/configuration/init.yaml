@@ -17,30 +17,39 @@ data:
       vips:
         - vip1
         - vip2
-        - vip4
       source-subnets:
         - 0.0.0.0/0
         - 0:0:0:0:0:0:0:0/0
       destination-port-ranges:
-        - 5000
         - 4000
-        - 5003
-        - 4003
       source-port-ranges:
         - 1024-65535
       protocols:
         - tcp
-        - udp
       stream: stream-a
     - name: flow-b
       vips:
-        - vip3
+        - vip1
+        - vip2
       source-subnets:
         - 0.0.0.0/0
         - 0:0:0:0:0:0:0:0/0
       destination-port-ranges:
-        - 5000
-        - 4000
+        - 4003
+      source-port-ranges:
+        - 1024-65535
+      protocols:
+        - udp
+      stream: stream-a
+    - name: flow-b
+      vips:
+        - vip1
+        - vip2
+      source-subnets:
+        - 0.0.0.0/0
+        - 0:0:0:0:0:0:0:0/0
+      destination-port-ranges:
+        - 4001
       source-port-ranges:
         - 1024-65535
       protocols:
@@ -54,20 +63,12 @@ data:
     - name: vip2
       address: 2000::1/128
       trench: trench-a
-    - name: vip3
-      address: 40.0.0.0/24
-      trench: trench-a
-    - name: vip4
-      address: 60.0.0.150/32
-      trench: trench-a
   attractors: |
     items:
     - name: attractor-a
       vips:
         - vip1
         - vip2
-        - vip3
-        - vip4
       gateways:
         - gateway1
         - gateway2
