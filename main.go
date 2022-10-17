@@ -20,7 +20,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -32,7 +31,6 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/faisal-memon/sviddisk"
@@ -44,6 +42,7 @@ import (
 	gatewaycontroller "github.com/nordix/meridio-operator/controllers/gateway"
 	streamcontroller "github.com/nordix/meridio-operator/controllers/stream"
 	trenchcontroller "github.com/nordix/meridio-operator/controllers/trench"
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -78,7 +77,7 @@ func setupTLSCert(socket string) error {
 		defer client.Close()
 		err := client.WatchX509Context(ctx, &x509Watcher{CertDir: certDir})
 		if err != nil && status.Code(err) != codes.Canceled {
-			log.Fatalf("error watching X.509 context:%v", err)
+			log.Fatal(setupLog, "error watching X.509 context", "error", err)
 		}
 	}()
 
@@ -102,7 +101,7 @@ func (x *x509Watcher) OnX509ContextUpdate(c *workloadapi.X509Context) {
 // OnX509ContextWatchError is run when the client runs into an error
 func (x509Watcher) OnX509ContextWatchError(err error) {
 	if status.Code(err) != codes.Canceled {
-		log.Printf("OnX509ContextWatchError error: %v", err)
+		setupLog.Error(err, "OnX509ContextWatchError")
 	}
 }
 
@@ -120,17 +119,8 @@ func main() {
 		os.Setenv(common.LogLevelEnv, "trace")
 	}
 
-	opts := zap.Options{
-		Development: true,
-	}
-	opts.BindFlags(flag.CommandLine)
-	flag.Set("zap-log-level", os.Getenv(common.LogLevelEnv)) // overwrite the zap log level value with the env variable
-	if os.Getenv(common.LogLevelEnv) == "trace" {            // trace doesn't exists in the operator, so it is translated to debug
-		flag.Set("zap-log-level", "debug")
-	}
-	flag.Parse()
-
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	logger := log.New("Operator", common.LogLevelEnv)
+	ctrl.SetLogger(logger)
 
 	// Set operator scope to the namespace where the operator pod exists
 	// An empty value means the operator is running with cluster scope
