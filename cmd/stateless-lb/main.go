@@ -281,7 +281,7 @@ func newSimpleNetworkService(
 	lbFactory types.NFQueueLoadBalancerFactory,
 	nfa types.NFAdaptor,
 ) *SimpleNetworkService {
-	identifierOffsetGenerator := NewIdentifierOffsetGenerator(2000)
+	identifierOffsetGenerator := NewIdentifierOffsetGenerator(300)
 	logger := log.FromContextOrGlobal(ctx).WithValues("class", "SimpleNetworkService")
 	nh, err := nat.NewNatHandler()
 	if err != nil {
