@@ -57,6 +57,7 @@ Name | Type | Description | Required | Default
 --- | --- | --- | --- | ---
 name | string | Name of the Stream | yes |
 conduit | string | Name of the Conduit the Stream belongs to | yes | 
+max-targets | int | Max number of targets the stream supports | yes | 
 
 ### Flow
 
