@@ -184,13 +184,13 @@ func (n *nfqlb) Delete() error {
 
 // Activate -
 // Activate adds a Target with the very identifier to the associated shared mem lb
-func (n *nfqlb) Activate(identifier int) error {
+func (n *nfqlb) Activate(index int, identifier int) error {
 	ctx := context.TODO()
 	stdoutStderr, err := exec.CommandContext(
 		ctx,
 		nfqlbCmd,
 		"activate",
-		fmt.Sprintf("--index=%d", identifier-1),
+		fmt.Sprintf("--index=%d", index-1),
 		fmt.Sprintf("--shm=%s", n.name),
 		strconv.Itoa(identifier),
 	).CombinedOutput()
@@ -202,13 +202,13 @@ func (n *nfqlb) Activate(identifier int) error {
 
 // Deactivate -
 // Deactivate removes a Target with the very identifier from associated shared mem lb
-func (n *nfqlb) Deactivate(identifier int) error {
+func (n *nfqlb) Deactivate(index int) error {
 	ctx := context.TODO()
 	stdoutStderr, err := exec.CommandContext(
 		ctx,
 		nfqlbCmd,
 		"deactivate",
-		fmt.Sprintf("--index=%d", identifier-1),
+		fmt.Sprintf("--index=%d", index-1),
 		fmt.Sprintf("--shm=%s", n.name),
 	).CombinedOutput()
 	if err != nil {

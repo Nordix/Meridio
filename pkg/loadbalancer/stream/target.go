@@ -62,13 +62,13 @@ func (t *Target) Verify() bool {
 	return true
 }
 
-func (t *Target) Configure() error {
+func (t *Target) Configure(identifierOffset int) error {
 	if t.fwMarks == nil {
 		t.fwMarks = []networking.FWMarkRoute{}
 	}
 	for _, ip := range t.GetIps() {
 		var fwMark networking.FWMarkRoute
-		fwMark, err := t.netUtils.NewFWMarkRoute(ip, t.GetIdentifier(), t.GetIdentifier())
+		fwMark, err := t.netUtils.NewFWMarkRoute(ip, t.GetIdentifier()+identifierOffset, t.GetIdentifier()+identifierOffset)
 		if err != nil {
 			return err
 		}

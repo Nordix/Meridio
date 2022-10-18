@@ -23,8 +23,8 @@ import (
 )
 
 type NFQueueLoadBalancer interface {
-	Activate(identifier int) error
-	Deactivate(identifier int) error
+	Activate(index int, identifier int) error
+	Deactivate(index int) error
 	Start() error
 	Delete() error
 	SetFlow(flow *nspAPI.Flow) error
