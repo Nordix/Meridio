@@ -42,8 +42,9 @@ type StreamList struct {
 }
 
 type Stream struct {
-	Name    string `yaml:"name"`
-	Conduit string `yaml:"conduit"`
+	Name       string `yaml:"name"`
+	Conduit    string `yaml:"conduit"`
+	MaxTargets uint32 `yaml:"max-targets"`
 }
 
 type FlowList struct {

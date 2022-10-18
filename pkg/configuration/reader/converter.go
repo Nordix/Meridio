@@ -83,8 +83,9 @@ func ConvertStreams(streams []*Stream, conduits []*nspAPI.Conduit) []*nspAPI.Str
 			continue
 		}
 		resStreams = append(resStreams, &nspAPI.Stream{
-			Name:    stream.Name,
-			Conduit: c,
+			Name:       stream.Name,
+			Conduit:    c,
+			MaxTargets: uint32(stream.MaxTargets),
 		})
 	}
 	return resStreams
