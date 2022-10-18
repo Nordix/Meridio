@@ -119,7 +119,7 @@ func Test_Manager_Running_AddStream_Stop(t *testing.T) {
 	streamA.EXPECT().GetStream().Return(s).AnyTimes()
 	// Check Open (Stream) has been called
 	openCtx, openCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
-	open := streamA.EXPECT().Open(gomock.Any()).DoAndReturn(func(ctx context.Context) error {
+	open := streamA.EXPECT().Open(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, nspStream *nspAPI.Stream) error {
 		openCancel()
 		return nil
 	})
@@ -202,7 +202,7 @@ func Test_Manager_RemoveStream(t *testing.T) {
 	streamA.EXPECT().GetStream().Return(s).AnyTimes()
 	// Check Open (Stream) has been called
 	openCtx, openCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
-	streamA.EXPECT().Open(gomock.Any()).DoAndReturn(func(ctx context.Context) error {
+	streamA.EXPECT().Open(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, nspStream *nspAPI.Stream) error {
 		openCancel()
 		return nil
 	})
@@ -275,7 +275,7 @@ func Test_Manager_Close_While_Opening(t *testing.T) {
 	streamA.EXPECT().GetStream().Return(s).AnyTimes()
 	// Check Open (Stream) has been called
 	openCtx, openCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
-	streamA.EXPECT().Open(gomock.Any()).DoAndReturn(func(ctx context.Context) error {
+	streamA.EXPECT().Open(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, nspStream *nspAPI.Stream) error {
 		openCancel()
 		<-ctx.Done()
 		return ctx.Err()
@@ -364,10 +364,10 @@ func Test_Manager_Retry_Open(t *testing.T) {
 	streamFactory.EXPECT().New(gomock.Any()).Return(streamA, nil)
 	streamA.EXPECT().GetStream().Return(s).AnyTimes()
 	// 5. verify open is called and return err
-	firstOpen := streamA.EXPECT().Open(gomock.Any()).Return(errors.New(""))
+	firstOpen := streamA.EXPECT().Open(gomock.Any(), gomock.Any()).Return(errors.New(""))
 	// 7. verify open is called again and return no error
 	secondOpenCtx, secondOpenCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
-	secondOpen := streamA.EXPECT().Open(gomock.Any()).DoAndReturn(func(ctx context.Context) error {
+	secondOpen := streamA.EXPECT().Open(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, nspStream *nspAPI.Stream) error {
 		secondOpenCancel()
 		return nil
 	}).After(firstOpen)
@@ -457,7 +457,7 @@ func Test_Manager_Add_Non_Existing_Stream(t *testing.T) {
 	streamA.EXPECT().GetStream().Return(s).AnyTimes()
 	// 6. verify open is called
 	openCtx, openCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
-	streamA.EXPECT().Open(gomock.Any()).DoAndReturn(func(ctx context.Context) error {
+	streamA.EXPECT().Open(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, nspStream *nspAPI.Stream) error {
 		openCancel()
 		return nil
 	})

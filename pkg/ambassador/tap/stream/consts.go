@@ -19,6 +19,5 @@ package stream
 import "time"
 
 const (
-	MaxNumberOfTargets = 100
-	PendingTime        = 15 * time.Second
+	PendingTime = 15 * time.Second
 )

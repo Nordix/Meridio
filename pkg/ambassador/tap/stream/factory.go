@@ -24,21 +24,18 @@ import (
 
 type streamFactory struct {
 	TargetRegistryClient nspAPI.TargetRegistryClient
-	MaxNumberOfTargets   int
 	Conduit              Conduit
 }
 
 func NewFactory(targetRegistryClient nspAPI.TargetRegistryClient,
-	maxNumberOfTargets int,
 	conduit Conduit) *streamFactory {
 	sfi := &streamFactory{
 		TargetRegistryClient: targetRegistryClient,
-		MaxNumberOfTargets:   maxNumberOfTargets,
 		Conduit:              conduit,
 	}
 	return sfi
 }
 
 func (sf *streamFactory) New(strm *ambassadorAPI.Stream) (types.Stream, error) {
-	return New(strm, sf.TargetRegistryClient, sf.MaxNumberOfTargets, sf.Conduit)
+	return New(strm, sf.TargetRegistryClient, sf.Conduit)
 }
