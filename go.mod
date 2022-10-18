@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/faisal-memon/sviddisk v0.0.0-20211007205134-77ccea0b9271
 	github.com/go-logr/logr v1.2.3
-	github.com/nordix/meridio v0.8.1-0.20221017114756-4a0b6bac0d51
+	github.com/nordix/meridio v0.8.1-0.20221027080116-03a447feb137
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.20.1
 	github.com/spiffe/go-spiffe/v2 v2.1.1
@@ -55,7 +55,7 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
-	github.com/networkservicemesh/sdk v1.6.0 // indirect
+	github.com/networkservicemesh/sdk v1.6.1 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/client_golang v1.12.1 // indirect

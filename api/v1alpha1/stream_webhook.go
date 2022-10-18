@@ -107,5 +107,9 @@ func (r *Stream) validateUpdate(oldObj runtime.Object) error {
 		return apierrors.NewForbidden(r.GroupResource(),
 			r.Name, field.Forbidden(field.NewPath("metadata", "labels", "trench"), "update on trench label is forbidden"))
 	}
+	if r.Spec.MaxTargets != old.Spec.MaxTargets {
+		return apierrors.NewForbidden(r.GroupResource(),
+			r.Name, field.Forbidden(field.NewPath("metadata", "spec", "max-targets"), "update on max-targets is forbidden"))
+	}
 	return nil
 }
