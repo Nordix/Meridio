@@ -118,7 +118,7 @@ lint: golangci-lint ## Run linter against code.
 
 .PHONY: e2e
 e2e: ginkgo ## Run the E2E tests.
-	ginkgo -v --focus=$(E2E_FOCUS) --seed=$(E2E_SEED) --repeat=0 --timeout=1h ./test/e2e/... -- $(E2E_PARAMETERS)
+	$(GINKGO) -v --focus=$(E2E_FOCUS) --seed=$(E2E_SEED) --repeat=0 --timeout=1h ./test/e2e/... -- $(E2E_PARAMETERS)
 
 .PHONY: test
 test: ## Run the Unit tests.
