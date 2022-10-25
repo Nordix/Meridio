@@ -124,7 +124,7 @@ kind-delete-gateways: ## Delete the Kind gateways
 	docker rm trench-c
 
 .PHONY: kind-delete
-kind-delete-cluster: ## Delete the Kind cluster
+kind-delete-cluster: kind ## Delete the Kind cluster
 	$(KIND) delete cluster
 
 .PHONY: clean
