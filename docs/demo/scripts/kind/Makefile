@@ -107,7 +107,7 @@ kind-config: ## Print the Kind cluster config
 .PHONY: kind-create
 kind-create: temp-dir kind kind-delete ## Create the Kind cluster
 	$(MAKE) -s kind-config > $(TEMP_DIR)/kind-config.yaml ; \
-	kind create cluster --config $(TEMP_DIR)/kind-config.yaml ; \
+	$(KIND) create cluster --config $(TEMP_DIR)/kind-config.yaml ; \
 	rm $(TEMP_DIR)/kind-config.yaml
 
 .PHONY: kind-gateways
@@ -125,7 +125,7 @@ kind-delete-gateways: ## Delete the Kind gateways
 
 .PHONY: kind-delete
 kind-delete-cluster: ## Delete the Kind cluster
-	kind delete cluster
+	$(KIND) delete cluster
 
 .PHONY: clean
 clean: kind-delete-cluster kind-delete-gateways ## Delete the Kind cluster and the Kind gateways
