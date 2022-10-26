@@ -166,6 +166,7 @@ func main() {
 		netUtils,
 		lbFactory, // to spawn nfqlb instance for each Stream created
 		nfa,       // netfilter kernel configuration to steer VIP traffic to nfqlb process
+		config.IdentifierOffsetStart,
 	)
 
 	interfaceMonitorEndpoint := interfacemonitor.NewServer(interfaceMonitor, sns, netUtils)
@@ -280,8 +281,9 @@ func newSimpleNetworkService(
 	netUtils networking.Utils,
 	lbFactory types.NFQueueLoadBalancerFactory,
 	nfa types.NFAdaptor,
+	identifierOffsetStart int,
 ) *SimpleNetworkService {
-	identifierOffsetGenerator := NewIdentifierOffsetGenerator(300)
+	identifierOffsetGenerator := NewIdentifierOffsetGenerator(identifierOffsetStart)
 	logger := log.FromContextOrGlobal(ctx).WithValues("class", "SimpleNetworkService")
 	nh, err := nat.NewNatHandler()
 	if err != nil {
@@ -458,6 +460,10 @@ func (sns *SimpleNetworkService) addStream(strm *nspAPI.Stream) error {
 	if exists {
 		return errors.New("this stream already exists")
 	}
+	identifierOffset, err := sns.IdentifierOffsetGenerator.Generate(strm)
+	if exists {
+		return err
+	}
 	s, err := stream.New(
 		strm,
 		sns.targetRegistryClient,
@@ -465,7 +471,7 @@ func (sns *SimpleNetworkService) addStream(strm *nspAPI.Stream) error {
 		sns.nfqueueIndex,
 		sns.netUtils,
 		sns.lbFactory,
-		sns.IdentifierOffsetGenerator.Generate(strm),
+		identifierOffset,
 	)
 	if err != nil {
 		return err

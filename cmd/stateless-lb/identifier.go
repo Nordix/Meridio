@@ -14,12 +14,17 @@ limitations under the License.
 package main
 
 import (
+	"errors"
+	"math"
+	"sync"
+
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 )
 
 type IdentifierOffsetGenerator struct {
 	Start   int
 	Streams map[*nspAPI.Stream]int
+	mu      sync.Mutex
 }
 
 // NewIdentifierOffsetGenerator is the constructor of the IdentifierOffsetGenerator struct
@@ -35,14 +40,19 @@ func NewIdentifierOffsetGenerator(start int) *IdentifierOffsetGenerator {
 // Generate returns an unused identifier offset for the routing tables to not collide with the
 // ones of the other streams. The offset for each streams are saved in memory, so if a stream
 // already requested an offset, the saved one will be returned.
-func (iog *IdentifierOffsetGenerator) Generate(stream *nspAPI.Stream) int {
+func (iog *IdentifierOffsetGenerator) Generate(stream *nspAPI.Stream) (int, error) {
+	iog.mu.Lock()
+	defer iog.mu.Unlock()
 	offset, exists := iog.get(stream)
 	if exists {
-		return offset
+		return offset, nil
 	}
 	offset = iog.Start
 search:
 	for {
+		if offset >= (math.MaxInt - int(stream.GetMaxTargets()) + 1) {
+			return 0, errors.New("unable to generate identifier offset")
+		}
 		for s, os := range iog.Streams {
 			sStart := os
 			sEnd := os + int(s.GetMaxTargets()) - 1
@@ -56,11 +66,13 @@ search:
 		break
 	}
 	iog.Streams[stream] = offset
-	return offset
+	return offset, nil
 }
 
 // Release allows the streams to free the identifier offset no longer used.
 func (iog *IdentifierOffsetGenerator) Release(streamName string) {
+	iog.mu.Lock()
+	defer iog.mu.Unlock()
 	for s := range iog.Streams {
 		if streamName == s.GetName() {
 			delete(iog.Streams, s)

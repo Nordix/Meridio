@@ -14,6 +14,7 @@ limitations under the License.
 package main_test
 
 import (
+	"math"
 	"testing"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
@@ -34,8 +35,9 @@ func TestIdentifierOffsetGenerator(t *testing.T) {
 		},
 		MaxTargets: 200,
 	}
-	generated := iog.Generate(stream)
+	generated, err := iog.Generate(stream)
 	assert.Equal(t, iog.Start+0, generated)
+	assert.Nil(t, err)
 
 	stream = &nspAPI.Stream{
 		Name: "stream-b",
@@ -47,8 +49,9 @@ func TestIdentifierOffsetGenerator(t *testing.T) {
 		},
 		MaxTargets: 100,
 	}
-	generated = iog.Generate(stream)
+	generated, err = iog.Generate(stream)
 	assert.Equal(t, iog.Start+200, generated)
+	assert.Nil(t, err)
 
 	stream = &nspAPI.Stream{
 		Name: "stream-a",
@@ -60,8 +63,9 @@ func TestIdentifierOffsetGenerator(t *testing.T) {
 		},
 		MaxTargets: 200,
 	}
-	generated = iog.Generate(stream)
+	generated, err = iog.Generate(stream)
 	assert.Equal(t, iog.Start+0, generated)
+	assert.Nil(t, err)
 
 	stream = &nspAPI.Stream{
 		Name: "stream-c",
@@ -73,8 +77,9 @@ func TestIdentifierOffsetGenerator(t *testing.T) {
 		},
 		MaxTargets: 1,
 	}
-	generated = iog.Generate(stream)
+	generated, err = iog.Generate(stream)
 	assert.Equal(t, iog.Start+300, generated)
+	assert.Nil(t, err)
 
 	stream = &nspAPI.Stream{
 		Name: "stream-d",
@@ -86,8 +91,9 @@ func TestIdentifierOffsetGenerator(t *testing.T) {
 		},
 		MaxTargets: 1,
 	}
-	generated = iog.Generate(stream)
+	generated, err = iog.Generate(stream)
 	assert.Equal(t, iog.Start+301, generated)
+	assert.Nil(t, err)
 
 	iog.Release("stream-b")
 
@@ -101,8 +107,9 @@ func TestIdentifierOffsetGenerator(t *testing.T) {
 		},
 		MaxTargets: 50,
 	}
-	generated = iog.Generate(stream)
+	generated, err = iog.Generate(stream)
 	assert.Equal(t, iog.Start+200, generated)
+	assert.Nil(t, err)
 
 	stream = &nspAPI.Stream{
 		Name: "stream-f",
@@ -114,8 +121,9 @@ func TestIdentifierOffsetGenerator(t *testing.T) {
 		},
 		MaxTargets: 55,
 	}
-	generated = iog.Generate(stream)
+	generated, err = iog.Generate(stream)
 	assert.Equal(t, iog.Start+302, generated)
+	assert.Nil(t, err)
 
 	stream = &nspAPI.Stream{
 		Name: "stream-g",
@@ -127,7 +135,24 @@ func TestIdentifierOffsetGenerator(t *testing.T) {
 		},
 		MaxTargets: 50,
 	}
-	generated = iog.Generate(stream)
+	generated, err = iog.Generate(stream)
 	assert.Equal(t, iog.Start+250, generated)
+	assert.Nil(t, err)
 
+}
+
+func TestIdentifierOffsetGenerator_Err(t *testing.T) {
+	iog := lb.NewIdentifierOffsetGenerator(math.MaxInt - 200)
+	stream := &nspAPI.Stream{
+		Name: "stream-a",
+		Conduit: &nspAPI.Conduit{
+			Name: "conduit-a",
+			Trench: &nspAPI.Trench{
+				Name: "trench-a",
+			},
+		},
+		MaxTargets: 201,
+	}
+	_, err := iog.Generate(stream)
+	assert.NotNil(t, err)
 }
