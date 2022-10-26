@@ -116,12 +116,12 @@ kind-gateways: ## Create the Kind cluster gateways
 
 .PHONY: kind-gateways
 kind-delete-gateways: ## Delete the Kind gateways
-	docker kill trench-a ; \
-	docker kill trench-b ; \
-	docker kill trench-c ; \
-	docker rm trench-a ; \
-	docker rm trench-b ; \
-	docker rm trench-c
+	docker kill trench-a || true ; \
+	docker kill trench-b || true ; \
+	docker kill trench-c || true ; \
+	docker rm trench-a || true ; \
+	docker rm trench-b || true ; \
+	docker rm trench-c || true
 
 .PHONY: kind-delete
 kind-delete-cluster: kind ## Delete the Kind cluster
