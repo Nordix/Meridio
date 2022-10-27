@@ -26,6 +26,11 @@ type StreamSpec struct {
 	// The conduit that is to convey traffic included in this Stream
 	// +optional
 	Conduit string `json:"conduit,omitempty"`
+	// +kubebuilder:default=100
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=10000
+	// Max number of targets the stream supports
+	MaxTargets uint32 `json:"max-targets,omitempty"`
 }
 
 // StreamStatus defines the observed state of Stream
@@ -36,6 +41,7 @@ type StreamStatus struct {
 //+kubebuilder:subresource:status
 //+kubebuilder:printcolumn:name="conduit",type=string,JSONPath=`.spec.conduit`
 //+kubebuilder:printcolumn:name="Trench",type=string,JSONPath=`.metadata.labels.trench`
+//+kubebuilder:printcolumn:name="max-targets",type=integer,JSONPath=`.spec.max-targets`
 
 // Stream is the Schema for the streams API. It refers a group of Flows processed
 // through the same Conduit before consumed by the user application.
