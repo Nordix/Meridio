@@ -45,6 +45,8 @@ message Stream {
     string name = 1;
     // Conduit the stream belongs to
     Conduit conduit = 2;
+    // Max number of targets the stream supports
+    uint32 maxTargets = 3;
 }
 
 message Flow {

@@ -30,12 +30,11 @@ import (
 func Test_New(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	maxNumberOfTargets := 100
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	c := mocks.NewMockConduit(ctrl)
 
-	sf := stream.NewFactory(nil, maxNumberOfTargets, c)
+	sf := stream.NewFactory(nil, c)
 	assert.NotNil(t, sf)
 
 	s := &ambassadorAPI.Stream{
@@ -54,6 +53,5 @@ func Test_New(t *testing.T) {
 	stream, ok := typesStream.(*stream.Stream)
 	assert.True(t, ok)
 	assert.NotNil(t, stream)
-	assert.Equal(t, maxNumberOfTargets, stream.MaxNumberOfTargets)
 	assert.Equal(t, c, stream.Conduit)
 }

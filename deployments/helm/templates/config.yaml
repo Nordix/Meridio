@@ -14,8 +14,10 @@ data:
     items:
     - name: stream-a
       conduit: {{ .Values.loadBalancer.networkServiceName }}
+      max-targets: 100
     - name: stream-b
       conduit: {{ .Values.loadBalancer.networkServiceName }}
+      max-targets: 100
   flows: |
     items:
     - name: flow-a

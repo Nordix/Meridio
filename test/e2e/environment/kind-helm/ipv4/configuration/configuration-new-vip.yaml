@@ -9,8 +9,10 @@ data:
     items:
     - name: stream-a
       conduit: load-balancer
+      max-targets: 100
     - name: stream-b
       conduit: load-balancer
+      max-targets: 100
   flows: |
     items:
     - name: flow-a

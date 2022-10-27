@@ -10,6 +10,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	v1 "github.com/nordix/meridio/api/ambassador/v1"
+	v10 "github.com/nordix/meridio/api/nsp/v1"
 )
 
 // MockStream is a mock of Stream interface.
@@ -78,15 +79,15 @@ func (mr *MockStreamMockRecorder) GetStream() *gomock.Call {
 }
 
 // Open mocks base method.
-func (m *MockStream) Open(ctx context.Context) error {
+func (m *MockStream) Open(ctx context.Context, nspStream *v10.Stream) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Open", ctx)
+	ret := m.ctrl.Call(m, "Open", ctx, nspStream)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Open indicates an expected call of Open.
-func (mr *MockStreamMockRecorder) Open(ctx interface{}) *gomock.Call {
+func (mr *MockStreamMockRecorder) Open(ctx, nspStream interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Open", reflect.TypeOf((*MockStream)(nil).Open), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Open", reflect.TypeOf((*MockStream)(nil).Open), ctx, nspStream)
 }

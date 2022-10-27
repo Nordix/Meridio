@@ -214,7 +214,7 @@ func fakeStreamFactory(ctrl *gomock.Controller) *mocks.MockStreamFactory {
 	factory := mocks.NewMockStreamFactory(ctrl)
 	factory.EXPECT().New(gomock.Any()).DoAndReturn(func(s *ambassadorAPI.Stream) (types.Stream, error) {
 		newStream := typesMocks.NewMockStream(ctrl)
-		newStream.EXPECT().Open(gomock.Any()).Return(nil).AnyTimes()
+		newStream.EXPECT().Open(gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 		newStream.EXPECT().Close(gomock.Any()).Return(nil).AnyTimes()
 		newStream.EXPECT().Equals(gomock.Any()).DoAndReturn(func(s1 *ambassadorAPI.Stream) bool {
 			return s1.Equals(s)

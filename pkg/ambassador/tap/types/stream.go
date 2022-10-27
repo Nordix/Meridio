@@ -21,6 +21,7 @@ import (
 	"context"
 
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 )
 
 const (
@@ -34,7 +35,7 @@ type StreamStatus int
 type Stream interface {
 	// Open the stream in the conduit by generating a identifier and registering
 	// the target to the NSP service while avoiding the identifier collisions.
-	Open(ctx context.Context) error
+	Open(ctx context.Context, nspStream *nspAPI.Stream) error
 	// Close the stream in the conduit by unregistering target from the NSP service.
 	Close(ctx context.Context) error
 	Equals(*ambassadorAPI.Stream) bool
