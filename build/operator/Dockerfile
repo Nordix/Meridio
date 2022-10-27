@@ -1,5 +1,5 @@
-ARG BUILDER
-ARG BASE_IMG
+ARG BUILDER=golang:1.19.0
+ARG BASE_IMG=ubuntu:22.04
 
 # Build the manager binary
 FROM ${BUILDER} as builder
@@ -14,12 +14,10 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Copy the go source
-COPY main.go main.go
-COPY api/ api/
-COPY controllers/ controllers/
+COPY . .
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags="${LDFLAGS}" -a -o manager main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags="${LDFLAGS}" -a -o manager ./cmd/operator/main.go
 
 # Copy files from builder to the final image
 FROM ${BASE_IMG}
