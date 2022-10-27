@@ -1,0 +1,6 @@
+go 1.19
+
+use (
+	.
+	/home/uablrek/go/src/github.com/networkservicemesh/sdk
+)
