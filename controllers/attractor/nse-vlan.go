@@ -30,7 +30,7 @@ import (
 
 const (
 	nseImage    = "cmd-nse-remote-vlan"
-	nseImageTag = "v1.5.0"
+	nseImageTag = "v1.6.1"
 )
 
 type NseDeployment struct {
