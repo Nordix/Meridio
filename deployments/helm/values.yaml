@@ -89,7 +89,7 @@ subnetPool:
 
 vlanNSE:
   image: cmd-nse-remote-vlan
-  version: v1.6.0
+  version: v1.6.1
   probe:
     addr: :5003
     spiffe: true
@@ -97,7 +97,7 @@ vlanNSE:
 
 vlanNSC:
   image: cmd-nsc
-  version: v1.6.0
+  version: v1.6.1
   userId: 10000
 
 vlan:
