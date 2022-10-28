@@ -7,7 +7,7 @@ default:
 all: default
 
 help: ## Display this help.
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 ############################################################################
 # Variables
@@ -34,7 +34,7 @@ E2E_PARAMETERS ?= $(shell cat ./test/e2e/environment/kind-helm/dualstack/config.
 E2E_SEED ?= $(shell shuf -i 1-2147483647 -n1)
 
 # Contrainer Registry
-REGISTRY ?= localhost:5000/meridio
+REGISTRY ?= registry.nordix.org/cloud-native/meridio
 BASE_IMAGE ?= $(REGISTRY)/base-image:$(VERSION_BASE_IMAGE)
 DEBUG_IMAGE ?= $(REGISTRY)/debug:$(VERSION)
 
@@ -59,7 +59,7 @@ SECURITY_SCAN_VOLUME ?= --volume /var/run/docker.sock:/var/run/docker.sock --vol
 
 # Operator
 TEMPLATES_HELM_CHART_VALUES_PATH = config/templates/charts/meridio/values.yaml
-OPERATOR_NAMESPACE = red
+OPERATOR_NAMESPACE = meridio-operator
 ENABLE_MUTATING_WEBHOOK?=true
 WEBHOOK_SUPPORT ?= spire # spire or certmanager
 
@@ -231,7 +231,7 @@ namespace: # Edit the namespace of operator to be deployed
 	cd config/default && $(KUSTOMIZE) edit set namespace ${OPERATOR_NAMESPACE}
 
 .PHONY: print-manifests
-print-manifests: manifests kustomize namespace configure-webhook # Generate manifests to be deployed in the cluster
+print-manifests: manifests kustomize namespace configure-webhook set-templates-values # Generate manifests to be deployed in the cluster
 	cd config/operator && $(KUSTOMIZE) edit set image operator=${REGISTRY}/operator:${VERSION_OPERATOR}
 	$(KUSTOMIZE) build config/default --enable-helm
 
@@ -281,7 +281,7 @@ nancy-tool:
 
 .PHONY: controller-gen
 controller-gen:
-	$(call go-get-tool,$(NANCY),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.7.0)
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.10.0)
 
 .PHONY: kustomize
 kustomize:

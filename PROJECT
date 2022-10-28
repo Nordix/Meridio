@@ -4,8 +4,8 @@ layout:
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
-projectName: meridio-operator
-repo: github.com/nordix/meridio-operator
+projectName: meridio
+repo: github.com/nordix/meridio
 resources:
 - api:
     crdVersion: v1
@@ -14,7 +14,7 @@ resources:
   domain: nordix.org
   group: meridio
   kind: Trench
-  path: github.com/nordix/meridio-operator/api/v1alpha1
+  path: github.com/nordix/meridio/api/v1alpha1
   version: v1alpha1
   webhooks:
     validation: true
@@ -26,7 +26,7 @@ resources:
   domain: nordix.org
   group: meridio
   kind: Vip
-  path: github.com/nordix/meridio-operator/api/v1alpha1
+  path: github.com/nordix/meridio/api/v1alpha1
   version: v1alpha1
   webhooks:
     validation: true
@@ -38,7 +38,7 @@ resources:
   domain: nordix.org
   group: meridio
   kind: Attractor
-  path: github.com/nordix/meridio-operator/api/v1alpha1
+  path: github.com/nordix/meridio/api/v1alpha1
   version: v1alpha1
   webhooks:
     validation: true
@@ -50,7 +50,7 @@ resources:
   domain: nordix.org
   group: meridio
   kind: Gateway
-  path: github.com/nordix/meridio-operator/api/v1alpha1
+  path: github.com/nordix/meridio/api/v1alpha1
   version: v1alpha1
   webhooks:
     validation: true
@@ -62,7 +62,7 @@ resources:
   domain: nordix.org
   group: meridio
   kind: Conduit
-  path: github.com/nordix/meridio-operator/api/v1alpha1
+  path: github.com/nordix/meridio/api/v1alpha1
   version: v1alpha1
   webhooks:
     validation: true
@@ -74,7 +74,7 @@ resources:
   domain: nordix.org
   group: meridio
   kind: Stream
-  path: github.com/nordix/meridio-operator/api/v1alpha1
+  path: github.com/nordix/meridio/api/v1alpha1
   version: v1alpha1
   webhooks:
     validation: true
@@ -86,7 +86,7 @@ resources:
   domain: nordix.org
   group: meridio
   kind: Flow
-  path: github.com/nordix/meridio-operator/api/v1alpha1
+  path: github.com/nordix/meridio/api/v1alpha1
   version: v1alpha1
   webhooks:
     validation: true
