@@ -381,36 +381,6 @@ func AssertTrenchReady(trench *meridiov1alpha1.Trench) {
 	}, ipamService)
 	Expect(err).ToNot(HaveOccurred())
 	Expect(service).ToNot(BeNil())
-
-	By("checking role")
-	roleName := fmt.Sprintf("%s-%s", common.RlName, name)
-	role := &rbacv1.Role{}
-	err = fw.GetResource(client.ObjectKey{
-		Namespace: ns,
-		Name:      roleName,
-	}, role)
-	Expect(err).ToNot(HaveOccurred())
-	Expect(role).ToNot(BeNil())
-
-	By("checking role binding")
-	roleBindingName := fmt.Sprintf("%s-%s", common.RBName, name)
-	roleBinding := &rbacv1.RoleBinding{}
-	err = fw.GetResource(client.ObjectKey{
-		Namespace: ns,
-		Name:      roleBindingName,
-	}, roleBinding)
-	Expect(err).ToNot(HaveOccurred())
-	Expect(roleBinding).ToNot(BeNil())
-
-	By("checking service account")
-	serviceAccountName := fmt.Sprintf("%s-%s", common.SAName, name)
-	serviceAccount := &corev1.ServiceAccount{}
-	err = fw.GetResource(client.ObjectKey{
-		Namespace: ns,
-		Name:      serviceAccountName,
-	}, serviceAccount)
-	Expect(err).ToNot(HaveOccurred())
-	Expect(serviceAccount).ToNot(BeNil())
 }
 
 func AssertAttractorReady(attractor *meridiov1alpha1.Attractor) {
@@ -486,27 +456,6 @@ func assertStatefulSetReady(name, ns string) error {
 	// checking all pods are ready and never restarted
 	listOptions := &client.ListOptions{
 		LabelSelector: labels.Set(dep.Labels).AsSelector(),
-	}
-	return podsRunning(listOptions)
-}
-
-func assertDaemonsetReady(name, ns string) error {
-	ds := &appsv1.DaemonSet{}
-	// checking if the daemonset exists
-	err := fw.GetResource(client.ObjectKey{
-		Namespace: ns,
-		Name:      name,
-	}, ds)
-	if err != nil {
-		return err
-	}
-
-	// checking all desired replicas are ready"
-	if ds.Status.NumberReady != ds.Status.DesiredNumberScheduled {
-		return fmt.Errorf("Status.NumberReady not equal Status.DesiredNumberScheduled")
-	}
-	listOptions := &client.ListOptions{
-		LabelSelector: labels.Set(ds.Labels).AsSelector(),
 	}
 	return podsRunning(listOptions)
 }

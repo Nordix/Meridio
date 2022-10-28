@@ -76,7 +76,8 @@ var _ = Describe("Conduit", func() {
 			It("will be created successfully", func() {
 				By("checking if the conduit exists")
 				con := &meridiov1alpha1.Conduit{}
-				fw.GetResource(client.ObjectKeyFromObject(conduit), con)
+				err := fw.GetResource(client.ObjectKeyFromObject(conduit), con)
+				Expect(err).NotTo(HaveOccurred())
 				Expect(con).NotTo(BeNil())
 
 				By("checking the deployment is ready")

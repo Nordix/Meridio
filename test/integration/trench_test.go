@@ -12,7 +12,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -139,33 +138,6 @@ var _ = Describe("Trench", func() {
 				Namespace: ns,
 				Name:      ipamServiceName,
 			}, ipamService)
-			Expect(apierrors.IsNotFound(err)).To(Equal(true))
-
-			By("checking role")
-			roleName := fmt.Sprintf("%s-%s", common.RlName, name)
-			role := &rbacv1.Role{}
-			err = fw.GetResource(client.ObjectKey{
-				Namespace: name,
-				Name:      roleName,
-			}, role)
-			Expect(apierrors.IsNotFound(err)).To(Equal(true))
-
-			By("checking role binding")
-			roleBindingName := fmt.Sprintf("%s-%s", common.RBName, name)
-			roleBinding := &rbacv1.RoleBinding{}
-			err = fw.GetResource(client.ObjectKey{
-				Namespace: ns,
-				Name:      roleBindingName,
-			}, roleBinding)
-			Expect(apierrors.IsNotFound(err)).To(Equal(true))
-
-			By("checking service account")
-			serviceAccountName := fmt.Sprintf("%s-%s", common.SAName, name)
-			serviceAccount := &corev1.ServiceAccount{}
-			err = fw.GetResource(client.ObjectKey{
-				Namespace: ns,
-				Name:      serviceAccountName,
-			}, serviceAccount)
 			Expect(apierrors.IsNotFound(err)).To(Equal(true))
 		})
 	})

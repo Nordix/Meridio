@@ -119,7 +119,8 @@ var _ = Describe("Flow", func() {
 
 				By("checking if the flow exists")
 				flow := &meridiov1alpha1.Flow{}
-				fw.GetResource(client.ObjectKeyFromObject(flowA), flow)
+				err := fw.GetResource(client.ObjectKeyFromObject(flowA), flow)
+				Expect(err).NotTo(HaveOccurred())
 				Expect(flow).NotTo(BeNil())
 
 				By("checking flow is in configmap data")
@@ -149,7 +150,7 @@ var _ = Describe("Flow", func() {
 
 				By("checking if the flow exists")
 				flow = &meridiov1alpha1.Flow{}
-				err := fw.GetResource(client.ObjectKeyFromObject(flowB), flow)
+				err = fw.GetResource(client.ObjectKeyFromObject(flowB), flow)
 				Expect(err).To(BeNil())
 				Expect(flow).NotTo(BeNil())
 

@@ -75,7 +75,8 @@ var _ = Describe("Attractor", func() {
 
 		Context("with a trench", func() {
 			BeforeEach(func() {
-				fw.CreateResource(trench.DeepCopy())
+				err := fw.CreateResource(trench.DeepCopy())
+				Expect(err).NotTo(HaveOccurred())
 			})
 
 			AfterEach(func() {
@@ -166,8 +167,10 @@ var _ = Describe("Attractor", func() {
 			attractorB.Labels["trench"] = "trench-b"
 			attractorB.Name = "attractor-b"
 			BeforeEach(func() {
-				fw.CreateResource(trench.DeepCopy())
-				fw.CreateResource(trenchB.DeepCopy())
+				err := fw.CreateResource(trench.DeepCopy())
+				Expect(err).NotTo(HaveOccurred())
+				err = fw.CreateResource(trenchB.DeepCopy())
+				Expect(err).NotTo(HaveOccurred())
 			})
 
 			AfterEach(func() {
@@ -260,8 +263,10 @@ var _ = Describe("Attractor", func() {
 			fw.CleanUpTrenches()
 			fw.CleanUpAttractors()
 			// Deep copy to avoid original variables to be overwritten
-			fw.CreateResource(trench.DeepCopy())
-			fw.CreateResource(attractor.DeepCopy())
+			err := fw.CreateResource(trench.DeepCopy())
+			Expect(err).NotTo(HaveOccurred())
+			err = fw.CreateResource(attractor.DeepCopy())
+			Expect(err).NotTo(HaveOccurred())
 			time.Sleep(time.Second)
 		})
 

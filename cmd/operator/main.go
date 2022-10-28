@@ -95,7 +95,10 @@ type x509Watcher struct {
 
 // UpdateX509SVIDs is run every time an SVID is updated
 func (x *x509Watcher) OnX509ContextUpdate(c *workloadapi.X509Context) {
-	sviddisk.WriteToDisk(c.DefaultSVID(), x.CertDir)
+	err := sviddisk.WriteToDisk(c.DefaultSVID(), x.CertDir)
+	if err != nil {
+		setupLog.Error(err, "OnX509ContextUpdate")
+	}
 }
 
 // OnX509ContextWatchError is run when the client runs into an error
