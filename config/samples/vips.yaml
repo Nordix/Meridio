@@ -1,0 +1,26 @@
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Vip
+metadata:
+  labels:
+    trench: trench-a
+  name: vip1
+spec:
+  address: "20.0.0.0/30"
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Vip
+metadata:
+  labels:
+    trench: trench-a
+  name: vip2
+spec:
+  address: "10.0.0.0/28"
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Vip
+metadata:
+  labels:
+    trench: trench-b
+  name: vip3
+spec:
+  address: "2000::/126"

@@ -1,0 +1,8 @@
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Stream
+metadata:
+  name: stream-1
+  labels:
+    trench: trench-a
+spec:
+  conduit: conduit-stateless

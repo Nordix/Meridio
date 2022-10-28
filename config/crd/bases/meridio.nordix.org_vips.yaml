@@ -1,0 +1,66 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.7.0
+  creationTimestamp: null
+  name: vips.meridio.nordix.org
+spec:
+  group: meridio.nordix.org
+  names:
+    kind: Vip
+    listKind: VipList
+    plural: vips
+    singular: vip
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.address
+      name: Address
+      type: string
+    - jsonPath: .metadata.labels.trench
+      name: Trench
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Vip is the Schema for the vips API. It defines a Vip to be used
+          as destination for ingress traffic to facilitate load-balancing. For egress
+          traffic the Vip is used as source to avoid Direct Server Return.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: VipSpec defines the desired state of Vip
+            properties:
+              address:
+                description: vip address. Both ipv4 and ipv6 addresses are supported.
+                  Vip address must be a valid network prefix.
+                type: string
+            type: object
+          status:
+            description: VipStatus defines the observed state of Vip
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

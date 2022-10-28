@@ -1,0 +1,7 @@
+resources:
+- ../webhook # includes validating webhook configuration and webhook service
+- ../webhook-configuration-mutating # [MUTATING WEBHOOK]
+
+patchesStrategicMerge:
+- patches/vwebhookcainjection_patch.yaml
+- patches/mwebhookcainjection_patch.yaml # [MUTATING WEBHOOK]

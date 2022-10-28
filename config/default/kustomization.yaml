@@ -1,0 +1,47 @@
+# Adds namespace to all resources.
+namespace: meridio-operator-system
+
+namePrefix: meridio-
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ../crd
+- ../rbac
+- ../operator
+- ../spire # [SPIRE] To enable spire, you need to uncomment all the sections with [SPIRE], including config/manager/kustomization.yaml
+# - ../certmanager # [CERTMANAGER] To enable certmanager, you need to uncomment all the sections with [CERTMANAGER], including config/crd/kustomization.yaml and config/manager/kustomization.yaml
+#- ../prometheus
+
+vars:
+# # [CERTMANAGER] To enable certmanager, you need to uncomment all the sections with [CERTMANAGER]
+# # CERTIFICATE_NAMESPACE, CERTIFICATE_NAME and SERVICE_NAME are needed to enable cert-manager
+# - fieldref:
+#     fieldPath: metadata.namespace
+#   name: CERTIFICATE_NAMESPACE
+#   objref:
+#     group: cert-manager.io
+#     kind: Certificate
+#     name: serving-cert
+#     version: v1
+# - fieldref: {}
+#   name: CERTIFICATE_NAME
+#   objref:
+#     group: cert-manager.io
+#     kind: Certificate
+#     name: serving-cert
+#     version: v1
+# - fieldref: {}
+#   name: SERVICE_NAME
+#   objref:
+#     kind: Service
+#     name: webhook-service
+#     version: v1
+- fieldref:
+    fieldPath: metadata.namespace
+  name: SERVICE_NAMESPACE
+  objref:
+    kind: Service
+    name: webhook-service
+    version: v1

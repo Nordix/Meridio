@@ -1,0 +1,6 @@
+---
+apiVersion: v1
+appVersion: "0.0.1"
+description: An operator to deploy Meridio
+name: meridio-operator
+version: 0.0.1

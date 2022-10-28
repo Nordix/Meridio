@@ -1,0 +1,4 @@
+---
+apiVersion: v1
+name: meridio
+version: 1.0.0

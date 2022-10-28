@@ -1,0 +1,143 @@
+---
+# Source: meridio/templates/proxy.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: proxy
+  labels:
+    app: proxy
+spec:
+  selector:
+    matchLabels:
+      app: proxy
+  template:
+    metadata:
+      labels:
+        app: proxy
+        "spiffe.io/spiffe-id": "true"
+    spec:
+      initContainers:
+        - name: sysctl-init
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.sysctlInit.image }}:{{ .Values.sysctlInit.version }}
+          imagePullPolicy:  # Kubernetes default according to image tag
+          securityContext:
+            privileged: true
+          command: ["/bin/sh"]
+          args:  # to be filled by operator according to the Trench
+      automountServiceAccountToken: false
+      containers:
+        - name: proxy
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.proxy.image }}:{{ .Values.version }}
+          imagePullPolicy:  # Kubernetes default according to image tag
+          startupProbe:  # will be filled by operator if not specified
+            exec:
+              command:
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=
+                - -connect-timeout=250ms
+                - -rpc-timeout=350ms
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 30
+            successThreshold: 1
+          readinessProbe:  # will be filled by operator if not specified
+            exec:
+              command:
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=Readiness
+                - -connect-timeout=250ms
+                - -rpc-timeout=350ms
+            failureThreshold: 5
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+          livenessProbe:  # will be filled by operator if not specified
+            exec:
+              command:
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=
+                - -connect-timeout=250ms
+                - -rpc-timeout=350ms
+            failureThreshold: 5
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NSM_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NSM_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: NSM_NAMESPACE
+              value:  # to be filled by operator
+            - name: NSM_CONNECT_TO
+              value: unix:///var/lib/networkservicemesh/nsm.io.sock
+            - name: NSM_SERVICE_NAME
+              value:  # to be filled by operator
+            - name: NSM_IPAM_SERVICE
+              value:  # to be filled by operator
+            - name: NSM_NETWORK_SERVICE_NAME
+              value:  # to be filled by operator
+            - name: NSM_NSP_SERVICE_NAME
+              value:  # to be filled by operator
+            - name: NSM_NSP_SERVICE_PORT
+              value:  # to be filled by operator
+            - name: NSM_TRENCH
+              value:  # to be filled by operator
+            - name: NSM_CONDUIT
+              value:  # to be filled by operator
+            - name: NSM_IP_FAMILY
+              value:  # to be filled by operator
+            - name: NSM_MAX_TOKEN_LIFETIME
+              value: "10m"
+            - name: NSM_LOG_LEVEL
+              value:  # to be filled by operator
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: nsm-socket
+              mountPath: /var/lib/networkservicemesh
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+              readOnly: false
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+              - all
+              add:
+              - NET_ADMIN  # required by proxy
+              - DAC_OVERRIDE  # required by debug tools (netstat, ss)
+              - NET_RAW  # required by debug tools (tcpdump, ping)
+              - SYS_PTRACE  # required by debug tools (netstat, ss to list process names/ids)
+      securityContext:
+        fsGroup: 2000
+        fsGroupChangePolicy: "OnRootMismatch"
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory
+        - name: nsm-socket
+          hostPath:
+            path: /var/lib/networkservicemesh
+            type: DirectoryOrCreate
+        - name: tmp
+          emptyDir:
+            medium: Memory

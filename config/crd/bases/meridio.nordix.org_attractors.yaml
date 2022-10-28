@@ -1,0 +1,142 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.7.0
+  creationTimestamp: null
+  name: attractors.meridio.nordix.org
+spec:
+  group: meridio.nordix.org
+  names:
+    kind: Attractor
+    listKind: AttractorList
+    plural: attractors
+    singular: attractor
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.interface.name
+      name: Interface-Name
+      type: string
+    - jsonPath: .spec.interface.type
+      name: Interface-Type
+      type: string
+    - jsonPath: .spec.gateways
+      name: Gateways
+      type: string
+    - jsonPath: .spec.vips
+      name: Vips
+      type: string
+    - jsonPath: .spec.composites
+      name: Composites
+      type: string
+    - jsonPath: .spec.replicas
+      name: Replicas
+      type: string
+    - jsonPath: .metadata.labels.trench
+      name: Trench
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Attractor is the Schema for the attractors API. It defines how
+          traffic are attracted and lead into the K8s cluster. This includes which
+          external interface to consume. The Attractor is instantiated as a set of
+          pods running frontend functionality.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AttractorSpec defines the desired state of Attractor
+            properties:
+              composites:
+                description: Reference to the composite conduits
+                items:
+                  type: string
+                type: array
+              gateways:
+                description: gateways that attractor expect to use
+                items:
+                  type: string
+                type: array
+              interface:
+                description: defines the interface information that attractor use
+                properties:
+                  ipv4-prefix:
+                    description: (immutable) ipv4 prefix of the interface, which is
+                      used for frontend to set up communication with the ipv4 gateways
+                    type: string
+                  ipv6-prefix:
+                    description: (immutable) ipv6 prefix of the interface, which is
+                      used for frontend to set up communication with the ipv6 gateways
+                    type: string
+                  name:
+                    description: name of the interface
+                    type: string
+                  nsm-vlan:
+                    description: if the type is "nsm-vlan", this information must
+                      be specified
+                    properties:
+                      base-interface:
+                        description: (immutable) master interface of the vlan interface
+                          to be used for external connectivity
+                        type: string
+                      vlan-id:
+                        description: (immutable) vlan ID of the vlan interface to
+                          be used for external connectivity
+                        format: int32
+                        type: integer
+                    type: object
+                  type:
+                    default: nsm-vlan
+                    description: interface choice.
+                    enum:
+                    - nsm-vlan
+                    type: string
+                required:
+                - ipv4-prefix
+                - ipv6-prefix
+                - name
+                type: object
+              replicas:
+                default: 1
+                description: The number of front-end pods. (The load-balancer is bundled
+                  with front-end currently)
+                format: int32
+                type: integer
+              vips:
+                description: vips that attractor will announce to the gateways when
+                  possible
+                items:
+                  type: string
+                type: array
+            required:
+            - composites
+            - interface
+            type: object
+          status:
+            description: AttractorStatus defines the observed state of Attractor
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

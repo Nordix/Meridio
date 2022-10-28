@@ -1,0 +1,39 @@
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Flow
+metadata:
+  name: flow-1
+  labels:
+    trench: trench-a
+spec:
+  stream: stream-1
+  priority: 1
+  vips:
+  - vip1
+  source-subnets:
+  - 10.20.30.40/30
+  source-ports:
+  - 20000-21000
+  destination-ports:
+  - 2000-3000
+  protocols:
+  - tcp
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Flow
+metadata:
+  name: flow-2
+  labels:
+    trench: trench-a
+spec:
+  stream: stream-1
+  priority: 1
+  vips:
+  - vip2
+  source-subnets:
+  - 1000::/126
+  source-ports:
+  - 20000-21000
+  destination-ports:
+  - 2000-3000
+  protocols:
+  - udp

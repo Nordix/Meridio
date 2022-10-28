@@ -1,0 +1,11 @@
+resources:
+- certificate.yaml
+- ../webhook
+- ../webhook-configuration-mutating # [MUTATING WEBHOOK]
+
+patchesStrategicMerge:
+- patches/vwebhookcainjection_patch.yaml
+- patches/mwebhookcainjection_patch.yaml # [MUTATING WEBHOOK]
+
+configurations:
+- kustomizeconfig.yaml

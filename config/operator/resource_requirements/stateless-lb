@@ -1,0 +1,26 @@
+# Disclaimer: below templates are merely examples, and are not proven to fit any production use case
+templates:
+- name: small
+  resources:
+    limits:
+      cpu: 200m
+      memory: 40Mi
+    requests:
+      cpu: 150m
+      memory: 20Mi
+- name: medium
+  resources:
+    limits:
+      cpu: 400m
+      memory: 120Mi
+    requests:
+      cpu: 300m
+      memory: 60Mi
+- name: large
+  resources:
+    limits:
+      cpu: "4"
+      memory: 300Mi
+    requests:
+      cpu: "1"
+      memory: 100Mi

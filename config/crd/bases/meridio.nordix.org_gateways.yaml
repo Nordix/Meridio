@@ -1,0 +1,180 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.7.0
+  creationTimestamp: null
+  name: gateways.meridio.nordix.org
+spec:
+  group: meridio.nordix.org
+  names:
+    kind: Gateway
+    listKind: GatewayList
+    plural: gateways
+    singular: gateway
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.address
+      name: address
+      type: string
+    - jsonPath: .spec.protocol
+      name: protocol
+      type: string
+    - jsonPath: .metadata.labels.trench
+      name: trench
+      type: string
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Gateway is the Schema for the gateways API. It defines protocol
+          settings enabling communication with Gateway Router through which traffic
+          is to be conveyed.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: GatewaySpec defines the desired state of Gateway
+            properties:
+              address:
+                description: Address of the Gateway Router
+                type: string
+              bgp:
+                description: Parameters to set up the BGP session to specified Address.
+                  If the Protocol is static, this property must be empty. If the Protocol
+                  is bgp, the minimal parameters to be defined in bgp properties are
+                  RemoteASN and LocalASN
+                properties:
+                  auth:
+                    description: BGP authentication (RFC2385).
+                    properties:
+                      key-name:
+                        description: Name of the BGP authentication key, used internally
+                          as a reference. KeyName is a key in the data section of
+                          a Secret. The associated value in the Secret is the password
+                          (pre-shared key) to be used for authentication. Must consist
+                          of alphanumeric characters, ".", "-" or "_".
+                        pattern: ^[A-Za-z0-9\.-_]+
+                        type: string
+                      key-source:
+                        description: Name of the kubernetes Secret containing the
+                          password (pre-shared key) that can be looked up based on
+                          KeyName. Must be a valid  DNS subdomain name.
+                        pattern: ^[A-Za-z0-9](?:[A-Za-z0-9-\.]{0,61}?[A-Za-z0-9])?$
+                        type: string
+                    type: object
+                  bfd:
+                    description: BFD monitoring of BGP session.
+                    properties:
+                      min-rx:
+                        description: Min-rx timer of bfd session. Please refere to
+                          BFD material to understand what this implies. The value
+                          must be a valid duration format. For example, 300ms, 90s,
+                          1m, 1h. The duration will be rounded by millisecond.
+                        type: string
+                      min-tx:
+                        description: Min-tx timer of bfd session. Please refere to
+                          BFD material to understand what this implies. The value
+                          must be a valid duration format. For example, 300ms, 90s,
+                          1m, 1h. The duration will be rounded by millisecond.
+                        type: string
+                      multiplier:
+                        description: Multiplier of bfd session. When this number of
+                          bfd packets failed to receive, bfd session will go down.
+                        type: integer
+                      switch:
+                        description: 'BFD monitoring. Valid values are: - false: no
+                          BFD monitoring; - true: turns on the BFD monitoring. When
+                          left empty, there is no BFD monitoring.'
+                        type: boolean
+                    type: object
+                  hold-time:
+                    description: Hold timer of the BGP session. Please refere to BGP
+                      material to understand what this implies. The value must be
+                      a valid duration format. For example, 90s, 1m, 1h. The duration
+                      will be rounded by second Minimum duration is 3s.
+                    type: string
+                  local-asn:
+                    description: The ASN number of the system where the Attractor
+                      FrontEnds locates
+                    format: int32
+                    type: integer
+                  local-port:
+                    description: BGP listening port of the Attractor FrontEnds.
+                    type: integer
+                  remote-asn:
+                    description: The ASN number of the Gateway Router
+                    format: int32
+                    type: integer
+                  remote-port:
+                    description: BGP listening port of the Gateway Router.
+                    type: integer
+                type: object
+              protocol:
+                default: bgp
+                description: The routing choice between the Gateway Router and Attractor
+                  FrontEnds.
+                enum:
+                - bgp
+                - static
+                type: string
+              static:
+                description: Parameters to work with the static routing configured
+                  on the Gateway Router with specified Address. If the Protocol is
+                  bgp, this property must be empty.
+                properties:
+                  bfd:
+                    description: BFD monitoring of Static session.
+                    properties:
+                      min-rx:
+                        description: Min-rx timer of bfd session. Please refere to
+                          BFD material to understand what this implies. The value
+                          must be a valid duration format. For example, 300ms, 90s,
+                          1m, 1h. The duration will be rounded by millisecond.
+                        type: string
+                      min-tx:
+                        description: Min-tx timer of bfd session. Please refere to
+                          BFD material to understand what this implies. The value
+                          must be a valid duration format. For example, 300ms, 90s,
+                          1m, 1h. The duration will be rounded by millisecond.
+                        type: string
+                      multiplier:
+                        description: Multiplier of bfd session. When this number of
+                          bfd packets failed to receive, bfd session will go down.
+                        type: integer
+                      switch:
+                        description: 'BFD monitoring. Valid values are: - false: no
+                          BFD monitoring; - true: turns on the BFD monitoring. When
+                          left empty, there is no BFD monitoring.'
+                        type: boolean
+                    type: object
+                type: object
+            required:
+            - address
+            type: object
+          status:
+            description: GatewayStatus defines the observed state of Gateway
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

@@ -1,0 +1,14 @@
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Flow
+metadata:
+  name: flow-1
+  labels:
+    trench: trench-a
+spec:
+  stream: stream-1
+  priority: 2
+  vips:
+  - vip1
+  protocols:
+  - tcp
+  - udp
