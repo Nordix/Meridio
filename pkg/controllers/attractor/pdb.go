@@ -17,8 +17,8 @@ limitations under the License.
 package attractor
 
 import (
-	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
-	common "github.com/nordix/meridio-operator/controllers/common"
+	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	common "github.com/nordix/meridio/pkg/controllers/common"
 	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/equality"

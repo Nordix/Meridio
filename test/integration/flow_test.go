@@ -3,10 +3,10 @@ package e2e
 import (
 	"time"
 
-	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
-	"github.com/nordix/meridio-operator/controllers/common"
-	"github.com/nordix/meridio-operator/testdata/utils"
+	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
 	"github.com/nordix/meridio/pkg/configuration/reader"
+	"github.com/nordix/meridio/pkg/controllers/common"
+	"github.com/nordix/meridio/test/utils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"

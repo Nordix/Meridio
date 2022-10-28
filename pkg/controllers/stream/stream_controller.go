@@ -28,8 +28,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/go-logr/logr"
-	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
-	"github.com/nordix/meridio-operator/controllers/common"
+	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	"github.com/nordix/meridio/pkg/controllers/common"
 )
 
 // StreamReconciler reconciles a Stream object

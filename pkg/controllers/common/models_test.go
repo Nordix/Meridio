@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/nordix/meridio-operator/controllers/common"
+	"github.com/nordix/meridio/pkg/controllers/common"
 	corev1 "k8s.io/api/core/v1"
 )
 

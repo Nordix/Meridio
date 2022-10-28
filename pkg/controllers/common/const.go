@@ -23,7 +23,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
-	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
+	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

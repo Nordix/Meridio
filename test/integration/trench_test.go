@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
-	"github.com/nordix/meridio-operator/controllers/common"
+	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	"github.com/nordix/meridio/pkg/controllers/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"

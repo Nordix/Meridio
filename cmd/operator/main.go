@@ -34,21 +34,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/faisal-memon/sviddisk"
-	meridiov1alpha1 "github.com/nordix/meridio-operator/api/v1alpha1"
-	attactorcontroller "github.com/nordix/meridio-operator/controllers/attractor"
-	"github.com/nordix/meridio-operator/controllers/common"
-	conduitcontroller "github.com/nordix/meridio-operator/controllers/conduit"
-	flowcontroller "github.com/nordix/meridio-operator/controllers/flow"
-	gatewaycontroller "github.com/nordix/meridio-operator/controllers/gateway"
-	streamcontroller "github.com/nordix/meridio-operator/controllers/stream"
-	trenchcontroller "github.com/nordix/meridio-operator/controllers/trench"
+	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	attactorcontroller "github.com/nordix/meridio/pkg/controllers/attractor"
+	"github.com/nordix/meridio/pkg/controllers/common"
+	conduitcontroller "github.com/nordix/meridio/pkg/controllers/conduit"
+	flowcontroller "github.com/nordix/meridio/pkg/controllers/flow"
+	gatewaycontroller "github.com/nordix/meridio/pkg/controllers/gateway"
+	streamcontroller "github.com/nordix/meridio/pkg/controllers/stream"
+	trenchcontroller "github.com/nordix/meridio/pkg/controllers/trench"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/nordix/meridio-operator/controllers/version"
-	vipcontroller "github.com/nordix/meridio-operator/controllers/vip"
+	"github.com/nordix/meridio/pkg/controllers/version"
+	vipcontroller "github.com/nordix/meridio/pkg/controllers/vip"
 	//+kubebuilder:scaffold:imports
 )
 
