@@ -2,6 +2,18 @@
 
 ## E2E Tests
 
+[![meridio-e2e-kind-meridio](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild/badge/icon?config=meridio-e2e-kind-meridio)](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild)
+
+[![meridio-e2e-kind-tapa](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild/badge/icon?config=meridio-e2e-kind-tapa)](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild)
+
+[![meridio-e2e-kind-nsm](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild/badge/icon?config=meridio-e2e-kind-nsm)](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild)
+
+[![meridio-e2e-kind-ip-family](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild/badge/icon?config=meridio-e2e-kind-ip-family)](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild)
+
+[![meridio-e2e-kind-kubernetes](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild/badge/icon?config=meridio-e2e-kind-kubernetes)](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild)
+
+(These reports are for the last 1000 test runs only)
+
 ### Environment / Framework
 
 #### Initial Deployment
