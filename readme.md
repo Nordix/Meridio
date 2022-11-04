@@ -48,13 +48,6 @@ As the current default network service, a **no-NAT stateless Load-Balancer** is 
 
 Meridio users have the flexibility to **adjust the network services on the fly** as they desire. Traffic `attractors`, `streams` gathering traffic into logical groups and traffic classifiers (`flows`) can be added, removed and updated without any redeployment of the resources, and with no traffic disturbance. Individually, each user pods have the ability to **select the traffic to consume at runtime** which will produce secondary network reorganization to cover the user pods needs and requests.
 
-
-## Meridio Operator
-
-An operator is available to provide a very easy and user friendly way to create, configure and manage the different concepts Meridio offers.
-
-https://github.com/Nordix/Meridio-Operator
-
 ## Community
 
 ### Slack

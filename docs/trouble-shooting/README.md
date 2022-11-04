@@ -1,8 +1,6 @@
 # Meridio - Troubleshooting Guide
 
-This guide focuses on `Meridio`, the
-[Meridio-operator](https://github.com/Nordix/Meridio-Operator) is only
-briefly touched.
+This guide focuses on `Meridio`, the Operator is only briefly touched.
 
 To be able to troubleshoot *anything* you must know how it works when
 everything is OK. So try to follow this guide, check the logs and use
