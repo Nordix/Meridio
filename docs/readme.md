@@ -7,7 +7,7 @@
     * [Quick Installation / Demo](demo)
     * [Deployment](deployment.md)
         * [Helm](deployment.md#helm)
-        * [Operator](deployment.md#operator)
+        * [Operator](deployment/operator.md)
 * Architecture and Design
     * [Concepts](concepts.md)
         * [Trench](concepts.md#trench)
@@ -18,6 +18,7 @@
         * [Attractor](concepts.md#attractor)
         * [Gateway](concepts.md#gateway)
     * Components
+        * [Operator](operator.md)
         * [Stateless Load-Balancer](stateless-load-balancer.md)
         * [Front-End](front-end.md)
         * [Proxy](proxy.md)

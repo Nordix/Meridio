@@ -1,0 +1,144 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ipam
+  labels:
+    app: ipam
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  revisionHistoryLimit: 10
+  serviceName: ipam
+  selector:
+    matchLabels:
+      app: ipam
+  template:
+    metadata:
+      labels:
+        app: ipam
+        "spiffe.io/spiffe-id": "true"
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: ipam
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ipam.image }}:{{ .Values.version }}
+          imagePullPolicy:  # Kubernetes default according to image tag
+          startupProbe:
+            exec:
+              command:
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=
+                - -connect-timeout=250ms
+                - -rpc-timeout=350ms
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 30
+            successThreshold: 1
+          readinessProbe:  # will be filled by operator if not specified
+            exec:
+              command:
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=Readiness
+                - -connect-timeout=250ms
+                - -rpc-timeout=350ms
+            failureThreshold: 5
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+          livenessProbe:  # will be filled by operator if not specified
+            exec:
+              command:
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=
+                - -connect-timeout=250ms
+                - -rpc-timeout=350ms
+            failureThreshold: 5
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: IPAM_PORT
+              value:  # to be filled by operator
+            - name: IPAM_DATASOURCE
+              value: /run/ipam/data/registry.db
+            - name: IPAM_NAMESPACE
+              value:  # to be filled by operator
+            - name: IPAM_TRENCH_NAME
+              value:  # to be filled by operator
+            - name: IPAM_NSP_SERVICE
+              value:  # to be filled by operator
+            - name: IPAM_PREFIX_IPV4
+              value:  # to be filled by operator
+            - name: IPAM_PREFIX_IPV6
+              value:  # to be filled by operator
+            - name: IPAM_CONDUIT_PREFIX_LENGTH_IPV4
+              value:  # to be filled by operator
+            - name: IPAM_CONDUIT_PREFIX_LENGTH_IPV6
+              value:  # to be filled by operator
+            - name: IPAM_NODE_PREFIX_LENGTH_IPV4
+              value:  # to be filled by operator
+            - name: IPAM_NODE_PREFIX_LENGTH_IPV6
+              value:  # to be filled by operator
+            - name: IPAM_IP_FAMILY
+              value:  # to be filled by operator
+            - name: IPAM_LOG_LEVEL
+              value:  # to be filled by operator
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: ipam-data
+              mountPath: /run/ipam/data
+              readOnly: false
+            - name: tmp
+              mountPath: /tmp
+              readOnly: false
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+              - all
+              add:
+              - DAC_OVERRIDE  # required by debug tools (netstat, ss)
+              - NET_RAW  # required by debug tool (ping)
+              - SYS_PTRACE  # required by debug tools (netstat, ss to list process names/ids)
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 2000
+        fsGroupChangePolicy: "OnRootMismatch"
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory
+        - name: tmp
+          emptyDir:
+            medium: Memory
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
+  volumeClaimTemplates:
+    - metadata:
+        name: ipam-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi

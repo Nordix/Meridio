@@ -7,13 +7,13 @@ default:
 all: default
 
 help: ## Display this help.
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 ############################################################################
 # Variables
 ############################################################################
 
-IMAGES ?= base-image stateless-lb proxy tapa ipam nsp example-target frontend
+IMAGES ?= base-image stateless-lb proxy tapa ipam nsp example-target frontend operator
 
 # Versions
 VERSION ?= latest
@@ -25,6 +25,7 @@ VERSION_NSP ?= $(VERSION)
 VERSION_EXAMPLE_TARGET ?= $(VERSION)
 VERSION_FRONTEND ?= $(VERSION)
 VERSION_BASE_IMAGE ?= $(VERSION)
+VERSION_OPERATOR ?= $(VERSION)
 LOCAL_VERSION ?= $(VERSION)
 
 # E2E tests
@@ -33,7 +34,7 @@ E2E_PARAMETERS ?= $(shell cat ./test/e2e/environment/kind-helm/dualstack/config.
 E2E_SEED ?= $(shell shuf -i 1-2147483647 -n1)
 
 # Contrainer Registry
-REGISTRY ?= localhost:5000/meridio
+REGISTRY ?= registry.nordix.org/cloud-native/meridio
 BASE_IMAGE ?= $(REGISTRY)/base-image:$(VERSION_BASE_IMAGE)
 DEBUG_IMAGE ?= $(REGISTRY)/debug:$(VERSION)
 
@@ -45,14 +46,22 @@ MOCKGEN = $(shell pwd)/bin/mockgen
 PROTOC_GEN_GO = $(shell pwd)/bin/protoc-gen-go
 PROTOC_GEN_GO_GRPC = $(shell pwd)/bin/protoc-gen-go-grpc
 NANCY = $(shell pwd)/bin/nancy
+CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
+KUSTOMIZE = $(shell pwd)/bin/kustomize
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 
 BUILD_DIR ?= build
 BUILD_STEPS ?= build tag push
 
+# Security Scan
 OUTPUT_DIR ?= _output
-
 SECURITY_SCAN_VOLUME ?= --volume /var/run/docker.sock:/var/run/docker.sock --volume $(HOME)/Library/Caches:/root/.cache/
+
+# Operator
+TEMPLATES_HELM_CHART_VALUES_PATH = config/templates/charts/meridio/values.yaml
+OPERATOR_NAMESPACE = meridio-operator
+ENABLE_MUTATING_WEBHOOK?=true
+WEBHOOK_SUPPORT ?= spire # spire or certmanager
 
 #############################################################################
 # Container: Build, tag, push
@@ -73,7 +82,7 @@ push:
 #############################################################################
 
 .PHONY: base-image
-base-image: ## Build the base-image
+base-image: ## Build the base-image.
 	VERSION=$(VERSION_BASE_IMAGE) IMAGE=base-image $(MAKE) -s $(BUILD_STEPS)
 
 .PHONY: debug-image
@@ -101,12 +110,16 @@ nsp: ## Build the nsp.
 	VERSION=$(VERSION_NSP) IMAGE=nsp $(MAKE) -s $(BUILD_STEPS)
 
 .PHONY: example-target
-example-target:
+example-target: ## Build the example target.
 	VERSION=$(VERSION_EXAMPLE_TARGET) BUILD_DIR=examples/target/build IMAGE=example-target $(MAKE) $(BUILD_STEPS)
 
 .PHONY: frontend
 frontend: ## Build the frontend.
 	VERSION=$(VERSION_FRONTEND) IMAGE=frontend $(MAKE) -s $(BUILD_STEPS)
+
+.PHONY: operator
+operator: ## Build the operator.
+	VERSION=$(VERSION_OPERATOR) IMAGE=operator $(MAKE) -s $(BUILD_STEPS)
 
 #############################################################################
 ##@ Testing & Code check
@@ -186,6 +199,45 @@ ambassador-proto: proto-compiler
 .PHONY: proto
 proto: ipam-proto nsp-proto ambassador-proto ## Compile the proto.
 
+.PHONY: manifests
+manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
+	$(CONTROLLER_GEN) crd rbac:roleName=operator-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+
+.PHONY: generate-controller
+generate-controller: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+
+#############################################################################
+##@ Operator
+#############################################################################
+
+.PHONY: deploy
+deploy: manifests kustomize namespace configure-webhook set-templates-values ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	cd config/operator && $(KUSTOMIZE) edit set image operator=${REGISTRY}/operator:${VERSION_OPERATOR}
+	$(KUSTOMIZE) build config/default --enable-helm | kubectl apply -f -
+
+.PHONY: undeploy
+undeploy: namespace configure-webhook ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+	$(KUSTOMIZE) build config/default --enable-helm | kubectl delete -f - --ignore-not-found=true
+
+.PHONY: set-templates-values
+set-templates-values: # Set the values in the templates helm chart
+	sed -i 's/^version: .*/version: ${VERSION}/' ${TEMPLATES_HELM_CHART_VALUES_PATH} ; \
+	sed -i 's/^registry: .*/registry: $(shell echo ${REGISTRY} | cut -d "/" -f 1)/' ${TEMPLATES_HELM_CHART_VALUES_PATH} ; \
+	sed -i 's#^organization: .*#organization: $(shell echo ${REGISTRY} | cut -d "/" -f 2-)#' ${TEMPLATES_HELM_CHART_VALUES_PATH}
+
+.PHONY: namespace
+namespace: # Edit the namespace of operator to be deployed
+	cd config/default && $(KUSTOMIZE) edit set namespace ${OPERATOR_NAMESPACE}
+
+.PHONY: print-manifests
+print-manifests: manifests kustomize namespace configure-webhook set-templates-values # Generate manifests to be deployed in the cluster
+	cd config/operator && $(KUSTOMIZE) edit set image operator=${REGISTRY}/operator:${VERSION_OPERATOR}
+	$(KUSTOMIZE) build config/default --enable-helm
+
+configure-webhook:
+	ENABLE_MUTATING_WEBHOOK=$(ENABLE_MUTATING_WEBHOOK) WEBHOOK_SUPPORT=$(WEBHOOK_SUPPORT) hack/webhook-switch.sh
+	
 #############################################################################
 # Tools
 #############################################################################
@@ -226,6 +278,14 @@ ginkgo:
 .PHONY: nancy-tool
 nancy-tool:
 	$(call go-get-tool,$(NANCY),github.com/sonatype-nexus-community/nancy@v1.0.37)
+
+.PHONY: controller-gen
+controller-gen:
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.10.0)
+
+.PHONY: kustomize
+kustomize:
+	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@v4.5.2)
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 define go-get-tool

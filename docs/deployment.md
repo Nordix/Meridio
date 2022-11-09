@@ -4,6 +4,6 @@
 
 TODO
 
-## [Operator](https://github.com/Nordix/Meridio-Operator)
+## [Operator]()
 
 TODO

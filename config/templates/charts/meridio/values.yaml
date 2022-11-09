@@ -1,0 +1,33 @@
+---
+version: latest
+registry: registry.nordix.org
+organization: cloud-native/meridio
+
+nsm:
+  organization: cloud-native/nsm
+  version: v1.5.0
+
+sysctlInit:
+  image: busybox
+  version: 1.29
+
+statelessLB:
+  image: stateless-lb
+
+frontEnd:
+  image: frontend
+
+proxy:
+  image: proxy
+
+ipam:
+  image: ipam
+
+nsp:
+  image: nsp
+
+vlanNSE:
+  image: cmd-nse-remote-vlan
+
+vlanNSC:
+  image: cmd-nsc

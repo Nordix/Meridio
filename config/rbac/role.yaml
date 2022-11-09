@@ -1,0 +1,143 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: null
+  name: operator-role
+  namespace: system
+rules:
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - attractors
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - conduits
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - flows
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - gateways
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - streams
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - trenches
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - vips
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

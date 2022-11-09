@@ -17,3 +17,8 @@
 _output/
 bin/
 temp/
+testbin/*
+
+# Kubernetes Generated files - skip generated files, except for vendored files
+
+!vendor/**/zz_generated.*

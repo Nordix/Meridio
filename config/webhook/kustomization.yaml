@@ -1,0 +1,19 @@
+resources:
+- service.yaml
+- manifests.yaml
+
+configurations:
+- kustomizeconfig.yaml
+
+namePrefix: operator-
+
+# add namespace selector to the webhooks to restrict the working scope
+# This takes the label "kubernetes.io/metadata.name" of a namespace, which added in Kuberntes 1.21[beta feature]
+# This block should be commented if using a Kubernetes version earlier than that
+patches:
+- target:
+   group: admissionregistration.k8s.io
+   version: v1
+   kind: ValidatingWebhookConfiguration
+   name: validating-webhook-configuration
+  path: patches/vwebhook_namespace_selector_patch.yaml

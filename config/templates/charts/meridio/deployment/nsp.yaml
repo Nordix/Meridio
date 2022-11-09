@@ -1,0 +1,130 @@
+---
+# Source: meridio/templates/nsp.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nsp
+  labels:
+    app: nsp
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  revisionHistoryLimit: 10
+  serviceName: nsp
+  selector:
+    matchLabels:
+      app: nsp
+  template:
+    metadata:
+      labels:
+        app: nsp
+        "spiffe.io/spiffe-id": "true"
+    spec:
+      serviceAccountName:  # to be filled by operator
+      containers:
+        - name: nsp
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.nsp.image }}:{{ .Values.version }}
+          imagePullPolicy:  # Kubernetes default according to image tag
+          startupProbe:
+            exec:
+              command:
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=
+                - -connect-timeout=250ms
+                - -rpc-timeout=350ms
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 30
+            successThreshold: 1
+          readinessProbe:  # will be filled by operator if not specified
+            exec:
+              command:
+                - /bin/grpc_health_probe
+                - -spiffe
+                - -addr=:7778
+                - -service=
+                - -connect-timeout=250ms
+                - -rpc-timeout=350ms
+            failureThreshold: 5
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+          livenessProbe:  # will be filled by operator if not specified
+            exec:
+              command:
+                - /bin/grpc_health_probe
+                - -addr=unix:///tmp/health.sock
+                - -service=
+                - -connect-timeout=250ms
+                - -rpc-timeout=350ms
+            failureThreshold: 5
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            successThreshold: 1
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NSP_PORT
+              value:  # to be filled by operator
+            - name: NSP_NAMESPACE
+              value:  # to be filled by operator
+            - name: NSP_CONFIG_MAP_NAME
+              value:  # to be filled by operator
+            - name: NSP_DATASOURCE
+              value: /run/nsp/data/registry.db
+            - name: NSP_LOG_LEVEL
+              value:  # to be filled by operator
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: nsp-data
+              mountPath: /run/nsp/data
+              readOnly: false
+            - name: tmp
+              mountPath: /tmp
+              readOnly: false
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+              - all
+              add:
+              - DAC_OVERRIDE  # required by debug tools (netstat, ss)
+              - NET_RAW  # required by debug tool (ping)
+              - SYS_PTRACE  # required by debug tools (netstat, ss to list process names/ids)
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+        fsGroup: 2000
+        fsGroupChangePolicy: "OnRootMismatch"
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory
+        - name: tmp
+          emptyDir:
+            medium: Memory
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
+  volumeClaimTemplates:
+    - metadata:
+        name: nsp-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi

@@ -1,0 +1,24 @@
+# permissions for end users to edit flows.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: flow-editor-role
+rules:
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - flows
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - meridio.nordix.org
+  resources:
+  - flows/status
+  verbs:
+  - get

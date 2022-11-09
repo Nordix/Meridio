@@ -1,0 +1,35 @@
+- op: add
+  path: /webhooks/0/namespaceSelector
+  value:
+    matchLabels:
+      kubernetes.io/metadata.name: $(SERVICE_NAMESPACE)
+- op: add
+  path: /webhooks/1/namespaceSelector
+  value:
+    matchLabels:
+      kubernetes.io/metadata.name: $(SERVICE_NAMESPACE)
+- op: add
+  path: /webhooks/2/namespaceSelector
+  value:
+    matchLabels:
+      kubernetes.io/metadata.name: $(SERVICE_NAMESPACE)
+- op: add
+  path: /webhooks/3/namespaceSelector
+  value:
+    matchLabels:
+      kubernetes.io/metadata.name: $(SERVICE_NAMESPACE)
+- op: add
+  path: /webhooks/4/namespaceSelector
+  value:
+    matchLabels:
+      kubernetes.io/metadata.name: $(SERVICE_NAMESPACE)
+- op: add
+  path: /webhooks/5/namespaceSelector
+  value:
+    matchLabels:
+      kubernetes.io/metadata.name: $(SERVICE_NAMESPACE)
+- op: add
+  path: /webhooks/6/namespaceSelector
+  value:
+    matchLabels:
+      kubernetes.io/metadata.name: $(SERVICE_NAMESPACE)

@@ -1,0 +1,17 @@
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Conduit
+metadata:
+  name: conduit-stateless
+  labels:
+    trench: trench-a
+spec:
+  type: stateless-lb
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Conduit
+metadata:
+  name: conduit-stateless2
+  labels:
+    trench: trench-b
+spec:
+  type: stateless-lb

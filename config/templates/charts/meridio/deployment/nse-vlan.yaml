@@ -1,0 +1,117 @@
+---
+# Source: meridio/templates/nse-vlan.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nse-vlan
+  labels:
+    app: nse-vlan
+spec:
+  progressDeadlineSeconds: 600
+  selector:
+    matchLabels:
+      app: nse-vlan
+  replicas: 1
+  revisionHistoryLimit: 10
+  strategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 100%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: nse-vlan
+        "spiffe.io/spiffe-id": "true"
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: nse-vlan
+          image: {{ .Values.registry }}/{{ .Values.nsm.organization }}/{{ .Values.vlanNSE.image }}:{{ .Values.nsm.version }}
+          imagePullPolicy:  # Kubernetes default according to image tag
+          startupProbe:  # will be filled by operator if not specified
+            exec:
+              command:
+                - /bin/grpc_health_probe
+                - -spiffe
+                - -addr=:5003
+                - -service=
+                - -connect-timeout=250ms
+                - -rpc-timeout=350ms
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 30
+            successThreshold: 1
+          readinessProbe:  # will be filled by operator if not specified
+            exec:
+              command:
+                - /bin/grpc_health_probe
+                - -spiffe
+                - -addr=:5003
+                - -service=
+                - -connect-timeout=250ms
+                - -rpc-timeout=350ms
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+            successThreshold: 1
+          livenessProbe:  # will be filled by operator if not specified
+            exec:
+              command:
+                - /bin/grpc_health_probe
+                - -spiffe
+                - -addr=:5003
+                - -service=
+                - -connect-timeout=250ms
+                - -rpc-timeout=350ms
+            initialDelaySeconds: 0
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+            successThreshold: 1
+          ports:  # will be filled by operator if not specified
+            - containerPort: 5003
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NSM_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NSM_CONNECT_TO
+              value:  # to be filled by operator
+            - name: NSM_SERVICES
+              value:  # to be filled by operator
+            - name: NSM_CIDR_PREFIX
+              value:  # to be filled by operator according to Attractor
+            - name: NSE_POINT2POINT
+              value: "False"
+            - name: NSM_REGISTER_SERVICE
+              value: "True"
+            - name: NSM_LISTEN_ON  # will be filled by operator if not specified
+              value:  # to be filled by operator
+            - name: NSM_MAX_TOKEN_LIFETIME
+              value: "10m"
+            - name: NSM_LOG_LEVEL
+              value:  # to be filled by operator
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10000
+            runAsGroup: 10000
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+              - all
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory

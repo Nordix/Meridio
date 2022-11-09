@@ -1,0 +1,43 @@
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Attractor
+metadata:
+  name: attr1
+  labels:
+    trench: trench-a
+spec:
+  gateways:
+    - gateway1
+    - gateway2
+  vips:
+    - vip1
+    - vip2
+  composites:
+    - conduit-stateless
+  interface:
+    name: eth0.100
+    ipv4-prefix: 169.254.100.0/24
+    ipv6-prefix: 100:100::/64
+    nsm-vlan:
+      vlan-id: 100
+      base-interface: eth0
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Attractor
+metadata:
+  name: attr2
+  labels:
+    trench: trench-b
+spec:
+  gateways:
+    - gateway3
+  vips:
+    - vip3
+  composites:
+    - conduit-stateless2
+  interface:
+    name: eth0.100
+    ipv4-prefix: 169.254.100.0/24
+    ipv6-prefix: 100:100::/64
+    nsm-vlan:
+      vlan-id: 101
+      base-interface: eth0

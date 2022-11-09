@@ -1,0 +1,147 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  creationTimestamp: null
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-meridio-nordix-org-v1alpha1-attractor
+  failurePolicy: Fail
+  name: vattractor.kb.io
+  rules:
+  - apiGroups:
+    - meridio.nordix.org
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - attractors
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-meridio-nordix-org-v1alpha1-conduit
+  failurePolicy: Fail
+  name: vconduit.kb.io
+  rules:
+  - apiGroups:
+    - meridio.nordix.org
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - conduits
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-meridio-nordix-org-v1alpha1-flow
+  failurePolicy: Fail
+  name: vflow.kb.io
+  rules:
+  - apiGroups:
+    - meridio.nordix.org
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - flows
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-meridio-nordix-org-v1alpha1-gateway
+  failurePolicy: Fail
+  name: vgateway.kb.io
+  rules:
+  - apiGroups:
+    - meridio.nordix.org
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - gateways
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-meridio-nordix-org-v1alpha1-stream
+  failurePolicy: Fail
+  name: vstream.kb.io
+  rules:
+  - apiGroups:
+    - meridio.nordix.org
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - streams
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-meridio-nordix-org-v1alpha1-trench
+  failurePolicy: Fail
+  name: vtrench.kb.io
+  rules:
+  - apiGroups:
+    - meridio.nordix.org
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - trenches
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-meridio-nordix-org-v1alpha1-vip
+  failurePolicy: Fail
+  name: vvip.kb.io
+  rules:
+  - apiGroups:
+    - meridio.nordix.org
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - vips
+  sideEffects: None

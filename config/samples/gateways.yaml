@@ -1,0 +1,66 @@
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Gateway
+metadata:
+  labels:
+    trench: trench-a
+  name: gateway1
+spec:
+  address: 2.3.4.5
+  bgp:
+    remote-asn: 2000
+    local-asn: 2001
+    hold-time: 24s
+    local-port: 179
+    remote-port: 179
+    bfd:
+      switch: true
+      min-rx: 400ms
+      min-tx: 400ms
+      multiplier: 3
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Gateway
+metadata:
+  labels:
+    trench: trench-a
+  name: gateway2
+spec:
+  address: 1000::1
+  bgp:
+    local-asn: 2001
+    remote-asn: 1000
+    local-port: 179
+    remote-port: 179
+# if bfd is defined, every parameter under bfd must be defined
+    bfd:
+      switch: true
+      multiplier: 5
+      min-rx: 400ms
+      min-tx: 400ms
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Gateway
+metadata:
+  labels:
+    trench: trench-b
+  name: gateway3
+spec:
+  address: 1.2.3.4
+  bgp:
+    remote-asn: 3000
+    local-asn: 2001
+    local-port: 179
+    remote-port: 179
+    hold-time: 1m
+# no bfd configuration, no bfd monitoring
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Gateway
+metadata:
+  labels:
+    trench: trench-b
+  name: gateway4
+spec:
+  protocol: static
+  address: 1.2.3.4
+# no bfd configuration, no bfd monitoring
