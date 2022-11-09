@@ -1,4 +1,4 @@
-package e2e
+package integration_test
 
 import (
 	"context"
@@ -68,7 +68,7 @@ func init() {
 	flag.BoolVar(&mutating, "mutating", true, "specify the namespace for the tests to run")
 }
 
-var fw = NewFramework()
+var fw *Framework
 
 // default trench used in all tests
 func trench(namespace string) *meridiov1alpha1.Trench {
@@ -138,6 +138,7 @@ func TestE2E(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	fw = NewFramework()
 	deployment := fw.GetOperator()
 	Expect(deployment).ToNot(BeNil())
 	Expect(fw.OperatorPodRestarts()).To(Equal(int32(0)))
