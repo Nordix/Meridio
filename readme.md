@@ -3,12 +3,13 @@
 <img src="docs/resources/Logo.svg" width="118" height="100">
 
 [![GitHub release](https://img.shields.io/github/release/nordix/meridio)](https://GitHub.com/nordix/meridio/releases/)
-[![Build Status](https://jenkins.nordix.org/job/nordix-nsm-meridio-ctraffic-verify-build-master/badge/icon)](https://jenkins.nordix.org/job/nordix-nsm-meridio-ctraffic-verify-build-master/)
+[![Build Status](https://jenkins.nordix.org/job/meridio-periodic/badge/icon)](https://jenkins.nordix.org/job/meridio-periodic/)
 [![Go Reference](https://img.shields.io/badge/godoc-reference-blue)](https://pkg.go.dev/github.com/nordix/meridio)
 [![go.mod version](https://img.shields.io/github/go-mod/go-version/nordix/meridio)](https://github.com/nordix/meridio)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nordix/meridio)](https://goreportcard.com/report/github.com/nordix/meridio)
 [![GitHub stars](https://img.shields.io/github/stars/nordix/meridio)](https://github.com/nordix/meridio/stargazers)
-![GitHub](https://img.shields.io/github/license/nordix/meridio)
+[![GitHub](https://img.shields.io/github/license/nordix/meridio)](LICENSE)
+[![CVE](https://jenkins.nordix.org/job/meridio-periodic-security-scan/badge/icon?config=meridio-vulnerabilities)](https://jenkins.nordix.org/job/meridio-periodic-security-scan/)
 
 Meridio is an Open Source project providing capabilities to facilitate attraction and distribution of external traffic within Kubernetes. It operates on layer 3/4 to provide traffic distribution via so-called secondary networking upholding separation from the traffic distributed on the default "primary" network within the cluster.
 
@@ -61,6 +62,6 @@ The team is reachable on slack for any question, feedback or help: [Slack](https
 ## Prerequisites
 
 To run Meridio, the following are required:
-* Kubernetes 1.19+
+* Kubernetes 1.21+
 * Spire
-* Network Service Mesh 1.3+
+* Network Service Mesh 1.5+
