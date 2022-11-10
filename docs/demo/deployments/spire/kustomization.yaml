@@ -23,6 +23,7 @@ configMapGenerator:
 
 resources:
 - k8s-workload-registrar-crd.yaml
+- spiffe-csi-driver.yaml
 - spire-namespace.yaml
 - agent-account.yaml
 - agent-cluster-role.yaml

@@ -71,9 +71,9 @@ spec:
               command: ["/bin/grpc-health-probe", "-spiffe", "-addr=unix:///listen.on.sock"]
       volumes:
         - name: spire-agent-socket
-          hostPath:
-            path: /run/spire/sockets
-            type: Directory
+          csi:
+            driver: "csi.spiffe.io"
+            readOnly: true
         - name: nsm-socket
           hostPath:
             path: /var/lib/networkservicemesh

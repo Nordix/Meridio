@@ -197,9 +197,9 @@ spec:
         fsGroupChangePolicy: "OnRootMismatch"
       volumes:
         - name: spire-agent-socket
-          hostPath:
-            path: /run/spire/sockets
-            type: Directory
+          csi:
+            driver: "csi.spiffe.io"
+            readOnly: true
         - name: nsm-socket
           hostPath:
             path: /var/lib/networkservicemesh
