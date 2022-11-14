@@ -1,7 +1,9 @@
 
 .PHONY: default
 default:
-	$(MAKE) -s -C $(shell pwd) $(STEPS)
+	@for step in $(STEPS); do \
+		$(MAKE) -s -C $(shell pwd) $${step} ; \
+	done
 
 .PHONY: all
 all: default
@@ -24,6 +26,7 @@ IP_FAMILY ?= "dualstack"
 KUBERNETES_WORKERS ?= 2
 
 WAIT_TIME ?= 10
+WAIT_TIMEOUT ?= 4m # Kubectl wait timeout
 
 BASE_PATH ?= $(shell pwd)/../../../..
 
@@ -44,7 +47,7 @@ meridio: ## Deploy Meridio (trench-a + trench-b + target-a + target-b)
 
 .PHONY: wait-meridio
 wait-meridio:
-	kubectl wait --for=condition=Ready pods --all -n red --timeout=5m
+	kubectl wait --for=condition=Ready pods --all -n red --timeout=$(WAIT_TIMEOUT)
 
 #############################################################################
 # Tools

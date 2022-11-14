@@ -27,28 +27,27 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var _ = Describe("Target", func() {
+var _ = Describe("TAPA", func() {
 
-	Context("With one trench containing a stream with 2 VIP addresses and 4 target pods running", func() {
+	var (
+		targetPod *v1.Pod
+	)
 
-		var (
-			targetPod *v1.Pod
-		)
+	BeforeEach(func() {
+		if targetPod != nil {
+			return
+		}
+		listOptions := metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("app=%s", config.targetADeploymentName),
+		}
+		pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(len(pods.Items)).To(BeNumerically(">", 0))
+		targetPod = &pods.Items[0]
+	})
 
-		BeforeEach(func() {
-			if targetPod != nil {
-				return
-			}
-			listOptions := metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("app=%s", config.targetADeploymentName),
-			}
-			pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(len(pods.Items)).To(BeNumerically(">", 0))
-			targetPod = &pods.Items[0]
-		})
-
-		When("a target is closing a stream", func() {
+	Describe("close-open", func() {
+		When("Close stream-a-I in one of the target from target-a-deployment-name and re-open it", func() {
 			var (
 				err error
 			)
@@ -78,9 +77,9 @@ var _ = Describe("Target", func() {
 				}, timeout, interval).Should(BeTrue())
 			})
 
-			It("should receive traffic anymore", func() {
+			It("(Traffic) is received by the targets", func() {
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
-					By("Checking the target has not receive ipv4 traffic")
+					By("Checking IPv4")
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
 					Expect(lostConnections).To(Equal(0))
 					Expect(len(lastingConnections)).To(Equal(numberOfTargetA - 1))
@@ -88,7 +87,7 @@ var _ = Describe("Target", func() {
 					Expect(exists).ToNot(BeTrue())
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
-					By("Checking the target has not receive ipv6 traffic")
+					By("Checking IPv6")
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0), "tcp")
 					Expect(lostConnections).To(Equal(0))
 					Expect(len(lastingConnections)).To(Equal(numberOfTargetA - 1))
@@ -97,7 +96,6 @@ var _ = Describe("Target", func() {
 				}
 			})
 		})
-
 	})
 
 })

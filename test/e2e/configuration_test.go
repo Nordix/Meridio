@@ -27,11 +27,10 @@ import (
 
 var _ = Describe("Configuration", func() {
 
-	Context("With one trench containing a stream with 2 VIP addresses and 4 target pods running", func() {
-
-		When("creating a new vip and adding it to existing stream and attractor", func() {
+	Describe("new-vip", func() {
+		When("Configure vip-2-v4 and vip-2-v6 in flow-a-z-tcp and attractor-a-1", func() {
 			BeforeEach(func() {
-				cmd := exec.Command(config.script, "configuration_new_ip")
+				cmd := exec.Command(config.script, "configuration_new_vip")
 				var stderr bytes.Buffer
 				cmd.Stderr = &stderr
 				err := cmd.Run()
@@ -40,7 +39,7 @@ var _ = Describe("Configuration", func() {
 			})
 
 			AfterEach(func() {
-				cmd := exec.Command(config.script, "configuration_new_ip_revert")
+				cmd := exec.Command(config.script, "configuration_new_vip_revert")
 				var stderr bytes.Buffer
 				cmd.Stderr = &stderr
 				err := cmd.Run()
@@ -48,22 +47,21 @@ var _ = Describe("Configuration", func() {
 				Expect(err).ToNot(HaveOccurred())
 			})
 
-			It("should receive the traffic correctly", func() {
+			It("(Traffic) is received by the targets", func() {
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
-					By("Checking if all targets have receive ipv4 traffic via the new VIP with no traffic interruption (no lost connection)")
+					By("Checking IPv4")
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip2V4, config.flowAZTcpDestinationPort0), "tcp")
 					Expect(lostConnections).To(Equal(0))
 					Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
-					By("Checking if all targets have receive ipv6 traffic via the new VIP with no traffic interruption (no lost connection)")
+					By("Checking IPv6")
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip2V6, config.flowAZTcpDestinationPort0), "tcp")
 					Expect(lostConnections).To(Equal(0))
 					Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
 				}
 			})
 		})
-
 	})
 
 })

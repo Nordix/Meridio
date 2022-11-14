@@ -1,7 +1,9 @@
 
 .PHONY: default
 default:
-	$(MAKE) -s -C $(shell pwd) $(STEPS)
+	@for step in $(STEPS); do \
+		$(MAKE) -s -C $(shell pwd) $${step} ; \
+	done
 
 .PHONY: all
 all: default
@@ -28,7 +30,8 @@ PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 
 TEMP_DIR ?= temp
 
-WAIT_TIME ?= 2
+WAIT_TIME ?= 10
+WAIT_TIMEOUT ?= 4m # Kubectl wait timeout
 
 BUILD_STEPS ?= build tag push
 REGISTRY ?= registry.nordix.org/cloud-native/meridio
@@ -140,8 +143,8 @@ install-spire: ## Install spire
 
 .PHONY: wait-spire
 wait-spire: ## Wait for spire to be ready
-	kubectl wait -n spire --timeout=2m --for=condition=ready pod -l app=spire-agent ; \
-	kubectl wait -n spire --timeout=2m --for=condition=ready pod -l app=spire-server
+	kubectl wait -n spire --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=spire-agent ; \
+	kubectl wait -n spire --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=spire-server
 
 #############################################################################
 ##@ NSM
@@ -153,9 +156,9 @@ install-nsm: ## Install nsm
 
 .PHONY: wait-nsm
 wait-nsm: ## Wait for NSM to be ready
-	kubectl wait -n nsm --timeout=2m --for=condition=ready pod -l app=nsmgr ; \
-	kubectl wait -n nsm --timeout=2m --for=condition=ready pod -l app=forwarder-vpp ; \
-	kubectl wait -n nsm --timeout=2m --for=condition=ready pod -l app=nsm-registry
+	kubectl wait -n nsm --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=nsmgr ; \
+	kubectl wait -n nsm --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=forwarder-vpp ; \
+	kubectl wait -n nsm --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=nsm-registry
 
 #############################################################################
 # Tools

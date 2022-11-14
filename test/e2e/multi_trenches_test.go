@@ -29,26 +29,25 @@ import (
 
 var _ = Describe("MultiTrenches", func() {
 
-	Context("With two trenches containing both a stream with 2 VIP addresses and 4 target pods running", func() {
+	var (
+		targetPod *v1.Pod
+	)
 
-		var (
-			targetPod *v1.Pod
-		)
+	BeforeEach(func() {
+		if targetPod != nil {
+			return
+		}
+		listOptions := metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("app=%s", config.targetADeploymentName),
+		}
+		pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(len(pods.Items)).To(BeNumerically(">", 0))
+		targetPod = &pods.Items[0]
+	})
 
-		BeforeEach(func() {
-			if targetPod != nil {
-				return
-			}
-			listOptions := metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("app=%s", config.targetADeploymentName),
-			}
-			pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(len(pods.Items)).To(BeNumerically(">", 0))
-			targetPod = &pods.Items[0]
-		})
-
-		When("traffic is sent on 2 trenches at the same time with the same VIP address", func() {
+	Describe("MT-Parallel", func() {
+		When("Send traffic in trench-a and trench-b at the same time", func() {
 			var (
 				trenchALastingConnsV4 map[string]int
 				trenchALostConnsV4    int
@@ -89,14 +88,16 @@ var _ = Describe("MultiTrenches", func() {
 				}
 			})
 
-			It("should be possible to send traffic on the 2 trenches using the same VIP", func() {
+			It("(Traffic) is received by the targets", func() {
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
+					By("Checking IPv4")
 					Expect(trenchALostConnsV4).To(Equal(0))
 					Expect(len(trenchALastingConnsV4)).To(Equal(numberOfTargetA))
 					Expect(trenchBLostConnsV4).To(Equal(0))
 					Expect(len(trenchBLastingConnsV4)).To(Equal(numberOfTargetB))
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
+					By("Checking IPv6")
 					Expect(trenchALostConnsV6).To(Equal(0))
 					Expect(len(trenchALastingConnsV6)).To(Equal(numberOfTargetA))
 					Expect(trenchBLostConnsV6).To(Equal(0))
@@ -104,8 +105,10 @@ var _ = Describe("MultiTrenches", func() {
 				}
 			})
 		})
+	})
 
-		When("a target disconnects from a trench and connect to another one", func() {
+	Describe("MT-Switch", func() {
+		When("Disconnect a target from target-a-deployment-name from trench-a and connect it to trench-b", func() {
 			BeforeEach(func() {
 				_, err := utils.PodExec(targetPod, "example-target", []string{"./target-client", "close", "-t", config.trenchA, "-c", config.conduitA1, "-s", config.streamAI})
 				Expect(err).NotTo(HaveOccurred())
@@ -138,34 +141,34 @@ var _ = Describe("MultiTrenches", func() {
 				}, timeout, interval).Should(BeTrue())
 			})
 
-			It("should receive the traffic on the other trench", func() {
+			It("(Traffic) is received by the targets", func() {
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
-					By("Verifying 5 targets receive ipv4 traffic trench-a")
+					By("Checking IPv4 on trench-a")
 					lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
 					Expect(lostConn).To(Equal(0))
 					Expect(len(lastingConn)).To(Equal(numberOfTargetA - 1))
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
-					By("Verifying 5 targets receive ipv6 traffic trench-a")
+					By("Checking IPv6 on trench-a")
 					lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0), "tcp")
 					Expect(lostConn).To(Equal(0))
 					Expect(len(lastingConn)).To(Equal(numberOfTargetA - 1))
 				}
 
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
-					By("Verifying 5 targets receive ipv4 traffic trench-b")
+					By("Checking IPv4 on trench-b")
 					lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
 					Expect(lostConn).To(Equal(0))
 					Expect(len(lastingConn)).To(Equal(numberOfTargetB + 1))
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
-					By("Verifying 5 targets receive ipv6 traffic trench-b")
+					By("Checking IPv6 on trench-b")
 					lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0), "tcp")
 					Expect(lostConn).To(Equal(0))
 					Expect(len(lastingConn)).To(Equal(numberOfTargetB + 1))
 				}
 			})
 		})
-
 	})
+
 })

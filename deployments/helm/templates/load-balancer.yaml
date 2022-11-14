@@ -41,7 +41,7 @@ spec:
             - {{ template "meridio.loadBalancer.sysctls" . }}
       serviceAccountName: {{ template "meridio.authServiceAccount" . }}
       containers:
-        - name: load-balancer
+        - name: stateless-lb
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.loadBalancer.image }}:{{ .Values.loadBalancer.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           startupProbe:

@@ -24,79 +24,79 @@ import (
 
 var _ = Describe("IngressTraffic", func() {
 
-	Context("With one trench containing a stream with 2 VIP addresses and 4 target pods running", func() {
+	var (
+		lostConnections    int
+		lastingConnections map[string]int
+		ipPort             string
+		protocol           string
+	)
 
-		var (
-			lostConnections    int
-			lastingConnections map[string]int
-			ipPort             string
-			protocol           string
-		)
+	JustBeforeEach(func() {
+		lastingConnections, lostConnections = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
+	})
 
-		JustBeforeEach(func() {
-			lastingConnections, lostConnections = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
-		})
-
-		When("sending TCP traffic to an IPv4", func() {
+	Describe("TCP-IPv4", func() {
+		When("Send tcp traffic in trench-a with vip-1-v4 as destination IP and flow-a-z-tcp-destination-port-0 as destination port", func() {
 			BeforeEach(func() {
 				ipPort = utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
 				protocol = "tcp"
 			})
-			It("should receive the traffic correctly", func() {
+			It("(Traffic) is received by the targets", func() {
 				if utils.IsIPv6(config.ipFamily) {
 					Skip("The test runs only IPv6")
 				}
-				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
 				Expect(lostConnections).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
 			})
 		})
+	})
 
-		When("sending TCP traffic to an IPv6", func() {
+	Describe("TCP-IPv6", func() {
+		When("Send tcp traffic in trench-a with vip-1-v6 as destination IP and flow-a-z-tcp-destination-port-0 as destination port", func() {
 			BeforeEach(func() {
 				ipPort = utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0)
 				protocol = "tcp"
 			})
-			It("should receive the traffic correctly", func() {
+			It("(Traffic) is received by the targets", func() {
 				if utils.IsIPv4(config.ipFamily) {
 					Skip("The test runs only IPv4")
 				}
-				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
 				Expect(lostConnections).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
 			})
 		})
+	})
 
-		When("sending UDP traffic to an IPv4", func() {
+	Describe("UDP-IPv4", func() {
+		When("Send udp traffic in trench-a with vip-1-v4 as destination IP and flow-a-z-udp-destination-port-0 as destination port", func() {
 			BeforeEach(func() {
 				ipPort = utils.VIPPort(config.vip1V4, config.flowAZUdpDestinationPort0)
 				protocol = "udp"
 			})
-			It("should receive the traffic correctly", func() {
+			It("(Traffic) is received by the targets", func() {
 				if utils.IsIPv6(config.ipFamily) {
 					Skip("The test runs only IPv6")
 				}
-				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
 				Expect(lostConnections).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
 			})
 		})
+	})
 
-		When("sending UDP traffic to an IPv6", func() {
+	Describe("UDP-IPv6", func() {
+		When("Send udp traffic in trench-a with vip-1-v6 as destination IP and flow-a-z-udp-destination-port-0 as destination port", func() {
 			BeforeEach(func() {
 				ipPort = utils.VIPPort(config.vip1V6, config.flowAZUdpDestinationPort0)
 				protocol = "udp"
 			})
-			It("should receive the traffic correctly", func() {
+			It("(Traffic) is received by the targets", func() {
 				if utils.IsIPv4(config.ipFamily) {
 					Skip("The test runs only IPv4")
 				}
-				By("Checking if all targets have receive traffic with no traffic interruption (no lost connection)")
 				Expect(lostConnections).To(Equal(0))
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
 			})
 		})
-
 	})
 
 })
