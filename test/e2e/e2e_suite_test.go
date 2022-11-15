@@ -21,6 +21,7 @@ import (
 	"context"
 	"flag"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,6 +42,9 @@ var (
 	numberOfTargetB int
 
 	config *e2eTestConfiguration
+
+	focusString string
+	skipString  string
 )
 
 type e2eTestConfiguration struct {
@@ -82,6 +86,8 @@ func init() {
 	config = &e2eTestConfiguration{}
 	flag.StringVar(&config.trafficGeneratorCMD, "traffic-generator-cmd", "", "Command to use to connect to the traffic generator. All occurences of '{trench}' will be replaced with the trench name.")
 	flag.StringVar(&config.script, "script", "", "Path + script used by the e2e tests")
+	flag.StringVar(&skipString, "skip", "", "Skip specific tests")
+	flag.StringVar(&focusString, "focus", "", "Focus on specific tests")
 
 	flag.StringVar(&config.k8sNamespace, "k8s-namespace", "", "Name of the namespace")
 	flag.StringVar(&config.targetADeploymentName, "target-a-deployment-name", "", "Name of the namespace")
@@ -114,7 +120,23 @@ func TestE2e(t *testing.T) {
 		t.Skip()
 	}
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "E2e Suite")
+	suiteConfig, reporterConfig := GinkgoConfiguration()
+	suiteConfig.SkipStrings = cleanSlice(append(suiteConfig.SkipStrings, strings.Split(skipString, ",")...))
+	suiteConfig.FocusStrings = cleanSlice(append(suiteConfig.FocusStrings, strings.Split(focusString, ",")...))
+	RunSpecs(t, "E2e Suite", suiteConfig, reporterConfig)
+}
+
+// removes spaces in entries and removes empty entries
+func cleanSlice(items []string) []string {
+	res := []string{}
+	for _, item := range items {
+		i := strings.ReplaceAll(item, " ", "")
+		if i == "" {
+			continue
+		}
+		res = append(res, i)
+	}
+	return res
 }
 
 var _ = BeforeSuite(func() {

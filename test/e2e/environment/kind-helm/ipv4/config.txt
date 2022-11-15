@@ -1,5 +1,7 @@
 -traffic-generator-cmd="docker exec -i {trench}"
 -script="./environment/kind-helm/ipv4/test.sh"
+-skip=""
+-focus=""
 -k8s-namespace="red"
 -target-a-deployment-name="target-a"
 -trench-a="trench-a"

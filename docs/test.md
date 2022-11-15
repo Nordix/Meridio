@@ -28,6 +28,8 @@ The picture below shows the initial deployment that should be installed in a kub
 |---|---|---|
 | traffic-generator-cmd | string | Command to use to connect to the traffic generator. All occurences of '{trench}' will be replaced with the trench name. |
 | script | string | Path + script used by the e2e tests |
+| skip | string | Skip specific tests |
+| focus | string | Focus on specific tests |
 |  |  |  |
 | k8s-namespace | string | Name of the namespace |
 | target-a-deployment-name | string | Name of the target deployment |

@@ -30,7 +30,10 @@ LOCAL_VERSION ?= $(VERSION)
 
 # E2E tests
 E2E_FOCUS ?= ""
-E2E_PARAMETERS ?= $(shell cat ./test/e2e/environment/kind-helm/dualstack/config.txt | tr '\n' ' ')
+E2E_SKIP ?= ""
+E2E_ENVIRONMENT ?= "kind-helm"
+E2E_IP_FAMILY ?= "dualstack"
+E2E_PARAMETERS ?= $(shell cat ./test/e2e/environment/$(E2E_ENVIRONMENT)/$(E2E_IP_FAMILY)/config.txt | tr '\n' ' ')
 E2E_SEED ?= $(shell shuf -i 1-2147483647 -n1)
 
 # Contrainer Registry
@@ -130,12 +133,19 @@ lint: golangci-lint ## Run linter against code.
 	$(GOLANGCI_LINT) run ./...
 
 .PHONY: e2e
-e2e: ginkgo ## Run the E2E tests.
-	$(GINKGO) -v --focus=$(E2E_FOCUS) --seed=$(E2E_SEED) --repeat=0 --timeout=1h ./test/e2e/... -- $(E2E_PARAMETERS)
+e2e: ginkgo output-dir ## Run the E2E tests.
+	$(GINKGO) -v \
+	--no-color --seed=$(E2E_SEED) \
+	--repeat=0 --timeout=1h \
+	$(shell $(MAKE) -s print-e2e-skip-focus E2E_FOCUS=$(E2E_FOCUS) E2E_SKIP=$(E2E_SKIP)) \
+	--json-report=e2e_report.json \
+	--junit-report=e2e_report_junit.xml \
+	--output-dir=$(OUTPUT_DIR) \
+	./test/e2e/... -- $(E2E_PARAMETERS)
 
 .PHONY: test
 test: ## Run the Unit tests.
-	go test -race -cover -short ./... 
+	go test -race -cover -short -count=1 ./... 
 
 .PHONY: cover
 cover: 
@@ -286,6 +296,23 @@ controller-gen:
 .PHONY: kustomize
 kustomize:
 	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@v4.5.2)
+
+.PHONY: print-e2e-skip-focus
+print-e2e-skip-focus:
+	@focus="" ; \
+	for f in $(call get_list,$(E2E_FOCUS)); do \
+		focus="$${focus} --focus $${f}" ; \
+	done ; \
+	printf "$${focus}" ; \
+	skip="" ; \
+	for f in $(call get_list,$(E2E_SKIP)); do \
+		skip="$${skip} --skip $${f}" ; \
+	done ; \
+	printf "$${skip}" 
+
+define get_list
+$$(echo "$(1)" | sed -r 's/ //g' | sed -r 's/,/ /g' )
+endef
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 define go-get-tool
