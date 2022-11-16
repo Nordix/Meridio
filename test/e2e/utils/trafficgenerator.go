@@ -30,7 +30,7 @@ type TrafficGeneratorHost struct {
 
 type TrafficGenerator interface {
 	GetCommand(ipPort string, protocol string) string
-	AnalyzeTraffic([]byte) (map[string]int, int)
+	AnalyzeTraffic([]byte) (map[string]int, int, error)
 }
 
 func (tgh *TrafficGeneratorHost) SendTraffic(tg TrafficGenerator, trench string, namespace string, ipPort string, protocol string) (map[string]int, int) {
@@ -40,9 +40,14 @@ func (tgh *TrafficGeneratorHost) SendTraffic(tg TrafficGenerator, trench string,
 	commandString = fmt.Sprintf("%s %s", commandString, tg.GetCommand(ipPort, protocol))
 	command := exec.Command("/bin/sh", "-c", commandString)
 	var stdout bytes.Buffer
+	var stderr bytes.Buffer
 	command.Stdout = &stdout
+	command.Stderr = &stderr
 	_ = command.Run()
-	lastingConn, lostConn := tg.AnalyzeTraffic(stdout.Bytes())
+	lastingConn, lostConn, err := tg.AnalyzeTraffic(stdout.Bytes())
+	if err != nil {
+		fmt.Printf("Error sending/anaylzing traffic: %v - %s", err, stderr.String())
+	}
 	return lastingConn, lostConn
 }
 
@@ -55,12 +60,12 @@ func (ct *CTraffic) GetCommand(ipPort string, protocol string) string {
 	return fmt.Sprintf("ctraffic %s -address %s -nconn %d -rate %d -stats all", getProtocolParameter(protocol), ipPort, ct.NConn, ct.Rate)
 }
 
-func (ct *CTraffic) AnalyzeTraffic(output []byte) (map[string]int, int) {
+func (ct *CTraffic) AnalyzeTraffic(output []byte) (map[string]int, int, error) {
 	var data map[string]interface{}
-	if err := json.Unmarshal(output, &data); err != nil {
-		panic(err)
-	}
 	lastingConn := map[string]int{}
+	if err := json.Unmarshal(output, &data); err != nil {
+		return lastingConn, 0, err
+	}
 	lostConn := 0
 	connStats := data["ConnStats"].([]interface{})
 	for _, conn := range connStats {
@@ -79,7 +84,7 @@ func (ct *CTraffic) AnalyzeTraffic(output []byte) (map[string]int, int) {
 			lostConn++
 		}
 	}
-	return lastingConn, lostConn
+	return lastingConn, lostConn, nil
 }
 
 type MConnect struct {
@@ -90,18 +95,18 @@ func (mc *MConnect) GetCommand(ipPort string, protocol string) string {
 	return fmt.Sprintf("mconnect %s -address %s -nconn %d -timeout 5m -output json", getProtocolParameter(protocol), ipPort, mc.NConn)
 }
 
-func (mc *MConnect) AnalyzeTraffic(output []byte) (map[string]int, int) {
+func (mc *MConnect) AnalyzeTraffic(output []byte) (map[string]int, int, error) {
 	var data map[string]interface{}
-	if err := json.Unmarshal(output, &data); err != nil {
-		panic(err)
-	}
 	lastingConn := map[string]int{}
+	if err := json.Unmarshal(output, &data); err != nil {
+		return lastingConn, 0, err
+	}
 	lostConn := 0
 	hosts := data["hosts"].(map[string]interface{})
 	for name, connections := range hosts {
 		lastingConn[name] = int(connections.(float64))
 	}
-	return lastingConn, lostConn
+	return lastingConn, lostConn, nil
 }
 
 func getProtocolParameter(protocol string) string {

@@ -2,15 +2,15 @@
 
 ## E2E Tests
 
-[![meridio-e2e-kind-meridio](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild/badge/icon?config=meridio-e2e-kind-meridio)](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild)
+![meridio-e2e-kind-meridio](https://img.shields.io/endpoint?url=https%3A%2F%2Fjenkins.nordix.org%2Fjob%2Fmeridio-e2e-test-kind%2FlastCompletedBuild%2Fartifact%2F_output%2Fmeridio-e2e-kind-meridio.json)
 
-[![meridio-e2e-kind-tapa](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild/badge/icon?config=meridio-e2e-kind-tapa)](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild)
+![meridio-e2e-kind-tapa](https://img.shields.io/endpoint?url=https%3A%2F%2Fjenkins.nordix.org%2Fjob%2Fmeridio-e2e-test-kind%2FlastCompletedBuild%2Fartifact%2F_output%2Fmeridio-e2e-kind-tapa.json)
 
-[![meridio-e2e-kind-nsm](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild/badge/icon?config=meridio-e2e-kind-nsm)](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild)
+![meridio-e2e-kind-nsm](https://img.shields.io/endpoint?url=https%3A%2F%2Fjenkins.nordix.org%2Fjob%2Fmeridio-e2e-test-kind%2FlastCompletedBuild%2Fartifact%2F_output%2Fmeridio-e2e-kind-nsm.json)
 
-[![meridio-e2e-kind-ip-family](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild/badge/icon?config=meridio-e2e-kind-ip-family)](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild)
+![meridio-e2e-kind-ip-family](https://img.shields.io/endpoint?url=https%3A%2F%2Fjenkins.nordix.org%2Fjob%2Fmeridio-e2e-test-kind%2FlastCompletedBuild%2Fartifact%2F_output%2Fmeridio-e2e-kind-ip-family.json)
 
-[![meridio-e2e-kind-kubernetes](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild/badge/icon?config=meridio-e2e-kind-kubernetes)](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild)
+![meridio-e2e-kind-kubernetes](https://img.shields.io/endpoint?url=https%3A%2F%2Fjenkins.nordix.org%2Fjob%2Fmeridio-e2e-test-kind%2FlastCompletedBuild%2Fartifact%2F_output%2Fmeridio-e2e-kind-kubernetes.json)
 
 (These reports are for the last 1000 test runs only)
 
