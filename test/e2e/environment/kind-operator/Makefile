@@ -52,10 +52,11 @@ trenches-targets: ## Deploy trench-a + trench-b + target-a + target-b
 
 .PHONY: wait-operator
 wait-operator:
-	kubectl wait --for=condition=Ready pods --all -n red --timeout=$(WAIT_TIMEOUT)
+	kubectl wait --for=condition=Ready pods --all -n red --timeout=$(WAIT_TIMEOUT) || (OUTPUT_PATH="$(BASE_PATH)/_output" $(BASE_PATH)/hack/log_collector.sh && exit 1)
 
 .PHONY: wait-trenches-targets
-wait-trenches-targets: wait-operator
+wait-trenches-targets:
+	kubectl wait --for=condition=Ready pods --all -n red --timeout=$(WAIT_TIMEOUT) || (OUTPUT_PATH="$(BASE_PATH)/_output" $(BASE_PATH)/hack/log_collector.sh && exit 1)
 
 #############################################################################
 # Tools

@@ -25,3 +25,4 @@
 -vip-2-v6="[6000::150]"
 -stateless-lb-fe-deployment-name="load-balancer-trench-a"
 -ip-family="dualstack"
+-log-collector-enabled="true"

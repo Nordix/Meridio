@@ -8,6 +8,10 @@ function end () {
     :
 }
 
+function on_failure() {
+    OUTPUT_PATH="../../_output" OUTPUT_ID="$2" ../../hack/log_collector.sh
+}
+
 function configuration_new_vip () {
     kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/configuration-new-vip.yaml
 }

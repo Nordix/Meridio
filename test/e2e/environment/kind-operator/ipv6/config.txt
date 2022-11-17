@@ -25,3 +25,4 @@
 -vip-2-v6="[6000::150]"
 -stateless-lb-fe-deployment-name="stateless-lb-frontend-attractor-a-1"
 -ip-family="ipv6"
+-log-collector-enabled="true"

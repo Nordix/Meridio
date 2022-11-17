@@ -21,6 +21,7 @@ import (
 	"context"
 	"flag"
 	"os/exec"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -50,6 +51,7 @@ var (
 type e2eTestConfiguration struct {
 	trafficGeneratorCMD string
 	script              string
+	logCollectorEnabled bool
 
 	k8sNamespace              string
 	targetADeploymentName     string
@@ -88,6 +90,7 @@ func init() {
 	flag.StringVar(&config.script, "script", "", "Path + script used by the e2e tests")
 	flag.StringVar(&skipString, "skip", "", "Skip specific tests")
 	flag.StringVar(&focusString, "focus", "", "Focus on specific tests")
+	flag.BoolVar(&config.logCollectorEnabled, "log-collector-enabled", true, "Is log collector enabled")
 
 	flag.StringVar(&config.k8sNamespace, "k8s-namespace", "", "Name of the namespace")
 	flag.StringVar(&config.targetADeploymentName, "target-a-deployment-name", "", "Name of the namespace")
@@ -174,4 +177,13 @@ var _ = AfterSuite(func() {
 	err := cmd.Run()
 	Expect(stderr.String()).To(BeEmpty())
 	Expect(err).ToNot(HaveOccurred())
+})
+
+var _ = AfterEach(func() {
+	if CurrentSpecReport().Failed() {
+		if config.logCollectorEnabled {
+			cmd := exec.Command(config.script, "on_failure", strconv.FormatInt(CurrentSpecReport().StartTime.UnixNano(), 10))
+			_ = cmd.Run()
+		}
+	}
 })

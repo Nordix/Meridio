@@ -25,3 +25,4 @@
 -vip-2-v6=""
 -stateless-lb-fe-deployment-name="load-balancer-trench-a"
 -ip-family="ipv4"
+-log-collector-enabled="true"

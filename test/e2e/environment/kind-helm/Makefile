@@ -47,7 +47,7 @@ meridio: ## Deploy Meridio (trench-a + trench-b + target-a + target-b)
 
 .PHONY: wait-meridio
 wait-meridio:
-	kubectl wait --for=condition=Ready pods --all -n red --timeout=$(WAIT_TIMEOUT)
+	kubectl wait --for=condition=Ready pods --all -n red --timeout=$(WAIT_TIMEOUT) || (OUTPUT_PATH="$(BASE_PATH)/_output" $(BASE_PATH)/hack/log_collector.sh && exit 1)
 
 #############################################################################
 # Tools

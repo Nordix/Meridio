@@ -30,6 +30,7 @@ The picture below shows the initial deployment that should be installed in a kub
 | script | string | Path + script used by the e2e tests |
 | skip | string | Skip specific tests |
 | focus | string | Focus on specific tests |
+| log-collector-enabled | bool | Is log collector enabled |
 |  |  |  |
 | k8s-namespace | string | Name of the namespace |
 | target-a-deployment-name | string | Name of the target deployment |
