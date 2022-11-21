@@ -65,6 +65,14 @@ func NewLoadBalancer(e *common.Executor, attr *meridiov1alpha1.Attractor, t *mer
 	return l, nil
 }
 
+func (l *LoadBalancer) getInitEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
+	operatorEnv := map[string]string{
+		"REMOTE_POD_IP": l.attractor.Spec.Interface.Tunnel.RemotePodIP,
+		"TUNNEL_ID":     l.attractor.Spec.Interface.Tunnel.ID,
+	}
+	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
+}
+
 func (l *LoadBalancer) getLbEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	operatorEnv := map[string]string{
 		"NSM_SERVICE_NAME": common.LoadBalancerNsName(l.attractor.Spec.Composites[0],
@@ -123,6 +131,13 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 		ret.Spec.Template.Spec.InitContainers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, common.BusyboxImage, common.BusyboxTag)
 		ret.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullIfNotPresent
 	}
+	if l.attractor.Spec.Interface.Tunnel != nil {
+		ret.Spec.Template.Spec.InitContainers[0].Env = l.getInitEnvVars(ret.Spec.Template.Spec.InitContainers[0].Env)
+		l.exec.LogInfo(fmt.Sprintf("attractor %s, init container envs %v, %v",
+			l.attractor.ObjectMeta.Name,
+			ret.Spec.Template.Spec.InitContainers[0].Env,
+			len(ret.Spec.Template.Spec.InitContainers[0].Env)))
+	}
 	ret.Spec.Template.Spec.InitContainers[0].Args = []string{
 		"-c",
 		common.GetLoadBalancerSysCtl(l.trench),
@@ -132,6 +147,19 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 	oa, _ := common.GetResourceRequirementAnnotation(&dep.ObjectMeta)
 	if na, _ := common.GetResourceRequirementAnnotation(&l.attractor.ObjectMeta); na != oa {
 		common.SetResourceRequirementAnnotation(&l.attractor.ObjectMeta, &ret.ObjectMeta)
+	}
+
+	// nsc not needed
+	if l.attractor.Spec.Interface.Tunnel != nil {
+		for i, container := range ret.Spec.Template.Spec.Containers {
+			if container.Name == "nsc" {
+				clen := len(ret.Spec.Template.Spec.Containers)
+				ret.Spec.Template.Spec.Containers[i] = ret.Spec.Template.Spec.Containers[clen-1]
+				ret.Spec.Template.Spec.Containers = ret.Spec.Template.Spec.Containers[:clen-1]
+				break
+			}
+
+		}
 	}
 
 	for i, container := range ret.Spec.Template.Spec.Containers {

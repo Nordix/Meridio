@@ -56,11 +56,12 @@ type InterfaceSpec struct {
 
 	// interface choice.
 	// +kubebuilder:default=nsm-vlan
-	// +kubebuilder:validation:Enum=nsm-vlan
+	// +kubebuilder:validation:Enum=nsm-vlan;tunnel-interface
 	Type string `json:"type,omitempty"`
 
 	// if the type is "nsm-vlan", this information must be specified
-	NSMVlan NSMVlanSpec `json:"nsm-vlan,omitempty"`
+	NSMVlan NSMVlanSpec      `json:"nsm-vlan,omitempty"`
+	Tunnel  *TunnelInterface `json:"tunnel,omitempty"`
 }
 
 type NSMVlanSpec struct {
@@ -73,6 +74,17 @@ type NSMVlanSpec struct {
 
 // AttractorStatus defines the observed state of Attractor
 type AttractorStatus struct {
+}
+
+// TunnelInterface defines the parameters to setup a tunnel interface
+type TunnelInterface struct {
+	// +kubebuilder:validation:Type=string
+
+	KeyName string `json:"key-name,omitempty"`
+	// +kubebuilder:validation:Type=string
+	RemotePodIP string `json:"remote-pod-ip,omitempty"`
+	// +kubebuilder:validation:Type=string
+	ID string `json:"id,omitempty"`
 }
 
 //+kubebuilder:object:root=true

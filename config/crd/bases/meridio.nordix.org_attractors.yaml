@@ -98,11 +98,23 @@ spec:
                         format: int32
                         type: integer
                     type: object
+                  tunnel:
+                    description: TunnelInterface defines the parameters to setup a
+                      tunnel interface
+                    properties:
+                      id:
+                        type: string
+                      key-name:
+                        type: string
+                      remote-pod-ip:
+                        type: string
+                    type: object
                   type:
                     default: nsm-vlan
                     description: interface choice.
                     enum:
                     - nsm-vlan
+                    - tunnel-interface
                     type: string
                 required:
                 - ipv4-prefix

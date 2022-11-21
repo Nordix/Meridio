@@ -102,6 +102,7 @@ type InterfaceType string
 
 const (
 	NSMVlan = "nsm-vlan"
+	Tunnel  = "tunnel-interface"
 )
 
 func subnetsOverlap(a, b *net.IPNet) bool {

@@ -108,6 +108,11 @@ func (r *Attractor) validateAttractor() error {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("interface").Child("nsm-vlan"),
 				r.Spec.Interface.NSMVlan, "missing mandatory parameter base-interface/vlan-id"))
 		}
+	case Tunnel:
+		if r.Spec.Interface.Tunnel.RemotePodIP == "" || r.Spec.Interface.Tunnel.ID == "" {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("interface").Child("tunnel-interface"),
+				r.Spec.Interface.NSMVlan, "missing mandatory parameter remote-pod-ip/id"))
+		}
 	default:
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("interface").Child("type"), r.Spec.Interface.Type, "not a supported interface"))
 	}
@@ -198,6 +203,16 @@ func (r *Attractor) validateUpdate(old runtime.Object) error {
 		if r.Spec.Interface.NSMVlan.BaseInterface != attrOld.Spec.Interface.NSMVlan.BaseInterface {
 			return apierrors.NewForbidden(r.GroupResource(),
 				r.Name, field.Forbidden(field.NewPath("spec", "interface", "nsm-vlan", "base-interface"), "update on base interface is forbidden"))
+		}
+	case Tunnel:
+		if r.Spec.Interface.Tunnel.ID != attrOld.Spec.Interface.Tunnel.ID {
+			return apierrors.NewForbidden(r.GroupResource(),
+				r.Name, field.Forbidden(field.NewPath("spec", "interface", "tunnel-interface", "id"), "update on id is forbidden"))
+		}
+
+		if r.Spec.Interface.Tunnel.RemotePodIP != attrOld.Spec.Interface.Tunnel.RemotePodIP {
+			return apierrors.NewForbidden(r.GroupResource(),
+				r.Name, field.Forbidden(field.NewPath("spec", "interface", "tunnel-interface", "remote-pod-ip"), "update on remote pod ip is forbidden"))
 		}
 	}
 

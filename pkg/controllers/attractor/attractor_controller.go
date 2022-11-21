@@ -79,14 +79,16 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		// create/update stateless-lb-frontend & nse-vlan deployment
 		executor.SetOwner(attr)
 
-		nse, err := NewNSE(executor, attr, trench)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
+		if attr.Spec.Interface.Type == meridiov1alpha1.NSMVlan {
+			nse, err := NewNSE(executor, attr, trench)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
 
-		err = nse.getAction()
-		if err != nil {
-			return ctrl.Result{}, err
+			err = nse.getAction()
+			if err != nil {
+				return ctrl.Result{}, err
+			}
 		}
 
 		lb, err := NewLoadBalancer(executor, attr, trench)

@@ -178,7 +178,7 @@ func NsName(meta metav1.ObjectMeta) string {
 
 func GetExternalInterfaceName(attractor *meridiov1alpha1.Attractor) string {
 	name := "ext"
-	if *attractor.Spec.Interface.NSMVlan.VlanID != 0 {
+	if attractor.Spec.Interface.Type == meridiov1alpha1.NSMVlan && *attractor.Spec.Interface.NSMVlan.VlanID != 0 {
 		name = fmt.Sprintf("ext-vlan.%d", *attractor.Spec.Interface.NSMVlan.VlanID)
 	}
 	return name
