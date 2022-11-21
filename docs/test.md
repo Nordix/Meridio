@@ -54,7 +54,8 @@ The picture below shows the initial deployment that should be installed in a kub
 | vip-2-v4 | string | Address of the vip v4 number 2 |
 | vip-2-v6 | string | Address of the vip v6 number 2 |
 |  |  |  |
-| stateless-lb-fe-deployment-name | string | Name of stateless-lb-fe deployment in `trench-a` |
+| stateless-lb-fe-deployment-name-attractor-a-1 | string | Name of stateless-lb-fe deployment in `attractor-a-1` |
+| stateless-lb-fe-deployment-name-attractor-b-1 | string | Name of stateless-lb-fe deployment in `attractor-b-1` |
 | ip-family | string | IP Family |
 
 For more details about each parameter, check the picture above in the `Initial Deployment` section.

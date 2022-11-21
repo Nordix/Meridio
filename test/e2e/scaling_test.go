@@ -69,7 +69,7 @@ var _ = Describe("Scaling", func() {
 		}, timeout, interval).Should(BeTrue())
 		// wait for all identifiers to be in NFQLB
 		listOptions := metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("app=%s", config.statelessLbFeDeploymentName),
+			LabelSelector: fmt.Sprintf("app=%s", config.statelessLbFeDeploymentNameAttractorA1),
 		}
 		pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
 		Expect(err).NotTo(HaveOccurred())
@@ -107,7 +107,7 @@ var _ = Describe("Scaling", func() {
 		}, timeout, interval).Should(BeTrue())
 		// wait for all identifiers to be in NFQLB
 		listOptions := metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("app=%s", config.statelessLbFeDeploymentName),
+			LabelSelector: fmt.Sprintf("app=%s", config.statelessLbFeDeploymentNameAttractorA1),
 		}
 		pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
 		Expect(err).NotTo(HaveOccurred())

@@ -23,6 +23,7 @@
 -stream-b-I="stream-a"
 -vip-2-v4="60.0.0.150"
 -vip-2-v6=""
--stateless-lb-fe-deployment-name="load-balancer-trench-a"
+-stateless-lb-fe-deployment-name-attractor-a-1="load-balancer-trench-a"
+-stateless-lb-fe-deployment-name-attractor-b-1="load-balancer-trench-b"
 -ip-family="ipv4"
 -log-collector-enabled="true"

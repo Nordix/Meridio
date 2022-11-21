@@ -55,17 +55,38 @@ var _ = Describe("TAPA", func() {
 			BeforeEach(func() {
 				_, err := utils.PodExec(targetPod, "example-target", []string{"./target-client", "close", "-t", config.trenchA, "-c", config.conduitA1, "-s", config.streamAI})
 				Expect(err).NotTo(HaveOccurred())
+
+				// wait trenchA/conduitA1/streamAI to be closed
 				Eventually(func() bool {
 					targetWatchOutput, err := utils.PodExec(targetPod, "example-target", []string{"timeout", "--preserve-status", "0.5", "./target-client", "watch"})
 					Expect(err).NotTo(HaveOccurred())
 					streamStatus := utils.ParseTargetWatch(targetWatchOutput)
 					return len(streamStatus) == 0
 				}, timeout, interval).Should(BeTrue())
+
+				// wait for all identifiers to be in NFQLB in statelessLbFeDeploymentNameAttractorA1
+				listOptions := metav1.ListOptions{
+					LabelSelector: fmt.Sprintf("app=%s", config.statelessLbFeDeploymentNameAttractorA1),
+				}
+				pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
+				Expect(err).NotTo(HaveOccurred())
+				Eventually(func() bool {
+					for _, pod := range pods.Items {
+						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
+						Expect(err).NotTo(HaveOccurred())
+						if utils.ParseNFQLB(nfqlbOutput) != (numberOfTargetA - 1) {
+							return false
+						}
+					}
+					return true
+				}, timeout, interval).Should(BeTrue())
 			})
 
 			AfterEach(func() {
 				_, err = utils.PodExec(targetPod, "example-target", []string{"./target-client", "open", "-t", config.trenchA, "-c", config.conduitA1, "-s", config.streamAI})
 				Expect(err).NotTo(HaveOccurred())
+
+				// wait trenchA/conduitA1/streamAI to be opened
 				Eventually(func() bool {
 					targetWatchOutput, err := utils.PodExec(targetPod, "example-target", []string{"timeout", "--preserve-status", "0.5", "./target-client", "watch"})
 					Expect(err).NotTo(HaveOccurred())
@@ -74,6 +95,23 @@ var _ = Describe("TAPA", func() {
 						return true
 					}
 					return false
+				}, timeout, interval).Should(BeTrue())
+
+				// wait for all identifiers to be in NFQLB in statelessLbFeDeploymentNameAttractorA1
+				listOptions := metav1.ListOptions{
+					LabelSelector: fmt.Sprintf("app=%s", config.statelessLbFeDeploymentNameAttractorA1),
+				}
+				pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
+				Expect(err).NotTo(HaveOccurred())
+				Eventually(func() bool {
+					for _, pod := range pods.Items {
+						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
+						Expect(err).NotTo(HaveOccurred())
+						if utils.ParseNFQLB(nfqlbOutput) != numberOfTargetA {
+							return false
+						}
+					}
+					return true
 				}, timeout, interval).Should(BeTrue())
 			})
 

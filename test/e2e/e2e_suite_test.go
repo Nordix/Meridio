@@ -75,8 +75,9 @@ type e2eTestConfiguration struct {
 	vip2V4                    string
 	vip2V6                    string
 
-	statelessLbFeDeploymentName string
-	ipFamily                    string
+	statelessLbFeDeploymentNameAttractorA1 string
+	statelessLbFeDeploymentNameAttractorB1 string
+	ipFamily                               string
 }
 
 const (
@@ -114,7 +115,8 @@ func init() {
 	flag.StringVar(&config.vip2V4, "vip-2-v4", "", "Address of the vip v4 number 2")
 	flag.StringVar(&config.vip2V6, "vip-2-v6", "", "Address of the vip v6 number 2")
 
-	flag.StringVar(&config.statelessLbFeDeploymentName, "stateless-lb-fe-deployment-name", "", "Name of stateless-lb-fe deployment in trench-a")
+	flag.StringVar(&config.statelessLbFeDeploymentNameAttractorA1, "stateless-lb-fe-deployment-name-attractor-a-1", "", "Name of stateless-lb-fe deployment in attractor-a-1")
+	flag.StringVar(&config.statelessLbFeDeploymentNameAttractorB1, "stateless-lb-fe-deployment-name-attractor-b-1", "", "Name of stateless-lb-fe deployment in attractor-b-1")
 	flag.StringVar(&config.ipFamily, "ip-family", "", "IP Family")
 }
 
