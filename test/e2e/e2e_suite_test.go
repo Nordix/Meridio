@@ -181,7 +181,7 @@ var _ = AfterSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 })
 
-var _ = AfterEach(func() {
+var _ = JustAfterEach(func() {
 	if CurrentSpecReport().Failed() {
 		if config.logCollectorEnabled {
 			cmd := exec.Command(config.script, "on_failure", strconv.FormatInt(CurrentSpecReport().StartTime.UnixNano(), 10))

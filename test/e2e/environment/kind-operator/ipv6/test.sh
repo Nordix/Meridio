@@ -9,7 +9,7 @@ function end () {
 }
 
 function on_failure() {
-    OUTPUT_PATH="../../_output" OUTPUT_ID="$2" ../../hack/log_collector.sh
+    OUTPUT_PATH="../../_output" OUTPUT_ID="$2" EXEC_NAMESPACE="red" EXEC_STATELESS_LB_FRONTEND_LABELS="app=stateless-lb-frontend-attractor-a-1 app=stateless-lb-frontend-attractor-b-1" EXEC_PROXY_LABELS="app=proxy-conduit-a-1 app=proxy-conduit-b-1" EXEC_TARGETS_LABELS="app=target-a app=target-b" ../../hack/log_collector.sh
 }
 
 function configuration_new_vip () {

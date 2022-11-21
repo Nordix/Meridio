@@ -59,10 +59,75 @@ collect_logs() {
     done <<< "$pods"
 }
 
+collect_exec_stateless_lb_frontend() {
+    mkdir -p "$full_output_path/pods"
+    mkdir -p "$full_output_path/pods/exec"
+    for label in $EXEC_STATELESS_LB_FRONTEND_LABELS
+    do
+        pods=$(kubectl get pods -n $EXEC_NAMESPACE --no-headers=true --selector="$label")
+        pod_names=$(echo "$pods" | awk '{print $1}')
+        for pod_name in $pod_names
+        do
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip a > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-a.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip rule > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-rule.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip -6 rule > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-6-rule.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip route show table all > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-route-show-table-all.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- nft list ruleset > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.nft-list-ruleset.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ps aux > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ps-aux.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- nfqlb flow-list > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.nfqlb-flow-list.txt" 2>/dev/null
+            shared_memory=$(kubectl exec $pod_name -n $EXEC_NAMESPACE -- ls /dev/shm/ | grep "tshm-")
+            while IFS= read -r shm; do
+                kubectl exec $pod_name -n $EXEC_NAMESPACE -- nfqlb show --shm=$shm > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.nfqlb-show-shm-$shm.txt" 2>/dev/null
+            done <<< "$shared_memory"
+        done
+    done
+}
+
+collect_exec_proxy() {
+    mkdir -p "$full_output_path/pods"
+    mkdir -p "$full_output_path/pods/exec"
+    for label in $EXEC_PROXY_LABELS
+    do
+        pods=$(kubectl get pods -n $EXEC_NAMESPACE --no-headers=true --selector="$label")
+        pod_names=$(echo "$pods" | awk '{print $1}')
+        for pod_name in $pod_names
+        do
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip a > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-a.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip rule > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-rule.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip -6 rule > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-6-rule.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip route show table all > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-route-show-table-all.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ps aux > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ps-aux.txt" 2>/dev/null
+        done
+    done
+}
+
+collect_exec_targets() {
+    mkdir -p "$full_output_path/pods"
+    mkdir -p "$full_output_path/pods/exec"
+    for label in $EXEC_TARGETS_LABELS
+    do
+        pods=$(kubectl get pods -n $EXEC_NAMESPACE --no-headers=true --selector="$label")
+        pod_names=$(echo "$pods" | awk '{print $1}')
+        for pod_name in $pod_names
+        do
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip a > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-a.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip rule > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-rule.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip -6 rule > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-6-rule.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip route show table all > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-route-show-table-all.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ps aux > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ps-aux.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- timeout --preserve-status 0.5 ./target-client watch > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.target-client-watch.txt" 2>/dev/null
+        done
+    done
+}
+
 collect_all() {
     resources=$(kubectl api-resources --verbs=get)
     kubectl api-resources -o wide > "$full_output_path/api-resources.txt"
     resources_no_header=$(echo "$resources" | sed '1d')
+    collect_top
+    collect_exec_stateless_lb_frontend
+    collect_exec_proxy
+    collect_exec_targets
     while IFS= read -r resource; do
         namespaced=$(echo "$resource" | awk '{print $(NF-1)}')
         resource_name=$(echo "$resource" | awk '{print $1}')
@@ -70,11 +135,15 @@ collect_all() {
         echo "collecting $resource_name ..."
         collect_resource $resource_name $namespaced
     done <<< "$resources_no_header"
-    collect_top
     collect_logs
 }
 
 timestamp=$(date +%s)
+
+EXEC_NAMESPACE=${EXEC_NAMESPACE:-""}
+EXEC_STATELESS_LB_FRONTEND_LABELS=${EXEC_STATELESS_LB_FRONTEND_LABELS:-""}
+EXEC_PROXY_LABELS=${EXEC_PROXY_LABELS:-""}
+EXEC_TARGETS_LABELS=${EXEC_TARGETS_LABELS:-""}
 
 OUTPUT_ID=${OUTPUT_ID:-$timestamp}
 OUTPUT_PATH=${OUTPUT_PATH:-"_output"}

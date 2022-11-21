@@ -15,7 +15,7 @@ help: ## Display this help.
 # Variables
 ############################################################################
 
-STEPS ?= clean kind-create kind-gateways install-spire wait wait-spire install-nsm wait wait-nsm
+STEPS ?= clean kind-create kind-gateways install-metrics-server install-spire wait wait-spire install-nsm wait wait-nsm
 
 KUBERNETES_VERSION ?= "v1.25"
 KUBERNETES_IP_FAMILY ?= "dualstack"
@@ -159,6 +159,15 @@ wait-nsm: ## Wait for NSM to be ready
 	kubectl wait -n nsm --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=nsmgr ; \
 	kubectl wait -n nsm --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=forwarder-vpp ; \
 	kubectl wait -n nsm --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=nsm-registry
+
+#############################################################################
+##@ Metrics
+#############################################################################
+
+.PHONY: install-metrics-server
+install-metrics-server: ## Install metrics-server
+	kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml ; \
+	kubectl patch deployment metrics-server -n kube-system -p '{"spec":{"template":{"spec":{"containers":[{"name":"metrics-server","args":["--cert-dir=/tmp", "--secure-port=4443", "--kubelet-insecure-tls","--kubelet-preferred-address-types=InternalIP"]}]}}}}'
 
 #############################################################################
 # Tools
