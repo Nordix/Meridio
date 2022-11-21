@@ -11,20 +11,9 @@ spec:
       labels:
         app: meridio-tg
     spec:
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: meridio
-                operator: In
-                values:
-                - lb
       containers:
       - name: mserver
-        image: registry.nordix.org/cloud-native/mserver:latest
+        image: registry.nordix.org/cloud-native/meridio/meridiogw:latest
+        imagePullPolicy: Always
         securityContext:
           privileged: true
-        env:
-          - name: NO_SERVERS
-            value: "yes"

@@ -17,27 +17,26 @@ spec:
         "spiffe.io/spiffe-id": "true"
     spec:
       affinity:
-        nodeAffinity:
+        podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: meridio
+          - labelSelector:
+              matchExpressions:
+              - key: app
                 operator: In
                 values:
-                - lb
+                - "load-balancer-{{ .Values.trench.name }}"
+            topologyKey: kubernetes.io/hostname
       initContainers:
         - name: sysctl-init
-          image: {{ .Values.registry }}/{{ .Values.organization }}/busybox:1.29
+          image: registry.nordix.org/cloud-native/meridio/meridio-init:latest
+          imagePullPolicy: Always
           securityContext:
             privileged: true
-          volumeMounts:
-            - name: nsm-socket
-              mountPath: /var/lib/networkservicemesh
-              readOnly: false
-          command: ["/bin/sh"]
-          args:
-            - -c
-            - {{ template "meridio.loadBalancer.sysctls" . }}
+          env:
+            - name: NFE_EXTERNAL_INTERFACE
+              value: {{ template "meridio.vlan.extInterfaceName" . }}
+            - name: TUNNEL_PARAMS
+              value: "TG_POD_IP,{{ .Values.vlan.id }}"
       serviceAccountName: {{ template "meridio.authServiceAccount" . }}
       containers:
         - name: load-balancer
@@ -112,7 +111,7 @@ spec:
             - name: NFE_ECMP
               value: "true"
             - name: NFE_EXTERNAL_INTERFACE
-              value: eth0
+              value: {{ template "meridio.vlan.extInterfaceName" . }}
             - name: NFE_NSP_SERVICE
               value: {{ template "meridio.nsp.serviceName" . }}:{{ .Values.nsp.targetPort }}
             - name: NFE_CONFIG_MAP_NAME

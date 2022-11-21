@@ -96,11 +96,11 @@ vlan:
   networkServiceName: external-vlan
   id: 100
   interface: eth0
-  ipv4Prefix: 169.254.100.0/24
+  ipv4Prefix: 10.30.100.0/30
   fe:
     gateways:
       - name: gateway1
-        address: TG_POD_IP
+        address: 10.30.100.2
         ipFamily: ipv4
         bfd: false
         protocol: static
