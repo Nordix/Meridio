@@ -17,10 +17,9 @@ limitations under the License.
 package e2e_test
 
 import (
-	"bytes"
 	"context"
 	"flag"
-	"os/exec"
+	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -156,11 +155,7 @@ var _ = BeforeSuite(func() {
 		NConn: 400,
 	}
 
-	cmd := exec.Command(config.script, "init")
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	err = cmd.Run()
-	Expect(stderr.String()).To(BeEmpty())
+	err = utils.Exec(config.script, "init")
 	Expect(err).ToNot(HaveOccurred())
 
 	deploymentTargetA, err := clientset.AppsV1().Deployments(config.k8sNamespace).Get(context.Background(), config.targetADeploymentName, metav1.GetOptions{})
@@ -173,19 +168,15 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
-	cmd := exec.Command(config.script, "end")
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	Expect(stderr.String()).To(BeEmpty())
+	err := utils.Exec(config.script, "end")
 	Expect(err).ToNot(HaveOccurred())
 })
 
 var _ = JustAfterEach(func() {
 	if CurrentSpecReport().Failed() {
+		By(fmt.Sprintf("Handling the error, collecting the logs: %t", config.logCollectorEnabled))
 		if config.logCollectorEnabled {
-			cmd := exec.Command(config.script, "on_failure", strconv.FormatInt(CurrentSpecReport().StartTime.UnixNano(), 10))
-			_ = cmd.Run()
+			_ = utils.Exec(config.script, "on_failure", strconv.FormatInt(CurrentSpecReport().StartTime.UnixNano(), 10))
 		}
 	}
 })

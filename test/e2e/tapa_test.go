@@ -34,6 +34,7 @@ var _ = Describe("TAPA", func() {
 	)
 
 	BeforeEach(func() {
+		By(fmt.Sprintf("Selecting the first target from the deployment with label app=%s in namespace %s", config.targetADeploymentName, config.k8sNamespace))
 		if targetPod != nil {
 			return
 		}
@@ -48,15 +49,13 @@ var _ = Describe("TAPA", func() {
 
 	Describe("close-open", func() {
 		When("Close stream-a-I in one of the target from target-a-deployment-name and re-open it", func() {
-			var (
-				err error
-			)
-
 			BeforeEach(func() {
+				By(fmt.Sprintf("Closing stream %s (conduit: %s, trench: %s) in target %s in namespace %s", config.streamAI, config.conduitA1, config.trenchA, targetPod.Name, targetPod.Namespace))
 				_, err := utils.PodExec(targetPod, "example-target", []string{"./target-client", "close", "-t", config.trenchA, "-c", config.conduitA1, "-s", config.streamAI})
 				Expect(err).NotTo(HaveOccurred())
 
 				// wait trenchA/conduitA1/streamAI to be closed
+				By(fmt.Sprintf("Waiting the stream to be closed in pod %s using ./target-client watch", targetPod.Name))
 				Eventually(func() bool {
 					targetWatchOutput, err := utils.PodExec(targetPod, "example-target", []string{"timeout", "--preserve-status", "0.5", "./target-client", "watch"})
 					Expect(err).NotTo(HaveOccurred())
@@ -70,28 +69,32 @@ var _ = Describe("TAPA", func() {
 				}
 				pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
 				Expect(err).NotTo(HaveOccurred())
-				Eventually(func() bool {
-					for _, pod := range pods.Items {
+				for _, pod := range pods.Items {
+					By(fmt.Sprintf("Waiting for nfqlb in the %s (%s) to have %d targets configured", pod.Name, pod.Namespace, (numberOfTargetA - 1)))
+					Eventually(func() bool {
 						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
 						Expect(err).NotTo(HaveOccurred())
-						if utils.ParseNFQLB(nfqlbOutput) != (numberOfTargetA - 1) {
-							return false
-						}
-					}
-					return true
-				}, timeout, interval).Should(BeTrue())
+						return utils.ParseNFQLB(nfqlbOutput) == (numberOfTargetA - 1)
+					}, timeout, interval).Should(BeTrue())
+				}
 			})
 
 			AfterEach(func() {
-				_, err = utils.PodExec(targetPod, "example-target", []string{"./target-client", "open", "-t", config.trenchA, "-c", config.conduitA1, "-s", config.streamAI})
+				By(fmt.Sprintf("Reopening stream %s (conduit: %s, trench: %s) in target %s in namespace %s", config.streamAI, config.conduitA1, config.trenchA, targetPod.Name, targetPod.Namespace))
+				_, err := utils.PodExec(targetPod, "example-target", []string{"./target-client", "open", "-t", config.trenchA, "-c", config.conduitA1, "-s", config.streamAI})
 				Expect(err).NotTo(HaveOccurred())
 
 				// wait trenchA/conduitA1/streamAI to be opened
+				By(fmt.Sprintf("Waiting the stream to be opened in pod %s using ./target-client watch", targetPod.Name))
 				Eventually(func() bool {
 					targetWatchOutput, err := utils.PodExec(targetPod, "example-target", []string{"timeout", "--preserve-status", "0.5", "./target-client", "watch"})
 					Expect(err).NotTo(HaveOccurred())
 					streamStatus := utils.ParseTargetWatch(targetWatchOutput)
-					if len(streamStatus) == 1 && streamStatus[0].Status == "OPEN" && streamStatus[0].Trench == config.trenchA && streamStatus[0].Conduit == config.conduitA1 && streamStatus[0].Stream == config.streamAI {
+					if len(streamStatus) == 1 &&
+						streamStatus[0].Status == "OPEN" &&
+						streamStatus[0].Trench == config.trenchA &&
+						streamStatus[0].Conduit == config.conduitA1 &&
+						streamStatus[0].Stream == config.streamAI {
 						return true
 					}
 					return false
@@ -103,34 +106,36 @@ var _ = Describe("TAPA", func() {
 				}
 				pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
 				Expect(err).NotTo(HaveOccurred())
-				Eventually(func() bool {
-					for _, pod := range pods.Items {
+				for _, pod := range pods.Items {
+					By(fmt.Sprintf("Waiting for nfqlb in the %s (%s) to have %d targets configured", pod.Name, pod.Namespace, numberOfTargetA))
+					Eventually(func() bool {
 						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
 						Expect(err).NotTo(HaveOccurred())
-						if utils.ParseNFQLB(nfqlbOutput) != numberOfTargetA {
-							return false
-						}
-					}
-					return true
-				}, timeout, interval).Should(BeTrue())
+						return utils.ParseNFQLB(nfqlbOutput) == numberOfTargetA
+					}, timeout, interval).Should(BeTrue())
+				}
 			})
 
 			It("(Traffic) is received by the targets", func() {
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
-					By("Checking IPv4")
-					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
-					Expect(lostConnections).To(Equal(0))
-					Expect(len(lastingConnections)).To(Equal(numberOfTargetA - 1))
+					ipPort := utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
+					protocol := "tcp"
+					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
+					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
+					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					Expect(len(lastingConnections)).To(Equal(numberOfTargetA-1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 					_, exists := lastingConnections[targetPod.Name]
-					Expect(exists).ToNot(BeTrue())
+					Expect(exists).ToNot(BeTrue(), "The target with the stream closed should have received no traffic")
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
-					By("Checking IPv6")
-					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0), "tcp")
-					Expect(lostConnections).To(Equal(0))
-					Expect(len(lastingConnections)).To(Equal(numberOfTargetA - 1))
+					ipPort := utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0)
+					protocol := "tcp"
+					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
+					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
+					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					Expect(len(lastingConnections)).To(Equal(numberOfTargetA-1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 					_, exists := lastingConnections[targetPod.Name]
-					Expect(exists).ToNot(BeTrue())
+					Expect(exists).ToNot(BeTrue(), "The target with the stream closed should have received no traffic")
 				}
 			})
 		})

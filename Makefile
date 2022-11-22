@@ -137,6 +137,7 @@ e2e: ginkgo output-dir ## Run the E2E tests.
 	$(GINKGO) -v \
 	--no-color --seed=$(E2E_SEED) \
 	--repeat=0 --timeout=1h \
+	--randomize-all \
 	$(shell $(MAKE) -s print-e2e-skip-focus E2E_FOCUS=$(E2E_FOCUS) E2E_SKIP=$(E2E_SKIP)) \
 	--json-report=e2e_report.json \
 	--junit-report=e2e_report_junit.xml \

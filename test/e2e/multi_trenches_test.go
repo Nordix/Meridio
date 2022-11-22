@@ -29,23 +29,6 @@ import (
 
 var _ = Describe("MultiTrenches", func() {
 
-	var (
-		targetPod *v1.Pod
-	)
-
-	BeforeEach(func() {
-		if targetPod != nil {
-			return
-		}
-		listOptions := metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("app=%s", config.targetADeploymentName),
-		}
-		pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(len(pods.Items)).To(BeNumerically(">", 0))
-		targetPod = &pods.Items[0]
-	})
-
 	Describe("MT-Parallel", func() {
 		When("Send traffic in trench-a and trench-b at the same time", func() {
 			var (
@@ -64,11 +47,17 @@ var _ = Describe("MultiTrenches", func() {
 				trenchBDone := make(chan bool)
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
 					go func() {
-						trenchALastingConnsV4, trenchALostConnsV4 = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
+						ipPort := utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
+						protocol := "tcp"
+						By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
+						trenchALastingConnsV4, trenchALostConnsV4 = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
 						trenchADone <- true
 					}()
 					go func() {
-						trenchBLastingConnsV4, trenchBLostConnsV4 = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
+						ipPort := utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
+						protocol := "tcp"
+						By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchB, config.k8sNamespace, ipPort))
+						trenchBLastingConnsV4, trenchBLostConnsV4 = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, ipPort, protocol)
 						trenchBDone <- true
 					}()
 					<-trenchADone
@@ -76,11 +65,17 @@ var _ = Describe("MultiTrenches", func() {
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
 					go func() {
-						trenchALastingConnsV6, trenchALostConnsV6 = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0), "tcp")
+						ipPort := utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0)
+						protocol := "tcp"
+						By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
+						trenchALastingConnsV6, trenchALostConnsV6 = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
 						trenchADone <- true
 					}()
 					go func() {
-						trenchBLastingConnsV6, trenchBLostConnsV6 = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0), "tcp")
+						ipPort := utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0)
+						protocol := "tcp"
+						By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchB, config.k8sNamespace, ipPort))
+						trenchBLastingConnsV6, trenchBLostConnsV6 = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, ipPort, protocol)
 						trenchBDone <- true
 					}()
 					<-trenchADone
@@ -90,18 +85,16 @@ var _ = Describe("MultiTrenches", func() {
 
 			It("(Traffic) is received by the targets", func() {
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
-					By("Checking IPv4")
-					Expect(trenchALostConnsV4).To(Equal(0))
-					Expect(len(trenchALastingConnsV4)).To(Equal(numberOfTargetA))
-					Expect(trenchBLostConnsV4).To(Equal(0))
-					Expect(len(trenchBLastingConnsV4)).To(Equal(numberOfTargetB))
+					Expect(trenchALostConnsV4).To(Equal(0), "There should be no lost connection: %v", trenchALastingConnsV4)
+					Expect(len(trenchALastingConnsV4)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", trenchALastingConnsV4)
+					Expect(trenchBLostConnsV4).To(Equal(0), "There should be no lost connection: %v", trenchBLastingConnsV4)
+					Expect(len(trenchBLastingConnsV4)).To(Equal(numberOfTargetB), "All targets with the stream opened should have received traffic: %v", trenchBLastingConnsV4)
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
-					By("Checking IPv6")
-					Expect(trenchALostConnsV6).To(Equal(0))
-					Expect(len(trenchALastingConnsV6)).To(Equal(numberOfTargetA))
-					Expect(trenchBLostConnsV6).To(Equal(0))
-					Expect(len(trenchBLastingConnsV6)).To(Equal(numberOfTargetB))
+					Expect(trenchALostConnsV6).To(Equal(0), "There should be no lost connection: %v", trenchALastingConnsV6)
+					Expect(len(trenchALastingConnsV6)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", trenchALastingConnsV6)
+					Expect(trenchBLostConnsV6).To(Equal(0), "There should be no lost connection: %v", trenchBLastingConnsV6)
+					Expect(len(trenchBLastingConnsV6)).To(Equal(numberOfTargetB), "All targets with the stream opened should have received traffic: %v", trenchBLastingConnsV6)
 				}
 			})
 		})
@@ -109,13 +102,37 @@ var _ = Describe("MultiTrenches", func() {
 
 	Describe("MT-Switch", func() {
 		When("Disconnect a target from target-a-deployment-name from trench-a and connect it to trench-b", func() {
+			var (
+				targetPod *v1.Pod
+			)
+
 			BeforeEach(func() {
-				_, err := utils.PodExec(targetPod, "example-target", []string{"./target-client", "close", "-t", config.trenchA, "-c", config.conduitA1, "-s", config.streamAI})
+				By(fmt.Sprintf("Selecting the first target from the deployment with label app=%s in namespace %s", config.targetADeploymentName, config.k8sNamespace))
+				if targetPod != nil {
+					return
+				}
+				listOptions := metav1.ListOptions{
+					LabelSelector: fmt.Sprintf("app=%s", config.targetADeploymentName),
+				}
+				pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(len(pods.Items)).To(BeNumerically(">", 0))
+				targetPod = &pods.Items[0]
+
+				By(fmt.Sprintf("Closing stream %s (conduit: %s, trench: %s) in target %s in namespace %s", config.streamAI, config.conduitA1, config.trenchA, targetPod.Name, targetPod.Namespace))
+				_, err = utils.PodExec(targetPod, "example-target", []string{"./target-client", "close", "-t", config.trenchA, "-c", config.conduitA1, "-s", config.streamAI})
 				Expect(err).NotTo(HaveOccurred())
+
+				By(fmt.Sprintf("Opening stream %s (conduit: %s, trench: %s) in target %s in namespace %s", config.streamBI, config.conduitB1, config.trenchB, targetPod.Name, targetPod.Namespace))
 				_, err = utils.PodExec(targetPod, "example-target", []string{"./target-client", "open", "-t", config.trenchB, "-c", config.conduitB1, "-s", config.streamBI})
 				Expect(err).NotTo(HaveOccurred())
 
 				// wait target have only trenchB/conduitB1/streamBI opened
+				By(fmt.Sprintf("Waiting the stream %s (conduit: %s, trench: %s) to be closed and stream %s (conduit: %s, trench: %s) to be opened in pod %s using ./target-client watch",
+					config.streamAI, config.conduitA1, config.trenchA,
+					config.streamBI, config.conduitB1, config.trenchB,
+					targetPod.Name,
+				))
 				Eventually(func() bool {
 					targetWatchOutput, err := utils.PodExec(targetPod, "example-target", []string{"timeout", "--preserve-status", "0.5", "./target-client", "watch"})
 					Expect(err).NotTo(HaveOccurred())
@@ -127,21 +144,19 @@ var _ = Describe("MultiTrenches", func() {
 				}, timeout, interval).Should(BeTrue())
 
 				// wait for all identifiers to be in NFQLB in statelessLbFeDeploymentNameAttractorA1
-				listOptions := metav1.ListOptions{
+				listOptions = metav1.ListOptions{
 					LabelSelector: fmt.Sprintf("app=%s", config.statelessLbFeDeploymentNameAttractorA1),
 				}
-				pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
+				pods, err = clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
 				Expect(err).NotTo(HaveOccurred())
-				Eventually(func() bool {
-					for _, pod := range pods.Items {
+				for _, pod := range pods.Items {
+					By(fmt.Sprintf("Waiting for nfqlb in the %s (%s) to have %d targets configured", pod.Name, pod.Namespace, (numberOfTargetA - 1)))
+					Eventually(func() bool {
 						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
 						Expect(err).NotTo(HaveOccurred())
-						if utils.ParseNFQLB(nfqlbOutput) != (numberOfTargetA - 1) {
-							return false
-						}
-					}
-					return true
-				}, timeout, interval).Should(BeTrue())
+						return utils.ParseNFQLB(nfqlbOutput) == (numberOfTargetA - 1)
+					}, timeout, interval).Should(BeTrue())
+				}
 
 				// wait for all identifiers to be in NFQLB in statelessLbFeDeploymentNameAttractorB1
 				listOptions = metav1.ListOptions{
@@ -149,25 +164,31 @@ var _ = Describe("MultiTrenches", func() {
 				}
 				pods, err = clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
 				Expect(err).NotTo(HaveOccurred())
-				Eventually(func() bool {
-					for _, pod := range pods.Items {
+				for _, pod := range pods.Items {
+					By(fmt.Sprintf("Waiting for nfqlb in the %s (%s) to have %d targets configured", pod.Name, pod.Namespace, (numberOfTargetB + 1)))
+					Eventually(func() bool {
 						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamBI)})
 						Expect(err).NotTo(HaveOccurred())
-						if utils.ParseNFQLB(nfqlbOutput) != (numberOfTargetB + 1) {
-							return false
-						}
-					}
-					return true
-				}, timeout, interval).Should(BeTrue())
+						return utils.ParseNFQLB(nfqlbOutput) == (numberOfTargetB + 1)
+					}, timeout, interval).Should(BeTrue())
+				}
 			})
 
 			AfterEach(func() {
+				By(fmt.Sprintf("Closing stream %s (conduit: %s, trench: %s) in target %s in namespace %s", config.streamBI, config.conduitB1, config.trenchB, targetPod.Name, targetPod.Namespace))
 				_, err := utils.PodExec(targetPod, "example-target", []string{"./target-client", "close", "-t", config.trenchB, "-c", config.conduitB1, "-s", config.streamBI})
 				Expect(err).NotTo(HaveOccurred())
+
+				By(fmt.Sprintf("Opening stream %s (conduit: %s, trench: %s) in target %s in namespace %s", config.streamAI, config.conduitA1, config.trenchA, targetPod.Name, targetPod.Namespace))
 				_, err = utils.PodExec(targetPod, "example-target", []string{"./target-client", "open", "-t", config.trenchA, "-c", config.conduitA1, "-s", config.streamAI})
 				Expect(err).NotTo(HaveOccurred())
 
 				// wait target have only trenchA/conduitA1/streamAI opened
+				By(fmt.Sprintf("Waiting the stream %s (conduit: %s, trench: %s) to be closed and stream %s (conduit: %s, trench: %s) to be opened in pod %s using ./target-client watch",
+					config.streamBI, config.conduitB1, config.trenchB,
+					config.streamAI, config.conduitA1, config.trenchA,
+					targetPod.Name,
+				))
 				Eventually(func() bool {
 					targetWatchOutput, err := utils.PodExec(targetPod, "example-target", []string{"timeout", "--preserve-status", "0.5", "./target-client", "watch"})
 					Expect(err).NotTo(HaveOccurred())
@@ -184,16 +205,14 @@ var _ = Describe("MultiTrenches", func() {
 				}
 				pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
 				Expect(err).NotTo(HaveOccurred())
-				Eventually(func() bool {
-					for _, pod := range pods.Items {
+				for _, pod := range pods.Items {
+					By(fmt.Sprintf("Waiting for nfqlb in the %s (%s) to have %d targets configured", pod.Name, pod.Namespace, numberOfTargetA))
+					Eventually(func() bool {
 						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
 						Expect(err).NotTo(HaveOccurred())
-						if utils.ParseNFQLB(nfqlbOutput) != numberOfTargetA {
-							return false
-						}
-					}
-					return true
-				}, timeout, interval).Should(BeTrue())
+						return utils.ParseNFQLB(nfqlbOutput) == numberOfTargetA
+					}, timeout, interval).Should(BeTrue())
+				}
 
 				// wait for all identifiers to be in NFQLB in statelessLbFeDeploymentNameAttractorB1
 				listOptions = metav1.ListOptions{
@@ -201,43 +220,49 @@ var _ = Describe("MultiTrenches", func() {
 				}
 				pods, err = clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
 				Expect(err).NotTo(HaveOccurred())
-				Eventually(func() bool {
-					for _, pod := range pods.Items {
+				for _, pod := range pods.Items {
+					By(fmt.Sprintf("Waiting for nfqlb in the %s (%s) to have %d targets configured", pod.Name, pod.Namespace, numberOfTargetB))
+					Eventually(func() bool {
 						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamBI)})
 						Expect(err).NotTo(HaveOccurred())
-						if utils.ParseNFQLB(nfqlbOutput) != numberOfTargetB {
-							return false
-						}
-					}
-					return true
-				}, timeout, interval).Should(BeTrue())
+						return utils.ParseNFQLB(nfqlbOutput) == numberOfTargetB
+					}, timeout, interval).Should(BeTrue())
+				}
 			})
 
 			It("(Traffic) is received by the targets", func() {
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
-					By("Checking IPv4 on trench-a")
-					lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
-					Expect(lostConn).To(Equal(0))
-					Expect(len(lastingConn)).To(Equal(numberOfTargetA - 1))
+					ipPort := utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
+					protocol := "tcp"
+					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
+					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
+					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					Expect(len(lastingConnections)).To(Equal(numberOfTargetA-1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
-					By("Checking IPv6 on trench-a")
-					lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0), "tcp")
-					Expect(lostConn).To(Equal(0))
-					Expect(len(lastingConn)).To(Equal(numberOfTargetA - 1))
+					ipPort := utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0)
+					protocol := "tcp"
+					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
+					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
+					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					Expect(len(lastingConnections)).To(Equal(numberOfTargetA-1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
-					By("Checking IPv4 on trench-b")
-					lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
-					Expect(lostConn).To(Equal(0))
-					Expect(len(lastingConn)).To(Equal(numberOfTargetB + 1))
+					ipPort := utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
+					protocol := "tcp"
+					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchB, config.k8sNamespace, ipPort))
+					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, ipPort, protocol)
+					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					Expect(len(lastingConnections)).To(Equal(numberOfTargetB+1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
-					By("Checking IPv6 on trench-b")
-					lastingConn, lostConn := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0), "tcp")
-					Expect(lostConn).To(Equal(0))
-					Expect(len(lastingConn)).To(Equal(numberOfTargetB + 1))
+					ipPort := utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0)
+					protocol := "tcp"
+					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchB, config.k8sNamespace, ipPort))
+					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, ipPort, protocol)
+					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					Expect(len(lastingConnections)).To(Equal(numberOfTargetB+1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 			})
 		})

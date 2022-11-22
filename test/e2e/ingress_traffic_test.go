@@ -17,6 +17,8 @@ limitations under the License.
 package e2e_test
 
 import (
+	"fmt"
+
 	"github.com/nordix/meridio/test/e2e/utils"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -32,6 +34,7 @@ var _ = Describe("IngressTraffic", func() {
 	)
 
 	JustBeforeEach(func() {
+		By(fmt.Sprintf("Sending %s traffic from the TG %s.%s to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
 		lastingConnections, lostConnections = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
 	})
 
@@ -45,8 +48,8 @@ var _ = Describe("IngressTraffic", func() {
 				if utils.IsIPv6(config.ipFamily) {
 					Skip("The test runs only IPv6")
 				}
-				Expect(lostConnections).To(Equal(0))
-				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
+				Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+				Expect(len(lastingConnections)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 			})
 		})
 	})
@@ -61,8 +64,8 @@ var _ = Describe("IngressTraffic", func() {
 				if utils.IsIPv4(config.ipFamily) {
 					Skip("The test runs only IPv4")
 				}
-				Expect(lostConnections).To(Equal(0))
-				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
+				Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+				Expect(len(lastingConnections)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 			})
 		})
 	})
@@ -77,8 +80,8 @@ var _ = Describe("IngressTraffic", func() {
 				if utils.IsIPv6(config.ipFamily) {
 					Skip("The test runs only IPv6")
 				}
-				Expect(lostConnections).To(Equal(0))
-				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
+				Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+				Expect(len(lastingConnections)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 			})
 		})
 	})
@@ -93,8 +96,8 @@ var _ = Describe("IngressTraffic", func() {
 				if utils.IsIPv4(config.ipFamily) {
 					Skip("The test runs only IPv4")
 				}
-				Expect(lostConnections).To(Equal(0))
-				Expect(len(lastingConnections)).To(Equal(numberOfTargetA))
+				Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+				Expect(len(lastingConnections)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 			})
 		})
 	})

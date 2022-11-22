@@ -48,11 +48,14 @@ var _ = Describe("Scaling", func() {
 	})
 
 	JustBeforeEach(func() {
-		// scale
 		scale.Spec.Replicas = int32(replicas)
+
+		By(fmt.Sprintf("Scaling %s deployment to %d", config.targetADeploymentName, int(scale.Spec.Replicas)))
 		_, err := clientset.AppsV1().Deployments(config.k8sNamespace).UpdateScale(context.Background(), config.targetADeploymentName, scale, metav1.UpdateOptions{})
 		Expect(err).NotTo(HaveOccurred())
+
 		// wait for all targets to be in Running mode
+		By(fmt.Sprintf("Waiting for the deployment %s to be scaled to %d", config.targetADeploymentName, int(scale.Spec.Replicas)))
 		Eventually(func() bool {
 			deployment, err := clientset.AppsV1().Deployments(config.k8sNamespace).Get(context.Background(), config.targetADeploymentName, metav1.GetOptions{})
 			if err != nil {
@@ -67,30 +70,33 @@ var _ = Describe("Scaling", func() {
 			}
 			return len(pods.Items) == int(deployment.Status.Replicas) && deployment.Status.ReadyReplicas == deployment.Status.Replicas
 		}, timeout, interval).Should(BeTrue())
+
 		// wait for all identifiers to be in NFQLB
 		listOptions := metav1.ListOptions{
 			LabelSelector: fmt.Sprintf("app=%s", config.statelessLbFeDeploymentNameAttractorA1),
 		}
 		pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
 		Expect(err).NotTo(HaveOccurred())
-		Eventually(func() bool {
-			for _, pod := range pods.Items {
+		for _, pod := range pods.Items {
+			By(fmt.Sprintf("Waiting for nfqlb in the %s (%s) to have %d targets configured", pod.Name, pod.Namespace, int(scale.Spec.Replicas)))
+			Eventually(func() bool {
 				nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
 				Expect(err).NotTo(HaveOccurred())
-				if utils.ParseNFQLB(nfqlbOutput) != int(scale.Spec.Replicas) {
-					return false
-				}
-			}
-			return true
-		}, timeout, interval).Should(BeTrue())
+				return utils.ParseNFQLB(nfqlbOutput) == int(scale.Spec.Replicas)
+			}, timeout, interval).Should(BeTrue())
+		}
 	})
 
 	AfterEach(func() {
-		// scale
 		scale.Spec.Replicas = int32(numberOfTargetA)
+
+		// scale
+		By(fmt.Sprintf("Scaling %s deployment to %d", config.targetADeploymentName, int(scale.Spec.Replicas)))
 		_, err := clientset.AppsV1().Deployments(config.k8sNamespace).UpdateScale(context.Background(), config.targetADeploymentName, scale, metav1.UpdateOptions{})
 		Expect(err).NotTo(HaveOccurred())
+
 		// wait for all targets to be in Running mode
+		By(fmt.Sprintf("Waiting for the deployment %s to be scaled to %d", config.targetADeploymentName, int(scale.Spec.Replicas)))
 		Eventually(func() bool {
 			deployment, err := clientset.AppsV1().Deployments(config.k8sNamespace).Get(context.Background(), config.targetADeploymentName, metav1.GetOptions{})
 			if err != nil {
@@ -105,22 +111,21 @@ var _ = Describe("Scaling", func() {
 			}
 			return len(pods.Items) == int(deployment.Status.Replicas) && deployment.Status.ReadyReplicas == deployment.Status.Replicas
 		}, timeout, interval).Should(BeTrue())
+
 		// wait for all identifiers to be in NFQLB
 		listOptions := metav1.ListOptions{
 			LabelSelector: fmt.Sprintf("app=%s", config.statelessLbFeDeploymentNameAttractorA1),
 		}
 		pods, err := clientset.CoreV1().Pods(config.k8sNamespace).List(context.Background(), listOptions)
 		Expect(err).NotTo(HaveOccurred())
-		Eventually(func() bool {
-			for _, pod := range pods.Items {
+		for _, pod := range pods.Items {
+			By(fmt.Sprintf("Waiting for nfqlb in the %s (%s) to have %d targets configured", pod.Name, pod.Namespace, int(scale.Spec.Replicas)))
+			Eventually(func() bool {
 				nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
 				Expect(err).NotTo(HaveOccurred())
-				if utils.ParseNFQLB(nfqlbOutput) != int(scale.Spec.Replicas) {
-					return false
-				}
-			}
-			return true
-		}, timeout, interval).Should(BeTrue())
+				return utils.ParseNFQLB(nfqlbOutput) == int(scale.Spec.Replicas)
+			}, timeout, interval).Should(BeTrue())
+		}
 	})
 
 	Describe("Scale-Down", func() {
@@ -130,16 +135,20 @@ var _ = Describe("Scaling", func() {
 			})
 			It("(Traffic) is received by the targets", func() {
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
-					By("Checking IPv4")
-					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
-					Expect(lostConnections).To(Equal(0))
-					Expect(len(lastingConnections)).To(Equal(replicas))
+					ipPort := utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
+					protocol := "tcp"
+					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
+					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
+					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					Expect(len(lastingConnections)).To(Equal(replicas), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
-					By("Checking IPv6")
-					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0), "tcp")
-					Expect(lostConnections).To(Equal(0))
-					Expect(len(lastingConnections)).To(Equal(replicas))
+					ipPort := utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0)
+					protocol := "tcp"
+					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
+					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
+					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					Expect(len(lastingConnections)).To(Equal(replicas), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 			})
 		})
@@ -152,16 +161,20 @@ var _ = Describe("Scaling", func() {
 			})
 			It("(Traffic) is received by the targets", func() {
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
-					By("Checking IPv4")
-					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0), "tcp")
-					Expect(lostConnections).To(Equal(0))
-					Expect(len(lastingConnections)).To(Equal(replicas))
+					ipPort := utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
+					protocol := "tcp"
+					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
+					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
+					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					Expect(len(lastingConnections)).To(Equal(replicas), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
-					By("Checking IPv6")
-					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0), "tcp")
-					Expect(lostConnections).To(Equal(0))
-					Expect(len(lastingConnections)).To(Equal(replicas))
+					ipPort := utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0)
+					protocol := "tcp"
+					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
+					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
+					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					Expect(len(lastingConnections)).To(Equal(replicas), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 			})
 		})

@@ -68,6 +68,7 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 |---|---|
 | init () error | Executed once before running the tests |
 | end () error | Executed once after running the tests |
+| on_failure () error | Executed on failure |
 | configuration_new_vip () error | Executed just before running the `new-vip` test |
 | configuration_new_vip_revert () error | Executed just after running the `new-vip` test |
 

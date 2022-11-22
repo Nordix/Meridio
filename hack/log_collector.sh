@@ -75,6 +75,8 @@ collect_exec_stateless_lb_frontend() {
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- nft list ruleset > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.nft-list-ruleset.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- ps aux > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ps-aux.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- nfqlb flow-list > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.nfqlb-flow-list.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-s.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -6 -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-6-s.txt" 2>/dev/null
             shared_memory=$(kubectl exec $pod_name -n $EXEC_NAMESPACE -- ls /dev/shm/ | grep "tshm-")
             while IFS= read -r shm; do
                 kubectl exec $pod_name -n $EXEC_NAMESPACE -- nfqlb show --shm=$shm > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.nfqlb-show-shm-$shm.txt" 2>/dev/null
@@ -97,6 +99,8 @@ collect_exec_proxy() {
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip -6 rule > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-6-rule.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip route show table all > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-route-show-table-all.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- ps aux > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ps-aux.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-s.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -6 -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-6-s.txt" 2>/dev/null
         done
     done
 }
@@ -116,6 +120,8 @@ collect_exec_targets() {
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip route show table all > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-route-show-table-all.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- ps aux > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ps-aux.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- timeout --preserve-status 0.5 ./target-client watch > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.target-client-watch.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-s.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -6 -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-6-s.txt" 2>/dev/null
         done
     done
 }
@@ -131,6 +137,9 @@ collect_all() {
     while IFS= read -r resource; do
         namespaced=$(echo "$resource" | awk '{print $(NF-1)}')
         resource_name=$(echo "$resource" | awk '{print $1}')
+        if [[ " ${EXCLUDE_RESOURCES[*]} " =~ " ${resource_name} " ]]; then
+            continue
+        fi
         mkdir -p "$full_output_path/$resource_name"
         echo "collecting $resource_name ..."
         collect_resource $resource_name $namespaced
@@ -139,6 +148,8 @@ collect_all() {
 }
 
 timestamp=$(date +%s)
+
+EXCLUDE_RESOURCES="bindings componentstatuses events limitranges podtemplates replicationcontrollers resourcequotas controllerrevisions tokenreviews localsubjectaccessreviews selfsubjectaccessreviews selfsubjectrulesreviews subjectaccessreviews certificatesigningrequests leases events flowschemas prioritylevelconfigurations runtimeclasses priorityclasses apiservices csinodes csistoragecapacities"
 
 EXEC_NAMESPACE=${EXEC_NAMESPACE:-""}
 EXEC_STATELESS_LB_FRONTEND_LABELS=${EXEC_STATELESS_LB_FRONTEND_LABELS:-""}
