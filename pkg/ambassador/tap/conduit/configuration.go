@@ -159,7 +159,7 @@ func (c *configurationImpl) watchStreams(ctx context.Context) {
 			if err != nil {
 				return err
 			}
-			c.SetStreams(streamResponse.GetStreams())
+			fixStreamsMaxTargets(streamResponse.GetStreams())
 			// flush previous context in channel
 			select {
 			case <-c.streamChan:
@@ -173,6 +173,21 @@ func (c *configurationImpl) watchStreams(ctx context.Context) {
 		retry.WithErrorIngnored())
 	if err != nil {
 		log.Logger.Error(err, "watchStreams") // todo
+	}
+}
+
+// fixStreamsMaxTargets fixes the max-target property in the streams received
+// by the NSP. NSP clients Version >= to v0.9.0 will wait for the max-target
+// property to be received from the NSP, but if NSP used is lower than v0.9.0,
+// then this field will not be sent and will be considered as 0.
+// To keep everything backward compatible, the value must be 100, not 0.
+// Max target has been introduced from commit cca757e1a54f4c19564a1202b88c97f51d8e813b
+// (PR 175: https://github.com/Nordix/Meridio/pull/175)
+func fixStreamsMaxTargets(streams []*nspAPI.Stream) {
+	for _, stream := range streams {
+		if stream.GetMaxTargets() <= 0 {
+			stream.MaxTargets = 100
+		}
 	}
 }
 
