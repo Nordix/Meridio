@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="653.15039"
+   height="582.85266"
+   viewBox="0 0 653.15039 582.85266"
+   version="1.1"
+   id="SVGRoot"
+   inkscape:version="1.1.2 (0a00cf5339, 2022-02-04)"
+   sodipodi:docname="vxlan-extif.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="1"
+     inkscape:cx="430"
+     inkscape:cy="285.5"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="false"
+     inkscape:window-width="1717"
+     inkscape:window-height="1013"
+     inkscape:window-x="2113"
+     inkscape:window-y="33"
+     inkscape:window-maximized="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:snap-global="false"
+     fit-margin-left="10"
+     fit-margin-top="10"
+     fit-margin-right="10"
+     fit-margin-bottom="10" />
+  <defs
+     id="defs3737">
+    <marker
+       style="overflow:visible"
+       id="Arrow1Lend"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-0.8,0,0,-0.8,-10,0)"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:context-stroke;stroke-width:1pt"
+         d="M 0,0 5,-5 -12.5,0 5,5 Z"
+         id="path23509" />
+    </marker>
+    <marker
+       inkscape:stockid="DotL"
+       orient="auto"
+       refY="0"
+       refX="0"
+       id="marker5317"
+       style="overflow:visible"
+       inkscape:isstock="true">
+      <path
+         inkscape:connector-curvature="0"
+         id="path5315"
+         d="m -2.5,-1 c 0,2.76 -2.24,5 -5,5 -2.76,0 -5,-2.24 -5,-5 0,-2.76 2.24,-5 5,-5 2.76,0 5,2.24 5,5 z"
+         style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1pt;stroke-opacity:1"
+         transform="matrix(0.8,0,0,0.8,5.92,0.8)" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow1Lend-3"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-0.8,0,0,-0.8,-10,0)"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:context-stroke;stroke-width:1pt"
+         d="M 0,0 5,-5 -12.5,0 5,5 Z"
+         id="path23509-6" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow1Lend-5"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Lend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-0.8,0,0,-0.8,-10,0)"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:context-stroke;stroke-width:1pt"
+         d="M 0,0 5,-5 -12.5,0 5,5 Z"
+         id="path23509-3" />
+    </marker>
+  </defs>
+  <metadata
+     id="metadata3740">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     id="layer1"
+     inkscape:groupmode="layer"
+     inkscape:label="Layer 1"
+     transform="translate(-64.711182,-138.52164)">
+    <rect
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stop-color:#000000"
+       id="rect6038"
+       width="323.87402"
+       height="266.07727"
+       x="75.211182"
+       y="158.79706" />
+    <text
+       xml:space="preserve"
+       style="font-size:16px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px"
+       x="87.69165"
+       y="180.06842"
+       id="text7251"><tspan
+         sodipodi:role="line"
+         id="tspan7249"
+         x="87.69165"
+         y="180.06842">K8s node</tspan></text>
+    <g
+       id="g13481">
+      <rect
+         style="fill:#e5e5e5;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stop-color:#000000"
+         id="rect7435"
+         width="197.55786"
+         height="191.80893"
+         x="168.31714"
+         y="191.76425" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:0.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:1, 2;stroke-dashoffset:0;stroke-opacity:1"
+         d="M 346.10425,290.34213 H 492.53687"
+         id="path7620" />
+      <rect
+         style="fill:#e5e5e5;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stop-color:#000000"
+         id="rect973"
+         width="197.55786"
+         height="191.80893"
+         x="463.02637"
+         y="191.76425" />
+      <rect
+         style="fill:#d1d1d1;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stop-color:#000000"
+         id="rect2181"
+         width="101.58521"
+         height="85.992737"
+         x="492.90332"
+         y="244.81894" />
+      <text
+         xml:space="preserve"
+         style="font-size:16px;line-height:1.25;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle"
+         x="544.90869"
+         y="280.13376"
+         id="text3043"><tspan
+           sodipodi:role="line"
+           id="tspan3041"
+           x="544.90869"
+           y="280.13376">BGP</tspan><tspan
+           sodipodi:role="line"
+           x="544.90869"
+           y="300.13376"
+           id="tspan3045">(bird)</tspan></text>
+      <use
+         x="0"
+         y="0"
+         xlink:href="#path7459"
+         id="use7585"
+         transform="translate(-53.190674,-0.5085628)"
+         width="100%"
+         height="100%" />
+      <text
+         xml:space="preserve"
+         style="font-size:16px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px"
+         x="178.76978"
+         y="212.3475"
+         id="text9596"><tspan
+           sodipodi:role="line"
+           id="tspan9594"
+           x="178.76978"
+           y="212.3475">FE/LB POD</tspan></text>
+      <use
+         x="0"
+         y="0"
+         xlink:href="#path7459"
+         id="use9678"
+         transform="translate(64.742187,-0.5085628)"
+         width="100%"
+         height="100%" />
+      <text
+         xml:space="preserve"
+         style="font-size:13.3333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px"
+         x="248.9729"
+         y="295.32526"
+         id="text11246"><tspan
+           sodipodi:role="line"
+           id="tspan11244"
+           x="248.9729"
+           y="295.32526">ext-vlan.100</tspan></text>
+    </g>
+    <circle
+       style="fill:#aaaaaa;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stop-color:#000000"
+       id="path7459"
+       cx="399.01892"
+       cy="290.54254"
+       r="7.6478271" />
+    <text
+       xml:space="preserve"
+       style="font-size:16px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px"
+       x="477.58887"
+       y="212.01666"
+       id="text2077"><tspan
+         sodipodi:role="line"
+         id="tspan2075"
+         x="477.58887"
+         y="212.01666">GW (HW or continer)</tspan></text>
+    <use
+       x="0"
+       y="0"
+       xlink:href="#g13481"
+       id="use13483"
+       transform="translate(0,285.9527)"
+       width="100%"
+       height="100%" />
+    <rect
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:1;stroke-miterlimit:4;stroke-dasharray:none;stop-color:#000000"
+       id="rect13485"
+       width="632.15039"
+       height="266.07727"
+       x="75.211182"
+       y="444.79706" />
+    <use
+       x="0"
+       y="0"
+       xlink:href="#text7251"
+       id="use13589"
+       transform="translate(0,288.39807)"
+       width="100%"
+       height="100%" />
+    <text
+       xml:space="preserve"
+       style="font-size:13.3333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px"
+       x="419.35254"
+       y="158.65182"
+       id="text15133"><tspan
+         sodipodi:role="line"
+         id="tspan15131"
+         x="419.35254"
+         y="158.65182">Injected by multus</tspan><tspan
+         sodipodi:role="line"
+         x="419.35254"
+         y="175.31845"
+         id="tspan15135">or NSM</tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-size:13.3333px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px"
+       x="409.80786"
+       y="414.73065"
+       id="text18855"><tspan
+         sodipodi:role="line"
+         id="tspan18853"
+         x="409.80786"
+         y="414.73065">Vxlan tunnel</tspan><tspan
+         sodipodi:role="line"
+         x="409.80786"
+         y="431.39728"
+         id="tspan25024">created by local scripts</tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:3, 3;stroke-dashoffset:0;stroke-opacity:1;marker-end:url(#Arrow1Lend)"
+       d="M 430.53418,184.28229 357.92993,275.5798"
+       id="path23504" />
+    <path
+       style="font-variation-settings:normal;opacity:1;vector-effect:none;fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:3, 3;stroke-dashoffset:0;stroke-opacity:1;-inkscape-stroke:none;marker-end:url(#Arrow1Lend);stop-color:#000000;stop-opacity:1"
+       d="M 419.7439,438.38177 352.46704,559.35126"
+       id="path23887" />
+    <path
+       style="font-variation-settings:normal;opacity:1;vector-effect:none;fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.5;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:3, 3;stroke-dashoffset:0;stroke-opacity:1;-inkscape-stroke:none;marker-end:url(#Arrow1Lend);stop-color:#000000;stop-opacity:1"
+       d="m 431.83765,438.05536 25.24951,124.01153"
+       id="path23889" />
+    <text
+       xml:space="preserve"
+       style="font-size:16px;line-height:1.25;font-family:sans-serif;letter-spacing:0px;word-spacing:0px"
+       x="477.58887"
+       y="497.19464"
+       id="text25382"><tspan
+         sodipodi:role="line"
+         id="tspan25380"
+         x="477.58887"
+         y="497.19464">GW (POD)</tspan></text>
+  </g>
+</svg>
