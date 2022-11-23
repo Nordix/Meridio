@@ -17,7 +17,7 @@ spec:
     spec:
       initContainers:
         - name: sysctl-init
-          image: {{ .Values.registry }}/{{ .Values.organization }}/busybox:1.29
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{.Values.init.image}}:{{.Values.init.version}}
           securityContext:
             privileged: true
           command: ["/bin/sh"]

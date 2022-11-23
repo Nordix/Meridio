@@ -13,7 +13,7 @@ help: ## Display this help.
 # Variables
 ############################################################################
 
-IMAGES ?= base-image stateless-lb proxy tapa ipam nsp example-target frontend operator
+IMAGES ?= base-image stateless-lb proxy tapa ipam nsp example-target frontend operator init
 
 # Versions
 VERSION ?= latest
@@ -27,6 +27,7 @@ VERSION_FRONTEND ?= $(VERSION)
 VERSION_BASE_IMAGE ?= $(VERSION)
 VERSION_OPERATOR ?= $(VERSION)
 LOCAL_VERSION ?= $(VERSION)
+VERSION_INIT ?= $(VERSION)
 
 # E2E tests
 E2E_FOCUS ?= ""
@@ -124,6 +125,10 @@ frontend: ## Build the frontend.
 operator: ## Build the operator.
 	VERSION=$(VERSION_OPERATOR) IMAGE=operator $(MAKE) -s $(BUILD_STEPS)
 
+.PHONY: init
+init: ## Build the init image.
+	VERSION=$(VERSION_INIT) IMAGE=init $(MAKE) -s $(BUILD_STEPS)
+
 #############################################################################
 ##@ Testing & Code check
 #############################################################################
@@ -186,7 +191,7 @@ trivy-scan: output-dir
 .PHONY: nancy
 nancy: nancy-tool output-dir ## Run nancy scanner on dependencies.
 	go list -json -deps ./... | nancy sleuth -o json-pretty > $(OUTPUT_DIR)/nancy.json || true
-	
+
 #############################################################################
 ##@ Code generation
 #############################################################################
@@ -245,7 +250,7 @@ namespace: # Edit the namespace of operator to be deployed
 print-manifests: manifests kustomize namespace set-templates-values # Generate manifests to be deployed in the cluster
 	cd config/operator && $(KUSTOMIZE) edit set image operator=${REGISTRY}/operator:${VERSION_OPERATOR}
 	$(KUSTOMIZE) build config/default --enable-helm
-	
+
 #############################################################################
 # Tools
 #############################################################################

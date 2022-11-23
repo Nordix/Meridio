@@ -40,20 +40,32 @@ dbg() {
 ##
 cmd_env() {
 	test -n "$__out" || __out=$(readlink -f $dir/_output)
-	test -n "$__targets" || __targets="load-balancer proxy tapa ipam nsp frontend"
+	test -n "$__targets" || __targets="stateless-lb proxy tapa ipam nsp frontend"
 	test -n "$__registry" || __registry=registry.nordix.org/cloud-native/meridio
 	test -n "$__version" || __version=local
 	test -n "$__nfqlb" || __nfqlb=1.0.0
 	test -n "$ARCHIVE" || ARCHIVE=$HOME/Downloads
 	test "$cmd" = "env" && set | grep -E '^(__.*|ARCHIVE)='
 }
-
+##  init_image
+##    Build an image used for initContainers
+cmd_init_image() {
+	cmd_env
+	local tag=$__registry/init:$__version
+	local dockerfile=
+	mkdir -p $tmp/root
+	cp $dir/hack/meridio-init.sh $tmp/root
+	sed -e "s,/start-command,/meridio-init.sh," \
+		< $dir/hack/host-build/Dockerfile.default > $tmp/Dockerfile
+	docker build -t $tag $tmp || die "docker build $base"
+	echo $tag
+}
 ##  base_image
 ##    Build the base image
 cmd_base_image() {
 	cmd_env
 	local base=$(grep base_image= $dir/hack/host-build/Dockerfile.default | cut -d= -f2)
-	local dockerfile=$dir/build/base/Dockerfile
+	local dockerfile=$dir/build/base-image/Dockerfile
 	mkdir -p $tmp
 	docker build -t $base -f $dockerfile $tmp || die "docker build $base"
 	echo $base
