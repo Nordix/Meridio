@@ -22,6 +22,10 @@ attractor:
 configuration:
   configmap: meridio-configuration
 
+init:
+  image: init
+  version: latest
+
 loadBalancer:
   image: stateless-lb
   version: latest
