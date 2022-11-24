@@ -69,7 +69,7 @@ var _ = Describe("Scaling", func() {
 				return false
 			}
 			return len(pods.Items) == int(deployment.Status.Replicas) && deployment.Status.ReadyReplicas == deployment.Status.Replicas
-		}, timeout, interval).Should(BeTrue())
+		}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 
 		// wait for all identifiers to be in NFQLB
 		listOptions := metav1.ListOptions{
@@ -83,7 +83,7 @@ var _ = Describe("Scaling", func() {
 				nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
 				Expect(err).NotTo(HaveOccurred())
 				return utils.ParseNFQLB(nfqlbOutput) == int(scale.Spec.Replicas)
-			}, timeout, interval).Should(BeTrue())
+			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 		}
 	})
 
@@ -110,7 +110,7 @@ var _ = Describe("Scaling", func() {
 				return false
 			}
 			return len(pods.Items) == int(deployment.Status.Replicas) && deployment.Status.ReadyReplicas == deployment.Status.Replicas
-		}, timeout, interval).Should(BeTrue())
+		}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 
 		// wait for all identifiers to be in NFQLB
 		listOptions := metav1.ListOptions{
@@ -124,7 +124,7 @@ var _ = Describe("Scaling", func() {
 				nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
 				Expect(err).NotTo(HaveOccurred())
 				return utils.ParseNFQLB(nfqlbOutput) == int(scale.Spec.Replicas)
-			}, timeout, interval).Should(BeTrue())
+			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 		}
 	})
 
@@ -133,7 +133,7 @@ var _ = Describe("Scaling", func() {
 			BeforeEach(func() {
 				replicas = numberOfTargetA - 1
 			})
-			It("(Traffic) is received by the targets", func() {
+			It("(Traffic) is received by the targets", func(ctx context.Context) {
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
 					ipPort := utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
 					protocol := "tcp"
@@ -150,7 +150,7 @@ var _ = Describe("Scaling", func() {
 					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
 					Expect(len(lastingConnections)).To(Equal(replicas), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
-			})
+			}, SpecTimeout(timeoutTest))
 		})
 	})
 
@@ -159,7 +159,7 @@ var _ = Describe("Scaling", func() {
 			BeforeEach(func() {
 				replicas = numberOfTargetA + 1
 			})
-			It("(Traffic) is received by the targets", func() {
+			It("(Traffic) is received by the targets", func(ctx context.Context) {
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
 					ipPort := utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
 					protocol := "tcp"
@@ -176,7 +176,7 @@ var _ = Describe("Scaling", func() {
 					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
 					Expect(len(lastingConnections)).To(Equal(replicas), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
-			})
+			}, SpecTimeout(timeoutTest))
 		})
 	})
 

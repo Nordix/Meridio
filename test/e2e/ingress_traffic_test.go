@@ -17,6 +17,7 @@ limitations under the License.
 package e2e_test
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/nordix/meridio/test/e2e/utils"
@@ -44,13 +45,13 @@ var _ = Describe("IngressTraffic", func() {
 				ipPort = utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
 				protocol = "tcp"
 			})
-			It("(Traffic) is received by the targets", func() {
+			It("(Traffic) is received by the targets", func(ctx context.Context) {
 				if utils.IsIPv6(config.ipFamily) {
 					Skip("The test runs only IPv6")
 				}
 				Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", lastingConnections)
-			})
+			}, SpecTimeout(timeoutTest))
 		})
 	})
 
@@ -60,13 +61,13 @@ var _ = Describe("IngressTraffic", func() {
 				ipPort = utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0)
 				protocol = "tcp"
 			})
-			It("(Traffic) is received by the targets", func() {
+			It("(Traffic) is received by the targets", func(ctx context.Context) {
 				if utils.IsIPv4(config.ipFamily) {
 					Skip("The test runs only IPv4")
 				}
 				Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", lastingConnections)
-			})
+			}, SpecTimeout(timeoutTest))
 		})
 	})
 
@@ -76,13 +77,13 @@ var _ = Describe("IngressTraffic", func() {
 				ipPort = utils.VIPPort(config.vip1V4, config.flowAZUdpDestinationPort0)
 				protocol = "udp"
 			})
-			It("(Traffic) is received by the targets", func() {
+			It("(Traffic) is received by the targets", func(ctx context.Context) {
 				if utils.IsIPv6(config.ipFamily) {
 					Skip("The test runs only IPv6")
 				}
 				Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", lastingConnections)
-			})
+			}, SpecTimeout(timeoutTest))
 		})
 	})
 
@@ -92,13 +93,13 @@ var _ = Describe("IngressTraffic", func() {
 				ipPort = utils.VIPPort(config.vip1V6, config.flowAZUdpDestinationPort0)
 				protocol = "udp"
 			})
-			It("(Traffic) is received by the targets", func() {
+			It("(Traffic) is received by the targets", func(ctx context.Context) {
 				if utils.IsIPv4(config.ipFamily) {
 					Skip("The test runs only IPv4")
 				}
 				Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", lastingConnections)
-			})
+			}, SpecTimeout(timeoutTest))
 		})
 	})
 

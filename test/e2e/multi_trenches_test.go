@@ -83,7 +83,7 @@ var _ = Describe("MultiTrenches", func() {
 				}
 			})
 
-			It("(Traffic) is received by the targets", func() {
+			It("(Traffic) is received by the targets", func(ctx context.Context) {
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
 					Expect(trenchALostConnsV4).To(Equal(0), "There should be no lost connection: %v", trenchALastingConnsV4)
 					Expect(len(trenchALastingConnsV4)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", trenchALastingConnsV4)
@@ -96,7 +96,7 @@ var _ = Describe("MultiTrenches", func() {
 					Expect(trenchBLostConnsV6).To(Equal(0), "There should be no lost connection: %v", trenchBLastingConnsV6)
 					Expect(len(trenchBLastingConnsV6)).To(Equal(numberOfTargetB), "All targets with the stream opened should have received traffic: %v", trenchBLastingConnsV6)
 				}
-			})
+			}, SpecTimeout(timeoutTest))
 		})
 	})
 
@@ -141,7 +141,7 @@ var _ = Describe("MultiTrenches", func() {
 						return true
 					}
 					return false
-				}, timeout, interval).Should(BeTrue())
+				}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 
 				// wait for all identifiers to be in NFQLB in statelessLbFeDeploymentNameAttractorA1
 				listOptions = metav1.ListOptions{
@@ -155,7 +155,7 @@ var _ = Describe("MultiTrenches", func() {
 						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
 						Expect(err).NotTo(HaveOccurred())
 						return utils.ParseNFQLB(nfqlbOutput) == (numberOfTargetA - 1)
-					}, timeout, interval).Should(BeTrue())
+					}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 				}
 
 				// wait for all identifiers to be in NFQLB in statelessLbFeDeploymentNameAttractorB1
@@ -170,7 +170,7 @@ var _ = Describe("MultiTrenches", func() {
 						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamBI)})
 						Expect(err).NotTo(HaveOccurred())
 						return utils.ParseNFQLB(nfqlbOutput) == (numberOfTargetB + 1)
-					}, timeout, interval).Should(BeTrue())
+					}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 				}
 			})
 
@@ -197,7 +197,7 @@ var _ = Describe("MultiTrenches", func() {
 						return true
 					}
 					return false
-				}, timeout, interval).Should(BeTrue())
+				}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 
 				// wait for all identifiers to be in NFQLB in statelessLbFeDeploymentNameAttractorA1
 				listOptions := metav1.ListOptions{
@@ -211,7 +211,7 @@ var _ = Describe("MultiTrenches", func() {
 						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
 						Expect(err).NotTo(HaveOccurred())
 						return utils.ParseNFQLB(nfqlbOutput) == numberOfTargetA
-					}, timeout, interval).Should(BeTrue())
+					}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 				}
 
 				// wait for all identifiers to be in NFQLB in statelessLbFeDeploymentNameAttractorB1
@@ -226,11 +226,11 @@ var _ = Describe("MultiTrenches", func() {
 						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamBI)})
 						Expect(err).NotTo(HaveOccurred())
 						return utils.ParseNFQLB(nfqlbOutput) == numberOfTargetB
-					}, timeout, interval).Should(BeTrue())
+					}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 				}
 			})
 
-			It("(Traffic) is received by the targets", func() {
+			It("(Traffic) is received by the targets", func(ctx context.Context) {
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
 					ipPort := utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
 					protocol := "tcp"
@@ -264,7 +264,7 @@ var _ = Describe("MultiTrenches", func() {
 					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
 					Expect(len(lastingConnections)).To(Equal(numberOfTargetB+1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
-			})
+			}, SpecTimeout(timeoutTest))
 		})
 	})
 

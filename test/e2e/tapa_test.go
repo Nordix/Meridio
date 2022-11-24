@@ -61,7 +61,7 @@ var _ = Describe("TAPA", func() {
 					Expect(err).NotTo(HaveOccurred())
 					streamStatus := utils.ParseTargetWatch(targetWatchOutput)
 					return len(streamStatus) == 0
-				}, timeout, interval).Should(BeTrue())
+				}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 
 				// wait for all identifiers to be in NFQLB in statelessLbFeDeploymentNameAttractorA1
 				listOptions := metav1.ListOptions{
@@ -75,7 +75,7 @@ var _ = Describe("TAPA", func() {
 						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
 						Expect(err).NotTo(HaveOccurred())
 						return utils.ParseNFQLB(nfqlbOutput) == (numberOfTargetA - 1)
-					}, timeout, interval).Should(BeTrue())
+					}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 				}
 			})
 
@@ -98,7 +98,7 @@ var _ = Describe("TAPA", func() {
 						return true
 					}
 					return false
-				}, timeout, interval).Should(BeTrue())
+				}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 
 				// wait for all identifiers to be in NFQLB in statelessLbFeDeploymentNameAttractorA1
 				listOptions := metav1.ListOptions{
@@ -112,11 +112,11 @@ var _ = Describe("TAPA", func() {
 						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
 						Expect(err).NotTo(HaveOccurred())
 						return utils.ParseNFQLB(nfqlbOutput) == numberOfTargetA
-					}, timeout, interval).Should(BeTrue())
+					}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 				}
 			})
 
-			It("(Traffic) is received by the targets", func() {
+			It("(Traffic) is received by the targets", func(ctx context.Context) {
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
 					ipPort := utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
 					protocol := "tcp"
@@ -137,7 +137,7 @@ var _ = Describe("TAPA", func() {
 					_, exists := lastingConnections[targetPod.Name]
 					Expect(exists).ToNot(BeTrue(), "The target with the stream closed should have received no traffic")
 				}
-			})
+			}, SpecTimeout(timeoutTest))
 		})
 	})
 

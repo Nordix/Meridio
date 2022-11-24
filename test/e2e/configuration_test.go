@@ -17,6 +17,7 @@ limitations under the License.
 package e2e_test
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/nordix/meridio/test/e2e/utils"
@@ -40,7 +41,7 @@ var _ = Describe("Configuration", func() {
 				Expect(err).ToNot(HaveOccurred())
 			})
 
-			It("(Traffic) is received by the targets", func() {
+			It("(Traffic) is received by the targets", func(ctx context.Context) {
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
 					ipPort := utils.VIPPort(config.vip2V4, config.flowAZTcpDestinationPort0)
 					protocol := "tcp"
@@ -57,7 +58,7 @@ var _ = Describe("Configuration", func() {
 					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
 					Expect(len(lastingConnections)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
-			})
+			}, SpecTimeout(timeoutTest))
 		})
 	})
 

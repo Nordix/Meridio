@@ -80,8 +80,9 @@ type e2eTestConfiguration struct {
 }
 
 const (
-	timeout  = time.Minute * 3
-	interval = time.Second * 2
+	eventuallyTimeout  = time.Minute * 3
+	eventuallyInterval = time.Second * 2
+	timeoutTest        = time.Minute * 15
 )
 
 func init() {
