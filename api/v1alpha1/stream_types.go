@@ -26,11 +26,9 @@ type StreamSpec struct {
 	// The conduit that is to convey traffic included in this Stream
 	// +optional
 	Conduit string `json:"conduit,omitempty"`
-	// +kubebuilder:default=100
-	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:validation:Maximum=10000
 	// Max number of targets the stream supports
-	MaxTargets uint32 `json:"max-targets,omitempty"`
+	// +optional
+	MaxTargets *uint32 `json:"max-targets,omitempty"`
 }
 
 // StreamStatus defines the observed state of Stream

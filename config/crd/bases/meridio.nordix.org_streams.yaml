@@ -51,11 +51,8 @@ spec:
                   Stream
                 type: string
               max-targets:
-                default: 100
                 description: Max number of targets the stream supports
                 format: int32
-                maximum: 10000
-                minimum: 1
                 type: integer
             type: object
           status:
