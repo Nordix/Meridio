@@ -26,14 +26,6 @@ spec:
             - name: INIT_FUNCTION
               value: "tapa"
       containers:
-        - name: debug
-          image: registry.nordix.org/cloud-native/meridio/meridio-init:latest
-          imagePullPolicy: IfNotPresent
-          securityContext:
-            privileged: true
-          env:
-            - name: INIT_FUNCTION
-              value: "hold"
         - name: example-target
           image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.exampleTarget.image }}:{{ .Values.exampleTarget.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}

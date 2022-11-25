@@ -12,8 +12,18 @@ spec:
         app: meridio-tg
     spec:
       containers:
-      - name: mserver
+      - name: meridiogw
         image: registry.nordix.org/cloud-native/meridio/meridiogw:latest
-        imagePullPolicy: Always
         securityContext:
           privileged: true
+      - name: service-tunnel
+        image: registry.nordix.org/cloud-native/service-tunnel:latest
+        securityContext:
+          privileged: true
+        env:
+        - name: TUNNEL_FUNCTION
+          value: "hold"
+        - name: TUNNEL_IPV4
+          value: "10.30.30.1/30"
+        - name: TUNNEL_IPV6
+          value: "fd00:3030::1/126"
