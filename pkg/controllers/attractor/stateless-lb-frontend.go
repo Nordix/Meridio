@@ -17,6 +17,7 @@ limitations under the License.
 package attractor
 
 import (
+	"encoding/json"
 	"fmt"
 
 	meridiov1 "github.com/nordix/meridio/api/v1"
@@ -80,7 +81,7 @@ func (l *LoadBalancer) getLbEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 
 func (l *LoadBalancer) getNscEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	operatorEnv := map[string]string{
-		"NSM_NETWORK_SERVICES":     fmt.Sprintf("kernel://%s/%s", common.VlanNtwkSvcName(l.attractor, l.trench), common.GetExternalInterfaceName(l.attractor)),
+		"NSM_NETWORK_SERVICES":     fmt.Sprintf("kernel://%s/%s", common.VlanNtwkSvcName(l.attractor, l.trench), l.attractor.Spec.Interface.Name),
 		"NSM_LOG_LEVEL":            common.GetLogLevel(),
 		"NSM_LIVENESSCHECKENABLED": "false",
 	}
@@ -89,15 +90,82 @@ func (l *LoadBalancer) getNscEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 
 func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	operatorEnv := map[string]string{
-		"NFE_CONFIG_MAP_NAME":    common.ConfigMapName(l.trench),
-		"NFE_NSP_SERVICE":        common.NSPServiceWithPort(l.trench),
-		"NFE_TRENCH_NAME":        l.trench.ObjectMeta.Name,
-		"NFE_ATTRACTOR_NAME":     l.attractor.ObjectMeta.Name,
-		"NFE_NAMESPACE":          l.attractor.ObjectMeta.Namespace,
-		"NFE_EXTERNAL_INTERFACE": common.GetExternalInterfaceName(l.attractor),
-		"NFE_LOG_LEVEL":          common.GetLogLevel(),
+		"NFE_CONFIG_MAP_NAME": common.ConfigMapName(l.trench),
+		"NFE_NSP_SERVICE":     common.NSPServiceWithPort(l.trench),
+		"NFE_TRENCH_NAME":     l.trench.ObjectMeta.Name,
+		"NFE_ATTRACTOR_NAME":  l.attractor.ObjectMeta.Name,
+		"NFE_NAMESPACE":       l.attractor.ObjectMeta.Namespace,
+		"NFE_EXTERNAL_INTERFACE": func() string {
+			externalInterface := l.attractor.Spec.Interface.Name
+			// if set use the interface provided by the Network Attachment
+			if l.attractor.Spec.Interface.Type == meridiov1.NAD &&
+				len(l.attractor.Spec.Interface.NetworkAttachments) == 1 &&
+				l.attractor.Spec.Interface.NetworkAttachments[0].InterfaceRequest != "" {
+				externalInterface = l.attractor.Spec.Interface.NetworkAttachments[0].InterfaceRequest
+			}
+			return externalInterface
+		}(),
+		"NFE_LOG_LEVEL": common.GetLogLevel(),
 	}
 	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
+}
+
+// Appends network annotation(s) based on the Network Attachment configuration in Attractor.
+// Currently a single Network Attachment is supported, but the code can be easily extended
+// to support multiple.
+func (l *LoadBalancer) insertNetworkAnnotation(dep *appsv1.Deployment) error {
+	if len(l.attractor.Spec.Interface.NetworkAttachments) != 1 {
+		return fmt.Errorf("required one network attachment")
+	}
+
+	if dep.Spec.Template.ObjectMeta.Annotations == nil {
+		dep.Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+	}
+
+	// parse existing annotations
+	netAttachSels, err := common.GetNetworkAnnotation(
+		dep.Spec.Template.ObjectMeta.Annotations[common.NetworkAttachmentAnnot],
+		l.attractor.ObjectMeta.Namespace,
+	)
+	if err != nil {
+		return err
+	}
+
+	netAttachSelMap := common.MakeNetworkAttachmentSpecMap(netAttachSels) // convert to map to check for duplicates
+	// check if attractor defined network attachments are already present among existing annotations
+	attrNetAttachSels := []*common.NetworkAttachmentSelector{}
+	for _, na := range l.attractor.Spec.Interface.NetworkAttachments {
+		if na.Namespace == "" {
+			return fmt.Errorf("namespace not specified")
+		}
+		sel := common.NetworkAttachmentSelector{
+			Name:      na.Name,
+			Namespace: na.Namespace,
+			InterfaceRequest: func() string {
+				if na.InterfaceRequest == "" {
+					return l.attractor.Spec.Interface.Name // if missing use the interface name provided by attractor.Spec.Interface
+				} else {
+					return na.InterfaceRequest
+				}
+			}(),
+		}
+		if _, ok := netAttachSelMap[sel]; ok {
+			continue // already present among existing annotations
+		}
+		attrNetAttachSels = append(attrNetAttachSels, &sel)
+	}
+
+	if len(attrNetAttachSels) != 0 {
+		// append attractor defined network attachments to existing ones using json encoding
+		netAttachSels = append(netAttachSels, attrNetAttachSels...)
+		enc, err := json.Marshal(netAttachSels)
+		if err != nil {
+			return err
+		}
+		dep.Spec.Template.ObjectMeta.Annotations[common.NetworkAttachmentAnnot] = string(enc)
+	}
+
+	return nil
 }
 
 func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployment {
@@ -119,6 +187,12 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 		ret.Spec.Template.Spec.ImagePullSecrets = imagePullSecrets
 	}
 
+	if l.attractor.Spec.Interface.Type == meridiov1.NAD {
+		if err := l.insertNetworkAnnotation(ret); err != nil {
+			l.exec.LogError(err, fmt.Sprintf("attractor %s, network attachment annotation failure", l.attractor.ObjectMeta.Name))
+		}
+	}
+
 	if ret.Spec.Template.Spec.InitContainers[0].Image == "" {
 		ret.Spec.Template.Spec.InitContainers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, common.BusyboxImage, common.BusyboxTag)
 		ret.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullIfNotPresent
@@ -132,6 +206,19 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 	oa, _ := common.GetResourceRequirementAnnotation(&dep.ObjectMeta)
 	if na, _ := common.GetResourceRequirementAnnotation(&l.attractor.ObjectMeta); na != oa {
 		common.SetResourceRequirementAnnotation(&l.attractor.ObjectMeta, &ret.ObjectMeta)
+	}
+
+	// nsc container not needed if interface type is not nsm-vlan
+	if l.attractor.Spec.Interface.Type != meridiov1.NSMVlan {
+		for i, container := range ret.Spec.Template.Spec.Containers {
+			if container.Name == "nsc" {
+				clen := len(ret.Spec.Template.Spec.Containers)
+				ret.Spec.Template.Spec.Containers[i] = ret.Spec.Template.Spec.Containers[clen-1]
+				ret.Spec.Template.Spec.Containers = ret.Spec.Template.Spec.Containers[:clen-1]
+				break
+			}
+
+		}
 	}
 
 	for i, container := range ret.Spec.Template.Spec.Containers {

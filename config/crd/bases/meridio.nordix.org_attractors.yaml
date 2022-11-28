@@ -74,19 +74,51 @@ spec:
                 description: defines the interface information that attractor use
                 properties:
                   ipv4-prefix:
-                    description: (immutable) ipv4 prefix of the interface, which is
-                      used for frontend to set up communication with the ipv4 gateways
+                    description: (immutable) IPv4 prefix of the interface, which is
+                      used for frontend to set up communication with the ipv4 gateways.
+                      If the type is "nsm-vlan", this information must be specified.
                     type: string
                   ipv6-prefix:
-                    description: (immutable) ipv6 prefix of the interface, which is
-                      used for frontend to set up communication with the ipv6 gateways
+                    description: (immutable) IPv6 prefix of the interface, which is
+                      used for frontend to set up communication with the ipv6 gateways.
+                      If the type is "nsm-vlan", this information must be specified.
                     type: string
                   name:
-                    description: name of the interface
+                    description: Name of the interface. Must be a valid Linux kernel
+                      interface name.
+                    pattern: ^[^:\//\s]{1,13}$
                     type: string
+                  network-attachments:
+                    description: If the type is "network-attachment", this information
+                      must be specified. One NetworkAttachmentSpec allowed currently.
+                    items:
+                      description: 'NetworkAttachmentSpec identifies a Network Attachment
+                        Definition intended to setup an interface. It is a subset
+                        of NetworkSelectionElement: https://pkg.go.dev/github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1#NetworkSelectionElement'
+                      properties:
+                        interface:
+                          description: Name to be used as the given name for the POD
+                            interface. Must be a valid Linux kernel interface name.
+                          pattern: ^[^:\//\s]{1,13}$
+                          type: string
+                        name:
+                          description: Name of the Network Attachment Definition.
+                            Must be a valid lowercase RFC 1123 subdomain.
+                          maxLength: 253
+                          pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                          type: string
+                        namespace:
+                          default: default
+                          description: Kubernetes namespace where the Network Attachment
+                            Definition is defined. Must be a valid lowercase RFC 1123
+                            label. Its default value is "default".
+                          pattern: ^[a-z0-9](?:[a-z0-9-]{0,61}?[a-z0-9])?$
+                          type: string
+                      type: object
+                    type: array
                   nsm-vlan:
-                    description: if the type is "nsm-vlan", this information must
-                      be specified
+                    description: If the type is "nsm-vlan", this information must
+                      be specified.
                     properties:
                       base-interface:
                         description: (immutable) master interface of the vlan interface
@@ -100,13 +132,12 @@ spec:
                     type: object
                   type:
                     default: nsm-vlan
-                    description: interface choice.
+                    description: Interface choice.
                     enum:
                     - nsm-vlan
+                    - network-attachment
                     type: string
                 required:
-                - ipv4-prefix
-                - ipv6-prefix
                 - name
                 type: object
               replicas:

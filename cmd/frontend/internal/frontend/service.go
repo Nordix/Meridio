@@ -407,7 +407,7 @@ func (fes *FrontEndService) parseStatusOutput(output string, bfdOutput string) *
 			return
 		}
 
-		// extend protocol options with external inteface, gateway ip, available bfd sessions,
+		// extend protocol options with external interface, gateway ip, available bfd sessions,
 		// and with info whether bfd is configured for the particular gateway
 		opts := append([]bird.Option{
 			bird.WithInterface(fes.extInterface),
