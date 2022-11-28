@@ -102,6 +102,7 @@ type InterfaceType string
 
 const (
 	NSMVlan = "nsm-vlan"
+	NAD     = "network-attachment"
 )
 
 func subnetsOverlap(a, b *net.IPNet) bool {

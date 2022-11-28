@@ -54,7 +54,7 @@ func check(protocolOutput, bfdOutput string, cs *connectivity.ConnectivityStatus
 		family := gw.af
 		bfd := gw.bfd
 
-		// extend protocol options with external inteface, gateway ip, bfd sessions
+		// extend protocol options with external interface, gateway ip, bfd sessions
 		opts := append([]bird.Option{
 			bird.WithInterface(extInterface),
 			bird.WithNeighbor(ip),

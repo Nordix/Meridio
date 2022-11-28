@@ -175,11 +175,3 @@ func GetImagePullSecrets() []corev1.LocalObjectReference {
 func NsName(meta metav1.ObjectMeta) string {
 	return fmt.Sprintf("%s/%s", meta.Namespace, meta.Name)
 }
-
-func GetExternalInterfaceName(attractor *meridiov1.Attractor) string {
-	name := "ext"
-	if *attractor.Spec.Interface.NSMVlan.VlanID != 0 {
-		name = fmt.Sprintf("ext-vlan.%d", *attractor.Spec.Interface.NSMVlan.VlanID)
-	}
-	return name
-}

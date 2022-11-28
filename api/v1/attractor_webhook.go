@@ -92,21 +92,44 @@ func (r *Attractor) validateAttractor() error {
 	if err := r.validateLabels(); err != nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("labels"), r.ObjectMeta.Labels, err.Error()))
 	}
-	_, err := validatePrefix(r.Spec.Interface.PrefixIPv4)
-	if err != nil {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("ipv4-prefix"), r.Spec.Interface.PrefixIPv4, err.Error()))
-	}
-
-	_, err = validatePrefix(r.Spec.Interface.PrefixIPv6)
-	if err != nil {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("ipv6-prefix"), r.Spec.Interface.PrefixIPv6, err.Error()))
-	}
-
 	switch r.Spec.Interface.Type {
 	case NSMVlan:
+		_, err := validatePrefix(r.Spec.Interface.PrefixIPv4)
+		if err != nil {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("ipv4-prefix"), r.Spec.Interface.PrefixIPv4, err.Error()))
+		}
+
+		_, err = validatePrefix(r.Spec.Interface.PrefixIPv6)
+		if err != nil {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("ipv6-prefix"), r.Spec.Interface.PrefixIPv6, err.Error()))
+		}
+
 		if r.Spec.Interface.NSMVlan.BaseInterface == "" || r.Spec.Interface.NSMVlan.VlanID == nil {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("interface").Child("nsm-vlan"),
 				r.Spec.Interface.NSMVlan, "missing mandatory parameter base-interface/vlan-id"))
+		}
+	case NAD:
+		if r.Spec.Interface.PrefixIPv4 != "" {
+			allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("ipv4-prefix"), "not supported for type"))
+		}
+
+		if r.Spec.Interface.PrefixIPv6 != "" {
+			allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("ipv6-prefix"), "not supported for type"))
+		}
+
+		if len(r.Spec.Interface.NetworkAttachments) != 1 {
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("interface").Child("multus-interface"),
+				r.Spec.Interface.NetworkAttachments, "single Network Attachment item required"))
+		}
+		for _, na := range r.Spec.Interface.NetworkAttachments {
+			if na.Name == "" {
+				allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("interface").Child("network-attachments").Child("name"),
+					"missing mandatory Network Attachment parameter name"))
+			}
+			if na.Namespace == "" {
+				allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("interface").Child("network-attachments").Child("namespace"),
+					"missing mandatory Network Attachment parameter namespace"))
+			}
 		}
 	default:
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("interface").Child("type"), r.Spec.Interface.Type, "not a supported interface"))
@@ -118,7 +141,7 @@ func (r *Attractor) validateAttractor() error {
 
 	al := &AttractorList{}
 	sel := labels.Set{"trench": r.ObjectMeta.Labels["trench"]}
-	err = attractorClient.List(context.TODO(), al, &client.ListOptions{
+	err := attractorClient.List(context.TODO(), al, &client.ListOptions{
 		LabelSelector: sel.AsSelector(),
 		Namespace:     r.ObjectMeta.Namespace,
 	})
@@ -198,6 +221,29 @@ func (r *Attractor) validateUpdate(old runtime.Object) error {
 		if r.Spec.Interface.NSMVlan.BaseInterface != attrOld.Spec.Interface.NSMVlan.BaseInterface {
 			return apierrors.NewForbidden(r.GroupResource(),
 				r.Name, field.Forbidden(field.NewPath("spec", "interface", "nsm-vlan", "base-interface"), "update on base interface is forbidden"))
+		}
+	case NAD:
+		nadsOld := attrOld.Spec.Interface.NetworkAttachments
+		nadsNew := r.Spec.Interface.NetworkAttachments
+		if len(nadsNew) != len(nadsOld) {
+			return apierrors.NewForbidden(r.GroupResource(),
+				r.Name, field.Forbidden(field.NewPath("spec", "interface", "network-attachments"), "update on network-attachments items forbidden"))
+		}
+
+		for idx, nadNew := range nadsNew {
+			// order matters
+			if nadNew.Namespace != nadsOld[idx].Namespace {
+				return apierrors.NewForbidden(r.GroupResource(),
+					r.Name, field.Forbidden(field.NewPath("spec", "interface", "network-attachments", "namespace"), "update on namespace forbidden"))
+			}
+			if nadNew.Name != nadsOld[idx].Name {
+				return apierrors.NewForbidden(r.GroupResource(),
+					r.Name, field.Forbidden(field.NewPath("spec", "interface", "network-attachments", "name"), "update on name forbidden"))
+			}
+			if nadNew.InterfaceRequest != nadsOld[idx].InterfaceRequest {
+				return apierrors.NewForbidden(r.GroupResource(),
+					r.Name, field.Forbidden(field.NewPath("spec", "interface", "network-attachments", "interface"), "update on interface forbidden"))
+			}
 		}
 	}
 

@@ -45,22 +45,30 @@ type AttractorSpec struct {
 }
 
 type InterfaceSpec struct {
-	// name of the interface
+	// Name of the interface.
+	// Must be a valid Linux kernel interface name.
+	// +kubebuilder:validation:Pattern=`^[^:\//\s]{1,13}$`
 	Name string `json:"name"`
 
-	// (immutable) ipv4 prefix of the interface, which is used for frontend to set up communication with the ipv4 gateways
-	PrefixIPv4 string `json:"ipv4-prefix"`
+	// (immutable) IPv4 prefix of the interface, which is used for frontend to set up communication with the ipv4 gateways.
+	// If the type is "nsm-vlan", this information must be specified.
+	PrefixIPv4 string `json:"ipv4-prefix,omitempty"`
 
-	// (immutable) ipv6 prefix of the interface, which is used for frontend to set up communication with the ipv6 gateways
-	PrefixIPv6 string `json:"ipv6-prefix"`
+	// (immutable) IPv6 prefix of the interface, which is used for frontend to set up communication with the ipv6 gateways.
+	// If the type is "nsm-vlan", this information must be specified.
+	PrefixIPv6 string `json:"ipv6-prefix,omitempty"`
 
-	// interface choice.
+	// Interface choice.
 	// +kubebuilder:default=nsm-vlan
-	// +kubebuilder:validation:Enum=nsm-vlan
+	// +kubebuilder:validation:Enum=nsm-vlan;network-attachment
 	Type string `json:"type,omitempty"`
 
-	// if the type is "nsm-vlan", this information must be specified
+	// If the type is "nsm-vlan", this information must be specified.
 	NSMVlan NSMVlanSpec `json:"nsm-vlan,omitempty"`
+
+	// If the type is "network-attachment", this information must be specified.
+	// One NetworkAttachmentSpec allowed currently.
+	NetworkAttachments []*NetworkAttachmentSpec `json:"network-attachments,omitempty"`
 }
 
 type NSMVlanSpec struct {
@@ -69,6 +77,36 @@ type NSMVlanSpec struct {
 
 	// (immutable) vlan ID of the vlan interface to be used for external connectivity
 	VlanID *int32 `json:"vlan-id,omitempty"`
+}
+
+// NetworkAttachmentSpec identifies a Network Attachment Definition intended to setup an interface.
+// It is a subset of NetworkSelectionElement:
+// https://pkg.go.dev/github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1#NetworkSelectionElement
+type NetworkAttachmentSpec struct {
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
+	// +kubebuilder:validation:MaxLength=253
+
+	// Name of the Network Attachment Definition.
+	// Must be a valid lowercase RFC 1123 subdomain.
+	Name string `json:"name,omitempty"`
+
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern=`^[a-z0-9](?:[a-z0-9-]{0,61}?[a-z0-9])?$`
+	// +kubebuilder:default=default
+
+	// Kubernetes namespace where the Network Attachment Definition is defined.
+	// Must be a valid lowercase RFC 1123 label. Its default value is "default".
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+
+	// +kubebuilder:validation:Type=string
+	// +kubebuilder:validation:Pattern=`^[^:\//\s]{1,13}$`
+
+	// Name to be used as the given name for the POD interface.
+	// Must be a valid Linux kernel interface name.
+	// +optional
+	InterfaceRequest string `json:"interface,omitempty"`
 }
 
 // AttractorStatus defines the observed state of Attractor
