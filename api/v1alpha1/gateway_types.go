@@ -117,7 +117,7 @@ type BfdSpec struct {
 // BgpAuth defines the parameters to configure BGP authentication
 type BgpAuth struct {
 	// +kubebuilder:validation:Type=string
-	// +kubebuilder:validation:Pattern=`^[A-Za-z0-9\.-_]+`
+	// +kubebuilder:validation:Pattern=`^[-._a-zA-Z0-9]+$`
 
 	// Name of the BGP authentication key, used internally as a reference.
 	// KeyName is a key in the data section of a Secret. The associated value in
@@ -126,11 +126,13 @@ type BgpAuth struct {
 	KeyName string `json:"key-name,omitempty"`
 
 	// +kubebuilder:validation:Type=string
-	// +kubebuilder:validation:Pattern=`^[A-Za-z0-9](?:[A-Za-z0-9-\.]{0,61}?[A-Za-z0-9])?$`
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`
+	// +kubebuilder:validation:MaxLength=253
 
 	// Name of the kubernetes Secret containing the password (pre-shared key)
 	// that can be looked up based on KeyName.
-	// Must be a valid  DNS subdomain name.
+	// Must be a valid lowercase RFC 1123 subdomain. (Must consist of lower case alphanumeric
+	// characters, '-' or '.', and must start and end with an alphanumeric character.)
 	KeySource string `json:"key-source,omitempty"`
 }
 
