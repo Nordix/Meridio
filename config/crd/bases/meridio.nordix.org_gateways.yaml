@@ -65,13 +65,16 @@ spec:
                           a Secret. The associated value in the Secret is the password
                           (pre-shared key) to be used for authentication. Must consist
                           of alphanumeric characters, ".", "-" or "_".
-                        pattern: ^[A-Za-z0-9\.-_]+
+                        pattern: ^[-._a-zA-Z0-9]+$
                         type: string
                       key-source:
                         description: Name of the kubernetes Secret containing the
                           password (pre-shared key) that can be looked up based on
-                          KeyName. Must be a valid  DNS subdomain name.
-                        pattern: ^[A-Za-z0-9](?:[A-Za-z0-9-\.]{0,61}?[A-Za-z0-9])?$
+                          KeyName. Must be a valid lowercase RFC 1123 subdomain. (Must
+                          consist of lower case alphanumeric characters, '-' or '.',
+                          and must start and end with an alphanumeric character.)
+                        maxLength: 253
+                        pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                         type: string
                     type: object
                   bfd:
