@@ -19,7 +19,7 @@ package trench
 import (
 	"fmt"
 
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	common "github.com/nordix/meridio/pkg/controllers/common"
 )
 
@@ -35,7 +35,7 @@ type Meridio struct {
 	configmap       *ConfigMap
 }
 
-func NewMeridio(e *common.Executor, trench *meridiov1alpha1.Trench) (*Meridio, error) {
+func NewMeridio(e *common.Executor, trench *meridiov1.Trench) (*Meridio, error) {
 	ipamsvc, err := NewIPAMSvc(e, trench)
 	if err != nil {
 		return nil, err

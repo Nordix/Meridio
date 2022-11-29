@@ -91,4 +91,60 @@ resources:
   webhooks:
     validation: true
     webhookVersion: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: nordix.org
+  group: meridio
+  kind: Trench
+  path: github.com/nordix/meridio/api/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: nordix.org
+  group: meridio
+  kind: Vip
+  path: github.com/nordix/meridio/api/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: nordix.org
+  group: meridio
+  kind: Attractor
+  path: github.com/nordix/meridio/api/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: nordix.org
+  group: meridio
+  kind: Gateway
+  path: github.com/nordix/meridio/api/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: nordix.org
+  group: meridio
+  kind: Conduit
+  path: github.com/nordix/meridio/api/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: nordix.org
+  group: meridio
+  kind: Stream
+  path: github.com/nordix/meridio/api/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: nordix.org
+  group: meridio
+  kind: Flow
+  path: github.com/nordix/meridio/api/v1
+  version: v1
 version: "3"

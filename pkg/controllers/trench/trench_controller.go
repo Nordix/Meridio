@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	"github.com/nordix/meridio/pkg/controllers/common"
 )
 
@@ -61,7 +61,7 @@ type TrenchReconciler struct {
 func (r *TrenchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("trench", req.NamespacedName)
 
-	trench := &meridiov1alpha1.Trench{}
+	trench := &meridiov1.Trench{}
 	err := r.Get(ctx, req.NamespacedName, trench)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -88,36 +88,36 @@ func (r *TrenchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 // SetupWithManager sets up the controller with the Manager.
 func (r *TrenchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&meridiov1alpha1.Trench{}).
+		For(&meridiov1.Trench{}).
 		Owns(&corev1.Service{}).
 		Owns(&appsv1.StatefulSet{}).
 		Watches(
-			&source.Kind{Type: &meridiov1alpha1.Attractor{}},
-			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},
+			&source.Kind{Type: &meridiov1.Attractor{}},
+			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1.Trench{}, IsController: false},
 		). // Trenches are not the controllers of Attractors, so here uses Watches with IsController: false
 		Watches(
-			&source.Kind{Type: &meridiov1alpha1.Vip{}},
-			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},
+			&source.Kind{Type: &meridiov1.Vip{}},
+			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1.Trench{}, IsController: false},
 		). // Trenches are not the controllers of Vips, so here uses Watches with IsController: false
 		Watches(
-			&source.Kind{Type: &meridiov1alpha1.Gateway{}},
-			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},
+			&source.Kind{Type: &meridiov1.Gateway{}},
+			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1.Trench{}, IsController: false},
 		). // Trenches are not the controllers of gateways, so here uses Watches with IsController: false
 		Watches(
-			&source.Kind{Type: &meridiov1alpha1.Conduit{}},
-			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},
+			&source.Kind{Type: &meridiov1.Conduit{}},
+			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1.Trench{}, IsController: false},
 		). // Trenches are not the controllers of Conduits, so here uses Watches with IsController: false
 		Watches(
-			&source.Kind{Type: &meridiov1alpha1.Stream{}},
-			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},
+			&source.Kind{Type: &meridiov1.Stream{}},
+			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1.Trench{}, IsController: false},
 		). // Trenches are not the controllers of Streams, so here uses Watches with IsController: false
 		Watches(
-			&source.Kind{Type: &meridiov1alpha1.Flow{}},
-			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},
+			&source.Kind{Type: &meridiov1.Flow{}},
+			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1.Trench{}, IsController: false},
 		). // Trenches are not the controllers of Flow, so here uses Watches with IsController: false
 		Watches(
 			&source.Kind{Type: &corev1.ConfigMap{}},
-			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1alpha1.Trench{}, IsController: false},
+			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1.Trench{}, IsController: false},
 		). // Trenches are not the controllers of configmaps, so here uses Watches with IsController: false
 		Complete(r)
 }

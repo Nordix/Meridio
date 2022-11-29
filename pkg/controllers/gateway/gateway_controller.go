@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/go-logr/logr"
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	"github.com/nordix/meridio/pkg/controllers/common"
 )
 
@@ -53,7 +53,7 @@ type GatewayReconciler struct {
 func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	gw := &meridiov1alpha1.Gateway{}
+	gw := &meridiov1.Gateway{}
 	executor := common.NewExecutor(r.Scheme, r.Client, ctx, nil, r.Log)
 
 	err := r.Get(ctx, req.NamespacedName, gw)
@@ -64,7 +64,7 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 	cgw := gw.DeepCopy()
-	gw.Status = meridiov1alpha1.GatewayStatus{}
+	gw.Status = meridiov1.GatewayStatus{}
 
 	selector := client.ObjectKey{
 		Namespace: gw.ObjectMeta.Namespace,
@@ -85,7 +85,7 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	return ctrl.Result{}, err
 }
 
-func getActions(executor *common.Executor, new, old *meridiov1alpha1.Gateway) []common.Action {
+func getActions(executor *common.Executor, new, old *meridiov1.Gateway) []common.Action {
 	var actions []common.Action
 	if !equality.Semantic.DeepEqual(new.ObjectMeta, old.ObjectMeta) {
 		executor.AddUpdateAction(new)
@@ -96,6 +96,6 @@ func getActions(executor *common.Executor, new, old *meridiov1alpha1.Gateway) []
 // SetupWithManager sets up the controller with the Manager.
 func (r *GatewayReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&meridiov1alpha1.Gateway{}).
+		For(&meridiov1.Gateway{}).
 		Complete(r)
 }

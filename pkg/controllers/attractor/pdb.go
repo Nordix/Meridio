@@ -17,7 +17,7 @@ limitations under the License.
 package attractor
 
 import (
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	common "github.com/nordix/meridio/pkg/controllers/common"
 	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
@@ -28,13 +28,13 @@ import (
 
 type LoadBalancerPDB struct {
 	model      *policyv1.PodDisruptionBudget
-	attractor  *meridiov1alpha1.Attractor
+	attractor  *meridiov1.Attractor
 	exec       *common.Executor
-	trench     *meridiov1alpha1.Trench
+	trench     *meridiov1.Trench
 	pdbVersion string
 }
 
-func NewLoadBalancerPDB(e *common.Executor, attr *meridiov1alpha1.Attractor, t *meridiov1alpha1.Trench, pdbVersion string) (*LoadBalancerPDB, error) {
+func NewLoadBalancerPDB(e *common.Executor, attr *meridiov1.Attractor, t *meridiov1.Trench, pdbVersion string) (*LoadBalancerPDB, error) {
 	pdb := &LoadBalancerPDB{
 		attractor:  attr,
 		exec:       e,

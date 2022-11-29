@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strconv"
 
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	common "github.com/nordix/meridio/pkg/controllers/common"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -34,13 +34,13 @@ const (
 )
 
 type Proxy struct {
-	trench  *meridiov1alpha1.Trench
-	conduit *meridiov1alpha1.Conduit
+	trench  *meridiov1.Trench
+	conduit *meridiov1.Conduit
 	model   *appsv1.DaemonSet
 	exec    *common.Executor
 }
 
-func NewProxy(e *common.Executor, t *meridiov1alpha1.Trench, c *meridiov1alpha1.Conduit) (*Proxy, error) {
+func NewProxy(e *common.Executor, t *meridiov1.Trench, c *meridiov1.Conduit) (*Proxy, error) {
 	l := &Proxy{
 		trench:  t.DeepCopy(),
 		conduit: c.DeepCopy(),

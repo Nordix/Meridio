@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1
 
 import (
 	"context"
@@ -40,7 +40,7 @@ func (r *Conduit) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1alpha1-conduit,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=conduits,verbs=create;update,versions=v1alpha1,name=vconduit.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1-conduit,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=conduits,verbs=create;update,versions=v1,name=vconduit.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &Conduit{}
 

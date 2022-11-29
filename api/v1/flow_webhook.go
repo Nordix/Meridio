@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1
 
 import (
 	"context"
@@ -43,7 +43,7 @@ func (r *Flow) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1alpha1-flow,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=flows,verbs=create;update,versions=v1alpha1,name=vflow.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1-flow,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=flows,verbs=create;update,versions=v1,name=vflow.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &Flow{}
 

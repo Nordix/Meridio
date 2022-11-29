@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strconv"
 
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	common "github.com/nordix/meridio/pkg/controllers/common"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -34,12 +34,12 @@ const (
 )
 
 type IpamStatefulSet struct {
-	trench *meridiov1alpha1.Trench
+	trench *meridiov1.Trench
 	model  *appsv1.StatefulSet
 	exec   *common.Executor
 }
 
-func NewIPAM(e *common.Executor, t *meridiov1alpha1.Trench) (*IpamStatefulSet, error) {
+func NewIPAM(e *common.Executor, t *meridiov1.Trench) (*IpamStatefulSet, error) {
 	l := &IpamStatefulSet{
 		trench: t.DeepCopy(),
 		exec:   e,

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	config "github.com/nordix/meridio/pkg/configuration/reader"
 	"github.com/nordix/meridio/pkg/controllers/common"
 	"github.com/nordix/meridio/test/utils"
@@ -19,7 +19,7 @@ import (
 
 var _ = Describe("Vip", func() {
 	trench := trench(namespace)
-	vipA := &meridiov1alpha1.Vip{
+	vipA := &meridiov1.Vip{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "vip-a",
 			Namespace: namespace,
@@ -27,7 +27,7 @@ var _ = Describe("Vip", func() {
 				"trench": trenchName,
 			},
 		},
-		Spec: meridiov1alpha1.VipSpec{
+		Spec: meridiov1.VipSpec{
 			Address: "10.0.0.0/28",
 		},
 	}
@@ -42,7 +42,7 @@ var _ = Describe("Vip", func() {
 	})
 
 	Context("When creating a vip", func() {
-		vipB := &meridiov1alpha1.Vip{
+		vipB := &meridiov1.Vip{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "vip-b",
 				Namespace: namespace,
@@ -50,7 +50,7 @@ var _ = Describe("Vip", func() {
 					"trench": trenchName,
 				},
 			},
-			Spec: meridiov1alpha1.VipSpec{
+			Spec: meridiov1.VipSpec{
 				Address: "20.0.0.0/28",
 			},
 		}
@@ -64,7 +64,7 @@ var _ = Describe("Vip", func() {
 				Expect(fw.CreateResource(vipA.DeepCopy())).ToNot(Succeed())
 
 				By("checking the existence")
-				err := fw.GetResource(client.ObjectKeyFromObject(vipA), &meridiov1alpha1.Vip{})
+				err := fw.GetResource(client.ObjectKeyFromObject(vipA), &meridiov1.Vip{})
 				Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			})
 		})
@@ -84,7 +84,7 @@ var _ = Describe("Vip", func() {
 
 			It("will be created successfully", func() {
 				By("checking if the vip exists")
-				vp := &meridiov1alpha1.Vip{}
+				vp := &meridiov1.Vip{}
 				err := fw.GetResource(client.ObjectKeyFromObject(vipA), vp)
 				Expect(err).To(BeNil())
 				Expect(vp).NotTo(BeNil())
@@ -107,13 +107,13 @@ var _ = Describe("Vip", func() {
 			BeforeEach(func() {
 				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 				Expect(fw.CreateResource(
-					&meridiov1alpha1.Trench{
+					&meridiov1.Trench{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "trench-b",
 							Namespace: namespace,
 						},
-						Spec: meridiov1alpha1.TrenchSpec{
-							IPFamily: string(meridiov1alpha1.IPv4),
+						Spec: meridiov1.TrenchSpec{
+							IPFamily: string(meridiov1.IPv4),
 						},
 					})).To(Succeed())
 			})
@@ -160,7 +160,7 @@ var _ = Describe("Vip", func() {
 			Expect(fw.CreateResource(vipA.DeepCopy())).To(Succeed())
 		})
 		It("updates the configmap", func() {
-			var vp = &meridiov1alpha1.Vip{}
+			var vp = &meridiov1.Vip{}
 			Eventually(func(g Gomega) {
 				g.Expect(fw.GetResource(client.ObjectKeyFromObject(vipA), vp)).To(Succeed())
 				vp.Spec.Address = "20.0.0.0/32"
@@ -186,26 +186,26 @@ var _ = Describe("Vip", func() {
 		})
 
 		It("will be deleted by deleting the trench", func() {
-			tr := &meridiov1alpha1.Trench{}
+			tr := &meridiov1.Trench{}
 			Expect(fw.GetResource(client.ObjectKeyFromObject(trench), tr)).To(Succeed())
 			Expect(fw.DeleteResource(tr)).To(Succeed())
 
 			By("checking if vip exists")
 			Eventually(func() bool {
-				v := &meridiov1alpha1.Vip{}
+				v := &meridiov1.Vip{}
 				err := fw.GetResource(client.ObjectKeyFromObject(vipA), v)
 				return err != nil && apierrors.IsNotFound(err)
 			}, timeout).Should(BeTrue())
 		})
 
 		It("will be deleted by deleting itself", func() {
-			v := &meridiov1alpha1.Vip{}
+			v := &meridiov1.Vip{}
 			Expect(fw.GetResource(client.ObjectKeyFromObject(vipA), v)).To(Succeed())
 			Expect(fw.DeleteResource(v)).To(Succeed())
 
 			By("checking if vip exists")
 			Eventually(func() bool {
-				v := &meridiov1alpha1.Vip{}
+				v := &meridiov1.Vip{}
 				err := fw.GetResource(client.ObjectKeyFromObject(vipA), v)
 				return err != nil && apierrors.IsNotFound(err)
 			}, timeout).Should(BeTrue())
@@ -270,7 +270,7 @@ var _ = Describe("Vip", func() {
 	})
 })
 
-func assertVipItemInConfigMap(vip *meridiov1alpha1.Vip, configmapName string, in bool) {
+func assertVipItemInConfigMap(vip *meridiov1.Vip, configmapName string, in bool) {
 	matcher := BeFalse()
 	if in {
 		matcher = BeTrue()

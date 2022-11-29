@@ -21,7 +21,7 @@ import (
 	"fmt"
 
 	"github.com/go-logr/logr"
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	"github.com/nordix/meridio/pkg/controllers/common"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -52,7 +52,7 @@ type FlowReconciler struct {
 func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	flow := &meridiov1alpha1.Flow{}
+	flow := &meridiov1.Flow{}
 	executor := common.NewExecutor(r.Scheme, r.Client, ctx, nil, r.Log)
 
 	err := r.Get(ctx, req.NamespacedName, flow)
@@ -93,11 +93,11 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 // SetupWithManager sets up the controller with the Manager.
 func (r *FlowReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&meridiov1alpha1.Flow{}).
+		For(&meridiov1.Flow{}).
 		Complete(r)
 }
 
-func getFlowActions(executor *common.Executor, new, old *meridiov1alpha1.Flow) []common.Action {
+func getFlowActions(executor *common.Executor, new, old *meridiov1.Flow) []common.Action {
 	var actions []common.Action
 	if !equality.Semantic.DeepEqual(new.ObjectMeta, old.ObjectMeta) {
 		executor.AddUpdateAction(new)

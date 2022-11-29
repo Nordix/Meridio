@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	"github.com/nordix/meridio/pkg/configuration/reader"
 	"github.com/nordix/meridio/pkg/controllers/common"
 	"github.com/nordix/meridio/test/utils"
@@ -32,7 +32,7 @@ func uint16pointer(i int) *uint16 {
 
 var _ = Describe("Gateway", func() {
 	trench := trench(namespace)
-	gateway := &meridiov1alpha1.Gateway{
+	gateway := &meridiov1.Gateway{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "gateway-a",
 			Namespace: namespace,
@@ -40,10 +40,10 @@ var _ = Describe("Gateway", func() {
 				"trench": trenchName,
 			},
 		},
-		Spec: meridiov1alpha1.GatewaySpec{
+		Spec: meridiov1.GatewaySpec{
 			Address:  "1.2.3.4",
 			Protocol: "bgp",
-			Bgp: meridiov1alpha1.BgpSpec{
+			Bgp: meridiov1.BgpSpec{
 				RemoteASN:  uint32pointer(1234),
 				LocalASN:   uint32pointer(4321),
 				HoldTime:   "30s",
@@ -85,7 +85,7 @@ var _ = Describe("Gateway", func() {
 				Expect(fw.CreateResource(gateway.DeepCopy())).ToNot(Succeed())
 
 				By("checking the existence")
-				err := fw.GetResource(client.ObjectKeyFromObject(gateway), &meridiov1alpha1.Gateway{})
+				err := fw.GetResource(client.ObjectKeyFromObject(gateway), &meridiov1.Gateway{})
 				Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			})
 		})
@@ -103,7 +103,7 @@ var _ = Describe("Gateway", func() {
 				Expect(fw.CreateResource(gateway.DeepCopy())).To(Succeed())
 
 				By("checking if the gateway exists")
-				gw := &meridiov1alpha1.Gateway{}
+				gw := &meridiov1.Gateway{}
 				Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
 				Expect(gw).NotTo(BeNil())
 
@@ -113,7 +113,7 @@ var _ = Describe("Gateway", func() {
 			})
 
 			Context("mutating webhook", func() {
-				gatewayIncomplete := &meridiov1alpha1.Gateway{
+				gatewayIncomplete := &meridiov1.Gateway{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "gateway-a",
 						Namespace: namespace,
@@ -121,14 +121,14 @@ var _ = Describe("Gateway", func() {
 							"trench": trenchName,
 						},
 					},
-					Spec: meridiov1alpha1.GatewaySpec{
+					Spec: meridiov1.GatewaySpec{
 						Address:  "1.2.3.4",
 						Protocol: "bgp",
-						Bgp: meridiov1alpha1.BgpSpec{
+						Bgp: meridiov1.BgpSpec{
 							RemoteASN: uint32pointer(1234),
 							LocalASN:  uint32pointer(4321),
 							HoldTime:  "30s",
-							BFD: meridiov1alpha1.BfdSpec{
+							BFD: meridiov1.BfdSpec{
 								Switch: pointer.Bool(true),
 							},
 						},
@@ -158,7 +158,7 @@ var _ = Describe("Gateway", func() {
 						Expect(fw.CreateResource(gatewayIncomplete.DeepCopy())).To(Succeed())
 
 						By("checking if the gateway exists")
-						gw := &meridiov1alpha1.Gateway{}
+						gw := &meridiov1.Gateway{}
 						Expect(fw.GetResource(client.ObjectKeyFromObject(gatewayIncomplete), gw)).To(Succeed())
 						Expect(gw).NotTo(BeNil())
 
@@ -196,13 +196,13 @@ var _ = Describe("Gateway", func() {
 			BeforeEach(func() {
 				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 				Expect(fw.CreateResource(
-					&meridiov1alpha1.Trench{
+					&meridiov1.Trench{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "trench-b",
 							Namespace: namespace,
 						},
-						Spec: meridiov1alpha1.TrenchSpec{
-							IPFamily: string(meridiov1alpha1.IPv4),
+						Spec: meridiov1.TrenchSpec{
+							IPFamily: string(meridiov1.IPv4),
 						},
 					})).To(Succeed())
 			})
@@ -257,7 +257,7 @@ var _ = Describe("Gateway", func() {
 		})
 
 		It("updates the configmap when gateway address is updated", func() {
-			var gw = &meridiov1alpha1.Gateway{}
+			var gw = &meridiov1.Gateway{}
 			Eventually(func(g Gomega) {
 				g.Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
 				gw.Spec.Address = "20.0.0.0"
@@ -274,10 +274,10 @@ var _ = Describe("Gateway", func() {
 		})
 
 		It("updates the configmap when gateway address is updated", func() {
-			var gw = &meridiov1alpha1.Gateway{}
+			var gw = &meridiov1.Gateway{}
 			Eventually(func(g Gomega) {
 				g.Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
-				gw.Spec.Bgp.BFD = meridiov1alpha1.BfdSpec{
+				gw.Spec.Bgp.BFD = meridiov1.BfdSpec{
 					Switch:     pointer.Bool(true),
 					MinRx:      "300ms",
 					MinTx:      "300ms",
@@ -299,25 +299,25 @@ var _ = Describe("Gateway", func() {
 		})
 
 		It("when gateway protocol is updated", func() {
-			var gw = &meridiov1alpha1.Gateway{}
+			var gw = &meridiov1.Gateway{}
 			By("checking update fail when protocol is static but bgp section exist")
 			Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
-			gw.Spec.Protocol = string(meridiov1alpha1.Static)
+			gw.Spec.Protocol = string(meridiov1.Static)
 			Expect(fw.UpdateResource(gw)).ToNot(Succeed())
 
 			By("checking update succeed when protocol is static and bgp section is removed")
 			Eventually(func(g Gomega) {
 				g.Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
 				gw.Spec.Protocol = "static"
-				gw.Spec.Static = meridiov1alpha1.StaticSpec{
-					BFD: meridiov1alpha1.BfdSpec{
+				gw.Spec.Static = meridiov1.StaticSpec{
+					BFD: meridiov1.BfdSpec{
 						Switch:     pointer.Bool(true),
 						MinRx:      "200ms",
 						MinTx:      "200ms",
 						Multiplier: uint16pointer(5),
 					},
 				}
-				gw.Spec.Bgp = meridiov1alpha1.BgpSpec{}
+				gw.Spec.Bgp = meridiov1.BgpSpec{}
 				g.Expect(fw.UpdateResource(gw)).To(Succeed())
 			}).Should(Succeed())
 
@@ -339,8 +339,8 @@ var _ = Describe("Gateway", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
 				gw.Spec.Protocol = "static"
-				gw.Spec.Static = meridiov1alpha1.StaticSpec{}
-				gw.Spec.Bgp = meridiov1alpha1.BgpSpec{}
+				gw.Spec.Static = meridiov1.StaticSpec{}
+				gw.Spec.Bgp = meridiov1.BgpSpec{}
 				g.Expect(fw.UpdateResource(gw)).To(Succeed())
 			}).Should(Succeed())
 
@@ -389,24 +389,24 @@ var _ = Describe("Gateway", func() {
 		})
 
 		It("will be deleted by deleting the trench", func() {
-			tr := &meridiov1alpha1.Trench{}
+			tr := &meridiov1.Trench{}
 			Expect(fw.GetResource(client.ObjectKeyFromObject(trench), tr)).To(Succeed())
 			Expect(fw.DeleteResource(tr)).To(Succeed())
 			By("checking if gateway exists")
 			Eventually(func() bool {
-				g := &meridiov1alpha1.Gateway{}
+				g := &meridiov1.Gateway{}
 				err := fw.GetResource(client.ObjectKeyFromObject(gateway), g)
 				return err != nil && apierrors.IsNotFound(err)
 			}, timeout).Should(BeTrue())
 		})
 
 		It("will be deleted by deleting itself", func() {
-			gw := &meridiov1alpha1.Gateway{}
+			gw := &meridiov1.Gateway{}
 			Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
 			Expect(fw.DeleteResource(gw)).To(Succeed())
 			By("checking if gateway exists")
 			Eventually(func() bool {
-				g := &meridiov1alpha1.Gateway{}
+				g := &meridiov1.Gateway{}
 				err := fw.GetResource(client.ObjectKeyFromObject(gateway), g)
 				return err != nil && apierrors.IsNotFound(err)
 			}, timeout).Should(BeTrue())

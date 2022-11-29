@@ -11,14 +11,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-meridio-nordix-org-v1alpha1-attractor
+      path: /validate-meridio-nordix-org-v1-attractor
   failurePolicy: Fail
   name: vattractor.kb.io
   rules:
   - apiGroups:
     - meridio.nordix.org
     apiVersions:
-    - v1alpha1
+    - v1
     operations:
     - CREATE
     - UPDATE
@@ -31,14 +31,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-meridio-nordix-org-v1alpha1-conduit
+      path: /validate-meridio-nordix-org-v1-conduit
   failurePolicy: Fail
   name: vconduit.kb.io
   rules:
   - apiGroups:
     - meridio.nordix.org
     apiVersions:
-    - v1alpha1
+    - v1
     operations:
     - CREATE
     - UPDATE
@@ -51,14 +51,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-meridio-nordix-org-v1alpha1-flow
+      path: /validate-meridio-nordix-org-v1-flow
   failurePolicy: Fail
   name: vflow.kb.io
   rules:
   - apiGroups:
     - meridio.nordix.org
     apiVersions:
-    - v1alpha1
+    - v1
     operations:
     - CREATE
     - UPDATE
@@ -71,14 +71,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-meridio-nordix-org-v1alpha1-gateway
+      path: /validate-meridio-nordix-org-v1-gateway
   failurePolicy: Fail
   name: vgateway.kb.io
   rules:
   - apiGroups:
     - meridio.nordix.org
     apiVersions:
-    - v1alpha1
+    - v1
     operations:
     - CREATE
     - UPDATE
@@ -91,14 +91,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-meridio-nordix-org-v1alpha1-stream
+      path: /validate-meridio-nordix-org-v1-stream
   failurePolicy: Fail
   name: vstream.kb.io
   rules:
   - apiGroups:
     - meridio.nordix.org
     apiVersions:
-    - v1alpha1
+    - v1
     operations:
     - CREATE
     - UPDATE
@@ -111,14 +111,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-meridio-nordix-org-v1alpha1-trench
+      path: /validate-meridio-nordix-org-v1-trench
   failurePolicy: Fail
   name: vtrench.kb.io
   rules:
   - apiGroups:
     - meridio.nordix.org
     apiVersions:
-    - v1alpha1
+    - v1
     operations:
     - CREATE
     - UPDATE
@@ -131,14 +131,14 @@ webhooks:
     service:
       name: webhook-service
       namespace: system
-      path: /validate-meridio-nordix-org-v1alpha1-vip
+      path: /validate-meridio-nordix-org-v1-vip
   failurePolicy: Fail
   name: vvip.kb.io
   rules:
   - apiGroups:
     - meridio.nordix.org
     apiVersions:
-    - v1alpha1
+    - v1
     operations:
     - CREATE
     - UPDATE

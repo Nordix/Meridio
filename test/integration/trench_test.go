@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	"github.com/nordix/meridio/pkg/controllers/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -18,12 +18,12 @@ import (
 
 var _ = Describe("Trench", func() {
 	Context("When single trench is deployed", func() {
-		trench := &meridiov1alpha1.Trench{
+		trench := &meridiov1.Trench{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      trenchName,
 				Namespace: namespace,
 			},
-			Spec: meridiov1alpha1.TrenchSpec{
+			Spec: meridiov1.TrenchSpec{
 				IPFamily: "dualstack",
 			},
 		}
@@ -40,47 +40,47 @@ var _ = Describe("Trench", func() {
 		})
 
 		It("has default IP family to be dual stack", func() {
-			tr := &meridiov1alpha1.Trench{}
+			tr := &meridiov1.Trench{}
 			Expect(fw.GetResource(client.ObjectKey{Name: trenchName, Namespace: namespace}, tr)).To(Succeed())
-			Expect(tr.Spec.IPFamily).To(Equal(string(meridiov1alpha1.Dualstack)))
+			Expect(tr.Spec.IPFamily).To(Equal(string(meridiov1.Dualstack)))
 		})
 
 		It("should fail updating the IP", func() {
-			tr := &meridiov1alpha1.Trench{}
+			tr := &meridiov1.Trench{}
 			Expect(fw.GetResource(client.ObjectKey{Name: trenchName, Namespace: namespace}, tr)).To(Succeed())
-			tr.Spec.IPFamily = string(meridiov1alpha1.IPv4)
+			tr.Spec.IPFamily = string(meridiov1.IPv4)
 			Expect(fw.UpdateResource(tr)).ShouldNot(Succeed())
 		})
 	})
 
 	Context("three trenches", func() {
-		trenchA := &meridiov1alpha1.Trench{
+		trenchA := &meridiov1.Trench{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      trenchName,
 				Namespace: namespace,
 			},
-			Spec: meridiov1alpha1.TrenchSpec{
-				IPFamily: string(meridiov1alpha1.Dualstack),
+			Spec: meridiov1.TrenchSpec{
+				IPFamily: string(meridiov1.Dualstack),
 			},
 		}
 
-		trenchB := &meridiov1alpha1.Trench{
+		trenchB := &meridiov1.Trench{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "trench-b",
 				Namespace: namespace,
 			},
-			Spec: meridiov1alpha1.TrenchSpec{
-				IPFamily: string(meridiov1alpha1.IPv4),
+			Spec: meridiov1.TrenchSpec{
+				IPFamily: string(meridiov1.IPv4),
 			},
 		}
 
-		trenchC := &meridiov1alpha1.Trench{
+		trenchC := &meridiov1.Trench{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "trench-c",
 				Namespace: namespace,
 			},
-			Spec: meridiov1alpha1.TrenchSpec{
-				IPFamily: string(meridiov1alpha1.IPv6),
+			Spec: meridiov1.TrenchSpec{
+				IPFamily: string(meridiov1.IPv6),
 			},
 		}
 

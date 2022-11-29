@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/go-logr/logr"
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	"github.com/nordix/meridio/pkg/controllers/common"
 )
 
@@ -52,7 +52,7 @@ type VipReconciler struct {
 func (r *VipReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = r.Log.WithValues("vip", req.NamespacedName)
 
-	vip := &meridiov1alpha1.Vip{}
+	vip := &meridiov1.Vip{}
 	executor := common.NewExecutor(r.Scheme, r.Client, ctx, nil, r.Log)
 
 	err := r.Get(ctx, req.NamespacedName, vip)
@@ -92,7 +92,7 @@ func (r *VipReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	return ctrl.Result{}, err
 }
 
-func getVipActions(executor *common.Executor, new, old *meridiov1alpha1.Vip) {
+func getVipActions(executor *common.Executor, new, old *meridiov1.Vip) {
 	if !equality.Semantic.DeepEqual(new.ObjectMeta, old.ObjectMeta) {
 		executor.AddUpdateAction(new)
 	}
@@ -101,6 +101,6 @@ func getVipActions(executor *common.Executor, new, old *meridiov1alpha1.Vip) {
 // SetupWithManager sets up the controller with the Manager.
 func (r *VipReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&meridiov1alpha1.Vip{}).
+		For(&meridiov1.Vip{}).
 		Complete(r)
 }

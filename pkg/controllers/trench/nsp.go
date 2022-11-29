@@ -19,7 +19,7 @@ package trench
 import (
 	"fmt"
 
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	common "github.com/nordix/meridio/pkg/controllers/common"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -33,12 +33,12 @@ const (
 )
 
 type NspStatefulSet struct {
-	trench *meridiov1alpha1.Trench
+	trench *meridiov1.Trench
 	model  *appsv1.StatefulSet
 	exec   *common.Executor
 }
 
-func NewNspStatefulSet(e *common.Executor, t *meridiov1alpha1.Trench) (*NspStatefulSet, error) {
+func NewNspStatefulSet(e *common.Executor, t *meridiov1.Trench) (*NspStatefulSet, error) {
 	l := &NspStatefulSet{
 		trench: t.DeepCopy(),
 		exec:   e,

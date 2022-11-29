@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2022 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,10 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1
 
 import (
-	v1 "github.com/nordix/meridio/api/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -54,7 +53,7 @@ type FlowSpec struct {
 
 	// Protocols allowed in this flow.
 	// The protocols should not have overlaps.
-	Protocols []v1.TransportProtocol `json:"protocols"`
+	Protocols []TransportProtocol `json:"protocols"`
 
 	// Priority of the flow
 	Priority int32 `json:"priority"`
@@ -68,9 +67,9 @@ type FlowSpec struct {
 type FlowStatus struct {
 }
 
-//+kubebuilder:deprecatedversion
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:storageversion
 //+kubebuilder:printcolumn:name="vips",type=string,JSONPath=`.spec.vips`
 //+kubebuilder:printcolumn:name="dst-ports",type=string,JSONPath=`.spec.destination-ports`
 //+kubebuilder:printcolumn:name="src-subnets",type=string,JSONPath=`.spec.source-subnets`
