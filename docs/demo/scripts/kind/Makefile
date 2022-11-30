@@ -1,7 +1,9 @@
 
 .PHONY: default
 default:
-	$(MAKE) -s -C $(shell pwd) $(STEPS)
+	@for step in $(STEPS); do \
+		$(MAKE) -s -C $(shell pwd) $${step} ; \
+	done
 
 .PHONY: all
 all: default
@@ -13,7 +15,7 @@ help: ## Display this help.
 # Variables
 ############################################################################
 
-STEPS ?= clean kind-create kind-gateways install-spire wait wait-spire install-nsm wait wait-nsm
+STEPS ?= clean kind-create kind-gateways install-metrics-server install-spire wait wait-spire install-nsm wait wait-nsm
 
 KUBERNETES_VERSION ?= "v1.25"
 KUBERNETES_IP_FAMILY ?= "dualstack"
@@ -28,7 +30,8 @@ PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 
 TEMP_DIR ?= temp
 
-WAIT_TIME ?= 2
+WAIT_TIME ?= 10
+WAIT_TIMEOUT ?= 4m # Kubectl wait timeout
 
 BUILD_STEPS ?= build tag push
 REGISTRY ?= registry.nordix.org/cloud-native/meridio
@@ -140,8 +143,8 @@ install-spire: ## Install spire
 
 .PHONY: wait-spire
 wait-spire: ## Wait for spire to be ready
-	kubectl wait -n spire --timeout=2m --for=condition=ready pod -l app=spire-agent ; \
-	kubectl wait -n spire --timeout=2m --for=condition=ready pod -l app=spire-server
+	kubectl wait -n spire --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=spire-agent ; \
+	kubectl wait -n spire --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=spire-server
 
 #############################################################################
 ##@ NSM
@@ -153,9 +156,18 @@ install-nsm: ## Install nsm
 
 .PHONY: wait-nsm
 wait-nsm: ## Wait for NSM to be ready
-	kubectl wait -n nsm --timeout=2m --for=condition=ready pod -l app=nsmgr ; \
-	kubectl wait -n nsm --timeout=2m --for=condition=ready pod -l app=forwarder-vpp ; \
-	kubectl wait -n nsm --timeout=2m --for=condition=ready pod -l app=nsm-registry
+	kubectl wait -n nsm --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=nsmgr ; \
+	kubectl wait -n nsm --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=forwarder-vpp ; \
+	kubectl wait -n nsm --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=nsm-registry
+
+#############################################################################
+##@ Metrics
+#############################################################################
+
+.PHONY: install-metrics-server
+install-metrics-server: ## Install metrics-server
+	kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml ; \
+	kubectl patch deployment metrics-server -n kube-system -p '{"spec":{"template":{"spec":{"containers":[{"name":"metrics-server","args":["--cert-dir=/tmp", "--secure-port=4443", "--kubelet-insecure-tls", "--metric-resolution=15s", "--kubelet-preferred-address-types=InternalIP"]}]}}}}'
 
 #############################################################################
 # Tools

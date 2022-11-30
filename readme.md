@@ -65,3 +65,4 @@ To run Meridio, the following are required:
 * Kubernetes 1.21+
 * Spire
 * Network Service Mesh 1.5+
+* Linux Kernel 4.17+

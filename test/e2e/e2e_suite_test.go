@@ -17,10 +17,11 @@ limitations under the License.
 package e2e_test
 
 import (
-	"bytes"
 	"context"
 	"flag"
-	"os/exec"
+	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -41,11 +42,15 @@ var (
 	numberOfTargetB int
 
 	config *e2eTestConfiguration
+
+	focusString string
+	skipString  string
 )
 
 type e2eTestConfiguration struct {
 	trafficGeneratorCMD string
 	script              string
+	logCollectorEnabled bool
 
 	k8sNamespace              string
 	targetADeploymentName     string
@@ -69,19 +74,24 @@ type e2eTestConfiguration struct {
 	vip2V4                    string
 	vip2V6                    string
 
-	statelessLbFeDeploymentName string
-	ipFamily                    string
+	statelessLbFeDeploymentNameAttractorA1 string
+	statelessLbFeDeploymentNameAttractorB1 string
+	ipFamily                               string
 }
 
 const (
-	timeout  = time.Minute * 3
-	interval = time.Second * 2
+	eventuallyTimeout  = time.Minute * 3
+	eventuallyInterval = time.Second * 2
+	timeoutTest        = time.Minute * 15
 )
 
 func init() {
 	config = &e2eTestConfiguration{}
 	flag.StringVar(&config.trafficGeneratorCMD, "traffic-generator-cmd", "", "Command to use to connect to the traffic generator. All occurences of '{trench}' will be replaced with the trench name.")
 	flag.StringVar(&config.script, "script", "", "Path + script used by the e2e tests")
+	flag.StringVar(&skipString, "skip", "", "Skip specific tests")
+	flag.StringVar(&focusString, "focus", "", "Focus on specific tests")
+	flag.BoolVar(&config.logCollectorEnabled, "log-collector-enabled", true, "Is log collector enabled")
 
 	flag.StringVar(&config.k8sNamespace, "k8s-namespace", "", "Name of the namespace")
 	flag.StringVar(&config.targetADeploymentName, "target-a-deployment-name", "", "Name of the namespace")
@@ -105,7 +115,8 @@ func init() {
 	flag.StringVar(&config.vip2V4, "vip-2-v4", "", "Address of the vip v4 number 2")
 	flag.StringVar(&config.vip2V6, "vip-2-v6", "", "Address of the vip v6 number 2")
 
-	flag.StringVar(&config.statelessLbFeDeploymentName, "stateless-lb-fe-deployment-name", "", "Name of stateless-lb-fe deployment in trench-a")
+	flag.StringVar(&config.statelessLbFeDeploymentNameAttractorA1, "stateless-lb-fe-deployment-name-attractor-a-1", "", "Name of stateless-lb-fe deployment in attractor-a-1")
+	flag.StringVar(&config.statelessLbFeDeploymentNameAttractorB1, "stateless-lb-fe-deployment-name-attractor-b-1", "", "Name of stateless-lb-fe deployment in attractor-b-1")
 	flag.StringVar(&config.ipFamily, "ip-family", "", "IP Family")
 }
 
@@ -114,7 +125,23 @@ func TestE2e(t *testing.T) {
 		t.Skip()
 	}
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "E2e Suite")
+	suiteConfig, reporterConfig := GinkgoConfiguration()
+	suiteConfig.SkipStrings = cleanSlice(append(suiteConfig.SkipStrings, strings.Split(skipString, ",")...))
+	suiteConfig.FocusStrings = cleanSlice(append(suiteConfig.FocusStrings, strings.Split(focusString, ",")...))
+	RunSpecs(t, "E2e Suite", suiteConfig, reporterConfig)
+}
+
+// removes spaces in entries and removes empty entries
+func cleanSlice(items []string) []string {
+	res := []string{}
+	for _, item := range items {
+		i := strings.ReplaceAll(item, " ", "")
+		if i == "" {
+			continue
+		}
+		res = append(res, i)
+	}
+	return res
 }
 
 var _ = BeforeSuite(func() {
@@ -129,11 +156,7 @@ var _ = BeforeSuite(func() {
 		NConn: 400,
 	}
 
-	cmd := exec.Command(config.script, "init")
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	err = cmd.Run()
-	Expect(stderr.String()).To(BeEmpty())
+	err = utils.Exec(config.script, "init")
 	Expect(err).ToNot(HaveOccurred())
 
 	deploymentTargetA, err := clientset.AppsV1().Deployments(config.k8sNamespace).Get(context.Background(), config.targetADeploymentName, metav1.GetOptions{})
@@ -146,10 +169,15 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
-	cmd := exec.Command(config.script, "end")
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	Expect(stderr.String()).To(BeEmpty())
+	err := utils.Exec(config.script, "end")
 	Expect(err).ToNot(HaveOccurred())
+})
+
+var _ = JustAfterEach(func() {
+	if CurrentSpecReport().Failed() {
+		By(fmt.Sprintf("Handling the error, collecting the logs: %t", config.logCollectorEnabled))
+		if config.logCollectorEnabled {
+			_ = utils.Exec(config.script, "on_failure", strconv.FormatInt(CurrentSpecReport().StartTime.UnixNano(), 10))
+		}
+	}
 })

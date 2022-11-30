@@ -2,15 +2,15 @@
 
 ## E2E Tests
 
-[![meridio-e2e-kind-meridio](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild/badge/icon?config=meridio-e2e-kind-meridio)](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild)
+![meridio-e2e-kind-meridio](https://img.shields.io/endpoint?url=https%3A%2F%2Fjenkins.nordix.org%2Fjob%2Fmeridio-e2e-test-kind%2FlastCompletedBuild%2Fartifact%2F_output%2Fmeridio-e2e-kind-meridio.json)
 
-[![meridio-e2e-kind-tapa](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild/badge/icon?config=meridio-e2e-kind-tapa)](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild)
+![meridio-e2e-kind-tapa](https://img.shields.io/endpoint?url=https%3A%2F%2Fjenkins.nordix.org%2Fjob%2Fmeridio-e2e-test-kind%2FlastCompletedBuild%2Fartifact%2F_output%2Fmeridio-e2e-kind-tapa.json)
 
-[![meridio-e2e-kind-nsm](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild/badge/icon?config=meridio-e2e-kind-nsm)](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild)
+![meridio-e2e-kind-nsm](https://img.shields.io/endpoint?url=https%3A%2F%2Fjenkins.nordix.org%2Fjob%2Fmeridio-e2e-test-kind%2FlastCompletedBuild%2Fartifact%2F_output%2Fmeridio-e2e-kind-nsm.json)
 
-[![meridio-e2e-kind-ip-family](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild/badge/icon?config=meridio-e2e-kind-ip-family)](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild)
+![meridio-e2e-kind-ip-family](https://img.shields.io/endpoint?url=https%3A%2F%2Fjenkins.nordix.org%2Fjob%2Fmeridio-e2e-test-kind%2FlastCompletedBuild%2Fartifact%2F_output%2Fmeridio-e2e-kind-ip-family.json)
 
-[![meridio-e2e-kind-kubernetes](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild/badge/icon?config=meridio-e2e-kind-kubernetes)](https://jenkins.nordix.org/job/meridio-e2e-test-kind/lastCompletedBuild)
+![meridio-e2e-kind-kubernetes](https://img.shields.io/endpoint?url=https%3A%2F%2Fjenkins.nordix.org%2Fjob%2Fmeridio-e2e-test-kind%2FlastCompletedBuild%2Fartifact%2F_output%2Fmeridio-e2e-kind-kubernetes.json)
 
 (These reports are for the last 1000 test runs only)
 
@@ -28,6 +28,9 @@ The picture below shows the initial deployment that should be installed in a kub
 |---|---|---|
 | traffic-generator-cmd | string | Command to use to connect to the traffic generator. All occurences of '{trench}' will be replaced with the trench name. |
 | script | string | Path + script used by the e2e tests |
+| skip | string | Skip specific tests |
+| focus | string | Focus on specific tests |
+| log-collector-enabled | bool | Is log collector enabled |
 |  |  |  |
 | k8s-namespace | string | Name of the namespace |
 | target-a-deployment-name | string | Name of the target deployment |
@@ -51,7 +54,8 @@ The picture below shows the initial deployment that should be installed in a kub
 | vip-2-v4 | string | Address of the vip v4 number 2 |
 | vip-2-v6 | string | Address of the vip v6 number 2 |
 |  |  |  |
-| stateless-lb-fe-deployment-name | string | Name of stateless-lb-fe deployment in `trench-a` |
+| stateless-lb-fe-deployment-name-attractor-a-1 | string | Name of stateless-lb-fe deployment in `attractor-a-1` |
+| stateless-lb-fe-deployment-name-attractor-b-1 | string | Name of stateless-lb-fe deployment in `attractor-b-1` |
 | ip-family | string | IP Family |
 
 For more details about each parameter, check the picture above in the `Initial Deployment` section.
@@ -64,17 +68,18 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 |---|---|
 | init () error | Executed once before running the tests |
 | end () error | Executed once after running the tests |
-| configuration_new_ip () error | Executed just before running the `new-vip` test |
-| configuration_new_ip_revert () error | Executed just after running the `new-vip` test |
+| on_failure () error | Executed on failure |
+| configuration_new_vip () error | Executed just before running the `new-vip` test |
+| configuration_new_vip_revert () error | Executed just after running the `new-vip` test |
 
 ### List of tests
 
 | Name | Type | Description |
 |---|---|---|
-| TCP-IPv4 | IngressTraffic | Send traffic in `trench-a` with `vip-1-v4` as destination IP and `flow-a-z-tcp-destination-port-0` as destination port |
-| TCP-IPv6 | IngressTraffic | Send traffic in `trench-a` with `vip-1-v6` as destination IP and `flow-a-z-tcp-destination-port-0` as destination port |
-| UDP-IPv4 | IngressTraffic | Send traffic in `trench-a` with `vip-1-v4` as destination IP and `flow-a-z-udp-destination-port-0` as destination port |
-| UDP-IPv6 | IngressTraffic | Send traffic in `trench-a` with `vip-1-v6` as destination IP and `flow-a-z-udp-destination-port-0` as destination port |
+| TCP-IPv4 | IngressTraffic | Send TCP traffic in `trench-a` with `vip-1-v4` as destination IP and `flow-a-z-tcp-destination-port-0` as destination port |
+| TCP-IPv6 | IngressTraffic | Send TCP traffic in `trench-a` with `vip-1-v6` as destination IP and `flow-a-z-tcp-destination-port-0` as destination port |
+| UDP-IPv4 | IngressTraffic | Send UDP traffic in `trench-a` with `vip-1-v4` as destination IP and `flow-a-z-udp-destination-port-0` as destination port |
+| UDP-IPv6 | IngressTraffic | Send UDP traffic in `trench-a` with `vip-1-v6` as destination IP and `flow-a-z-udp-destination-port-0` as destination port |
 | MT-Switch | MultiTrenches | Disconnect a target from `target-a-deployment-name` from `trench-a` and connect it to `trench-b` |
 | MT-Parallel | MultiTrenches | Send traffic in `trench-a` and `trench-b` at the same time |
 | Scale-Down | Scaling | Scale down `target-a-deployment-name` |
@@ -83,52 +88,21 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 | new-vip | Configuration | Configure `vip-2-v4` and `vip-2-v6` in `flow-a-z-tcp` and `attractor-a-1` |
 <!-- TODO: | open | TAPA | Open `stream-a-II` in one of the target from `target-a-deployment-name` and close it | -->
 
-### Steps (Kind)
+### Steps (Kind + Helm)
 
-1. Deploy Spire
-
-```bash
-kubectl apply -k docs/demo/deployments/spire
-```
-
-2. Deploy NSM
+1. Deploy environment (Kind + Gateways + NSM + Spire) and Meridio (trench-a + trench-b + target-a + target-b)
 
 ```bash
-helm install docs/demo/deployments/nsm --generate-name --create-namespace --namespace nsm
+make -s -C test/e2e/environment/kind-helm/ KUBERNETES_VERSION=v1.25 NSM_VERSION=v1.6.1 KUBERNETES_IP_FAMILY=dualstack KUBERNETES_WORKERS=2
 ```
 
-3. Deploy Gateways
-
-```bash
-./docs/demo/scripts/kind/external-host.sh
-```
-
-4. Deploy trench-a
-
-```bash
-helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-a --set ipFamily=dualstack
-```
-
-5. Deploy trench-b
-
-```bash
-helm install deployments/helm/ --generate-name --create-namespace --namespace red --set trench.name=trench-b --set vlan.id=200 --set ipFamily=dualstack
-```
-
-6. Deploy target of trench-a
-
-```bash
-helm install examples/target/deployments/helm/ --generate-name --create-namespace --namespace red --set applicationName=target-a --set default.trench.name=trench-a
-```
-
-7. Deploy target of trench-b
-
-```bash
-helm install examples/target/deployments/helm/ --generate-name --create-namespace --namespace red --set applicationName=target-b --set default.trench.name=trench-b
-```
-
-8. Run e2e tests
+2. Run e2e tests
 
 ```bash
 make e2e
+```
+
+3. Uninstall environment
+```bash
+make -s -C docs/demo/scripts/kind/ clean
 ```
