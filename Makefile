@@ -39,6 +39,7 @@ E2E_SEED ?= $(shell shuf -i 1-2147483647 -n1)
 
 # Contrainer Registry
 REGISTRY ?= registry.nordix.org/cloud-native/meridio
+NSM_REGISTRY_PATH ?= cloud-native/nsm
 BASE_IMAGE ?= $(REGISTRY)/base-image:$(VERSION_BASE_IMAGE)
 DEBUG_IMAGE ?= $(REGISTRY)/debug:$(VERSION)
 
@@ -218,6 +219,10 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 generate-controller: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
+.PHONY: generate-helm-chart
+generate-helm-chart: output-dir ## Generate Meridio, CRDs and target helm charts.
+	@VERSION=$(VERSION) ./hack/helm-chart/generator.sh
+
 #############################################################################
 ##@ Operator
 #############################################################################
@@ -236,6 +241,7 @@ set-templates-values: # Set the values in the templates helm chart
 	sed -i 's/^version: .*/version: ${VERSION}/' ${TEMPLATES_HELM_CHART_VALUES_PATH} ; \
 	sed -i 's/^registry: .*/registry: $(shell echo ${REGISTRY} | cut -d "/" -f 1)/' ${TEMPLATES_HELM_CHART_VALUES_PATH} ; \
 	sed -i 's#^organization: .*#organization: $(shell echo ${REGISTRY} | cut -d "/" -f 2-)#' ${TEMPLATES_HELM_CHART_VALUES_PATH}
+	sed -i 's#^  organization: .*#  organization: ${NSM_REGISTRY_PATH}#' ${TEMPLATES_HELM_CHART_VALUES_PATH}
 
 .PHONY: namespace
 namespace: # Edit the namespace of operator to be deployed
@@ -252,7 +258,7 @@ print-manifests: manifests kustomize namespace set-templates-values # Generate m
 
 .PHONY: output-dir
 output-dir:
-	mkdir -p $(OUTPUT_DIR)
+	@mkdir -p $(OUTPUT_DIR)
 
 .PHONY: golangci-lint
 golangci-lint:
