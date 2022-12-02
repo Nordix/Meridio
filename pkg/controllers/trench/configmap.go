@@ -341,10 +341,14 @@ func (c *ConfigMap) getStreamsData() ([]byte, error) {
 		if cr.Spec.Conduit == "" {
 			continue
 		}
+		var maxTargets uint32 = 100
+		if cr.Spec.MaxTargets != nil {
+			maxTargets = *cr.Spec.MaxTargets
+		}
 		lst.Streams = append(lst.Streams, &reader.Stream{
 			Name:       cr.ObjectMeta.Name,
 			Conduit:    cr.Spec.Conduit,
-			MaxTargets: cr.Spec.MaxTargets,
+			MaxTargets: maxTargets,
 		})
 	}
 	return yaml.Marshal(lst)

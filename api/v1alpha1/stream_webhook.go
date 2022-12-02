@@ -89,6 +89,9 @@ func (r *Stream) validateStream() error {
 	if err != nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("labels"), r.ObjectMeta.Labels, err.Error()))
 	}
+	if r.Spec.MaxTargets != nil && (*r.Spec.MaxTargets < 1 || *r.Spec.MaxTargets > 10000) {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("max-targets"), r.Spec.MaxTargets, "must be greater than or equal to 1 and less than or equal to 10000"))
+	}
 	if len(allErrs) == 0 {
 		return nil
 	}
