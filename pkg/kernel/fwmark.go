@@ -68,6 +68,9 @@ func (fwmr *FWMarkRoute) configure() error {
 		return err
 	}
 
+	// Old ARP/NDP entry for that IP address could cause temporary issue.
+	fwmr.cleanNeighbor()
+
 	fwmr.route = &netlink.Route{
 		Gw:    fwmr.ip.IP,
 		Table: fwmr.tableID,
@@ -80,6 +83,22 @@ func (fwmr *FWMarkRoute) family() int {
 		return netlink.FAMILY_V4
 	}
 	return netlink.FAMILY_V6
+}
+
+func (fwmr *FWMarkRoute) cleanNeighbor() {
+	neighbors, err := netlink.NeighList(0, 0)
+	if err != nil {
+		log.Logger.V(1).Info("fetching Neighbor list", "error", err)
+		return
+	}
+	for _, n := range neighbors {
+		if n.IP.Equal(fwmr.ip.IP) {
+			err = netlink.NeighDel(&n)
+			if err != nil {
+				log.Logger.V(1).Info("delete from neighbor list", "neighbor", n, "error", err)
+			}
+		}
+	}
 }
 
 // NewFWMarkRoute -

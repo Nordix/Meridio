@@ -92,7 +92,7 @@ type MConnect struct {
 }
 
 func (mc *MConnect) GetCommand(ipPort string, protocol string) string {
-	return fmt.Sprintf("mconnect %s -address %s -nconn %d -timeout 5m -output json", getProtocolParameter(protocol), ipPort, mc.NConn)
+	return fmt.Sprintf("mconnect %s -address %s -nconn %d -timeout 2m -output json", getProtocolParameter(protocol), ipPort, mc.NConn)
 }
 
 func (mc *MConnect) AnalyzeTraffic(output []byte) (map[string]int, int, error) {
