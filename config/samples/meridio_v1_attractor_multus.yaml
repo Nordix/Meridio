@@ -1,0 +1,54 @@
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: bridge-nad
+  namespace: default
+spec:
+  config: '{
+      "cniVersion": "0.4.0",
+      "name": "mynet",
+      "plugins": [
+        {
+          "type":"bridge",
+          "name": "mybridge",
+          "bridge": "br-meridio",
+          "ipam": {
+            "log_file": "/tmp/whereabouts.log",
+            "type": "whereabouts",
+            "ipRanges": [{
+              "range": "169.254.100.0/24",
+              "exclude": [
+                "169.254.100.150/32"
+              ]
+            }, {
+              "range": "100:100::/64",
+              "exclude": [
+                "100:100::150/128"
+              ]
+            }]
+          }
+        }
+      ]
+  }'
+---
+apiVersion: meridio.nordix.org/v1
+kind: Attractor
+metadata:
+  name: attr1
+  labels:
+    trench: trench-a
+spec:
+  gateways:
+    - gateway1
+    - gateway2
+  vips:
+    - vip1
+    - vip2
+  composites:
+    - conduit-stateless
+  interface:
+    name: ext
+    type: network-attachment
+    network-attachments:
+      - name: bridge-nad
+        namespace: default

@@ -36,16 +36,18 @@ deployment.apps/nsp-trench-a    1/1     1            1           1m
 
 ### Attractor
 
-An attractor resource is responsible for the creation of NSE-VLAN and stateless-lb-frontend. The resources created will be suffixed with either attractor or trench's name.
+Responsible for cluster breakout and attraction of external traffic. The cluster breakout is achieved through a secondary interface whose setup is governed by the Interface Specification. By default NSM is used to take care of both the interface management and IP address allocation. Alternatively, [Multus](https://github.com/k8snetworkplumbingwg/multus-cni) can be employed by supplying the name and kubernetes namespace of a [Network Attachment Definiton](https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/how-to-use.md#create-network-attachment-definition) for the Interface Specification.
 
-To be noted, meridio-operator currently have a limitation to have one attractor each trench.
+An attractor resource is responsible for the creation of stateless-lb-frontend, and if the Interface Type is `nsm-vlan` for the creation of NSE-VLAN. The resources created will be suffixed with the attractor's name.
 
-> There are some resources needs to be created with labels. The label referred resources are always need to be created **before** the resource itself. Otherwise these resource will fail to be created.
+To be noted, meridio-operator currently have a limitation to have one attractor per conduit.
+
+> There are some resources that need to be created with labels. The label referred resources always need to be created **before** the resource itself. Otherwise these resource will fail to be created.
 > **The labels in the resources are immutable**.
 
-An attractor is a resource needs to be created with label. `metadata.labels.trench` specifies the owner trench of the attractor.
+An attractor is a resource that needs to be created with label. `metadata.labels.trench` specifies the owner trench of the attractor.
 
-To see how to configure and read the status of an attractor, please refer to [attractor spec](https://pkg.go.dev/github.com/nordix/meridio/api/v1alpha1#AttractorSpec) and [attractor status](https://pkg.go.dev/github.com/nordix/meridio/api/v1alpha1#AttractorStatus).
+To see how to configure and read the status of an attractor, please refer to [attractor spec](https://pkg.go.dev/github.com/nordix/meridio/api/v1#AttractorSpec) and [attractor status](https://pkg.go.dev/github.com/nordix/meridio/api/v1#AttractorStatus).
 
 ```bash
 kubectl apply -f ./config/samples/meridio_v1alpha1_attractor.yaml

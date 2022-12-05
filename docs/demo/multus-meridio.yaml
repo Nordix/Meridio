@@ -1,0 +1,142 @@
+---
+apiVersion: meridio.nordix.org/v1
+kind: Trench
+metadata:
+  name: trench-a
+spec:
+  ip-family: dualstack
+---
+apiVersion: meridio.nordix.org/v1
+kind: Attractor
+metadata:
+  name: attr-1
+  labels:
+    trench: trench-a
+spec:
+  replicas: 2
+  gateways:
+    - gateway-1
+    - gateway-2
+  composites:
+    - load-balancer-a1
+  vips:
+    - vip-1
+    - vip-2
+    - vip-3
+  interface:
+    name: eth0.100
+    type: network-attachment
+    network-attachments:
+      - name: meridio-nad
+        namespace: default
+---
+apiVersion: meridio.nordix.org/v1
+kind: Gateway
+metadata:
+  labels:
+    trench: trench-a
+  name: gateway-1
+spec:
+  address: 169.254.100.150
+  protocol: bgp
+  bgp:
+    bfd:
+      switch: true
+      min-tx: 300ms
+      min-rx: 300ms
+      multiplier: 3
+    local-asn: 8103
+    remote-asn: 4248829953
+    hold-time: "3s"
+    local-port: 10179
+    remote-port: 10179
+---
+apiVersion: meridio.nordix.org/v1
+kind: Gateway
+metadata:
+  labels:
+    trench: trench-a
+  name: gateway-2
+spec:
+  address: 100:100::150
+  protocol: bgp
+  bgp:
+    bfd:
+      switch: true
+      min-tx: 300ms
+      min-rx: 300ms
+      multiplier: 3
+    local-asn: 8103
+    remote-asn: 4248829953
+    hold-time: "3s"
+    local-port: 10179
+    remote-port: 10179
+---
+apiVersion: meridio.nordix.org/v1
+kind: Vip
+metadata:
+  labels:
+    trench: trench-a
+  name: vip-1
+spec:
+  address: "20.0.0.1/32"
+---
+apiVersion: meridio.nordix.org/v1
+kind: Vip
+metadata:
+  labels:
+    trench: trench-a
+  name: vip-2
+spec:
+  address: "10.0.0.1/32"
+---
+apiVersion: meridio.nordix.org/v1
+kind: Vip
+metadata:
+  labels:
+    trench: trench-a
+  name: vip-3
+spec:
+  address: "2000::1/128"
+---
+apiVersion: meridio.nordix.org/v1
+kind: Conduit
+metadata:
+  name: load-balancer-a1
+  labels:
+    trench: trench-a
+spec:
+  type: stateless-lb
+---
+apiVersion: meridio.nordix.org/v1
+kind: Stream
+metadata:
+  name: stream-1
+  labels:
+    trench: trench-a
+spec:
+  conduit: load-balancer-a1
+---
+apiVersion: meridio.nordix.org/v1
+kind: Flow
+metadata:
+  name: flow-1
+  labels:
+    trench: trench-a
+spec:
+  stream: stream-1
+  priority: 2
+  vips:
+  - vip-1
+  - vip-2
+  - vip-3
+  source-subnets:
+  - 0.0.0.0/0
+  - ::/0
+  source-ports:
+  - any
+  destination-ports:
+  - 500-8000
+  protocols:
+  - udp
+  - tcp
