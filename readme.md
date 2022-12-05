@@ -38,7 +38,7 @@ Isolation of the traffic and the network is a key aspect for Meridio, it improve
 
 ### External Traffic Attraction
 
-Announcing service-addresses (VIP-addresses) to the external gateways permits the traffic to be attracted towards the different services exposed by the target applications. Frontend services provide different **connectivity mechanisms such as VLANs or host network interfaces** to connect the network services to the gateways. To **announce the service and ensure the link-supervision**, routing protocols are used. For now, **BGP and Static BFD** are supported.
+Announcing service-addresses (VIP-addresses) to the external gateways permits the traffic to be attracted towards the different services exposed by the target applications. Frontend services provide different **connectivity mechanisms such as VLANs or host network interfaces** to connect the network services to the gateways. In addition, Multus can offer decoupling of connectivity mechanisms while supplying a whole variety of network interfaces through CNI plugins. To **announce the service and ensure the link-supervision**, routing protocols are used. For now, **BGP and Static BFD** are supported.
 
 ### Network Services
 

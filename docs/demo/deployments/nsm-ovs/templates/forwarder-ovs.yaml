@@ -1,0 +1,93 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: forwarder-ovs
+  labels:
+    app: forwarder-ovs
+spec:
+  selector:
+    matchLabels:
+      app: forwarder-ovs
+  template:
+    metadata:
+      labels:
+        app: forwarder-ovs
+        "spiffe.io/spiffe-id": "true"
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.forwarderOVSImage }}:{{ .Values.tag }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          name: forwarder-ovs
+          securityContext:
+            privileged: true
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NSM_LOG_LEVEL
+              value: TRACE
+            - name: NSM_TUNNEL_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: NSM_CONNECT_TO
+              value: unix:///var/lib/networkservicemesh/nsm.io.sock
+            - name: NSM_LISTEN_ON
+              value: unix:///listen.on.sock
+            - name: NSM_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NSM_DEVICE_SELECTOR_FILE
+              value: /var/lib/networkservicemesh/device-selector.yaml
+            - name: NSM_SRIOV_CONFIG_FILE
+              value: /var/lib/networkservicemesh/smartnic.config
+            - name: NSM_BRIDGE_NAME
+              value: br-nsm
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: nsm-socket
+              mountPath: /var/lib/networkservicemesh
+            - name: kubelet-socket
+              mountPath: /var/lib/kubelet
+            - name: cgroup
+              mountPath: /host/sys/fs/cgroup
+            - name: vfio
+              mountPath: /host/dev/vfio
+            - name: openvswitch
+              mountPath: /var/run/openvswitch
+          resources:
+            requests:
+              cpu: 150m
+            limits:
+              memory: 500Mi
+              cpu: 500m
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory
+        - name: nsm-socket
+          hostPath:
+            path: /var/lib/networkservicemesh
+            type: DirectoryOrCreate
+        - name: kubelet-socket
+          hostPath:
+            path: /var/lib/kubelet
+            type: Directory
+        - name: cgroup
+          hostPath:
+            path: /sys/fs/cgroup
+            type: Directory
+        - name: vfio
+          hostPath:
+            path: /dev/vfio
+            type: DirectoryOrCreate
+        - name: openvswitch
+          hostPath:
+            path: /var/run/openvswitch
+            type: DirectoryOrCreate

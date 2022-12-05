@@ -2,6 +2,7 @@
 
 * [Kind - VLAN](readme.md) - Demo running on [Kind](https://kind.sigs.k8s.io/) using a vlan-forwarder to link the network service to an external host.
 * [xcluster - VLAN](xcluster.md) - Demo running on [xcluster](https://github.com/Nordix/xcluster) using a vlan-forwarder to link the network service to an external host.
+* [Kind - Multus - OVS](multus-kind-ovs.md) - Demo running on [Kind](https://kind.sigs.k8s.io/) using Merido Operator, [Multus](https://github.com/k8snetworkplumbingwg/multus-cni) and [OVS-CNI](https://github.com/k8snetworkplumbingwg/ovs-cni) to link the network service to an external host.
 
 This demo deploys a Kubernetes with 2 workers and 1 master running Spire, Network Service Mesh and a single Meridio trench. The Meridio trench has 1 conduit (Stateless load-balancer) with 2 instances, 1 stream, 1 flow (any source IP/Port, TCP, 5000 as destination port and 2 VIP: 20.0.0.1/32 and 2000::1/128). The traffic is attracted by a vlan connected to a gateway (also used as traffic generator).
 
