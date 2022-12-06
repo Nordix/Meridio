@@ -28,7 +28,7 @@
         * [User Application](user-application.md)
         * NSC (TODO)
         * NSE-VLAN (TODO)
-* [Contributing](../CONTRIBUTING.md)
+* [Contributing](#)
     * Build (TODO)
     * [Test](test.md)
     * Code Style (TODO)

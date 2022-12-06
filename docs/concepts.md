@@ -16,8 +16,7 @@ The Conduit defines a physical path of chained network services the traffic will
 
 The picture below describes 2 conduits. the left one is a stateless load-balancer and the right one is a SCTP network service. The left user pod has subscribed to one or more stream the stateless load-balancer is handling, so it is connected to it via a new network interface. The right user pod has subscribed to streams the stateless load-balancer and the SCTP network services are handling, so it is connected to them via two new network interfaces, one connected to the stateless load-balancer network service, and the other one connected to the SCTP network service. 
 
-<img src="resources/Overview-Conduit.svg" width="50%">
-<!-- ![Overview](resources/Overview-Conduit.svg) -->
+![Overview-Conduit](resources/Overview-Conduit.svg)
 
 ### Configuration
 
@@ -38,8 +37,7 @@ protocol | string | Protocol exposed by the service (exposed in flows). Traffic 
 
 ## Stream/Flow
 
-<img src="resources/Overview-Stream-Flow.svg" width="75%">
-<!-- ![Overview](resources/Overview-Stream-Flow.svg) -->
+![Overview-Stream-Flow](resources/Overview-Stream-Flow.svg)
 
 ### Stream
 

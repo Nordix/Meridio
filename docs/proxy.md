@@ -15,7 +15,7 @@ From the network service instances side, the proxy acts as a bridge, so the netw
 
 Note: Currently the proxy support only 1 conduit.
 
-<img src="resources/Proxy.svg" width="100%">
+![Proxy](resources/Proxy.svg)
 
 ## Configuration 
 
