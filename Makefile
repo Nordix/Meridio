@@ -223,12 +223,12 @@ generate-controller: controller-gen ## Generate code containing DeepCopy, DeepCo
 #############################################################################
 
 .PHONY: deploy
-deploy: manifests kustomize namespace configure-webhook set-templates-values ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+deploy: manifests kustomize namespace set-templates-values ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/operator && $(KUSTOMIZE) edit set image operator=${REGISTRY}/operator:${VERSION_OPERATOR}
 	$(KUSTOMIZE) build config/default --enable-helm | kubectl apply -f -
 
 .PHONY: undeploy
-undeploy: namespace configure-webhook ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+undeploy: namespace ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default --enable-helm | kubectl delete -f - --ignore-not-found=true
 
 .PHONY: set-templates-values
@@ -242,12 +242,9 @@ namespace: # Edit the namespace of operator to be deployed
 	cd config/default && $(KUSTOMIZE) edit set namespace ${OPERATOR_NAMESPACE}
 
 .PHONY: print-manifests
-print-manifests: manifests kustomize namespace configure-webhook set-templates-values # Generate manifests to be deployed in the cluster
+print-manifests: manifests kustomize namespace set-templates-values # Generate manifests to be deployed in the cluster
 	cd config/operator && $(KUSTOMIZE) edit set image operator=${REGISTRY}/operator:${VERSION_OPERATOR}
 	$(KUSTOMIZE) build config/default --enable-helm
-
-configure-webhook:
-	ENABLE_MUTATING_WEBHOOK=$(ENABLE_MUTATING_WEBHOOK) WEBHOOK_SUPPORT=$(WEBHOOK_SUPPORT) hack/webhook-switch.sh
 	
 #############################################################################
 # Tools

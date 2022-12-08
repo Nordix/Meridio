@@ -64,10 +64,6 @@ make docker-build docker-push IMG="registry.nordix.org/meridio/meridio-operator:
 
 Deploy Meridio-Operator
 ```
-# install most recent cert-manager
-kubectl apply -f https://github.com/jetstack/cert-manager/releases/latest/download/cert-manager.yaml
-# alternatively install a specific version of cert-manager (useful when running with private docker registry)
-kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.1/cert-manager.yaml
 # deploy operator image from the Operator repository (irrespective of the registry type)
 make deploy IMG="registry.nordix.org/meridio/meridio-operator:v0.0.1" NAMESPACE="default"
 ```

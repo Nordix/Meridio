@@ -5,7 +5,6 @@ resources:
 - operator.yaml
 - ../templates
 
-# - patches/manager_webhook_patch_certmanager.yaml # [CERTMANAGER] To enable cert-manager, you need to uncomment all the sections with [CERTMANAGER]
 patchesStrategicMerge:
 - patches/operator_webhook_patch_spire.yaml
 - patches/operator_resource_templates_patch.yaml
