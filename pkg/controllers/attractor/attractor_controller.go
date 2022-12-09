@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/go-logr/logr"
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	common "github.com/nordix/meridio/pkg/controllers/common"
 )
 
@@ -53,7 +53,7 @@ type AttractorReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.8.3/pkg/reconcile
 func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
-	attr := &meridiov1alpha1.Attractor{}
+	attr := &meridiov1.Attractor{}
 	executor := common.NewExecutor(r.Scheme, r.Client, ctx, nil, r.Log)
 
 	err := r.Get(ctx, req.NamespacedName, attr)
@@ -61,7 +61,7 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 	currentAttr := attr.DeepCopy()
-	attr.Status = meridiov1alpha1.AttractorStatus{}
+	attr.Status = meridiov1.AttractorStatus{}
 
 	selector := client.ObjectKey{
 		Namespace: attr.ObjectMeta.Namespace,
@@ -115,7 +115,7 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	return ctrl.Result{}, err
 }
 
-func getAttractorActions(e *common.Executor, new, old *meridiov1alpha1.Attractor) {
+func getAttractorActions(e *common.Executor, new, old *meridiov1.Attractor) {
 	if !equality.Semantic.DeepEqual(new.Status, old.Status) {
 		e.AddUpdateStatusAction(new)
 	}
@@ -137,7 +137,7 @@ func (r *AttractorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		podDisruptionBudget = &policyv1beta1.PodDisruptionBudget{}
 	}
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&meridiov1alpha1.Attractor{}).
+		For(&meridiov1.Attractor{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(podDisruptionBudget).
 		Complete(r)

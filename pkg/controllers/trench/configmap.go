@@ -20,7 +20,7 @@ import (
 	"net"
 	"time"
 
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	"github.com/nordix/meridio/pkg/configuration/reader"
 	"github.com/nordix/meridio/pkg/controllers/common"
 	corev1 "k8s.io/api/core/v1"
@@ -32,11 +32,11 @@ import (
 )
 
 type ConfigMap struct {
-	trench *meridiov1alpha1.Trench
+	trench *meridiov1.Trench
 	exec   *common.Executor
 }
 
-func NewConfigMap(e *common.Executor, t *meridiov1alpha1.Trench) *ConfigMap {
+func NewConfigMap(e *common.Executor, t *meridiov1.Trench) *ConfigMap {
 	l := &ConfigMap{
 		trench: t.DeepCopy(),
 		exec:   e,
@@ -63,8 +63,8 @@ func (c *ConfigMap) getCurrentStatus() (*corev1.ConfigMap, error) {
 	return currentState, nil
 }
 
-func (c *ConfigMap) listVipsByLabel() (*meridiov1alpha1.VipList, error) {
-	vipList := &meridiov1alpha1.VipList{}
+func (c *ConfigMap) listVipsByLabel() (*meridiov1.VipList, error) {
+	vipList := &meridiov1.VipList{}
 
 	err := c.exec.ListObject(vipList, client.InNamespace(c.trench.ObjectMeta.Namespace), client.MatchingLabels{"trench": c.trench.ObjectMeta.Name})
 	if err != nil {
@@ -73,8 +73,8 @@ func (c *ConfigMap) listVipsByLabel() (*meridiov1alpha1.VipList, error) {
 	return vipList, nil
 }
 
-func (c *ConfigMap) listGatewaysByLabel() (*meridiov1alpha1.GatewayList, error) {
-	list := &meridiov1alpha1.GatewayList{}
+func (c *ConfigMap) listGatewaysByLabel() (*meridiov1.GatewayList, error) {
+	list := &meridiov1.GatewayList{}
 
 	err := c.exec.ListObject(list, client.InNamespace(c.trench.ObjectMeta.Namespace), client.MatchingLabels{"trench": c.trench.ObjectMeta.Name})
 	if err != nil {
@@ -83,8 +83,8 @@ func (c *ConfigMap) listGatewaysByLabel() (*meridiov1alpha1.GatewayList, error) 
 	return list, nil
 }
 
-func (c *ConfigMap) listAttractorsByLabel() (*meridiov1alpha1.AttractorList, error) {
-	lst := &meridiov1alpha1.AttractorList{}
+func (c *ConfigMap) listAttractorsByLabel() (*meridiov1.AttractorList, error) {
+	lst := &meridiov1.AttractorList{}
 
 	err := c.exec.ListObject(lst, client.InNamespace(c.trench.ObjectMeta.Namespace), client.MatchingLabels{"trench": c.trench.ObjectMeta.Name})
 	if err != nil {
@@ -93,8 +93,8 @@ func (c *ConfigMap) listAttractorsByLabel() (*meridiov1alpha1.AttractorList, err
 	return lst, nil
 }
 
-func (c *ConfigMap) listConduitsByLabel() (*meridiov1alpha1.ConduitList, error) {
-	lst := &meridiov1alpha1.ConduitList{}
+func (c *ConfigMap) listConduitsByLabel() (*meridiov1.ConduitList, error) {
+	lst := &meridiov1.ConduitList{}
 
 	err := c.exec.ListObject(lst, client.InNamespace(c.trench.ObjectMeta.Namespace), client.MatchingLabels{"trench": c.trench.ObjectMeta.Name})
 	if err != nil {
@@ -103,8 +103,8 @@ func (c *ConfigMap) listConduitsByLabel() (*meridiov1alpha1.ConduitList, error) 
 	return lst, nil
 }
 
-func (c *ConfigMap) listStreamsByLabel() (*meridiov1alpha1.StreamList, error) {
-	lst := &meridiov1alpha1.StreamList{}
+func (c *ConfigMap) listStreamsByLabel() (*meridiov1.StreamList, error) {
+	lst := &meridiov1.StreamList{}
 
 	err := c.exec.ListObject(lst, client.InNamespace(c.trench.ObjectMeta.Namespace), client.MatchingLabels{"trench": c.trench.ObjectMeta.Name})
 	if err != nil {
@@ -113,8 +113,8 @@ func (c *ConfigMap) listStreamsByLabel() (*meridiov1alpha1.StreamList, error) {
 	return lst, nil
 }
 
-func (c *ConfigMap) listFlowsByLabel() (*meridiov1alpha1.FlowList, error) {
-	lst := &meridiov1alpha1.FlowList{}
+func (c *ConfigMap) listFlowsByLabel() (*meridiov1.FlowList, error) {
+	lst := &meridiov1.FlowList{}
 
 	err := c.exec.ListObject(lst, client.InNamespace(c.trench.ObjectMeta.Namespace), client.MatchingLabels{"trench": c.trench.ObjectMeta.Name})
 	if err != nil {
@@ -269,7 +269,7 @@ func (c *ConfigMap) getGatewaysData() ([]byte, error) {
 }
 
 // convert the BFD parameters to the same unit when writing it to configmap
-func writBfdInGateway(bfd meridiov1alpha1.BfdSpec) (bool, uint, uint, uint) {
+func writBfdInGateway(bfd meridiov1.BfdSpec) (bool, uint, uint, uint) {
 	// if bfd is configured and switch is true, populate the gateway items in the configmap with the bfd parameters
 	if bfd.Switch != nil && *bfd.Switch {
 		rx := parseHoldTime(bfd.MinRx, time.Millisecond)
@@ -316,7 +316,7 @@ func (c *ConfigMap) getConduitsData() ([]byte, error) {
 	return yaml.Marshal(lst)
 }
 
-func getPortNatsData(portNatSpecs []meridiov1alpha1.PortNatSpec) []*reader.PortNat {
+func getPortNatsData(portNatSpecs []meridiov1.PortNatSpec) []*reader.PortNat {
 	portNats := []*reader.PortNat{}
 	for _, pns := range portNatSpecs {
 		portNats = append(portNats, &reader.PortNat{
@@ -391,7 +391,7 @@ func (c *ConfigMap) getFlowsData() ([]byte, error) {
 			SourcePortRanges:      srcPorts,
 			DestinationPortRanges: dstPorts,
 			Vips:                  cr.Spec.Vips,
-			Protocols:             meridiov1alpha1.TransportProtocolsToStrings(cr.Spec.Protocols),
+			Protocols:             meridiov1.TransportProtocolsToStrings(cr.Spec.Protocols),
 			Priority:              cr.Spec.Priority,
 			ByteMatches:           cr.Spec.ByteMatches,
 		})

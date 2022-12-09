@@ -19,7 +19,7 @@ package attractor
 import (
 	"fmt"
 
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	common "github.com/nordix/meridio/pkg/controllers/common"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -37,8 +37,8 @@ var lbFeDeploymentName string
 
 type LoadBalancer struct {
 	model     *appsv1.Deployment
-	trench    *meridiov1alpha1.Trench
-	attractor *meridiov1alpha1.Attractor
+	trench    *meridiov1.Trench
+	attractor *meridiov1.Attractor
 	exec      *common.Executor
 }
 
@@ -51,7 +51,7 @@ func (l *LoadBalancer) getModel() error {
 	return nil
 }
 
-func NewLoadBalancer(e *common.Executor, attr *meridiov1alpha1.Attractor, t *meridiov1alpha1.Trench) (*LoadBalancer, error) {
+func NewLoadBalancer(e *common.Executor, attr *meridiov1.Attractor, t *meridiov1.Trench) (*LoadBalancer, error) {
 	l := &LoadBalancer{
 		exec:      e,
 		trench:    t.DeepCopy(),

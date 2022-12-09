@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	"github.com/nordix/meridio/pkg/controllers/common"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -71,21 +71,21 @@ func init() {
 var fw *Framework
 
 // default trench used in all tests
-func trench(namespace string) *meridiov1alpha1.Trench {
-	return &meridiov1alpha1.Trench{
+func trench(namespace string) *meridiov1.Trench {
+	return &meridiov1.Trench{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      trenchName,
 			Namespace: namespace,
 		},
-		Spec: meridiov1alpha1.TrenchSpec{
+		Spec: meridiov1.TrenchSpec{
 			IPFamily: "dualstack",
 		},
 	}
 }
 
 // default attractor used in all tests
-func attractor(namespace string) *meridiov1alpha1.Attractor {
-	return &meridiov1alpha1.Attractor{
+func attractor(namespace string) *meridiov1.Attractor {
+	return &meridiov1.Attractor{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      attractorName,
 			Namespace: namespace,
@@ -93,15 +93,15 @@ func attractor(namespace string) *meridiov1alpha1.Attractor {
 				"trench": trenchName,
 			},
 		},
-		Spec: meridiov1alpha1.AttractorSpec{
+		Spec: meridiov1.AttractorSpec{
 			Gateways:   []string{"gateway-a", "gateway-b"},
 			Vips:       []string{"vip-a", "vip-b"},
 			Composites: []string{"conduit-a"},
-			Interface: meridiov1alpha1.InterfaceSpec{
+			Interface: meridiov1.InterfaceSpec{
 				Name:       "eth.100",
 				PrefixIPv4: "169.254.100.0/24",
 				PrefixIPv6: "100:100::/64",
-				NSMVlan: meridiov1alpha1.NSMVlanSpec{
+				NSMVlan: meridiov1.NSMVlanSpec{
 					VlanID:        pointer.Int32(100),
 					BaseInterface: "eth0",
 				},
@@ -110,8 +110,8 @@ func attractor(namespace string) *meridiov1alpha1.Attractor {
 	}
 }
 
-func conduit(namespace string) *meridiov1alpha1.Conduit {
-	return &meridiov1alpha1.Conduit{
+func conduit(namespace string) *meridiov1.Conduit {
+	return &meridiov1.Conduit{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "conduit-a",
 			Namespace: namespace,
@@ -119,7 +119,7 @@ func conduit(namespace string) *meridiov1alpha1.Conduit {
 				"trench": trenchName,
 			},
 		},
-		Spec: meridiov1alpha1.ConduitSpec{
+		Spec: meridiov1.ConduitSpec{
 			Type: "stateless-lb",
 		},
 	}
@@ -158,7 +158,7 @@ func NewFramework() *Framework {
 	g.Expect(kubescheme.AddToScheme(myScheme)).To(Succeed())
 	g.Expect(scalescheme.AddToScheme(myScheme)).To(Succeed())
 	g.Expect(apiextensionsv1.AddToScheme(myScheme)).To(Succeed())
-	g.Expect(meridiov1alpha1.AddToScheme(myScheme)).To(Succeed())
+	g.Expect(meridiov1.AddToScheme(myScheme)).To(Succeed())
 
 	config := config.GetConfigOrDie()
 	kubeAPIClient, err := client.New(config, client.Options{Scheme: myScheme})
@@ -287,9 +287,9 @@ func (fw *Framework) OperatorPodRestarts() int32 {
 }
 
 func (fw *Framework) CleanUpTrenches() {
-	Expect(fw.DeleteAllOfResource(&meridiov1alpha1.Trench{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: namespace}})).To(Succeed())
+	Expect(fw.DeleteAllOfResource(&meridiov1.Trench{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: namespace}})).To(Succeed())
 	Eventually(func() bool {
-		lst := &meridiov1alpha1.TrenchList{}
+		lst := &meridiov1.TrenchList{}
 		err := fw.ListResources(lst, &client.ListOptions{Namespace: namespace})
 		return err == nil && len(lst.Items) == 0
 	}, 5*time.Second, interval).Should(BeTrue())
@@ -297,60 +297,60 @@ func (fw *Framework) CleanUpTrenches() {
 }
 
 func (fw *Framework) CleanUpAttractors() {
-	Expect(fw.DeleteAllOfResource(&meridiov1alpha1.Attractor{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: namespace}})).To(Succeed())
+	Expect(fw.DeleteAllOfResource(&meridiov1.Attractor{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: namespace}})).To(Succeed())
 	Eventually(func() bool {
-		lst := &meridiov1alpha1.AttractorList{}
+		lst := &meridiov1.AttractorList{}
 		err := fw.ListResources(lst, &client.ListOptions{Namespace: namespace})
 		return err == nil && len(lst.Items) == 0
 	}, 5*time.Second, interval).Should(BeTrue())
 }
 
 func (fw *Framework) CleanUpVips() {
-	Expect(fw.DeleteAllOfResource(&meridiov1alpha1.Vip{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: namespace}})).To(Succeed())
+	Expect(fw.DeleteAllOfResource(&meridiov1.Vip{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: namespace}})).To(Succeed())
 	Eventually(func() bool {
-		lst := &meridiov1alpha1.VipList{}
+		lst := &meridiov1.VipList{}
 		err := fw.ListResources(lst, &client.ListOptions{Namespace: namespace})
 		return err == nil && len(lst.Items) == 0
 	}, 5*time.Second, interval).Should(BeTrue())
 }
 
 func (fw *Framework) CleanUpGateways() {
-	Expect(fw.DeleteAllOfResource(&meridiov1alpha1.Gateway{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: namespace}})).To(Succeed())
+	Expect(fw.DeleteAllOfResource(&meridiov1.Gateway{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: namespace}})).To(Succeed())
 	Eventually(func() bool {
-		lst := &meridiov1alpha1.VipList{}
+		lst := &meridiov1.VipList{}
 		err := fw.ListResources(lst, &client.ListOptions{Namespace: namespace})
 		return err == nil && len(lst.Items) == 0
 	}, 5*time.Second, interval).Should(BeTrue())
 }
 
 func (fw *Framework) CleanUpConduits() {
-	Expect(fw.DeleteAllOfResource(&meridiov1alpha1.Conduit{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: namespace}})).To(Succeed())
+	Expect(fw.DeleteAllOfResource(&meridiov1.Conduit{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: namespace}})).To(Succeed())
 	Eventually(func() bool {
-		lst := &meridiov1alpha1.ConduitList{}
+		lst := &meridiov1.ConduitList{}
 		err := fw.ListResources(lst, &client.ListOptions{Namespace: namespace})
 		return err == nil && len(lst.Items) == 0
 	}, 5*time.Second, interval).Should(BeTrue())
 }
 
 func (fw *Framework) CleanUpStreams() {
-	Expect(fw.DeleteAllOfResource(&meridiov1alpha1.Stream{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: namespace}})).To(Succeed())
+	Expect(fw.DeleteAllOfResource(&meridiov1.Stream{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: namespace}})).To(Succeed())
 	Eventually(func() bool {
-		lst := &meridiov1alpha1.StreamList{}
+		lst := &meridiov1.StreamList{}
 		err := fw.ListResources(lst, &client.ListOptions{Namespace: namespace})
 		return err == nil && len(lst.Items) == 0
 	}, 5*time.Second, interval).Should(BeTrue())
 }
 
 func (fw *Framework) CleanUpFlows() {
-	Expect(fw.DeleteAllOfResource(&meridiov1alpha1.Flow{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: namespace}})).To(Succeed())
+	Expect(fw.DeleteAllOfResource(&meridiov1.Flow{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: namespace}})).To(Succeed())
 	Eventually(func() bool {
-		lst := &meridiov1alpha1.FlowList{}
+		lst := &meridiov1.FlowList{}
 		err := fw.ListResources(lst, &client.ListOptions{Namespace: namespace})
 		return err == nil && len(lst.Items) == 0
 	}, 5*time.Second, interval).Should(BeTrue())
 }
 
-func AssertTrenchReady(trench *meridiov1alpha1.Trench) {
+func AssertTrenchReady(trench *meridiov1.Trench) {
 	ns := trench.ObjectMeta.Namespace
 	name := trench.ObjectMeta.Name
 	By("checking ipam StatefulSet")
@@ -384,7 +384,7 @@ func AssertTrenchReady(trench *meridiov1alpha1.Trench) {
 	Expect(service).ToNot(BeNil())
 }
 
-func AssertAttractorReady(attractor *meridiov1alpha1.Attractor) {
+func AssertAttractorReady(attractor *meridiov1.Attractor) {
 	ns := attractor.ObjectMeta.Namespace
 
 	By("checking nse vlan deployment")
@@ -398,7 +398,7 @@ func AssertAttractorReady(attractor *meridiov1alpha1.Attractor) {
 	// }, timeout, interval).Should(Succeed())
 }
 
-func AssertConduitReady(conduit *meridiov1alpha1.Conduit) {
+func AssertConduitReady(conduit *meridiov1.Conduit) {
 	// ns := conduit.ObjectMeta.Namespace
 
 	// By("checking proxy deployment")
@@ -407,9 +407,9 @@ func AssertConduitReady(conduit *meridiov1alpha1.Conduit) {
 	// }, timeout, interval).Should(Succeed())
 }
 
-func AssertMeridioDeploymentsReady(trench *meridiov1alpha1.Trench,
-	attractor *meridiov1alpha1.Attractor,
-	conduit *meridiov1alpha1.Conduit) {
+func AssertMeridioDeploymentsReady(trench *meridiov1.Trench,
+	attractor *meridiov1.Attractor,
+	conduit *meridiov1.Conduit) {
 	AssertTrenchReady(trench)
 	AssertAttractorReady(attractor)
 	AssertConduitReady(conduit)

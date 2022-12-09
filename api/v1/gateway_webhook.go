@@ -14,13 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1
 
 import (
 	"context"
 	"fmt"
 	"net"
-	"strings"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -43,85 +42,7 @@ func (r *Gateway) SetupWebhookWithManager(mgr ctrl.Manager) error {
 		Complete()
 }
 
-var _ webhook.Defaulter = &Gateway{}
-
-// Default implements webhook.Defaulter so a webhook will be registered for the type
-func (r *Gateway) Default() {
-	gatewaylog.Info("default", "name", r.Name)
-
-	if r.Spec.Protocol == "" {
-		r.Spec.Protocol = string(BGP)
-	} else {
-		r.Spec.Protocol = strings.ToLower(r.Spec.Protocol)
-	}
-
-	// default for BGP
-	if r.Spec.Protocol == string(BGP) {
-		r.Spec.Bgp.BFD = defaultBfd(BGP, r.Spec.Bgp.BFD)
-
-		if r.Spec.Bgp.HoldTime == "" {
-			r.Spec.Bgp.HoldTime = "240s"
-		}
-		if r.Spec.Bgp.RemotePort == nil {
-			r.Spec.Bgp.RemotePort = new(uint16)
-			*r.Spec.Bgp.RemotePort = 179
-		}
-		if r.Spec.Bgp.LocalPort == nil {
-			r.Spec.Bgp.LocalPort = new(uint16)
-			*r.Spec.Bgp.LocalPort = 179
-		}
-	}
-
-	// default for static
-	if r.Spec.Protocol == string(Static) {
-		r.Spec.Static.BFD = defaultBfd(Static, r.Spec.Static.BFD)
-	}
-}
-
-func defaultBfd(proto Protocol, bfd BfdSpec) BfdSpec {
-	switch proto {
-	case BGP:
-		{
-			if bfd.Switch == nil { // if bfd is empty, default to false
-				bfd.Switch = new(bool)
-			}
-			if *bfd.Switch { // if bfd is true, fill missing BFD parameters to default value
-				if bfd.MinRx == "" {
-					bfd.MinRx = "300ms"
-				}
-				if bfd.MinTx == "" {
-					bfd.MinTx = "300ms"
-				}
-				if bfd.Multiplier == nil {
-					bfd.Multiplier = new(uint16)
-					*bfd.Multiplier = 3
-				}
-			}
-		}
-	case Static:
-		{
-			if bfd.Switch == nil { // if bfd is empty, default to true
-				bfd.Switch = new(bool)
-				*bfd.Switch = true
-			}
-			if *bfd.Switch { // if bfd is true, fill missing BFD parameters to default value
-				if bfd.MinRx == "" {
-					bfd.MinRx = "200ms"
-				}
-				if bfd.MinTx == "" {
-					bfd.MinTx = "200ms"
-				}
-				if bfd.Multiplier == nil {
-					bfd.Multiplier = new(uint16)
-					*bfd.Multiplier = 3
-				}
-			}
-		}
-	}
-	return bfd
-}
-
-//+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1alpha1-gateway,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=gateways,verbs=create;update,versions=v1alpha1,name=vgateway.kb.io,admissionReviewVersions=v1
+//+kubebuilder:webhook:path=/validate-meridio-nordix-org-v1-gateway,mutating=false,failurePolicy=fail,sideEffects=None,groups=meridio.nordix.org,resources=gateways,verbs=create;update,versions=v1,name=vgateway.kb.io,admissionReviewVersions=v1
 
 var _ webhook.Validator = &Gateway{}
 

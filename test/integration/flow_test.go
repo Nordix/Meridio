@@ -3,7 +3,7 @@ package integration_test
 import (
 	"time"
 
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	"github.com/nordix/meridio/pkg/configuration/reader"
 	"github.com/nordix/meridio/pkg/controllers/common"
 	"github.com/nordix/meridio/test/utils"
@@ -19,7 +19,7 @@ import (
 var _ = Describe("Flow", func() {
 	trench := trench(namespace)
 
-	flowA := &meridiov1alpha1.Flow{
+	flowA := &meridiov1.Flow{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "flow-a",
 			Namespace: namespace,
@@ -27,9 +27,9 @@ var _ = Describe("Flow", func() {
 				"trench": trenchName,
 			},
 		},
-		Spec: meridiov1alpha1.FlowSpec{
+		Spec: meridiov1.FlowSpec{
 			Stream:           "stream-a",
-			Protocols:        []meridiov1alpha1.TransportProtocol{meridiov1alpha1.TCP, meridiov1alpha1.UDP},
+			Protocols:        []meridiov1.TransportProtocol{meridiov1.TCP, meridiov1.UDP},
 			SourceSubnets:    []string{"10.0.0.0/28"},
 			SourcePorts:      []string{"3000"},
 			DestinationPorts: []string{"2000"},
@@ -43,7 +43,7 @@ var _ = Describe("Flow", func() {
 		SourceSubnets:         flowA.Spec.SourceSubnets,
 		SourcePortRanges:      flowA.Spec.SourcePorts,
 		DestinationPortRanges: flowA.Spec.DestinationPorts,
-		Protocols:             meridiov1alpha1.TransportProtocolsToStrings(flowA.Spec.Protocols),
+		Protocols:             meridiov1.TransportProtocolsToStrings(flowA.Spec.Protocols),
 		Vips:                  flowA.Spec.Vips,
 		Stream:                flowA.Spec.Stream,
 		Priority:              1,
@@ -58,7 +58,7 @@ var _ = Describe("Flow", func() {
 	})
 
 	When("creating a flow", func() {
-		flowB := &meridiov1alpha1.Flow{
+		flowB := &meridiov1.Flow{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "flow-b",
 				Namespace: namespace,
@@ -66,9 +66,9 @@ var _ = Describe("Flow", func() {
 					"trench": trenchName,
 				},
 			},
-			Spec: meridiov1alpha1.FlowSpec{
+			Spec: meridiov1.FlowSpec{
 				Stream:           "stream-b",
-				Protocols:        []meridiov1alpha1.TransportProtocol{meridiov1alpha1.TCP},
+				Protocols:        []meridiov1.TransportProtocol{meridiov1.TCP},
 				SourceSubnets:    []string{"10.0.0.0/28"},
 				SourcePorts:      []string{"any"},
 				DestinationPorts: []string{"2000"},
@@ -80,7 +80,7 @@ var _ = Describe("Flow", func() {
 		newFlowInCm := reader.Flow{
 			Stream:                flowB.Spec.Stream,
 			Name:                  flowB.ObjectMeta.Name,
-			Protocols:             meridiov1alpha1.TransportProtocolsToStrings(flowB.Spec.Protocols),
+			Protocols:             meridiov1.TransportProtocolsToStrings(flowB.Spec.Protocols),
 			SourcePortRanges:      []string{"0-65535"},
 			SourceSubnets:         flowB.Spec.SourceSubnets,
 			DestinationPortRanges: flowB.Spec.DestinationPorts,
@@ -98,7 +98,7 @@ var _ = Describe("Flow", func() {
 				Expect(fw.CreateResource(flowA.DeepCopy())).ToNot(Succeed())
 
 				By("checking the existence")
-				err := fw.GetResource(client.ObjectKeyFromObject(flowA), &meridiov1alpha1.Flow{})
+				err := fw.GetResource(client.ObjectKeyFromObject(flowA), &meridiov1.Flow{})
 				Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			})
 		})
@@ -118,7 +118,7 @@ var _ = Describe("Flow", func() {
 				Expect(fw.CreateResource(flowA.DeepCopy())).To(Succeed())
 
 				By("checking if the flow exists")
-				flow := &meridiov1alpha1.Flow{}
+				flow := &meridiov1.Flow{}
 				err := fw.GetResource(client.ObjectKeyFromObject(flowA), flow)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(flow).NotTo(BeNil())
@@ -127,7 +127,7 @@ var _ = Describe("Flow", func() {
 				assertFlowItemInConfigMap(defaultFlowinCm, configmapName, true)
 
 				By("adding the 2nd flow")
-				flowB := &meridiov1alpha1.Flow{
+				flowB := &meridiov1.Flow{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "flow-b",
 						Namespace: namespace,
@@ -135,9 +135,9 @@ var _ = Describe("Flow", func() {
 							"trench": trenchName,
 						},
 					},
-					Spec: meridiov1alpha1.FlowSpec{
+					Spec: meridiov1.FlowSpec{
 						Stream:           "stream-b",
-						Protocols:        []meridiov1alpha1.TransportProtocol{meridiov1alpha1.TCP},
+						Protocols:        []meridiov1.TransportProtocol{meridiov1.TCP},
 						SourceSubnets:    []string{"10.0.0.0/28"},
 						SourcePorts:      []string{"any"},
 						DestinationPorts: []string{"2000"},
@@ -149,7 +149,7 @@ var _ = Describe("Flow", func() {
 				Expect(fw.CreateResource(flowB.DeepCopy())).To(Succeed())
 
 				By("checking if the flow exists")
-				flow = &meridiov1alpha1.Flow{}
+				flow = &meridiov1.Flow{}
 				err = fw.GetResource(client.ObjectKeyFromObject(flowB), flow)
 				Expect(err).To(BeNil())
 				Expect(flow).NotTo(BeNil())
@@ -168,7 +168,7 @@ var _ = Describe("Flow", func() {
 				assertFlowItemInConfigMap(newFlowInCm, configmapName, true)
 
 				By("adding the 3rd flow")
-				flowEmpty := &meridiov1alpha1.Flow{
+				flowEmpty := &meridiov1.Flow{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "flow-empty",
 						Namespace: namespace,
@@ -176,10 +176,10 @@ var _ = Describe("Flow", func() {
 							"trench": trenchName,
 						},
 					},
-					Spec: meridiov1alpha1.FlowSpec{
+					Spec: meridiov1.FlowSpec{
 						Stream:        "stream-b",
 						SourceSubnets: []string{}, // emtpy slice for source subnets, and omit source/destination ports
-						Protocols:     []meridiov1alpha1.TransportProtocol{"tcp"},
+						Protocols:     []meridiov1.TransportProtocol{"tcp"},
 						Vips:          []string{"vip1"},
 						Priority:      1000,
 					},
@@ -187,7 +187,7 @@ var _ = Describe("Flow", func() {
 				Expect(fw.CreateResource(flowEmpty.DeepCopy())).To(Succeed())
 
 				By("checking if the flow exists")
-				flow = &meridiov1alpha1.Flow{}
+				flow = &meridiov1.Flow{}
 				err = fw.GetResource(client.ObjectKeyFromObject(flowEmpty), flow)
 				Expect(err).To(BeNil())
 				Expect(flow).NotTo(BeNil())
@@ -196,7 +196,7 @@ var _ = Describe("Flow", func() {
 				newFlowInCm = reader.Flow{
 					Stream:                flowEmpty.Spec.Stream,
 					Name:                  flowEmpty.ObjectMeta.Name,
-					Protocols:             meridiov1alpha1.TransportProtocolsToStrings(flowEmpty.Spec.Protocols),
+					Protocols:             meridiov1.TransportProtocolsToStrings(flowEmpty.Spec.Protocols),
 					Vips:                  flowEmpty.Spec.Vips,
 					Priority:              flowEmpty.Spec.Priority,
 					SourceSubnets:         []string{},
@@ -211,13 +211,13 @@ var _ = Describe("Flow", func() {
 			BeforeEach(func() {
 				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 				Expect(fw.CreateResource(
-					&meridiov1alpha1.Trench{
+					&meridiov1.Trench{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "trench-b",
 							Namespace: namespace,
 						},
-						Spec: meridiov1alpha1.TrenchSpec{
-							IPFamily: string(meridiov1alpha1.IPv4),
+						Spec: meridiov1.TrenchSpec{
+							IPFamily: string(meridiov1.IPv4),
 						},
 					})).To(Succeed())
 			})
@@ -248,14 +248,14 @@ var _ = Describe("Flow", func() {
 		})
 
 		It("updates the configmap", func() {
-			var s = &meridiov1alpha1.Flow{}
+			var s = &meridiov1.Flow{}
 			Eventually(func(g Gomega) {
 				Expect(fw.GetResource(client.ObjectKeyFromObject(flowA), s)).To(Succeed())
 				s.Spec.Stream = "stream-2"
 				s.Spec.DestinationPorts = []string{"40000"}
 				s.Spec.SourcePorts = []string{"50000"}
 				s.Spec.SourceSubnets = []string{"1000::/128"}
-				s.Spec.Protocols = []meridiov1alpha1.TransportProtocol{meridiov1alpha1.UDP}
+				s.Spec.Protocols = []meridiov1.TransportProtocol{meridiov1.UDP}
 				s.Spec.Priority = flowA.Spec.Priority
 				g.Expect(fw.UpdateResource(s)).To(Succeed())
 			}).Should(Succeed())
@@ -285,7 +285,7 @@ var _ = Describe("Flow", func() {
 		})
 
 		It("will be deleted from the configmap if stream is empty", func() {
-			var f = &meridiov1alpha1.Flow{}
+			var f = &meridiov1.Flow{}
 			Eventually(func(g Gomega) {
 				Expect(fw.GetResource(client.ObjectKeyFromObject(flowA), f)).To(Succeed())
 				f.Spec.Stream = ""
@@ -332,26 +332,26 @@ var _ = Describe("Flow", func() {
 		})
 
 		It("will be deleted by deleting the trench", func() {
-			tr := &meridiov1alpha1.Trench{}
+			tr := &meridiov1.Trench{}
 			Expect(fw.GetResource(client.ObjectKeyFromObject(trench), tr)).To(Succeed())
 			Expect(fw.DeleteResource(tr)).To(Succeed())
 
 			By("checking if flow exists")
 			Eventually(func() bool {
-				s := &meridiov1alpha1.Flow{}
+				s := &meridiov1.Flow{}
 				err := fw.GetResource(client.ObjectKeyFromObject(flowA), s)
 				return err != nil && apierrors.IsNotFound(err)
 			}, timeout).Should(BeTrue())
 		})
 
 		It("will be deleted by deleting itself", func() {
-			s := &meridiov1alpha1.Flow{}
+			s := &meridiov1.Flow{}
 			Expect(fw.GetResource(client.ObjectKeyFromObject(flowA), s)).To(Succeed())
 			Expect(fw.DeleteResource(s)).To(Succeed())
 
 			By("checking if flow exists")
 			Eventually(func() bool {
-				s := &meridiov1alpha1.Flow{}
+				s := &meridiov1.Flow{}
 				err := fw.GetResource(client.ObjectKeyFromObject(flowA), s)
 				return err != nil && apierrors.IsNotFound(err)
 			}, timeout).Should(BeTrue())

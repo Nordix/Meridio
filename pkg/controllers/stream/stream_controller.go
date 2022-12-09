@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/go-logr/logr"
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	"github.com/nordix/meridio/pkg/controllers/common"
 )
 
@@ -53,7 +53,7 @@ type StreamReconciler struct {
 func (r *StreamReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	stream := &meridiov1alpha1.Stream{}
+	stream := &meridiov1.Stream{}
 	executor := common.NewExecutor(r.Scheme, r.Client, ctx, nil, r.Log)
 
 	err := r.Get(ctx, req.NamespacedName, stream)
@@ -94,11 +94,11 @@ func (r *StreamReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 // SetupWithManager sets up the controller with the Manager.
 func (r *StreamReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&meridiov1alpha1.Stream{}).
+		For(&meridiov1.Stream{}).
 		Complete(r)
 }
 
-func getStreamActions(executor *common.Executor, new, old *meridiov1alpha1.Stream) []common.Action {
+func getStreamActions(executor *common.Executor, new, old *meridiov1.Stream) []common.Action {
 	var actions []common.Action
 	if !equality.Semantic.DeepEqual(new.ObjectMeta, old.ObjectMeta) {
 		executor.AddUpdateAction(new)

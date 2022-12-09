@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"os"
 
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
@@ -30,30 +30,30 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 )
 
-func GetIPFamily(cr *meridiov1alpha1.Trench) string {
+func GetIPFamily(cr *meridiov1.Trench) string {
 	return string(cr.Spec.IPFamily)
 }
 
 const ipv4SysCtl = "sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1 ; sysctl -w net.ipv4.conf.all.rp_filter=0 ; sysctl -w net.ipv4.conf.default.rp_filter=0"
 const ipv6SysCtl = "sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1"
 
-func GetLoadBalancerSysCtl(cr *meridiov1alpha1.Trench) string {
-	if cr.Spec.IPFamily == string(meridiov1alpha1.Dualstack) {
+func GetLoadBalancerSysCtl(cr *meridiov1.Trench) string {
+	if cr.Spec.IPFamily == string(meridiov1.Dualstack) {
 		return fmt.Sprintf("%s ; %s", ipv4SysCtl, ipv6SysCtl)
-	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv4) {
+	} else if cr.Spec.IPFamily == string(meridiov1.IPv4) {
 		return ipv4SysCtl
-	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv6) {
+	} else if cr.Spec.IPFamily == string(meridiov1.IPv6) {
 		return ipv6SysCtl
 	}
 	return ""
 }
 
-func GetProxySysCtl(cr *meridiov1alpha1.Trench) string {
-	if cr.Spec.IPFamily == string(meridiov1alpha1.Dualstack) {
+func GetProxySysCtl(cr *meridiov1.Trench) string {
+	if cr.Spec.IPFamily == string(meridiov1.Dualstack) {
 		return fmt.Sprintf("%s ; %s ; %s", ipv4SysCtl, ipv6SysCtl, "sysctl -w net.ipv6.conf.all.accept_dad=0")
-	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv6) {
+	} else if cr.Spec.IPFamily == string(meridiov1.IPv6) {
 		return fmt.Sprintf("%s ; %s", ipv6SysCtl, "sysctl -w net.ipv6.conf.all.accept_dad=0")
-	} else if cr.Spec.IPFamily == string(meridiov1alpha1.IPv4) {
+	} else if cr.Spec.IPFamily == string(meridiov1.IPv4) {
 		return ipv4SysCtl
 	}
 	return ""
@@ -213,8 +213,8 @@ func GetServiceAccountModel(f string) (*corev1.ServiceAccount, error) {
 	return rb, nil
 }
 
-func GetTrenchBySelector(e *Executor, selector client.ObjectKey) (*meridiov1alpha1.Trench, error) {
-	trench := &meridiov1alpha1.Trench{}
+func GetTrenchBySelector(e *Executor, selector client.ObjectKey) (*meridiov1.Trench, error) {
+	trench := &meridiov1.Trench{}
 	err := e.GetObject(selector, trench)
 	return trench, err
 }

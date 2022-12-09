@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/faisal-memon/sviddisk"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
 	attactorcontroller "github.com/nordix/meridio/pkg/controllers/attractor"
 	"github.com/nordix/meridio/pkg/controllers/common"
@@ -61,6 +62,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(meridiov1alpha1.AddToScheme(scheme))
+	utilruntime.Must(meridiov1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -169,7 +171,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Trench")
 		os.Exit(1)
 	}
-	if err = (&meridiov1alpha1.Trench{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&meridiov1.Trench{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Trench")
 		os.Exit(1)
 	}
@@ -182,7 +184,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Vip")
 		os.Exit(1)
 	}
-	if err = (&meridiov1alpha1.Vip{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&meridiov1.Vip{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Vip")
 		os.Exit(1)
 	}
@@ -195,7 +197,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Attractor")
 		os.Exit(1)
 	}
-	if err = (&meridiov1alpha1.Attractor{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&meridiov1.Attractor{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Attractor")
 		os.Exit(1)
 	}
@@ -208,7 +210,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Gateway")
 		os.Exit(1)
 	}
-	if err = (&meridiov1alpha1.Gateway{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&meridiov1.Gateway{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Gateway")
 		os.Exit(1)
 	}
@@ -221,7 +223,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Conduit")
 		os.Exit(1)
 	}
-	if err = (&meridiov1alpha1.Conduit{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&meridiov1.Conduit{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Conduit")
 		os.Exit(1)
 	}
@@ -234,7 +236,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Stream")
 		os.Exit(1)
 	}
-	if err = (&meridiov1alpha1.Stream{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&meridiov1.Stream{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Stream")
 		os.Exit(1)
 	}
@@ -247,7 +249,7 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Flow")
 		os.Exit(1)
 	}
-	if err = (&meridiov1alpha1.Flow{}).SetupWebhookWithManager(mgr); err != nil {
+	if err = (&meridiov1.Flow{}).SetupWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create webhook", "webhook", "Flow")
 		os.Exit(1)
 	}

@@ -3,7 +3,7 @@ package integration_test
 import (
 	"time"
 
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	config "github.com/nordix/meridio/pkg/configuration/reader"
 	"github.com/nordix/meridio/pkg/controllers/common"
 	"github.com/nordix/meridio/test/utils"
@@ -41,7 +41,7 @@ var _ = Describe("Conduit", func() {
 				Expect(fw.CreateResource(conduit.DeepCopy())).ToNot(Succeed())
 
 				By("checking it does not exist")
-				err := fw.GetResource(client.ObjectKeyFromObject(conduit), &meridiov1alpha1.Conduit{})
+				err := fw.GetResource(client.ObjectKeyFromObject(conduit), &meridiov1.Conduit{})
 				Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			})
 		})
@@ -53,7 +53,7 @@ var _ = Describe("Conduit", func() {
 				Expect(fw.CreateResource(conduit.DeepCopy())).ToNot(Succeed())
 
 				By("checking it does not exist")
-				err := fw.GetResource(client.ObjectKeyFromObject(conduit), &meridiov1alpha1.Conduit{})
+				err := fw.GetResource(client.ObjectKeyFromObject(conduit), &meridiov1.Conduit{})
 				Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			})
 		})
@@ -75,7 +75,7 @@ var _ = Describe("Conduit", func() {
 
 			It("will be created successfully", func() {
 				By("checking if the conduit exists")
-				con := &meridiov1alpha1.Conduit{}
+				con := &meridiov1.Conduit{}
 				err := fw.GetResource(client.ObjectKeyFromObject(conduit), con)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(con).NotTo(BeNil())
@@ -92,13 +92,13 @@ var _ = Describe("Conduit", func() {
 			BeforeEach(func() {
 				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 				Expect(fw.CreateResource(
-					&meridiov1alpha1.Trench{
+					&meridiov1.Trench{
 						ObjectMeta: v1.ObjectMeta{
 							Name:      "trench-b",
 							Namespace: namespace,
 						},
-						Spec: meridiov1alpha1.TrenchSpec{
-							IPFamily: string(meridiov1alpha1.IPv4),
+						Spec: meridiov1.TrenchSpec{
+							IPFamily: string(meridiov1.IPv4),
 						},
 					})).To(Succeed())
 			})
@@ -112,7 +112,7 @@ var _ = Describe("Conduit", func() {
 				assertConduitItemInConfigMap(conduit, configmapName, true)
 
 				By("create conduit will fail without attractor for trench-b")
-				conduitB := &meridiov1alpha1.Conduit{
+				conduitB := &meridiov1.Conduit{
 					ObjectMeta: v1.ObjectMeta{
 						Name:      "conduit-b",
 						Namespace: namespace,
@@ -120,7 +120,7 @@ var _ = Describe("Conduit", func() {
 							"trench": "trench-b",
 						},
 					},
-					Spec: meridiov1alpha1.ConduitSpec{
+					Spec: meridiov1.ConduitSpec{
 						Type: "stateless-lb",
 					},
 				}
@@ -150,7 +150,7 @@ var _ = Describe("Conduit", func() {
 		})
 
 		It("will update configmap", func() {
-			con := &meridiov1alpha1.Conduit{}
+			con := &meridiov1.Conduit{}
 			Expect(fw.GetResource(client.ObjectKeyFromObject(conduit), con)).To(Succeed())
 			Expect(fw.DeleteResource(con)).To(Succeed())
 
@@ -174,26 +174,26 @@ var _ = Describe("Conduit", func() {
 		})
 
 		It("will be deleted by deleting the trench", func() {
-			tr := &meridiov1alpha1.Trench{}
+			tr := &meridiov1.Trench{}
 			Expect(fw.GetResource(client.ObjectKeyFromObject(trench), tr)).To(Succeed())
 			Expect(fw.DeleteResource(tr)).To(Succeed())
 
 			By("checking if conduit exists")
 			Eventually(func() bool {
-				s := &meridiov1alpha1.Conduit{}
+				s := &meridiov1.Conduit{}
 				err := fw.GetResource(client.ObjectKeyFromObject(conduit), s)
 				return err != nil && apierrors.IsNotFound(err)
 			}, timeout).Should(BeTrue())
 		})
 
 		It("will be deleted by deleting itself", func() {
-			c := &meridiov1alpha1.Conduit{}
+			c := &meridiov1.Conduit{}
 			Expect(fw.GetResource(client.ObjectKeyFromObject(conduit), c)).To(Succeed())
 			Expect(fw.DeleteResource(c)).To(Succeed())
 
 			By("checking if conduit exists")
 			Eventually(func() bool {
-				s := &meridiov1alpha1.Conduit{}
+				s := &meridiov1.Conduit{}
 				err := fw.GetResource(client.ObjectKeyFromObject(conduit), s)
 				return err != nil && apierrors.IsNotFound(err)
 			}, timeout).Should(BeTrue())
@@ -237,7 +237,7 @@ var _ = Describe("Conduit", func() {
 	})
 })
 
-func assertConduitItemInConfigMap(con *meridiov1alpha1.Conduit, configmapName string, in bool) {
+func assertConduitItemInConfigMap(con *meridiov1.Conduit, configmapName string, in bool) {
 	matcher := BeFalse()
 	if in {
 		matcher = BeTrue()

@@ -3,7 +3,7 @@ package integration_test
 import (
 	"time"
 
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	config "github.com/nordix/meridio/pkg/configuration/reader"
 	"github.com/nordix/meridio/pkg/controllers/common"
 	"github.com/nordix/meridio/test/utils"
@@ -18,7 +18,7 @@ import (
 
 var _ = Describe("Stream", func() {
 	trench := trench(namespace)
-	streamA := &meridiov1alpha1.Stream{
+	streamA := &meridiov1.Stream{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "stream-a",
 			Namespace: namespace,
@@ -26,7 +26,7 @@ var _ = Describe("Stream", func() {
 				"trench": trenchName,
 			},
 		},
-		Spec: meridiov1alpha1.StreamSpec{
+		Spec: meridiov1.StreamSpec{
 			Conduit: "conduit-a",
 		},
 	}
@@ -49,7 +49,7 @@ var _ = Describe("Stream", func() {
 				Expect(fw.CreateResource(streamA.DeepCopy())).ToNot(Succeed())
 
 				By("checking the existence")
-				err := fw.GetResource(client.ObjectKeyFromObject(streamA), &meridiov1alpha1.Stream{})
+				err := fw.GetResource(client.ObjectKeyFromObject(streamA), &meridiov1.Stream{})
 				Expect(apierrors.IsNotFound(err)).To(BeTrue())
 			})
 		})
@@ -69,7 +69,7 @@ var _ = Describe("Stream", func() {
 
 			It("will be created successfully", func() {
 				By("checking if the stream exists")
-				stream := &meridiov1alpha1.Stream{}
+				stream := &meridiov1.Stream{}
 				err := fw.GetResource(client.ObjectKeyFromObject(streamA), stream)
 				Expect(err).To(BeNil())
 				Expect(stream).NotTo(BeNil())
@@ -88,13 +88,13 @@ var _ = Describe("Stream", func() {
 			BeforeEach(func() {
 				Expect(fw.CreateResource(trench.DeepCopy())).To(Succeed())
 				Expect(fw.CreateResource(
-					&meridiov1alpha1.Trench{
+					&meridiov1.Trench{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "trench-b",
 							Namespace: namespace,
 						},
-						Spec: meridiov1alpha1.TrenchSpec{
-							IPFamily: string(meridiov1alpha1.IPv4),
+						Spec: meridiov1.TrenchSpec{
+							IPFamily: string(meridiov1.IPv4),
 						},
 					})).To(Succeed())
 			})
@@ -123,7 +123,7 @@ var _ = Describe("Stream", func() {
 			Expect(fw.CreateResource(streamA.DeepCopy())).To(Succeed())
 		})
 		It("updates the configmap", func() {
-			var s = &meridiov1alpha1.Stream{}
+			var s = &meridiov1.Stream{}
 			Eventually(func(g Gomega) {
 				g.Expect(fw.GetResource(client.ObjectKeyFromObject(streamA), s)).To(Succeed())
 				s.Spec.Conduit = "conduit-2"
@@ -138,7 +138,7 @@ var _ = Describe("Stream", func() {
 		})
 
 		It("will be deleted from the configmap if conduit is empty", func() {
-			var s = &meridiov1alpha1.Stream{}
+			var s = &meridiov1.Stream{}
 			Eventually(func(g Gomega) {
 				g.Expect(fw.GetResource(client.ObjectKeyFromObject(streamA), s)).To(Succeed())
 				s.Spec.Conduit = ""
@@ -174,26 +174,26 @@ var _ = Describe("Stream", func() {
 		})
 
 		It("will be deleted by deleting the trench", func() {
-			tr := &meridiov1alpha1.Trench{}
+			tr := &meridiov1.Trench{}
 			Expect(fw.GetResource(client.ObjectKeyFromObject(trench), tr)).To(Succeed())
 			Expect(fw.DeleteResource(tr)).To(Succeed())
 
 			By("checking if stream exists")
 			Eventually(func() bool {
-				s := &meridiov1alpha1.Stream{}
+				s := &meridiov1.Stream{}
 				err := fw.GetResource(client.ObjectKeyFromObject(streamA), s)
 				return err != nil && apierrors.IsNotFound(err)
 			}, timeout).Should(BeTrue())
 		})
 
 		It("will be deleted by deleting itself", func() {
-			s := &meridiov1alpha1.Stream{}
+			s := &meridiov1.Stream{}
 			Expect(fw.GetResource(client.ObjectKeyFromObject(streamA), s)).To(Succeed())
 			Expect(fw.DeleteResource(s)).To(Succeed())
 
 			By("checking if stream exists")
 			Eventually(func() bool {
-				s := &meridiov1alpha1.Stream{}
+				s := &meridiov1.Stream{}
 				err := fw.GetResource(client.ObjectKeyFromObject(streamA), s)
 				return err != nil && apierrors.IsNotFound(err)
 			}, timeout).Should(BeTrue())
@@ -251,7 +251,7 @@ var _ = Describe("Stream", func() {
 	})
 })
 
-func assertStreamItemInConfigMap(stream *meridiov1alpha1.Stream, configmapName string, in bool) {
+func assertStreamItemInConfigMap(stream *meridiov1.Stream, configmapName string, in bool) {
 	matcher := BeFalse()
 	if in {
 		matcher = BeTrue()

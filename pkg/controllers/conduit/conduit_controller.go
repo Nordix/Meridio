@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/go-logr/logr"
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	"github.com/nordix/meridio/pkg/controllers/common"
 )
 
@@ -55,7 +55,7 @@ type ConduitReconciler struct {
 func (r *ConduitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	conduit := &meridiov1alpha1.Conduit{}
+	conduit := &meridiov1.Conduit{}
 	executor := common.NewExecutor(r.Scheme, r.Client, ctx, nil, r.Log)
 
 	err := r.Get(ctx, req.NamespacedName, conduit)
@@ -108,13 +108,13 @@ func (r *ConduitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 // SetupWithManager sets up the controller with the Manager.
 func (r *ConduitReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&meridiov1alpha1.Conduit{}).
+		For(&meridiov1.Conduit{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&appsv1.DaemonSet{}).
 		Complete(r)
 }
 
-func getConduitActions(executor *common.Executor, new, old *meridiov1alpha1.Conduit) {
+func getConduitActions(executor *common.Executor, new, old *meridiov1.Conduit) {
 	if !equality.Semantic.DeepEqual(new.ObjectMeta, old.ObjectMeta) {
 		executor.AddUpdateAction(new)
 	}

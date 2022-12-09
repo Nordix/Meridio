@@ -17,7 +17,7 @@ limitations under the License.
 package trench
 
 import (
-	meridiov1alpha1 "github.com/nordix/meridio/api/v1alpha1"
+	meridiov1 "github.com/nordix/meridio/api/v1"
 	common "github.com/nordix/meridio/pkg/controllers/common"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -27,12 +27,12 @@ import (
 )
 
 type NspService struct {
-	trench *meridiov1alpha1.Trench
+	trench *meridiov1.Trench
 	model  *corev1.Service
 	exec   *common.Executor
 }
 
-func NewNspService(e *common.Executor, t *meridiov1alpha1.Trench) (*NspService, error) {
+func NewNspService(e *common.Executor, t *meridiov1.Trench) (*NspService, error) {
 	l := &NspService{
 		trench: t.DeepCopy(),
 		exec:   e,
