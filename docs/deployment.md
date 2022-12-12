@@ -1,9 +1,9 @@
 # Deployment
 
-## [Helm](../deployments/helm/)
+## [Helm](#)
 
 TODO
 
-## [Operator]()
+## [Operator](#)
 
 TODO

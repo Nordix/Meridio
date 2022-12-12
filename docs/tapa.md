@@ -30,7 +30,7 @@ The only error the TAPA can return is to indicate to the client that the pod is 
 
 TODO
 
-<img src="resources/TAPA-Sequence-Register.svg" width="50%">
+![TAPA-Sequence-Register](resources/TAPA-Sequence-Register.svg)
 
 #### Refresh
 
@@ -38,8 +38,7 @@ While a stream is opened, the TAPA has to refresh its registration to the target
 
 To achieve the refresh, the TAPA will update its target with the same properties by calling the Register function regularly. After the call, the TAPA will check if the target is still in the `ENABLED` status for the target registry. If not, it means the target registry has previously removed the target and consider the last register call as a new entry, so it has overwritten the status to `DISABLED`. The TAPA will then start the registeration process a new time to register itself with a unique identifier.
 
-<img src="resources/TAPA-Sequence-Refresh.svg" width="50%">
-
+![TAPA-Sequence-Refresh](resources/TAPA-Sequence-Refresh.svg)
 ## Configuration 
 
 https://github.com/Nordix/Meridio/blob/master/cmd/tapa/config.go

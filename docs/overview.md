@@ -27,7 +27,8 @@ Egress response will via the TAP be fed into a conduit.
 Depending on the actual network service chain the traffic could be subjected to some traffic handling, but in most cases the traffic will just be forwarded to the gateway via the Front-End function block.
 
 The picture below provides an architectural overview of Meridio.
-<img src="resources/Overview-Concepts.svg" width="75%">
+
+![Overview-Concepts](resources/Overview-Concepts.svg)
 
 For more details, please read the documentation of each concept:
 * [Trench](concepts.md#trench)
@@ -54,7 +55,7 @@ https://github.com/networkservicemesh/networkservicemesh/blob/v0.2.0/docs/what-i
 
 The picture below provides an overview of the communication within Meridio.
 
-<img src="resources/Overview-Communication.svg" width="100%">
+![Overview-Communication](resources/Overview-Communication.svg)
 
 For more details, please read the documentation of each component:
 * [table of contents](readme.md)

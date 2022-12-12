@@ -41,7 +41,7 @@ using the `destination-port-nats` property in conduits.
 
 Port-NAT is performed after load-lalancing;
 
-<img src="resources/port-nat.svg" alt="port-nat path" width="50%" />
+![port-nat](resources/port-nat.svg)
 
 Port-NAT is implemented by `nft` rules;
 ```

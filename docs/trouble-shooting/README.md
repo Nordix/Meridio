@@ -13,9 +13,7 @@ some programs, e.g. [bird](https://bird.network.cz/) and
 [nfqlb](https://github.com/Nordix/nfqueue-loadbalancer/), can also be
 checked.
 
-<img src="traffic-path.svg" alt="GW-FE/LB-Proxy-App" width="75%" />
-
-
+![traffic-path](../resources/traffic-path.svg)
 
 ## PODs
 
