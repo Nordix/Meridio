@@ -54,11 +54,13 @@ endef
 export KIND_CONFIG_NO_NODE
 
 define KIND_CONFIG
-version="kindest/node:v1.25.2@sha256:9be91e9e9cdf116809841fc77ebdb8845443c4c72fe5218f3ae9eb57fdb4bace" ; \
-if [ $(KUBERNETES_VERSION) = "v1.24" ]; then \
-    version="kindest/node:v1.24.6@sha256:97e8d00bc37a7598a0b32d1fabd155a96355c49fa0d4d4790aab0f161bf31be1" ; \
+version="kindest/node:v1.26.0@sha256:691e24bd2417609db7e589e1a479b902d2e209892a10ce375fab60a8407c7352" ; \
+if [ $(KUBERNETES_VERSION) = "v1.25" ]; then \
+    version="kindest/node:v1.25.3@sha256:f52781bc0d7a19fb6c405c2af83abfeb311f130707a0e219175677e366cc45d1" ; \
+elif [ $(KUBERNETES_VERSION) = "v1.24" ]; then \
+    version="kindest/node:v1.24.7@sha256:97e8d00bc37a7598a0b32d1fabd155a96355c49fa0d4d4790aab0f161bf31be1" ; \
 elif [ $(KUBERNETES_VERSION) = "v1.23" ]; then \
-    version="kindest/node:v1.23.12@sha256:9402cf1330bbd3a0d097d2033fa489b2abe40d479cc5ef47d0b6a6960613148a" ; \
+    version="kindest/node:v1.23.13@sha256:9402cf1330bbd3a0d097d2033fa489b2abe40d479cc5ef47d0b6a6960613148a" ; \
 elif [ $(KUBERNETES_VERSION) = "v1.22" ]; then \
     version="kindest/node:v1.22.15@sha256:bfd5eaae36849bfb3c1e3b9442f3da17d730718248939d9d547e86bbac5da586" ; \
 elif [ $(KUBERNETES_VERSION) = "v1.21" ]; then \
