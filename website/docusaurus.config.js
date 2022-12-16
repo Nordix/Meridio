@@ -87,6 +87,16 @@ const config = {
                     },
                 ],
             },
+            algolia: {
+                appId: 'E15FFWY7MY',
+                apiKey: '801c089814478d0030a1f4f60615b715',
+                indexName: 'meridio-nordix',
+            },
+            announcementBar: {
+                id: 'meridio-github-star',
+                content: `⭐️ If you like Meridio, give it a star on <a target="_blank" rel="noopener noreferrer" href="https://github.com/Nordix/Meridio">GitHub</a>`,
+                backgroundColor: '#F2F7FF',
+            },
             footer: {
                 style: 'dark',
                 links: [
