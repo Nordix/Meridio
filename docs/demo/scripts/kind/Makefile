@@ -154,7 +154,7 @@ wait-spire: ## Wait for spire to be ready
 
 .PHONY: install-nsm
 install-nsm: ## Install nsm
-	helm install nsm ../../deployments/nsm --create-namespace --namespace nsm
+	helm install nsm ../../deployments/nsm --create-namespace --namespace nsm --set tag=$(NSM_VERSION)
 
 .PHONY: wait-nsm
 wait-nsm: ## Wait for NSM to be ready
