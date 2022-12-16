@@ -40,9 +40,17 @@ const config = {
                     // Please change this to your repo.
                     // Remove this to remove the "edit this page" links.
                     editUrl: 'https://github.com/Nordix/Meridio/tree/master/docs/',
+                    lastVersion: 'current',
                     versions: {
                         current: {
                             label: 'latest',
+                            // path: '',
+                            banner: 'none',
+                        },
+                        "v1.0.0": {
+                            label: 'v1.0.0',
+                            path: '/v1.0.0',
+                            banner: 'none',
                         },
                     },
                 },
@@ -86,6 +94,16 @@ const config = {
                         className: 'header-github-link header-icon-link',
                     },
                 ],
+            },
+            algolia: {
+                appId: 'E15FFWY7MY',
+                apiKey: '801c089814478d0030a1f4f60615b715',
+                indexName: 'meridio-nordix',
+            },
+            announcementBar: {
+                id: 'meridio-github-star',
+                content: `⭐️ If you like Meridio, give it a star on <a target="_blank" rel="noopener noreferrer" href="https://github.com/Nordix/Meridio">GitHub</a>`,
+                backgroundColor: '#F2F7FF',
             },
             footer: {
                 style: 'dark',
