@@ -40,9 +40,17 @@ const config = {
                     // Please change this to your repo.
                     // Remove this to remove the "edit this page" links.
                     editUrl: 'https://github.com/Nordix/Meridio/tree/master/docs/',
+                    lastVersion: 'current',
                     versions: {
                         current: {
                             label: 'latest',
+                            // path: '',
+                            banner: 'none',
+                        },
+                        "v1.0.0": {
+                            label: 'v1.0.0',
+                            path: '/v1.0.0',
+                            banner: 'none',
                         },
                     },
                 },
