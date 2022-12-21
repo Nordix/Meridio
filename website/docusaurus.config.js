@@ -63,6 +63,9 @@ const config = {
                     ignorePatterns: ['/tags/**'],
                     filename: 'sitemap.xml',
                 },
+                gtag: {
+                    trackingID: 'G-4F8WGR22JS',
+                },
             }),
         ],
     ],
