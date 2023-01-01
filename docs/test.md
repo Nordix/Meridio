@@ -39,12 +39,9 @@ The picture below shows the initial deployment that should be installed in a kub
 | conduit-a-1 | string | Name of the conduit |
 | stream-a-I | string | Name of the stream |
 | stream-a-II | string | Name of the stream |
-| flow-a-z-tcp | string | Name of the flow |
 | flow-a-z-tcp-destination-port-0 | int | Destination port 0 |
-| flow-a-z-udp | string | Name of the flow |
 | flow-a-z-udp-destination-port-0 | int | Destination port 0 |
-| flow-a-x-tcp | string | Name of the flow |
-| flow-a-x-tcp-destination-port-0 | int | Destination port 0 |
+| flow-a-y-tcp-destination-port-0 | int | Destination port 0 |
 | vip-1-v4 | string | Address of the vip v4 number 1 |
 | vip-1-v6 | string | Address of the vip v6 number 1 |
 | target-b-deployment-name | string | Name of the target deployment |
@@ -53,6 +50,7 @@ The picture below shows the initial deployment that should be installed in a kub
 | stream-b-I | string | Name of the stream |
 | vip-2-v4 | string | Address of the vip v4 number 2 |
 | vip-2-v6 | string | Address of the vip v6 number 2 |
+| stream-a-III | string | Name of the stream |
 |  |  |  |
 | stateless-lb-fe-deployment-name-attractor-a-1 | string | Name of stateless-lb-fe deployment in `attractor-a-1` |
 | stateless-lb-fe-deployment-name-attractor-b-1 | string | Name of stateless-lb-fe deployment in `attractor-b-1` |
@@ -87,9 +85,36 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 | Scale-Down | Scaling | Scale down `target-a-deployment-name` |
 | Scale-Up | Scaling | Scale up `target-a-deployment-name` |
 | close-open | TAPA | Close `stream-a-I` in one of the target from `target-a-deployment-name` and re-open it |
-| new-vip | Configuration | Configure `vip-2-v4` and `vip-2-v6` in `flow-a-z-tcp` and `attractor-a-1` |
 | delete-create-trench | Trench | Delete `trench-a` and recreate and reconfigure it |
-<!-- TODO: | open | TAPA | Open `stream-a-II` in one of the target from `target-a-deployment-name` and close it | -->
+| open-second-stream | TAPA | Open `stream-a-II` in one of the target from `target-a-deployment-name` and close it |
+| new-vip | Vip | Configure `vip-2-v4` and `vip-2-v6` in `flow-a-z-tcp` and `attractor-a-1` |
+| new-stream | Stream | Configure `stream-a-III` in `conduit-a-1` |
+| stream-max-targets | Stream | Configure `stream-a-III` in `conduit-a-1` with the max-targets field set to 1 and 2 targets with `stream-a-III` opened |
+
+<!-- 
+TODO: 
+| open-second-stream | TAPA | Open `stream-a-II` in one of the target from `target-a-deployment-name` and close it |
+| open-second-stream-second-conduit | TAPA | |
+| stream-switch-conduit | Stream | |
+| new-flow | Flow | |
+| flow-source-subnets | Flow | |
+| flow-source-ports | Flow | |
+| flow-destination-ports | Flow | |
+| flow-protocols | Flow | |
+| flow-priority | Flow | |
+| flow-byte-matches | Flow | |
+| flow-switch-stream | Flow | |
+| new-conduit | Conduit | |
+| conduit-destination-port-nats | Conduit | |
+| new-attractor | Attractor | |
+| attractor-nsm-vlan | Attractor | |
+| attractor-nsm-vlan-0 | Attractor | |
+| attractor-network-attachment | Attractor | |
+| new-gateway | Gateway | |
+| gateway-bgp | Gateway | |
+| gateway-bgp-authentication | Gateway | |
+| gateway-static | Gateway | |
+-->
 
 ### Steps (Kind + Helm)
 
