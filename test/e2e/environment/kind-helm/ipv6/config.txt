@@ -9,12 +9,9 @@
 -conduit-a-1="load-balancer"
 -stream-a-I="stream-a"
 -stream-a-II="stream-b"
--flow-a-z-tcp=""
 -flow-a-z-tcp-destination-port-0=4000
--flow-a-z-udp=""
 -flow-a-z-udp-destination-port-0=4003
--flow-a-x-tcp=""
--flow-a-x-tcp-destination-port-0=4001
+-flow-a-y-tcp-destination-port-0=4001
 -vip-1-v4=""
 -vip-1-v6="[2000::1]"
 -target-b-deployment-name="target-b"

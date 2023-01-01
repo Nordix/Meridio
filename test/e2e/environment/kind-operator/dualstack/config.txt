@@ -9,12 +9,9 @@
 -conduit-a-1="conduit-a-1"
 -stream-a-I="stream-a-i"
 -stream-a-II="stream-a-ii"
--flow-a-z-tcp=""
 -flow-a-z-tcp-destination-port-0=4000
--flow-a-z-udp=""
 -flow-a-z-udp-destination-port-0=4003
--flow-a-x-tcp=""
--flow-a-x-tcp-destination-port-0=4001
+-flow-a-y-tcp-destination-port-0=4001
 -vip-1-v4="20.0.0.1"
 -vip-1-v6="[2000::1]"
 -target-b-deployment-name="target-b"
@@ -26,4 +23,4 @@
 -stateless-lb-fe-deployment-name-attractor-a-1="stateless-lb-frontend-attractor-a-1"
 -stateless-lb-fe-deployment-name-attractor-b-1="stateless-lb-frontend-attractor-b-1"
 -ip-family="dualstack"
--log-collector-enabled="true"
+-log-collector-enabled="false"

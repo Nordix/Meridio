@@ -174,7 +174,7 @@ spec:
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Flow
 metadata:
-  name: flow-a-x-tcp
+  name: flow-a-y-tcp
   namespace: red
   labels:
     trench: trench-a

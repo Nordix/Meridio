@@ -25,7 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Configuration", func() {
+var _ = Describe("Vip", func() {
 
 	Describe("new-vip", func() {
 		When("Configure vip-2-v4 and vip-2-v6 in flow-a-z-tcp and attractor-a-1", func() {

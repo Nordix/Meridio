@@ -59,12 +59,9 @@ type e2eTestConfiguration struct {
 	conduitA1                 string
 	streamAI                  string
 	streamAII                 string
-	flowAZTcp                 string
 	flowAZTcpDestinationPort0 int
-	flowAZUdp                 string
 	flowAZUdpDestinationPort0 int
-	flowAXTcp                 string
-	flowAXTcpDestinationPort0 int
+	flowAYTcpDestinationPort0 int
 	vip1V4                    string
 	vip1V6                    string
 	targetBDeploymentName     string
@@ -100,12 +97,9 @@ func init() {
 	flag.StringVar(&config.conduitA1, "conduit-a-1", "", "Name of the conduit")
 	flag.StringVar(&config.streamAI, "stream-a-I", "", "Name of the stream")
 	flag.StringVar(&config.streamAII, "stream-a-II", "", "Name of the stream")
-	flag.StringVar(&config.flowAZTcp, "flow-a-z-tcp", "", "Name of the flow")
 	flag.IntVar(&config.flowAZTcpDestinationPort0, "flow-a-z-tcp-destination-port-0", 4000, "Destination port 0")
-	flag.StringVar(&config.flowAZUdp, "flow-a-z-udp", "", "Name of the flow")
 	flag.IntVar(&config.flowAZUdpDestinationPort0, "flow-a-z-udp-destination-port-0", 4000, "Destination port 0")
-	flag.StringVar(&config.flowAXTcp, "flow-a-x-tcp", "", "Name of the flow")
-	flag.IntVar(&config.flowAXTcpDestinationPort0, "flow-a-x-tcp-destination-port-0", 4000, "Destination port 0")
+	flag.IntVar(&config.flowAYTcpDestinationPort0, "flow-a-y-tcp-destination-port-0", 4000, "Destination port 0")
 	flag.StringVar(&config.vip1V4, "vip-1-v4", "", "Address of the vip v4 number 1")
 	flag.StringVar(&config.vip1V6, "vip-1-v6", "", "Address of the vip v6 number 1")
 	flag.StringVar(&config.targetBDeploymentName, "target-b-deployment-name", "", "Name of the target deployment")
