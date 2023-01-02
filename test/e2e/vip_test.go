@@ -31,13 +31,13 @@ var _ = Describe("Vip", func() {
 		When("Configure vip-2-v4 and vip-2-v6 in flow-a-z-tcp and attractor-a-1", func() {
 			BeforeEach(func() {
 				By("Configuring the new VIP")
-				err := utils.Exec(config.script, "configuration_new_vip")
+				err := utils.Exec(config.script, "new_vip")
 				Expect(err).ToNot(HaveOccurred())
 			})
 
 			AfterEach(func() {
 				By("Reverting the configuration of the new VIP")
-				err := utils.Exec(config.script, "configuration_new_vip_revert")
+				err := utils.Exec(config.script, "new_vip_revert")
 				Expect(err).ToNot(HaveOccurred())
 			})
 
