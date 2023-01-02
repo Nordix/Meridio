@@ -1,0 +1,31 @@
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Stream
+metadata:
+  name: stream-a-iii
+  namespace: red
+  labels:
+    trench: trench-a
+spec:
+  conduit: conduit-a-1
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Flow
+metadata:
+  name: stream-a-iii-flow
+  namespace: red
+  labels:
+    trench: trench-a
+spec:
+  stream: stream-a-iii
+  priority: 1
+  vips:
+  - vip-a-1-v6
+  source-subnets:
+  - 0:0:0:0:0:0:0:0/0
+  source-ports:
+  - any
+  destination-ports:
+  - "4002"
+  protocols:
+  - tcp

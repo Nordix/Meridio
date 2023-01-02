@@ -70,6 +70,8 @@ type e2eTestConfiguration struct {
 	streamBI                  string
 	vip2V4                    string
 	vip2V6                    string
+	streamAIII                string
+	flowAXTcpDestinationPort0 int
 
 	statelessLbFeDeploymentNameAttractorA1 string
 	statelessLbFeDeploymentNameAttractorB1 string
@@ -108,6 +110,8 @@ func init() {
 	flag.StringVar(&config.streamBI, "stream-b-I", "", "Name of the stream")
 	flag.StringVar(&config.vip2V4, "vip-2-v4", "", "Address of the vip v4 number 2")
 	flag.StringVar(&config.vip2V6, "vip-2-v6", "", "Address of the vip v6 number 2")
+	flag.StringVar(&config.streamAIII, "stream-a-III", "", "Name of the stream")
+	flag.IntVar(&config.flowAXTcpDestinationPort0, "flow-a-x-tcp-destination-port-0", 4000, "Destination port 0")
 
 	flag.StringVar(&config.statelessLbFeDeploymentNameAttractorA1, "stateless-lb-fe-deployment-name-attractor-a-1", "", "Name of stateless-lb-fe deployment in attractor-a-1")
 	flag.StringVar(&config.statelessLbFeDeploymentNameAttractorB1, "stateless-lb-fe-deployment-name-attractor-b-1", "", "Name of stateless-lb-fe deployment in attractor-b-1")

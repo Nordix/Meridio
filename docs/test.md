@@ -51,6 +51,7 @@ The picture below shows the initial deployment that should be installed in a kub
 | vip-2-v4 | string | Address of the vip v4 number 2 |
 | vip-2-v6 | string | Address of the vip v6 number 2 |
 | stream-a-III | string | Name of the stream |
+| flow-a-x-tcp-destination-port-0 | int | Destination port 0 |
 |  |  |  |
 | stateless-lb-fe-deployment-name-attractor-a-1 | string | Name of stateless-lb-fe deployment in `attractor-a-1` |
 | stateless-lb-fe-deployment-name-attractor-b-1 | string | Name of stateless-lb-fe deployment in `attractor-b-1` |
@@ -67,10 +68,12 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 | init () error | Executed once before running the tests |
 | end () error | Executed once after running the tests |
 | on_failure () error | Executed on failure |
-| configuration_new_vip () error | Executed just before running the `new-vip` test |
-| configuration_new_vip_revert () error | Executed just after running the `new-vip` test |
 | delete_create_trench | Executed just before running the `delete-create-trench` test |
 | delete_create_trench_revert | Executed just before running the `delete-create-trench` test and after the `delete_create_trench` script |
+| new_vip () error | Executed just before running the `new-vip` test |
+| new_vip_revert () error | Executed just after running the `new-vip` test |
+| new_stream () error | Executed just before running the `new-stream` test |
+| new_stream_revert () error | Executed just after running the `new-stream` test |
 
 ### List of tests
 
@@ -93,7 +96,6 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 
 <!-- 
 TODO: 
-| open-second-stream | TAPA | Open `stream-a-II` in one of the target from `target-a-deployment-name` and close it |
 | open-second-stream-second-conduit | TAPA | |
 | stream-switch-conduit | Stream | |
 | new-flow | Flow | |
@@ -101,9 +103,13 @@ TODO:
 | flow-source-ports | Flow | |
 | flow-destination-ports | Flow | |
 | flow-protocols | Flow | |
+| flow-protocols | Flow | |
 | flow-priority | Flow | |
 | flow-byte-matches | Flow | |
 | flow-switch-stream | Flow | |
+| flow-multi-destination-ports | Flow | |
+| flow-multi-protocols | Flow | |
+| flow-multi-byte-matches | Flow | |
 | new-conduit | Conduit | |
 | conduit-destination-port-nats | Conduit | |
 | new-attractor | Attractor | |
