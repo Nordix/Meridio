@@ -21,7 +21,7 @@ spec:
   composites:
   - conduit-a-1
   gateways:
-  - gateway-v6-a
+  - gateway-v6-a-1
   vips:
   - vip-a-1-v6
   - vip-a-2-v6

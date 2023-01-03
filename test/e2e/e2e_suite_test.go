@@ -72,9 +72,15 @@ type e2eTestConfiguration struct {
 	vip2V6                    string
 	streamAIII                string
 	flowAXTcpDestinationPort0 int
+	conduitA2                 string
+	streamAIV                 string
+	flowAWTcpDestinationPort0 int
+	vip3V4                    string
+	vip3V6                    string
 
 	statelessLbFeDeploymentNameAttractorA1 string
 	statelessLbFeDeploymentNameAttractorB1 string
+	statelessLbFeDeploymentNameAttractorA2 string
 	ipFamily                               string
 }
 
@@ -112,9 +118,15 @@ func init() {
 	flag.StringVar(&config.vip2V6, "vip-2-v6", "", "Address of the vip v6 number 2")
 	flag.StringVar(&config.streamAIII, "stream-a-III", "", "Name of the stream")
 	flag.IntVar(&config.flowAXTcpDestinationPort0, "flow-a-x-tcp-destination-port-0", 4000, "Destination port 0")
+	flag.StringVar(&config.conduitA2, "conduit-a-2", "", "Name of the conduit")
+	flag.StringVar(&config.streamAIV, "stream-a-IV", "", "Name of the stream")
+	flag.IntVar(&config.flowAWTcpDestinationPort0, "flow-a-w-tcp-destination-port-0", 4000, "Destination port 0")
+	flag.StringVar(&config.vip3V4, "vip-3-v4", "", "Address of the vip v4 number 3")
+	flag.StringVar(&config.vip3V6, "vip-3-v6", "", "Address of the vip v6 number 3")
 
 	flag.StringVar(&config.statelessLbFeDeploymentNameAttractorA1, "stateless-lb-fe-deployment-name-attractor-a-1", "", "Name of stateless-lb-fe deployment in attractor-a-1")
 	flag.StringVar(&config.statelessLbFeDeploymentNameAttractorB1, "stateless-lb-fe-deployment-name-attractor-b-1", "", "Name of stateless-lb-fe deployment in attractor-b-1")
+	flag.StringVar(&config.statelessLbFeDeploymentNameAttractorA2, "stateless-lb-fe-deployment-name-attractor-a-2", "", "Name of stateless-lb-fe deployment in attractor-a-2")
 	flag.StringVar(&config.ipFamily, "ip-family", "", "IP Family")
 }
 
