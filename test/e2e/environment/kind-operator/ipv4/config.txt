@@ -26,3 +26,9 @@
 -log-collector-enabled="true"
 -stream-a-III="stream-a-iii"
 -flow-a-x-tcp-destination-port-0=4002
+-conduit-a-2="conduit-a-2"
+-stream-a-IV="stream-a-iv"
+-flow-a-w-tcp-destination-port-0="4000"
+-vip-3-v4="40.0.0.1"
+-vip-3-v6=""
+-stateless-lb-fe-deployment-name-attractor-a-2="stateless-lb-frontend-attractor-a-2"

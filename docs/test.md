@@ -52,9 +52,15 @@ The picture below shows the initial deployment that should be installed in a kub
 | vip-2-v6 | string | Address of the vip v6 number 2 |
 | stream-a-III | string | Name of the stream |
 | flow-a-x-tcp-destination-port-0 | int | Destination port 0 |
+| conduit-a-2 | string | Name of the conduit |
+| stream-a-IV | string | Name of the stream |
+| flow-a-w-tcp-destination-port-0 | int | Destination port 0 |
+| vip-3-v4 | string | Address of the vip v4 number 3 |
+| vip-3-v6 | string | Address of the vip v6 number 3 |
 |  |  |  |
 | stateless-lb-fe-deployment-name-attractor-a-1 | string | Name of stateless-lb-fe deployment in `attractor-a-1` |
 | stateless-lb-fe-deployment-name-attractor-b-1 | string | Name of stateless-lb-fe deployment in `attractor-b-1` |
+| stateless-lb-fe-deployment-name-attractor-a-1 | string | Name of stateless-lb-fe deployment in `attractor-a-2` |
 | ip-family | string | IP Family |
 
 For more details about each parameter, check the picture above in the `Initial Deployment` section.
@@ -90,6 +96,7 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 | close-open | TAPA | Close `stream-a-I` in one of the target from `target-a-deployment-name` and re-open it |
 | delete-create-trench | Trench | Delete `trench-a` and recreate and reconfigure it |
 | open-second-stream | TAPA | Open `stream-a-II` in one of the target from `target-a-deployment-name` and close it |
+| open-second-stream-second-conduit | TAPA | Open `stream-a-IV` in one of the target from `target-a-deployment-name` and close it |
 | new-vip | Vip | Configure `vip-2-v4` and `vip-2-v6` in `flow-a-z-tcp` and `attractor-a-1` |
 | new-stream | Stream | Configure `stream-a-III` in `conduit-a-1` |
 | stream-max-targets | Stream | Configure `stream-a-III` in `conduit-a-1` with the max-targets field set to 1 and 2 targets with `stream-a-III` opened |

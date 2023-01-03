@@ -19,7 +19,7 @@ spec:
   composites:
   - conduit-a-1
   gateways:
-  - gateway-v6-a
+  - gateway-v6-a-1
   vips:
   - vip-a-1-v6
   interface:
@@ -34,7 +34,7 @@ spec:
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Gateway
 metadata:
-  name: gateway-v6-a
+  name: gateway-v6-a-1
   namespace: red
   labels:
     trench: trench-a
@@ -152,5 +152,101 @@ spec:
   - any
   destination-ports:
   - "4001"
+  protocols:
+  - tcp
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Attractor
+metadata:
+  name: attractor-a-2
+  namespace: red
+  labels:
+    trench: trench-a
+spec:
+  replicas: 2
+  composites:
+  - conduit-a-2
+  gateways:
+  - gateway-v6-a-2
+  vips:
+  - vip-a-3-v6
+  interface:
+    name: ext-vlan0
+    ipv4-prefix: 169.254.101.0/24
+    ipv6-prefix: 100:101::/64
+    type: nsm-vlan
+    nsm-vlan:
+      vlan-id: 101
+      base-interface: eth0
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Gateway
+metadata:
+  name: gateway-v6-a-2
+  namespace: red
+  labels:
+    trench: trench-a
+spec:
+  address: 100:101::150
+  bgp:
+    local-asn: 8103
+    remote-asn: 4248829953
+    hold-time: 24s
+    local-port: 10179
+    remote-port: 10179
+    bfd:
+      switch: true
+      min-tx: 300ms
+      min-rx: 300ms
+      multiplier: 5
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Vip
+metadata:
+  name: vip-a-3-v6
+  namespace: red
+  labels:
+    trench: trench-a
+spec:
+  address: "4000::1/128"
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Conduit
+metadata:
+  name: conduit-a-2
+  namespace: red
+  labels:
+    trench: trench-a
+spec:
+  type: stateless-lb
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Stream
+metadata:
+  name: stream-a-iv
+  namespace: red
+  labels:
+    trench: trench-a
+spec:
+  conduit: conduit-a-2
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Flow
+metadata:
+  name: flow-a-w-tcp
+  namespace: red
+  labels:
+    trench: trench-a
+spec:
+  stream: stream-a-iv
+  priority: 1
+  vips:
+  - vip-a-3-v6
+  source-subnets:
+  - 0:0:0:0:0:0:0:0/0
+  source-ports:
+  - any
+  destination-ports:
+  - "4000"
   protocols:
   - tcp
