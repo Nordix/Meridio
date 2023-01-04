@@ -180,7 +180,7 @@ metadata:
     trench: trench-a
 spec:
   stream: stream-a-ii
-  priority: 1
+  priority: 2
   vips:
   - vip-a-1-v4
   - vip-a-1-v6

@@ -54,5 +54,21 @@ function stream_max_targets_revert () {
     kubectl delete flow -n red flow-a-x-tcp
 }
 
+function new_flow () {
+    kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/new-flow.yaml
+}
+
+function new_flow_revert () {
+    kubectl delete flow -n red flow-a-x-tcp
+}
+
+function flow_priority () {
+    kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/flow-priority.yaml
+}
+
+function flow_priority_revert () {
+    kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/init-trench-a.yaml
+}
+
 # Required to call the corresponding function
 $1 $@
