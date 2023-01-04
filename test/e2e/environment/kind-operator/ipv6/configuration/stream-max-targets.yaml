@@ -8,6 +8,7 @@ metadata:
     trench: trench-a
 spec:
   conduit: conduit-a-1
+  max-targets: 1
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Flow

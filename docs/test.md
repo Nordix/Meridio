@@ -80,6 +80,8 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 | new_vip_revert () error | Executed just after running the `new-vip` test |
 | new_stream () error | Executed just before running the `new-stream` test |
 | new_stream_revert () error | Executed just after running the `new-stream` test |
+| stream_max_targets () error | Executed just before running the `stream-max-targets` test |
+| stream_max_targets_revert () error | Executed just after running the `stream-max-targets` test |
 
 ### List of tests
 
@@ -103,30 +105,27 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 
 <!-- 
 TODO: 
-| open-second-stream-second-conduit | TAPA | |
 | stream-switch-conduit | Stream | |
 | new-flow | Flow | |
 | flow-source-subnets | Flow | |
 | flow-source-ports | Flow | |
 | flow-destination-ports | Flow | |
 | flow-protocols | Flow | |
-| flow-protocols | Flow | |
 | flow-priority | Flow | |
 | flow-byte-matches | Flow | |
 | flow-switch-stream | Flow | |
 | flow-multi-destination-ports | Flow | |
+| flow-destination-ports-range | Flow | |
 | flow-multi-protocols | Flow | |
 | flow-multi-byte-matches | Flow | |
 | new-conduit | Conduit | |
 | conduit-destination-port-nats | Conduit | |
-| new-attractor | Attractor | |
-| attractor-nsm-vlan | Attractor | |
-| attractor-nsm-vlan-0 | Attractor | |
-| attractor-network-attachment | Attractor | |
-| new-gateway | Gateway | |
-| gateway-bgp | Gateway | |
-| gateway-bgp-authentication | Gateway | |
-| gateway-static | Gateway | |
+| new-attractor-nsm-vlan | Attractor | |
+| new-attractor-nsm-vlan-0 | Attractor | |
+| new-attractor-network-attachment | Attractor | |
+| new-gateway-bgp | Gateway | |
+| new-gateway-bgp-authentication | Gateway | |
+| new-gateway-static | Gateway | |
 -->
 
 ### Steps (Kind + Helm)

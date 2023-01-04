@@ -1,6 +1,6 @@
 -traffic-generator-cmd="docker exec -i {trench}"
 -script="./environment/kind-operator/dualstack/test.sh"
--skip=""
+-skip="stream-max-targets"
 -focus=""
 -k8s-namespace="red"
 -target-a-deployment-name="target-a"
