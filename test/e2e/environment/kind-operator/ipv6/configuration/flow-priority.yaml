@@ -1,0 +1,22 @@
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Flow
+metadata:
+  name: flow-a-z-tcp
+  namespace: red
+  labels:
+    trench: trench-a
+spec:
+  stream: stream-a-i
+  priority: 3
+  vips:
+  - vip-a-1-v6
+  source-subnets:
+  - 0:0:0:0:0:0:0:0/0
+  source-ports:
+  - any
+  destination-ports:
+  - "4000"
+  - "4001"
+  protocols:
+  - tcp
