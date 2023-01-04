@@ -12,7 +12,7 @@ spec:
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Flow
 metadata:
-  name: stream-a-iii-flow
+  name: flow-a-x-tcp
   namespace: red
   labels:
     trench: trench-a

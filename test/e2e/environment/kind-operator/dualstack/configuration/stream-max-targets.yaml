@@ -8,6 +8,7 @@ metadata:
     trench: trench-a
 spec:
   conduit: conduit-a-1
+  max-targets: 1
 ---
 apiVersion: meridio.nordix.org/v1alpha1
 kind: Flow
@@ -20,8 +21,10 @@ spec:
   stream: stream-a-iii
   priority: 1
   vips:
+  - vip-a-1-v4
   - vip-a-1-v6
   source-subnets:
+  - 0.0.0.0/0
   - 0:0:0:0:0:0:0:0/0
   source-ports:
   - any

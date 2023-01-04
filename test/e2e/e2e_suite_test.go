@@ -134,7 +134,7 @@ func TestE2e(t *testing.T) {
 	if testing.Short() {
 		t.Skip()
 	}
-	RegisterFailHandler(Fail)
+	RegisterFailHandler(onFailure)
 	suiteConfig, reporterConfig := GinkgoConfiguration()
 	suiteConfig.SkipStrings = cleanSlice(append(suiteConfig.SkipStrings, strings.Split(skipString, ",")...))
 	suiteConfig.FocusStrings = cleanSlice(append(suiteConfig.FocusStrings, strings.Split(focusString, ",")...))
@@ -183,11 +183,10 @@ var _ = AfterSuite(func() {
 	Expect(err).ToNot(HaveOccurred())
 })
 
-var _ = JustAfterEach(func() {
-	if CurrentSpecReport().Failed() {
-		By(fmt.Sprintf("Handling the error, collecting the logs: %t", config.logCollectorEnabled))
-		if config.logCollectorEnabled {
-			_ = utils.Exec(config.script, "on_failure", strconv.FormatInt(CurrentSpecReport().StartTime.UnixNano(), 10))
-		}
+func onFailure(message string, callerSkip ...int) {
+	By(fmt.Sprintf("Handling the error, collecting the logs: %t", config.logCollectorEnabled))
+	if config.logCollectorEnabled {
+		_ = utils.Exec(config.script, "on_failure", strconv.FormatInt(CurrentSpecReport().StartTime.UnixNano(), 10))
 	}
-})
+	Fail(message, callerSkip...)
+}

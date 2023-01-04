@@ -42,7 +42,16 @@ function new_stream () {
 
 function new_stream_revert () {
     kubectl delete stream -n red stream-a-iii
-    kubectl delete flow -n red stream-a-iii-flow
+    kubectl delete flow -n red flow-a-x-tcp
+}
+
+function stream_max_targets () {
+    kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/stream-max-targets.yaml
+}
+
+function stream_max_targets_revert () {
+    kubectl delete stream -n red stream-a-iii
+    kubectl delete flow -n red flow-a-x-tcp
 }
 
 # Required to call the corresponding function
