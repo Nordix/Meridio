@@ -47,14 +47,14 @@ var _ = Describe("MultiTrenches", func() {
 				trenchBDone := make(chan bool)
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
 					go func() {
-						ipPort := utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
+						ipPort := utils.VIPPort(config.vip1V4, config.tcpDestinationPort0)
 						protocol := "tcp"
 						By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
 						trenchALastingConnsV4, trenchALostConnsV4 = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
 						trenchADone <- true
 					}()
 					go func() {
-						ipPort := utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
+						ipPort := utils.VIPPort(config.vip1V4, config.tcpDestinationPort0)
 						protocol := "tcp"
 						By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchB, config.k8sNamespace, ipPort))
 						trenchBLastingConnsV4, trenchBLostConnsV4 = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, ipPort, protocol)
@@ -65,14 +65,14 @@ var _ = Describe("MultiTrenches", func() {
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
 					go func() {
-						ipPort := utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0)
+						ipPort := utils.VIPPort(config.vip1V6, config.tcpDestinationPort0)
 						protocol := "tcp"
 						By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
 						trenchALastingConnsV6, trenchALostConnsV6 = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
 						trenchADone <- true
 					}()
 					go func() {
-						ipPort := utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0)
+						ipPort := utils.VIPPort(config.vip1V6, config.tcpDestinationPort0)
 						protocol := "tcp"
 						By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchB, config.k8sNamespace, ipPort))
 						trenchBLastingConnsV6, trenchBLostConnsV6 = trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, ipPort, protocol)
@@ -232,7 +232,7 @@ var _ = Describe("MultiTrenches", func() {
 
 			It("(Traffic) is received by the targets", func(ctx context.Context) {
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
-					ipPort := utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
+					ipPort := utils.VIPPort(config.vip1V4, config.tcpDestinationPort0)
 					protocol := "tcp"
 					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
@@ -240,7 +240,7 @@ var _ = Describe("MultiTrenches", func() {
 					Expect(len(lastingConnections)).To(Equal(numberOfTargetA-1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
-					ipPort := utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0)
+					ipPort := utils.VIPPort(config.vip1V6, config.tcpDestinationPort0)
 					protocol := "tcp"
 					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
@@ -249,7 +249,7 @@ var _ = Describe("MultiTrenches", func() {
 				}
 
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
-					ipPort := utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
+					ipPort := utils.VIPPort(config.vip1V4, config.tcpDestinationPort0)
 					protocol := "tcp"
 					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchB, config.k8sNamespace, ipPort))
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, ipPort, protocol)
@@ -257,7 +257,7 @@ var _ = Describe("MultiTrenches", func() {
 					Expect(len(lastingConnections)).To(Equal(numberOfTargetB+1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
-					ipPort := utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0)
+					ipPort := utils.VIPPort(config.vip1V6, config.tcpDestinationPort0)
 					protocol := "tcp"
 					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchB, config.k8sNamespace, ipPort))
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, ipPort, protocol)

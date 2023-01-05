@@ -50,7 +50,7 @@ var _ = Describe("Stream", func() {
 	})
 
 	Describe("new-stream", func() {
-		When("Configure stream-a-III in conduit-a-1 with a new flow with tcp, flow-a-x-tcp-destination-port-0 as destination port and vip-1-v4 and vip-1-v6", func() {
+		When("Configure stream-a-III in conduit-a-1 with a new flow with tcp, tcp-destination-port-2 as destination port and vip-1-v4 and vip-1-v6", func() {
 
 			BeforeEach(func() {
 				By("Configuring the new stream")
@@ -140,14 +140,14 @@ var _ = Describe("Stream", func() {
 			It("(Traffic) is received by the targets", func(ctx context.Context) {
 				protocol := "tcp"
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
-					ipPort := utils.VIPPort(config.vip1V4, config.flowAXTcpDestinationPort0)
+					ipPort := utils.VIPPort(config.vip1V4, config.tcpDestinationPort2)
 					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
 					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
 					Expect(len(lastingConnections)).To(Equal(1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
-					ipPort := utils.VIPPort(config.vip1V6, config.flowAXTcpDestinationPort0)
+					ipPort := utils.VIPPort(config.vip1V6, config.tcpDestinationPort2)
 					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
 					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
@@ -299,14 +299,14 @@ var _ = Describe("Stream", func() {
 			It("(Traffic) is received by the targets", func(ctx context.Context) {
 				protocol := "tcp"
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
-					ipPort := utils.VIPPort(config.vip1V4, config.flowAXTcpDestinationPort0)
+					ipPort := utils.VIPPort(config.vip1V4, config.tcpDestinationPort2)
 					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
 					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
 					Expect(len(lastingConnections)).To(Equal(1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
-					ipPort := utils.VIPPort(config.vip1V6, config.flowAXTcpDestinationPort0)
+					ipPort := utils.VIPPort(config.vip1V6, config.tcpDestinationPort2)
 					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
 					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)

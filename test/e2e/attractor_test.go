@@ -48,7 +48,7 @@ var _ = Describe("Attractor", func() {
 	})
 
 	Describe("new-attractor-nsm-vlan", func() {
-		When("Configure a new attractor with new vips vip-2-v4 and vip-2-v6, gateways, conduit conduit-a-3, stream stream-a-III and flow with tcp and flow-a-z-tcp-destination-port-0 as destination port", func() {
+		When("Configure a new attractor with new vips vip-2-v4 and vip-2-v6, gateways, conduit conduit-a-3, stream stream-a-III and flow with tcp and tcp-destination-port-0 as destination port", func() {
 			BeforeEach(func() {
 				By("Configuring the new attractor")
 				err := utils.Exec(config.script, "new_attractor_nsm_vlan")
@@ -121,7 +121,7 @@ var _ = Describe("Attractor", func() {
 
 			It("(Traffic) is received by the targets", func(ctx context.Context) {
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
-					ipPort := utils.VIPPort(config.vip2V4, config.flowAZTcpDestinationPort0)
+					ipPort := utils.VIPPort(config.vip2V4, config.tcpDestinationPort0)
 					protocol := "tcp"
 					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
@@ -129,7 +129,7 @@ var _ = Describe("Attractor", func() {
 					Expect(len(lastingConnections)).To(Equal(1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
-					ipPort := utils.VIPPort(config.vip2V6, config.flowAZTcpDestinationPort0)
+					ipPort := utils.VIPPort(config.vip2V6, config.tcpDestinationPort0)
 					protocol := "tcp"
 					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)

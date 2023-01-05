@@ -39,9 +39,10 @@ The picture below shows the initial deployment that should be installed in a kub
 | conduit-a-1 | string | Name of the conduit |
 | stream-a-I | string | Name of the stream |
 | stream-a-II | string | Name of the stream |
-| flow-a-z-tcp-destination-port-0 | int | Destination port 0 |
-| flow-a-z-udp-destination-port-0 | int | Destination port 0 |
-| flow-a-y-tcp-destination-port-0 | int | Destination port 0 |
+| tcp-destination-port-0 | int | Destination port 0 |
+| tcp-destination-port-1 | int | Destination port 1 |
+| tcp-destination-port-2 | int | Destination port 2 |
+| udp-destination-port-0 | int | Destination port 0 |
 | vip-1-v4 | string | Address of the vip v4 number 1 |
 | vip-1-v6 | string | Address of the vip v6 number 1 |
 | target-b-deployment-name | string | Name of the target deployment |
@@ -51,10 +52,8 @@ The picture below shows the initial deployment that should be installed in a kub
 | vip-2-v4 | string | Address of the vip v4 number 2 |
 | vip-2-v6 | string | Address of the vip v6 number 2 |
 | stream-a-III | string | Name of the stream |
-| flow-a-x-tcp-destination-port-0 | int | Destination port 0 |
 | conduit-a-2 | string | Name of the conduit |
 | stream-a-IV | string | Name of the stream |
-| flow-a-w-tcp-destination-port-0 | int | Destination port 0 |
 | vip-3-v4 | string | Address of the vip v4 number 3 |
 | vip-3-v6 | string | Address of the vip v6 number 3 |
 | conduit-a-3 | string | Name of the conduit |
@@ -95,10 +94,10 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 
 | Name | Type | Description |
 |---|---|---|
-| TCP-IPv4 | IngressTraffic | Send TCP traffic in `trench-a` with `vip-1-v4` as destination IP and `flow-a-z-tcp-destination-port-0` as destination port |
-| TCP-IPv6 | IngressTraffic | Send TCP traffic in `trench-a` with `vip-1-v6` as destination IP and `flow-a-z-tcp-destination-port-0` as destination port |
-| UDP-IPv4 | IngressTraffic | Send UDP traffic in `trench-a` with `vip-1-v4` as destination IP and `flow-a-z-udp-destination-port-0` as destination port |
-| UDP-IPv6 | IngressTraffic | Send UDP traffic in `trench-a` with `vip-1-v6` as destination IP and `flow-a-z-udp-destination-port-0` as destination port |
+| TCP-IPv4 | IngressTraffic | Send TCP traffic in `trench-a` with `vip-1-v4` as destination IP and `tcp-destination-port-0` as destination port |
+| TCP-IPv6 | IngressTraffic | Send TCP traffic in `trench-a` with `vip-1-v6` as destination IP and `tcp-destination-port-0` as destination port |
+| UDP-IPv4 | IngressTraffic | Send UDP traffic in `trench-a` with `vip-1-v4` as destination IP and `udp-destination-port-0` as destination port |
+| UDP-IPv6 | IngressTraffic | Send UDP traffic in `trench-a` with `vip-1-v6` as destination IP and `udp-destination-port-0` as destination port |
 | MT-Switch | MultiTrenches | Disconnect a target from `target-a-deployment-name` from `trench-a` and connect it to `trench-b` |
 | MT-Parallel | MultiTrenches | Send traffic in `trench-a` and `trench-b` at the same time |
 | Scale-Down | Scaling | Scale down `target-a-deployment-name` |
@@ -108,11 +107,11 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 | open-second-stream | TAPA | Open `stream-a-II` in one of the target from `target-a-deployment-name` and close it |
 | open-second-stream-second-conduit | TAPA | Open `stream-a-IV` in one of the target from `target-a-deployment-name` and close it |
 | new-vip | Vip | Configure `vip-2-v4` and `vip-2-v6` in `flow-a-z-tcp` and `attractor-a-1` |
-| new-stream | Stream | Configure `stream-a-III` in `conduit-a-1` with a new flow with tcp, `flow-a-x-tcp-destination-port-0` as destination port and `vip-1-v4` and `vip-1-v6` |
+| new-stream | Stream | Configure `stream-a-III` in `conduit-a-1` with a new flow with tcp, `tcp-destination-port-2` as destination port and `vip-1-v4` and `vip-1-v6` |
 | stream-max-targets | Stream | Configure `stream-a-III` as in `new-stream` test with the max-targets field set to 1 and 2 targets with `stream-a-III` opened |
-| new-flow | Flow | Configure a new flow with tcp, `flow-a-x-tcp-destination-port-0` as destination port and `vip-1-v4` and `vip-1-v6` in `stream-a-I` |
-| flow-priority | Flow | Set priority to 3 and add `flow-a-y-tcp-destination-port-0` as destination port in `flow-a-z-tcp` |
-| new-attractor-nsm-vlan | Attractor | Configure a new attractor with new vips `vip-2-v4` and `vip-2-v6`, gateways, conduit `conduit-a-3`, stream `stream-a-III` and flow with tcp and `flow-a-z-tcp-destination-port-0` as destination port |
+| new-flow | Flow | Configure a new flow with tcp, `tcp-destination-port-2` as destination port and `vip-1-v4` and `vip-1-v6` in `stream-a-I` |
+| flow-priority | Flow | Set priority to 3 and add `tcp-destination-port-1` as destination port in `flow-a-z-tcp` |
+| new-attractor-nsm-vlan | Attractor | Configure a new attractor with new vips `vip-2-v4` and `vip-2-v6`, gateways, conduit `conduit-a-3`, stream `stream-a-III` and flow with tcp and `tcp-destination-port-0` as destination port |
 
 <!-- 
 TODO: 

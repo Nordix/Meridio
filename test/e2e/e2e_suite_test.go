@@ -52,32 +52,31 @@ type e2eTestConfiguration struct {
 	script              string
 	logCollectorEnabled bool
 
-	k8sNamespace              string
-	targetADeploymentName     string
-	trenchA                   string
-	attractorA1               string
-	conduitA1                 string
-	streamAI                  string
-	streamAII                 string
-	flowAZTcpDestinationPort0 int
-	flowAZUdpDestinationPort0 int
-	flowAYTcpDestinationPort0 int
-	vip1V4                    string
-	vip1V6                    string
-	targetBDeploymentName     string
-	trenchB                   string
-	conduitB1                 string
-	streamBI                  string
-	vip2V4                    string
-	vip2V6                    string
-	streamAIII                string
-	flowAXTcpDestinationPort0 int
-	conduitA2                 string
-	streamAIV                 string
-	flowAWTcpDestinationPort0 int
-	vip3V4                    string
-	vip3V6                    string
-	conduitA3                 string
+	k8sNamespace          string
+	targetADeploymentName string
+	trenchA               string
+	attractorA1           string
+	conduitA1             string
+	streamAI              string
+	streamAII             string
+	tcpDestinationPort0   int
+	udpDestinationPort0   int
+	tcpDestinationPort1   int
+	vip1V4                string
+	vip1V6                string
+	targetBDeploymentName string
+	trenchB               string
+	conduitB1             string
+	streamBI              string
+	vip2V4                string
+	vip2V6                string
+	streamAIII            string
+	tcpDestinationPort2   int
+	conduitA2             string
+	streamAIV             string
+	vip3V4                string
+	vip3V6                string
+	conduitA3             string
 
 	statelessLbFeDeploymentNameAttractorA1 string
 	statelessLbFeDeploymentNameAttractorB1 string
@@ -107,9 +106,9 @@ func init() {
 	flag.StringVar(&config.conduitA1, "conduit-a-1", "", "Name of the conduit")
 	flag.StringVar(&config.streamAI, "stream-a-I", "", "Name of the stream")
 	flag.StringVar(&config.streamAII, "stream-a-II", "", "Name of the stream")
-	flag.IntVar(&config.flowAZTcpDestinationPort0, "flow-a-z-tcp-destination-port-0", 4000, "Destination port 0")
-	flag.IntVar(&config.flowAZUdpDestinationPort0, "flow-a-z-udp-destination-port-0", 4000, "Destination port 0")
-	flag.IntVar(&config.flowAYTcpDestinationPort0, "flow-a-y-tcp-destination-port-0", 4000, "Destination port 0")
+	flag.IntVar(&config.tcpDestinationPort0, "tcp-destination-port-0", 4000, "Destination port 0")
+	flag.IntVar(&config.udpDestinationPort0, "udp-destination-port-0", 4000, "Destination port 0")
+	flag.IntVar(&config.tcpDestinationPort1, "tcp-destination-port-1", 4000, "Destination port 0")
 	flag.StringVar(&config.vip1V4, "vip-1-v4", "", "Address of the vip v4 number 1")
 	flag.StringVar(&config.vip1V6, "vip-1-v6", "", "Address of the vip v6 number 1")
 	flag.StringVar(&config.targetBDeploymentName, "target-b-deployment-name", "", "Name of the target deployment")
@@ -119,10 +118,9 @@ func init() {
 	flag.StringVar(&config.vip2V4, "vip-2-v4", "", "Address of the vip v4 number 2")
 	flag.StringVar(&config.vip2V6, "vip-2-v6", "", "Address of the vip v6 number 2")
 	flag.StringVar(&config.streamAIII, "stream-a-III", "", "Name of the stream")
-	flag.IntVar(&config.flowAXTcpDestinationPort0, "flow-a-x-tcp-destination-port-0", 4000, "Destination port 0")
+	flag.IntVar(&config.tcpDestinationPort2, "tcp-destination-port-2", 4000, "Destination port 0")
 	flag.StringVar(&config.conduitA2, "conduit-a-2", "", "Name of the conduit")
 	flag.StringVar(&config.streamAIV, "stream-a-IV", "", "Name of the stream")
-	flag.IntVar(&config.flowAWTcpDestinationPort0, "flow-a-w-tcp-destination-port-0", 4000, "Destination port 0")
 	flag.StringVar(&config.vip3V4, "vip-3-v4", "", "Address of the vip v4 number 3")
 	flag.StringVar(&config.vip3V6, "vip-3-v6", "", "Address of the vip v6 number 3")
 	flag.StringVar(&config.conduitA3, "conduit-a-3", "", "Name of the conduit")
