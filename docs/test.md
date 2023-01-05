@@ -40,8 +40,8 @@ The picture below shows the initial deployment that should be installed in a kub
 | stream-a-I | string | Name of the stream |
 | stream-a-II | string | Name of the stream |
 | tcp-destination-port-0 | int | Destination port 0 |
-| tcp-destination-port-1 | int | Destination port 1 |
-| tcp-destination-port-2 | int | Destination port 2 |
+| tcp-destination-port-1 | int | Destination port 1 (`tcp-destination-port-0` + 1) |
+| tcp-destination-port-2 | int | Destination port 2 (`tcp-destination-port-1` + 1) |
 | udp-destination-port-0 | int | Destination port 0 |
 | vip-1-v4 | string | Address of the vip v4 number 1 |
 | vip-1-v6 | string | Address of the vip v6 number 1 |
@@ -57,6 +57,7 @@ The picture below shows the initial deployment that should be installed in a kub
 | vip-3-v4 | string | Address of the vip v4 number 3 |
 | vip-3-v6 | string | Address of the vip v6 number 3 |
 | conduit-a-3 | string | Name of the conduit |
+| tcp-destination-port-nat-0 | int | Destination port natted 0 |
 |  |  |  |
 | stateless-lb-fe-deployment-name-attractor-a-1 | string | Name of stateless-lb-fe deployment in `attractor-a-1` |
 | stateless-lb-fe-deployment-name-attractor-b-1 | string | Name of stateless-lb-fe deployment in `attractor-b-1` |
@@ -87,8 +88,12 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 | new_flow_revert () error | Executed just after running the `new-flow` test |
 | flow_priority () error | Executed just before running the `flow-priority` test |
 | flow_priority_revert () error | Executed just after running the `flow-priority` test |
+| flow_destination_ports_range () error | Executed just before running the `flow-destination-ports-range` test |
+| flow_destination_ports_range_revert () error | Executed just after running the `flow-destination-ports-range` test |
 | new_attractor_nsm_vlan () error | Executed just before running the `new-attractor-nsm-vlan` test |
 | new_attractor_nsm_vlan_revert () error | Executed just after running the `new-attractor-nsm-vlan` test |
+| conduit_destination_port_nats () error | Executed just before running the `conduit-destination-port-nats` test |
+| conduit_destination_port_nats_revert () error | Executed just after running the `conduit-destination-port-nats` test |
 
 ### List of tests
 
@@ -111,7 +116,9 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 | stream-max-targets | Stream | Configure `stream-a-III` as in `new-stream` test with the max-targets field set to 1 and 2 targets with `stream-a-III` opened |
 | new-flow | Flow | Configure a new flow with tcp, `tcp-destination-port-2` as destination port and `vip-1-v4` and `vip-1-v6` in `stream-a-I` |
 | flow-priority | Flow | Set priority to 3 and add `tcp-destination-port-1` as destination port in `flow-a-z-tcp` |
+| flow-destination-ports-range | Flow | Set priority to 3 and set '`tcp-destination-port-0`'-'`tcp-destination-port-2`' as destination port in `flow-a-z-tcp` |
 | new-attractor-nsm-vlan | Attractor | Configure a new attractor with new vips `vip-2-v4` and `vip-2-v6`, gateways, conduit `conduit-a-3`, stream `stream-a-III` and flow with tcp and `tcp-destination-port-0` as destination port |
+| conduit-destination-port-nats | Conduit | Configure `flow-a-z-tcp` with `tcp-destination-port-nat-0` as destination port and `conduit-a-1` with a port nat with `tcp-destination-port-nat-0` as port and `tcp-destination-port-0` as target-port |
 
 <!-- 
 TODO: 
@@ -123,11 +130,9 @@ TODO:
 | flow-byte-matches | Flow | |
 | flow-switch-stream | Flow | |
 | flow-multi-destination-ports | Flow | |
-| flow-destination-ports-range | Flow | |
 | flow-multi-protocols | Flow | |
 | flow-multi-byte-matches | Flow | |
 | new-conduit | Conduit | |
-| conduit-destination-port-nats | Conduit | |
 | new-attractor-nsm-vlan-0 | Attractor | |
 | new-attractor-network-attachment | Attractor | |
 | new-gateway-bgp | Gateway | |

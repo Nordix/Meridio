@@ -52,31 +52,32 @@ type e2eTestConfiguration struct {
 	script              string
 	logCollectorEnabled bool
 
-	k8sNamespace          string
-	targetADeploymentName string
-	trenchA               string
-	attractorA1           string
-	conduitA1             string
-	streamAI              string
-	streamAII             string
-	tcpDestinationPort0   int
-	udpDestinationPort0   int
-	tcpDestinationPort1   int
-	vip1V4                string
-	vip1V6                string
-	targetBDeploymentName string
-	trenchB               string
-	conduitB1             string
-	streamBI              string
-	vip2V4                string
-	vip2V6                string
-	streamAIII            string
-	tcpDestinationPort2   int
-	conduitA2             string
-	streamAIV             string
-	vip3V4                string
-	vip3V6                string
-	conduitA3             string
+	k8sNamespace           string
+	targetADeploymentName  string
+	trenchA                string
+	attractorA1            string
+	conduitA1              string
+	streamAI               string
+	streamAII              string
+	tcpDestinationPort0    int
+	udpDestinationPort0    int
+	tcpDestinationPort1    int
+	vip1V4                 string
+	vip1V6                 string
+	targetBDeploymentName  string
+	trenchB                string
+	conduitB1              string
+	streamBI               string
+	vip2V4                 string
+	vip2V6                 string
+	streamAIII             string
+	tcpDestinationPort2    int
+	conduitA2              string
+	streamAIV              string
+	vip3V4                 string
+	vip3V6                 string
+	conduitA3              string
+	tcpDestinationPortNat0 int
 
 	statelessLbFeDeploymentNameAttractorA1 string
 	statelessLbFeDeploymentNameAttractorB1 string
@@ -124,6 +125,7 @@ func init() {
 	flag.StringVar(&config.vip3V4, "vip-3-v4", "", "Address of the vip v4 number 3")
 	flag.StringVar(&config.vip3V6, "vip-3-v6", "", "Address of the vip v6 number 3")
 	flag.StringVar(&config.conduitA3, "conduit-a-3", "", "Name of the conduit")
+	flag.IntVar(&config.tcpDestinationPortNat0, "tcp-destination-port-nat-0", 4000, "Name of the conduit")
 
 	flag.StringVar(&config.statelessLbFeDeploymentNameAttractorA1, "stateless-lb-fe-deployment-name-attractor-a-1", "", "Name of stateless-lb-fe deployment in attractor-a-1")
 	flag.StringVar(&config.statelessLbFeDeploymentNameAttractorB1, "stateless-lb-fe-deployment-name-attractor-b-1", "", "Name of stateless-lb-fe deployment in attractor-b-1")
