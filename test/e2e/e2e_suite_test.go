@@ -77,10 +77,12 @@ type e2eTestConfiguration struct {
 	flowAWTcpDestinationPort0 int
 	vip3V4                    string
 	vip3V6                    string
+	conduitA3                 string
 
 	statelessLbFeDeploymentNameAttractorA1 string
 	statelessLbFeDeploymentNameAttractorB1 string
 	statelessLbFeDeploymentNameAttractorA2 string
+	statelessLbFeDeploymentNameAttractorA3 string
 	ipFamily                               string
 }
 
@@ -123,10 +125,12 @@ func init() {
 	flag.IntVar(&config.flowAWTcpDestinationPort0, "flow-a-w-tcp-destination-port-0", 4000, "Destination port 0")
 	flag.StringVar(&config.vip3V4, "vip-3-v4", "", "Address of the vip v4 number 3")
 	flag.StringVar(&config.vip3V6, "vip-3-v6", "", "Address of the vip v6 number 3")
+	flag.StringVar(&config.conduitA3, "conduit-a-3", "", "Name of the conduit")
 
 	flag.StringVar(&config.statelessLbFeDeploymentNameAttractorA1, "stateless-lb-fe-deployment-name-attractor-a-1", "", "Name of stateless-lb-fe deployment in attractor-a-1")
 	flag.StringVar(&config.statelessLbFeDeploymentNameAttractorB1, "stateless-lb-fe-deployment-name-attractor-b-1", "", "Name of stateless-lb-fe deployment in attractor-b-1")
 	flag.StringVar(&config.statelessLbFeDeploymentNameAttractorA2, "stateless-lb-fe-deployment-name-attractor-a-2", "", "Name of stateless-lb-fe deployment in attractor-a-2")
+	flag.StringVar(&config.statelessLbFeDeploymentNameAttractorA3, "stateless-lb-fe-deployment-name-attractor-a-3", "", "Name of stateless-lb-fe deployment in attractor-a-3")
 	flag.StringVar(&config.ipFamily, "ip-family", "", "IP Family")
 }
 

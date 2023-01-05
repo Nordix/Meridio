@@ -50,7 +50,7 @@ var _ = Describe("Stream", func() {
 	})
 
 	Describe("new-stream", func() {
-		When("Configure stream-a-III in conduit-a-1", func() {
+		When("Configure stream-a-III in conduit-a-1 with a new flow with tcp, flow-a-x-tcp-destination-port-0 as destination port and vip-1-v4 and vip-1-v6", func() {
 
 			BeforeEach(func() {
 				By("Configuring the new stream")
@@ -158,7 +158,7 @@ var _ = Describe("Stream", func() {
 	})
 
 	Describe("stream-max-targets", func() {
-		When("Configure stream-a-III in conduit-a-1 with the max-targets field set to 1 and 2 targets with stream-a-III opened", func() {
+		When("Configure stream-a-III as in new-stream test with the max-targets field set to 1 and 2 targets with stream-a-III opened", func() {
 
 			var (
 				secondTargetPod *v1.Pod
