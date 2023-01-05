@@ -55,6 +55,14 @@ function flow_priority_revert () {
     kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/init-trench-a.yaml
 }
 
+function flow_destination_ports_range () {
+    kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/flow-destination-ports-range.yaml
+}
+
+function flow_destination_ports_range_revert () {
+    kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/init-trench-a.yaml
+}
+
 function new_attractor_nsm_vlan () {
     kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/new-attractor-nsm-vlan.yaml
     sleep 5
@@ -65,6 +73,14 @@ function new_attractor_nsm_vlan_revert () {
     kubectl delete -f $(dirname -- $(readlink -fn -- "$0"))/configuration/new-attractor-nsm-vlan.yaml
     sleep 5
     kubectl wait --for=condition=Ready pods --all -n red --timeout=4m
+}
+
+function conduit_destination_port_nats () {
+    kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/conduit-destination-port-nats.yaml
+}
+
+function conduit_destination_port_nats_revert () {
+    kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/init-trench-a.yaml
 }
 
 # Required to call the corresponding function

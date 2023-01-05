@@ -1,0 +1,37 @@
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Flow
+metadata:
+  name: flow-a-z-tcp
+  namespace: red
+  labels:
+    trench: trench-a
+spec:
+  stream: stream-a-i
+  priority: 1
+  vips:
+  - vip-a-1-v6
+  source-subnets:
+  - 0:0:0:0:0:0:0:0/0
+  source-ports:
+  - any
+  destination-ports:
+  - "80"
+  protocols:
+  - tcp
+---
+apiVersion: meridio.nordix.org/v1alpha1
+kind: Conduit
+metadata:
+  name: conduit-a-1
+  namespace: red
+  labels:
+    trench: trench-a
+spec:
+  type: stateless-lb
+  destination-port-nats:
+  - port: 80
+    target-port: 4000
+    vips:
+    - vip-a-1-v6
+    protocol: "tcp"
