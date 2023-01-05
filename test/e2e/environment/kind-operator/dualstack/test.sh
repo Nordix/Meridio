@@ -78,6 +78,14 @@ function flow_destination_ports_range_revert () {
     kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/init-trench-a.yaml
 }
 
+function flow_byte_matches () {
+    kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/flow-byte-matches.yaml
+}
+
+function flow_byte_matches_revert () {
+    kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/init-trench-a.yaml
+}
+
 function new_attractor_nsm_vlan () {
     kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/new-attractor-nsm-vlan.yaml
     sleep 5

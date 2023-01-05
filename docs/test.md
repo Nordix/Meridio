@@ -90,6 +90,8 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 | flow_priority_revert () error | Executed just after running the `flow-priority` test |
 | flow_destination_ports_range () error | Executed just before running the `flow-destination-ports-range` test |
 | flow_destination_ports_range_revert () error | Executed just after running the `flow-destination-ports-range` test |
+| flow_byte_matches () error | Executed just after running the `flow-byte-matches` test |
+| flow_byte_matches_revert () error | Executed just after running the `flow-byte-matches` test |
 | new_attractor_nsm_vlan () error | Executed just before running the `new-attractor-nsm-vlan` test |
 | new_attractor_nsm_vlan_revert () error | Executed just after running the `new-attractor-nsm-vlan` test |
 | conduit_destination_port_nats () error | Executed just before running the `conduit-destination-port-nats` test |
@@ -117,6 +119,7 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 | new-flow | Flow | Configure a new flow with tcp, `tcp-destination-port-2` as destination port and `vip-1-v4` and `vip-1-v6` in `stream-a-I` |
 | flow-priority | Flow | Set priority to 3 and add `tcp-destination-port-1` as destination port in `flow-a-z-tcp` |
 | flow-destination-ports-range | Flow | Set priority to 3 and set '`tcp-destination-port-0`'-'`tcp-destination-port-2`' as destination port in `flow-a-z-tcp` |
+| flow-byte-matches | Flow | Add `tcp-destination-port-2` to destination ports of `flow-a-z-tcp` and add a byte-match to allow only `tcp-destination-port-2` |
 | new-attractor-nsm-vlan | Attractor | Configure a new attractor with new vips `vip-2-v4` and `vip-2-v6`, gateways, conduit `conduit-a-3`, stream `stream-a-III` and flow with tcp and `tcp-destination-port-0` as destination port |
 | conduit-destination-port-nats | Conduit | Configure `flow-a-z-tcp` with `tcp-destination-port-nat-0` as destination port and `conduit-a-1` with a port nat with `tcp-destination-port-nat-0` as port and `tcp-destination-port-0` as target-port |
 
@@ -127,7 +130,6 @@ TODO:
 | flow-source-ports | Flow | |
 | flow-destination-ports | Flow | |
 | flow-protocols | Flow | |
-| flow-byte-matches | Flow | |
 | flow-switch-stream | Flow | |
 | flow-multi-destination-ports | Flow | |
 | flow-multi-protocols | Flow | |

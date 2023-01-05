@@ -133,4 +133,51 @@ var _ = Describe("Flow", func() {
 			}, SpecTimeout(timeoutTest))
 		})
 	})
+
+	Describe("flow-byte-matches", func() {
+		When("Add tcp-destination-port-2 to destination ports of flow-a-z-tcp and add a byte-match to allow only tcp-destination-port-2", func() {
+			BeforeEach(func() {
+				By("Configuring the flow")
+				err := utils.Exec(config.script, "flow_byte_matches")
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			AfterEach(func() {
+				By("Reverting the configuration of the flow")
+				err := utils.Exec(config.script, "flow_byte_matches_revert")
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("(Traffic) is received by the targets", func(ctx context.Context) {
+				protocol := "tcp"
+				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
+					ipPort := utils.VIPPort(config.vip1V4, config.tcpDestinationPort0)
+					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
+					lastingConnections, _ := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol, utils.WithTimeout("1s"))
+					Expect(len(lastingConnections)).To(Equal(0), "No target should have received the traffic: %v", lastingConnections)
+				}
+				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
+					ipPort := utils.VIPPort(config.vip1V6, config.tcpDestinationPort0)
+					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
+					lastingConnections, _ := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol, utils.WithTimeout("1s"))
+					Expect(len(lastingConnections)).To(Equal(0), "No target should have received the traffic: %v", lastingConnections)
+				}
+
+				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
+					ipPort := utils.VIPPort(config.vip1V4, config.tcpDestinationPort2)
+					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
+					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
+					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					Expect(len(lastingConnections)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", lastingConnections)
+				}
+				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
+					ipPort := utils.VIPPort(config.vip1V6, config.tcpDestinationPort2)
+					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
+					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
+					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					Expect(len(lastingConnections)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", lastingConnections)
+				}
+			}, SpecTimeout(timeoutTest))
+		})
+	})
 })
