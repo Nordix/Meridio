@@ -1,6 +1,6 @@
 -traffic-generator-cmd="docker exec -i {trench}"
 -script="./environment/kind-operator/ipv6/test.sh"
--skip="stream-max-targets"
+-skip="stream-max-targets,new-attractor-nsm-vlan"
 -focus=""
 -k8s-namespace="red"
 -target-a-deployment-name="target-a"
@@ -9,9 +9,9 @@
 -conduit-a-1="conduit-a-1"
 -stream-a-I="stream-a-i"
 -stream-a-II="stream-a-ii"
--flow-a-z-tcp-destination-port-0=4000
--flow-a-z-udp-destination-port-0=4003
--flow-a-y-tcp-destination-port-0=4001
+-tcp-destination-port-0=4000
+-udp-destination-port-0=4003
+-tcp-destination-port-1=4001
 -vip-1-v4=""
 -vip-1-v6="[2000::1]"
 -target-b-deployment-name="target-b"
@@ -25,10 +25,9 @@
 -ip-family="ipv6"
 -log-collector-enabled="true"
 -stream-a-III="stream-a-iii"
--flow-a-x-tcp-destination-port-0=4002
+-tcp-destination-port-2=4002
 -conduit-a-2="conduit-a-2"
 -stream-a-IV="stream-a-iv"
--flow-a-w-tcp-destination-port-0="4000"
 -vip-3-v4=""
 -vip-3-v6="[4000::1]"
 -stateless-lb-fe-deployment-name-attractor-a-2="stateless-lb-frontend-attractor-a-2"

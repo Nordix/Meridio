@@ -40,9 +40,9 @@ var _ = Describe("IngressTraffic", func() {
 	})
 
 	Describe("TCP-IPv4", func() {
-		When("Send tcp traffic in trench-a with vip-1-v4 as destination IP and flow-a-z-tcp-destination-port-0 as destination port", func() {
+		When("Send tcp traffic in trench-a with vip-1-v4 as destination IP and tcp-destination-port-0 as destination port", func() {
 			BeforeEach(func() {
-				ipPort = utils.VIPPort(config.vip1V4, config.flowAZTcpDestinationPort0)
+				ipPort = utils.VIPPort(config.vip1V4, config.tcpDestinationPort0)
 				protocol = "tcp"
 			})
 			It("(Traffic) is received by the targets", func(ctx context.Context) {
@@ -56,9 +56,9 @@ var _ = Describe("IngressTraffic", func() {
 	})
 
 	Describe("TCP-IPv6", func() {
-		When("Send tcp traffic in trench-a with vip-1-v6 as destination IP and flow-a-z-tcp-destination-port-0 as destination port", func() {
+		When("Send tcp traffic in trench-a with vip-1-v6 as destination IP and tcp-destination-port-0 as destination port", func() {
 			BeforeEach(func() {
-				ipPort = utils.VIPPort(config.vip1V6, config.flowAZTcpDestinationPort0)
+				ipPort = utils.VIPPort(config.vip1V6, config.tcpDestinationPort0)
 				protocol = "tcp"
 			})
 			It("(Traffic) is received by the targets", func(ctx context.Context) {
@@ -72,9 +72,9 @@ var _ = Describe("IngressTraffic", func() {
 	})
 
 	Describe("UDP-IPv4", func() {
-		When("Send udp traffic in trench-a with vip-1-v4 as destination IP and flow-a-z-udp-destination-port-0 as destination port", func() {
+		When("Send udp traffic in trench-a with vip-1-v4 as destination IP and udp-destination-port-0 as destination port", func() {
 			BeforeEach(func() {
-				ipPort = utils.VIPPort(config.vip1V4, config.flowAZUdpDestinationPort0)
+				ipPort = utils.VIPPort(config.vip1V4, config.udpDestinationPort0)
 				protocol = "udp"
 			})
 			It("(Traffic) is received by the targets", func(ctx context.Context) {
@@ -88,9 +88,9 @@ var _ = Describe("IngressTraffic", func() {
 	})
 
 	Describe("UDP-IPv6", func() {
-		When("Send udp traffic in trench-a with vip-1-v6 as destination IP and flow-a-z-udp-destination-port-0 as destination port", func() {
+		When("Send udp traffic in trench-a with vip-1-v6 as destination IP and udp-destination-port-0 as destination port", func() {
 			BeforeEach(func() {
-				ipPort = utils.VIPPort(config.vip1V6, config.flowAZUdpDestinationPort0)
+				ipPort = utils.VIPPort(config.vip1V6, config.udpDestinationPort0)
 				protocol = "udp"
 			})
 			It("(Traffic) is received by the targets", func(ctx context.Context) {

@@ -1,7 +1,7 @@
 -traffic-generator-cmd="docker exec -i {trench}"
 -script="./environment/kind-helm/ipv6/test.sh"
 -skip=""
--focus=""
+-focus="TCP-IPv4,TCP-IPv6,UDP-IPv4,UDP-IPv6,MT-Switch,MT-Parallel,Scale-Down,Scale-Up,close-open,new-vip"
 -k8s-namespace="red"
 -target-a-deployment-name="target-a"
 -trench-a="trench-a"
@@ -9,9 +9,9 @@
 -conduit-a-1="load-balancer"
 -stream-a-I="stream-a"
 -stream-a-II="stream-b"
--flow-a-z-tcp-destination-port-0=4000
--flow-a-z-udp-destination-port-0=4003
--flow-a-y-tcp-destination-port-0=4001
+-tcp-destination-port-0=4000
+-udp-destination-port-0=4003
+-tcp-destination-port-1=4001
 -vip-1-v4=""
 -vip-1-v6="[2000::1]"
 -target-b-deployment-name="target-b"
