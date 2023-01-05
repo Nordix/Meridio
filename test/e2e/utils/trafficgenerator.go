@@ -24,20 +24,32 @@ import (
 	"strings"
 )
 
+type option func(*tgConfig)
+
+type tgConfig struct {
+	timeout string
+}
+
+func WithTimeout(timeout string) option {
+	return func(c *tgConfig) {
+		c.timeout = timeout
+	}
+}
+
 type TrafficGeneratorHost struct {
 	TrafficGeneratorCommand string
 }
 
 type TrafficGenerator interface {
-	GetCommand(ipPort string, protocol string) string
+	GetCommand(ipPort string, protocol string, options ...option) string
 	AnalyzeTraffic([]byte) (map[string]int, int, error)
 }
 
-func (tgh *TrafficGeneratorHost) SendTraffic(tg TrafficGenerator, trench string, namespace string, ipPort string, protocol string) (map[string]int, int) {
+func (tgh *TrafficGeneratorHost) SendTraffic(tg TrafficGenerator, trench string, namespace string, ipPort string, protocol string, options ...option) (map[string]int, int) {
 	commandString := tgh.TrafficGeneratorCommand
 	commandString = strings.ReplaceAll(commandString, "{trench}", trench)
 	commandString = strings.ReplaceAll(commandString, "{namespace}", namespace)
-	commandString = fmt.Sprintf("%s %s", commandString, tg.GetCommand(ipPort, protocol))
+	commandString = fmt.Sprintf("%s %s", commandString, tg.GetCommand(ipPort, protocol, options...))
 	command := exec.Command("/bin/sh", "-c", commandString)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -56,7 +68,7 @@ type CTraffic struct {
 	Rate  int
 }
 
-func (ct *CTraffic) GetCommand(ipPort string, protocol string) string {
+func (ct *CTraffic) GetCommand(ipPort string, protocol string, options ...option) string {
 	return fmt.Sprintf("ctraffic %s -address %s -nconn %d -rate %d -stats all", getProtocolParameter(protocol), ipPort, ct.NConn, ct.Rate)
 }
 
@@ -91,8 +103,14 @@ type MConnect struct {
 	NConn int
 }
 
-func (mc *MConnect) GetCommand(ipPort string, protocol string) string {
-	return fmt.Sprintf("mconnect %s -address %s -nconn %d -timeout 2m -output json", getProtocolParameter(protocol), ipPort, mc.NConn)
+func (mc *MConnect) GetCommand(ipPort string, protocol string, options ...option) string {
+	config := &tgConfig{
+		timeout: "2m",
+	}
+	for _, opt := range options {
+		opt(config)
+	}
+	return fmt.Sprintf("mconnect %s -address %s -nconn %d -timeout %s -output json", getProtocolParameter(protocol), ipPort, mc.NConn, config.timeout)
 }
 
 func (mc *MConnect) AnalyzeTraffic(output []byte) (map[string]int, int, error) {
