@@ -57,10 +57,12 @@ The picture below shows the initial deployment that should be installed in a kub
 | flow-a-w-tcp-destination-port-0 | int | Destination port 0 |
 | vip-3-v4 | string | Address of the vip v4 number 3 |
 | vip-3-v6 | string | Address of the vip v6 number 3 |
+| conduit-a-3 | string | Name of the conduit |
 |  |  |  |
 | stateless-lb-fe-deployment-name-attractor-a-1 | string | Name of stateless-lb-fe deployment in `attractor-a-1` |
 | stateless-lb-fe-deployment-name-attractor-b-1 | string | Name of stateless-lb-fe deployment in `attractor-b-1` |
-| stateless-lb-fe-deployment-name-attractor-a-1 | string | Name of stateless-lb-fe deployment in `attractor-a-2` |
+| stateless-lb-fe-deployment-name-attractor-a-2 | string | Name of stateless-lb-fe deployment in `attractor-a-2` |
+| stateless-lb-fe-deployment-name-attractor-a-3 | string | Name of stateless-lb-fe deployment in `attractor-a-3` |
 | ip-family | string | IP Family |
 
 For more details about each parameter, check the picture above in the `Initial Deployment` section.
@@ -86,6 +88,8 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 | new_flow_revert () error | Executed just after running the `new-flow` test |
 | flow_priority () error | Executed just before running the `flow-priority` test |
 | flow_priority_revert () error | Executed just after running the `flow-priority` test |
+| new_attractor_nsm_vlan () error | Executed just before running the `new-attractor-nsm-vlan` test |
+| new_attractor_nsm_vlan_revert () error | Executed just after running the `new-attractor-nsm-vlan` test |
 
 ### List of tests
 
@@ -104,10 +108,11 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 | open-second-stream | TAPA | Open `stream-a-II` in one of the target from `target-a-deployment-name` and close it |
 | open-second-stream-second-conduit | TAPA | Open `stream-a-IV` in one of the target from `target-a-deployment-name` and close it |
 | new-vip | Vip | Configure `vip-2-v4` and `vip-2-v6` in `flow-a-z-tcp` and `attractor-a-1` |
-| new-stream | Stream | Configure `stream-a-III` in `conduit-a-1` |
-| stream-max-targets | Stream | Configure `stream-a-III` in `conduit-a-1` with the max-targets field set to 1 and 2 targets with `stream-a-III` opened |
+| new-stream | Stream | Configure `stream-a-III` in `conduit-a-1` with a new flow with tcp, `flow-a-x-tcp-destination-port-0` as destination port and `vip-1-v4` and `vip-1-v6` |
+| stream-max-targets | Stream | Configure `stream-a-III` as in `new-stream` test with the max-targets field set to 1 and 2 targets with `stream-a-III` opened |
 | new-flow | Flow | Configure a new flow with tcp, `flow-a-x-tcp-destination-port-0` as destination port and `vip-1-v4` and `vip-1-v6` in `stream-a-I` |
 | flow-priority | Flow | Set priority to 3 and add `flow-a-y-tcp-destination-port-0` as destination port in `flow-a-z-tcp` |
+| new-attractor-nsm-vlan | Attractor | Configure a new attractor with new vips `vip-2-v4` and `vip-2-v6`, gateways, conduit `conduit-a-3`, stream `stream-a-III` and flow with tcp and `flow-a-z-tcp-destination-port-0` as destination port |
 
 <!-- 
 TODO: 
@@ -124,7 +129,6 @@ TODO:
 | flow-multi-byte-matches | Flow | |
 | new-conduit | Conduit | |
 | conduit-destination-port-nats | Conduit | |
-| new-attractor-nsm-vlan | Attractor | |
 | new-attractor-nsm-vlan-0 | Attractor | |
 | new-attractor-network-attachment | Attractor | |
 | new-gateway-bgp | Gateway | |

@@ -70,5 +70,17 @@ function flow_priority_revert () {
     kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/init-trench-a.yaml
 }
 
+function new_attractor_nsm_vlan () {
+    kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/new-attractor-nsm-vlan.yaml
+    sleep 5
+    kubectl wait --for=condition=Ready pods --all -n red --timeout=4m
+}
+
+function new_attractor_nsm_vlan_revert () {
+    kubectl delete -f $(dirname -- $(readlink -fn -- "$0"))/configuration/new-attractor-nsm-vlan.yaml
+    sleep 5
+    kubectl wait --for=condition=Ready pods --all -n red --timeout=4m
+}
+
 # Required to call the corresponding function
 $1 $@

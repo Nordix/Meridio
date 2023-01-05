@@ -32,3 +32,5 @@
 -vip-3-v4=""
 -vip-3-v6="[4000::1]"
 -stateless-lb-fe-deployment-name-attractor-a-2="stateless-lb-frontend-attractor-a-2"
+-conduit-a-3="conduit-a-3"
+-stateless-lb-fe-deployment-name-attractor-a-3="stateless-lb-frontend-attractor-a-3"
