@@ -88,8 +88,7 @@ var _ = Describe("Scaling", func() {
 			By(fmt.Sprintf("Waiting for nfqlb in the %s (%s) to have %d targets configured", pod.Name, pod.Namespace, int(scale.Spec.Replicas)))
 			Eventually(func() bool {
 				nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
-				Expect(err).NotTo(HaveOccurred())
-				return utils.ParseNFQLB(nfqlbOutput) == int(scale.Spec.Replicas)
+				return err == nil && utils.ParseNFQLB(nfqlbOutput) == int(scale.Spec.Replicas)
 			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 		}
 	})
@@ -134,8 +133,7 @@ var _ = Describe("Scaling", func() {
 			By(fmt.Sprintf("Waiting for nfqlb in the %s (%s) to have %d targets configured", pod.Name, pod.Namespace, int(scale.Spec.Replicas)))
 			Eventually(func() bool {
 				nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
-				Expect(err).NotTo(HaveOccurred())
-				return utils.ParseNFQLB(nfqlbOutput) == int(scale.Spec.Replicas)
+				return err == nil && utils.ParseNFQLB(nfqlbOutput) == int(scale.Spec.Replicas)
 			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 		}
 	})
