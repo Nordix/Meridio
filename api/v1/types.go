@@ -98,6 +98,47 @@ func validatePrefix(p string) (*net.IPNet, error) {
 	return n, nil
 }
 
+func validatePrefixAndRange(p string) error {
+	var err error
+	var network *net.IPNet
+	composite := strings.Split(p, ";")
+	for _, c := range composite {
+		if r := strings.SplitN(c, "-", 2); len(r) == 2 {
+			// validate IP range
+			firstip := net.ParseIP(r[0])
+			if firstip == nil {
+				return fmt.Errorf("'%s' is not a valid IP range start", r[0])
+			}
+			_, ipNet, err := net.ParseCIDR(r[1])
+			if err != nil {
+				return fmt.Errorf("'%s' is not a valid CIDR: %s", r[1], err)
+			}
+			if !ipNet.Contains(firstip) {
+				return fmt.Errorf("'%s' is not a valid IP range start for CIDR %s", ipNet.String(), firstip)
+			}
+			if network == nil {
+				network = ipNet
+			} else {
+				if !network.IP.Equal(ipNet.IP) {
+					return fmt.Errorf("network mismatch: '%s' != '%s'", network, ipNet)
+				}
+				netOnes, netBits := network.Mask.Size()
+				ones, bits := ipNet.Mask.Size()
+				if netOnes != ones || netBits != bits {
+					return fmt.Errorf("network mask mismatch: %v != %v", network.Mask, ipNet.Mask)
+				}
+			}
+		} else {
+			// validate prefix
+			if len(composite) > 1 {
+				return fmt.Errorf("%s composite subnet config is invalid", composite)
+			}
+			_, err = validatePrefix(c)
+		}
+	}
+	return err
+}
+
 type InterfaceType string
 
 const (
