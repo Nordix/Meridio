@@ -73,8 +73,7 @@ var _ = Describe("TAPA", func() {
 					By(fmt.Sprintf("Waiting for nfqlb in the %s (%s) to have %d targets configured", pod.Name, pod.Namespace, (numberOfTargetA - 1)))
 					Eventually(func() bool {
 						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
-						Expect(err).NotTo(HaveOccurred())
-						return utils.ParseNFQLB(nfqlbOutput) == (numberOfTargetA - 1)
+						return err == nil && utils.ParseNFQLB(nfqlbOutput) == (numberOfTargetA-1)
 					}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 				}
 			})
@@ -110,8 +109,7 @@ var _ = Describe("TAPA", func() {
 					By(fmt.Sprintf("Waiting for nfqlb in the %s (%s) to have %d targets configured", pod.Name, pod.Namespace, numberOfTargetA))
 					Eventually(func() bool {
 						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAI)})
-						Expect(err).NotTo(HaveOccurred())
-						return utils.ParseNFQLB(nfqlbOutput) == numberOfTargetA
+						return err == nil && utils.ParseNFQLB(nfqlbOutput) == numberOfTargetA
 					}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 				}
 			})
@@ -180,8 +178,7 @@ var _ = Describe("TAPA", func() {
 					By(fmt.Sprintf("Waiting for nfqlb in the %s (%s) to have %d targets configured", pod.Name, pod.Namespace, 1))
 					Eventually(func() bool {
 						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAII)})
-						Expect(err).NotTo(HaveOccurred())
-						return utils.ParseNFQLB(nfqlbOutput) == 1
+						return err == nil && utils.ParseNFQLB(nfqlbOutput) == 1
 					}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 				}
 			})
@@ -217,8 +214,7 @@ var _ = Describe("TAPA", func() {
 					By(fmt.Sprintf("Waiting for nfqlb in the %s (%s) to have %d targets configured", pod.Name, pod.Namespace, numberOfTargetA))
 					Eventually(func() bool {
 						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAII)})
-						Expect(err).NotTo(HaveOccurred())
-						return utils.ParseNFQLB(nfqlbOutput) == 0
+						return err == nil && utils.ParseNFQLB(nfqlbOutput) == 0
 					}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 				}
 			})
@@ -298,8 +294,7 @@ var _ = Describe("TAPA", func() {
 					By(fmt.Sprintf("Waiting for nfqlb in the %s (%s) to have %d targets configured", pod.Name, pod.Namespace, 1))
 					Eventually(func() bool {
 						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAIV)})
-						Expect(err).NotTo(HaveOccurred())
-						return utils.ParseNFQLB(nfqlbOutput) == 1
+						return err == nil && utils.ParseNFQLB(nfqlbOutput) == 1
 					}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 				}
 			})
@@ -335,8 +330,7 @@ var _ = Describe("TAPA", func() {
 					By(fmt.Sprintf("Waiting for nfqlb in the %s (%s) to have %d targets configured", pod.Name, pod.Namespace, numberOfTargetA))
 					Eventually(func() bool {
 						nfqlbOutput, err := utils.PodExec(&pod, "stateless-lb", []string{"nfqlb", "show", fmt.Sprintf("--shm=tshm-%v", config.streamAIV)})
-						Expect(err).NotTo(HaveOccurred())
-						return utils.ParseNFQLB(nfqlbOutput) == 0
+						return err == nil && utils.ParseNFQLB(nfqlbOutput) == 0
 					}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 				}
 			})
