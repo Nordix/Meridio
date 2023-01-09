@@ -96,6 +96,8 @@ spec:
               value: "10m"
             - name: NSM_LOG_LEVEL
               value:  # to be filled by operator
+            - name: NSM_REGISTRY_CLIENT_POLICIES
+              value: "" 
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

@@ -79,6 +79,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: NSM_REGISTRY_SERVER_POLICIES
+              value: ""
+            - name: NSM_REGISTRY_CLIENT_POLICIES
+              value: ""
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets
