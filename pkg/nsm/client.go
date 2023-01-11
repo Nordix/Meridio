@@ -24,6 +24,8 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
+	registryauthorize "github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/spiffejwt"
@@ -57,7 +59,10 @@ func (apiClient *APIClient) GetClientOptions() []grpc.DialOption {
 	return append(
 		tracing.WithTracingDial(),
 		grpc.WithBlock(),
-		grpc.WithDefaultCallOptions(grpc.WaitForReady(true)),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+			grpc.PerRPCCredentials(token.NewPerRPCCredentials(spiffejwt.TokenGeneratorFunc(apiClient.x509source, apiClient.Config.MaxTokenLifetime))),
+		),
 		grpc.WithTransportCredentials(
 			grpcfd.TransportCredentials(
 				credentials.NewTLS(
@@ -65,6 +70,8 @@ func (apiClient *APIClient) GetClientOptions() []grpc.DialOption {
 				),
 			),
 		),
+		grpcfd.WithChainStreamInterceptor(),
+		grpcfd.WithChainUnaryInterceptor(),
 	)
 }
 
@@ -75,8 +82,11 @@ func (apiClient *APIClient) setNetworkServiceEndpointRegistryClient() {
 		registryclient.WithClientURL(&apiClient.Config.ConnectTo),
 		registryclient.WithDialOptions(clientOptions...),
 		registryclient.WithNSEAdditionalFunctionality(
+			clientinfo.NewNetworkServiceEndpointRegistryClient(),
 			sendfd.NewNetworkServiceEndpointRegistryClient(),
-		))
+		),
+		registryclient.WithAuthorizeNSRegistryClient(registryauthorize.NewNetworkServiceRegistryClient()),
+	)
 }
 
 func (apiClient *APIClient) setNetworkServiceRegistryClient() {
@@ -84,7 +94,9 @@ func (apiClient *APIClient) setNetworkServiceRegistryClient() {
 	apiClient.NetworkServiceRegistryClient = registryclient.NewNetworkServiceRegistryClient(
 		apiClient.context,
 		registryclient.WithClientURL(&apiClient.Config.ConnectTo),
-		registryclient.WithDialOptions(clientOptions...))
+		registryclient.WithDialOptions(clientOptions...),
+		registryclient.WithAuthorizeNSRegistryClient(registryauthorize.NewNetworkServiceRegistryClient()),
+	)
 }
 
 func (apiClient *APIClient) dial() {

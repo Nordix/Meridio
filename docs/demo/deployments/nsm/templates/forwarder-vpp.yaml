@@ -42,6 +42,8 @@ spec:
                   fieldPath: metadata.name
             - name: NSM_DEVICE_SELECTOR_FILE
               value: /var/lib/networkservicemesh/device-selector.yaml
+            - name: NSM_REGISTRY_CLIENT_POLICIES
+              value: ""
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

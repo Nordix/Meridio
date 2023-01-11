@@ -28,6 +28,10 @@ spec:
               value: nsmgr-proxy:5004
             - name: REGISTRY_MEMORY_EXPIRE_PERIOD
               value: "2s"
+            - name: REGISTRY_MEMORY_REGISTRY_SERVER_POLICIES
+              value: ""
+            - name: REGISTRY_MEMORY_REGISTRY_CLIENT_POLICIES
+              value: "" 
           imagePullPolicy: {{ .Values.pullPolicy }}
           name: nsm-registry
           ports:
