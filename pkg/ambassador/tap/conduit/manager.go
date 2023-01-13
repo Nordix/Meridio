@@ -49,6 +49,8 @@ type streamManager struct {
 	StreamFactory              StreamFactory
 	Timeout                    time.Duration
 	NSPEntryTimeout            time.Duration
+	// RetryDelay corresponds to the time between each Open call attempt
+	RetryDelay time.Duration
 	// list of streams available in the conduit.
 	ConduitStreams map[string]*nspAPI.Stream
 	mu             sync.Mutex
@@ -60,7 +62,7 @@ func NewStreamManager(configurationManagerClient nspAPI.ConfigurationManagerClie
 	streamRegistry types.Registry,
 	streamFactory StreamFactory,
 	timeout time.Duration,
-	nspEntryTimeout time.Duration) StreamManager {
+	nspEntryTimeout time.Duration) *streamManager {
 	sm := &streamManager{
 		Streams:                    map[string]*streamRetry{},
 		ConfigurationManagerClient: configurationManagerClient,
@@ -70,6 +72,7 @@ func NewStreamManager(configurationManagerClient nspAPI.ConfigurationManagerClie
 		Timeout:                    timeout,
 		NSPEntryTimeout:            nspEntryTimeout,
 		ConduitStreams:             map[string]*nspAPI.Stream{},
+		RetryDelay:                 1 * time.Second,
 		status:                     stopped,
 	}
 	return sm
@@ -94,6 +97,7 @@ func (sm *streamManager) AddStream(strm *ambassadorAPI.Stream) error {
 		StreamRegistry:  sm.StreamRegistry,
 		Timeout:         sm.Timeout,
 		NSPEntryTimeout: sm.NSPEntryTimeout,
+		RetryDelay:      sm.RetryDelay,
 	}
 	sm.Streams[strm.FullName()] = sr
 	if sm.status == stopped {
@@ -223,6 +227,7 @@ type streamRetry struct {
 	StreamRegistry  types.Registry
 	Timeout         time.Duration
 	NSPEntryTimeout time.Duration
+	RetryDelay      time.Duration
 	currentStatus   ambassadorAPI.StreamStatus_Status
 	mu              sync.Mutex
 	ctxMu           sync.Mutex
@@ -264,7 +269,7 @@ func (sr *streamRetry) Open(nspStream *nspAPI.Stream) {
 			sr.setStatus(ambassadorAPI.StreamStatus_OPEN)
 			return nil
 		}, retry.WithContext(openCtx),
-			retry.WithDelay(50*time.Millisecond))
+			retry.WithDelay(sr.RetryDelay))
 
 		return nil
 	}, retry.WithContext(ctx),

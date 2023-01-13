@@ -37,6 +37,7 @@ var timeout = 500 * time.Millisecond
 func Test_Manager_Run_Stop(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	manager := conduit.NewStreamManager(nil, nil, nil, nil, timeout, 30*time.Second)
+	manager.RetryDelay = 1 * time.Millisecond
 	manager.Run()
 	err := manager.Stop(context.TODO())
 	assert.Nil(t, err)
@@ -56,17 +57,18 @@ func Test_RemoveStream_non_existing(t *testing.T) {
 	}
 
 	manager := conduit.NewStreamManager(nil, nil, nil, nil, timeout, 30*time.Second)
+	manager.RetryDelay = 1 * time.Millisecond
 	err := manager.RemoveStream(context.TODO(), s)
 	assert.Nil(t, err)
 }
 
-// 1. Creates the stream manager
+// 1. Create the stream manager with a stream set
 // 2. Run the stream manager
-// 3. Add a new stream
+// 3. Add (open) a new stream
 // 4. Verify Status is pending
 // 5. Verify Status is open
 // 6. Stop the stream manager
-// 7. Verify Status is unavailable
+// 7. Verify Status is undefined
 // Check the stream has been received by the registry with the correct status
 // Check Open (Stream) has been called
 // Check Close (Stream) has been called
@@ -97,17 +99,17 @@ func Test_Manager_Running_AddStream_Stop(t *testing.T) {
 	defer ctrl.Finish()
 
 	r := typesMocks.NewMockRegistry(ctrl)
-	// 4. Verify Status is pending
+	// 4.
 	setStatus1 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_PENDING, status)
 	})
-	// 5. Verify Status is open
+	// 5.
 	setStatus2 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_OPEN, status)
 	}).After(setStatus1)
-	// 7. Verify Status is unavailable
+	// 7.
 	r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_UNDEFINED, status)
@@ -126,31 +128,32 @@ func Test_Manager_Running_AddStream_Stop(t *testing.T) {
 	// Check Close (Stream) has been called
 	streamA.EXPECT().Close(gomock.Any()).Return(nil).After(open)
 
-	// 1. Creates the stream manager
+	// 1.
 	manager := conduit.NewStreamManager(nil, nil, r, streamFactory, timeout, 30*time.Second)
+	manager.RetryDelay = 1 * time.Millisecond
 	manager.SetStreams(streams)
 
-	// 2. Run the stream manager
+	// 2.
 	manager.Run()
 
-	// 3. Add a new stream
+	// 3.
 	err := manager.AddStream(s)
 	assert.Nil(t, err)
 
 	// Check Open (Stream) has been called
 	<-openCtx.Done()
 
-	// 6. Stop the stream manager
+	// 6.
 	err = manager.Stop(context.TODO())
 	assert.Nil(t, err)
 }
 
-// 1. Creates the stream manager
+// 1. Create the stream manager with a stream set
 // 2. Run the stream manager
-// 3. Add a new stream
+// 3. Add (open) a new stream
 // 4. Verify Status is pending
 // 5. Verify Status is open
-// 6. Remove the stream
+// 6. Remove (close) the stream
 // 7. Verify stream has been removed
 // 8. Stop the stream manager
 // Check the stream has been received by the registry with the correct status
@@ -183,17 +186,17 @@ func Test_Manager_RemoveStream(t *testing.T) {
 	defer ctrl.Finish()
 
 	r := typesMocks.NewMockRegistry(ctrl)
-	// 4. Verify Status is pending
+	// 4.
 	setStatus1 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_PENDING, status)
 	})
-	// 5. Verify Status is open
+	// 5.
 	r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_OPEN, status)
 	}).After(setStatus1)
-	// 7. Verify stream has been removed
+	// 7.
 	r.EXPECT().Remove(gomock.Any()).Return()
 
 	streamFactory := mocks.NewMockStreamFactory(ctrl)
@@ -209,29 +212,40 @@ func Test_Manager_RemoveStream(t *testing.T) {
 	// Check Close (Stream) has been called
 	streamA.EXPECT().Close(gomock.Any()).Return(nil)
 
-	// 1. Creates the stream manager
+	// 1.
 	manager := conduit.NewStreamManager(nil, nil, r, streamFactory, timeout, 30*time.Second)
+	manager.RetryDelay = 1 * time.Millisecond
 	manager.SetStreams(streams)
 
-	// 2. Run the stream manager
+	// 2.
 	manager.Run()
 
-	// 3. Add a new stream
+	// 3.
 	err := manager.AddStream(s)
 	assert.Nil(t, err)
 
 	// Check Open (Stream) has been called
 	<-openCtx.Done()
 
-	// 6. Remove the stream
+	// 6.
 	err = manager.RemoveStream(context.TODO(), s)
 	assert.Nil(t, err)
 
-	// 8. Stop the stream manager
+	// 8.
 	err = manager.Stop(context.TODO())
 	assert.Nil(t, err)
 }
 
+// 1. Create the stream manager with a stream set
+// 2. Run the stream manager
+// 3. Add (open) a new stream
+// 4. Verify Status is pending
+// 5. Remove (close) the stream
+// 6. Verify Status is unavailable
+// 7. Stop the stream manager
+// Check the stream has been received by the registry with the correct status
+// Check Open (Stream) has been called
+// Check Close (Stream) has been called
 func Test_Manager_Close_While_Opening(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -259,10 +273,12 @@ func Test_Manager_Close_While_Opening(t *testing.T) {
 	defer ctrl.Finish()
 
 	r := typesMocks.NewMockRegistry(ctrl)
+	// 4.
 	setStatus1 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_PENDING, status)
 	})
+	// 6.
 	r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_UNAVAILABLE, status)
@@ -283,37 +299,38 @@ func Test_Manager_Close_While_Opening(t *testing.T) {
 	// Check Close (Stream) has been called
 	streamA.EXPECT().Close(gomock.Any()).Return(nil)
 
-	// 1. Creates the stream manager
+	// 1.
 	manager := conduit.NewStreamManager(nil, nil, r, streamFactory, 0, 30*time.Second)
+	manager.RetryDelay = 1 * time.Millisecond
 	manager.SetStreams(streams)
 
-	// 2. Run the stream manager
+	// 2.
 	manager.Run()
 
-	// 3. Add a new stream
+	// 3.
 	err := manager.AddStream(s)
 	assert.Nil(t, err)
 
 	<-openCtx.Done()
 
-	// 4. Remove the stream
+	// 5.
 	err = manager.RemoveStream(context.TODO(), s)
 	assert.Nil(t, err)
 
-	// 5. Stop the stream manager
+	// 7.
 	err = manager.Stop(context.TODO())
 	assert.Nil(t, err)
 }
 
-// 1. Creates the stream manager
+// 1. Create the stream manager with a stream set
 // 2. Run the stream manager
-// 3. Add a new stream
+// 3. Add (open) a new stream
 // 4. Verify Status is pending
 // 5. verify open is called and return err
 // 6. Verify Status is unavailable
 // 7. verify open is called again and return no error
 // 8. Verify Status is open
-// 9. Remove the stream
+// 9. Remove (close) the stream
 // 10. Stop the stream manager
 func Test_Manager_Retry_Open(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
@@ -342,17 +359,17 @@ func Test_Manager_Retry_Open(t *testing.T) {
 	defer ctrl.Finish()
 
 	r := typesMocks.NewMockRegistry(ctrl)
-	// 4. Verify Status is pending
+	// 4.
 	setStatus1 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_PENDING, status)
 	})
-	// 6. Verify Status is unavailable
+	// 6.
 	setStatus2 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_UNAVAILABLE, status)
 	}).After(setStatus1)
-	// 8. Verify Status is open
+	// 8.
 	setStatus3 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_OPEN, status)
@@ -363,9 +380,9 @@ func Test_Manager_Retry_Open(t *testing.T) {
 	streamA := typesMocks.NewMockStream(ctrl)
 	streamFactory.EXPECT().New(gomock.Any()).Return(streamA, nil)
 	streamA.EXPECT().GetStream().Return(s).AnyTimes()
-	// 5. verify open is called and return err
+	// 5.
 	firstOpen := streamA.EXPECT().Open(gomock.Any(), gomock.Any()).Return(errors.New(""))
-	// 7. verify open is called again and return no error
+	// 7.
 	secondOpenCtx, secondOpenCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
 	secondOpen := streamA.EXPECT().Open(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, nspStream *nspAPI.Stream) error {
 		secondOpenCancel()
@@ -373,31 +390,32 @@ func Test_Manager_Retry_Open(t *testing.T) {
 	}).After(firstOpen)
 	streamA.EXPECT().Close(gomock.Any()).Return(nil).After(secondOpen)
 
-	// 1. Creates the stream manager
+	// 1.
 	manager := conduit.NewStreamManager(nil, nil, r, streamFactory, timeout, 30*time.Second)
+	manager.RetryDelay = 1 * time.Millisecond
 	manager.SetStreams(streams)
 
-	// 2. Run the stream manager
+	// 2.
 	manager.Run()
 
-	// 3. Add a new stream
+	// 3.
 	err := manager.AddStream(s)
 	assert.Nil(t, err)
 
 	<-secondOpenCtx.Done()
 
-	// 9. Remove the stream
+	// 9.
 	err = manager.RemoveStream(context.TODO(), s)
 	assert.Nil(t, err)
 
-	// 10. Stop the stream manager
+	// 10.
 	err = manager.Stop(context.TODO())
 	assert.Nil(t, err)
 }
 
-// 1. Creates the stream manager
+// 1. Create the stream manager
 // 2. Run the stream manager (with no NSP Stream)
-// 3. Add a new stream
+// 3. Add (open) a new stream
 // 4. Verify Status is undefined
 // 5. Set the NSP Streams
 // 6. verify open is called
@@ -405,7 +423,7 @@ func Test_Manager_Retry_Open(t *testing.T) {
 // 8. Remove the NSP Streams (set to empty list)
 // 9. verify close is called
 // 10. Verify Status is undefined
-// 11. Remove the stream
+// 11. Remove (close) the stream
 // 12. Stop the stream manager
 func Test_Manager_Add_Non_Existing_Stream(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
@@ -434,17 +452,17 @@ func Test_Manager_Add_Non_Existing_Stream(t *testing.T) {
 	defer ctrl.Finish()
 
 	r := typesMocks.NewMockRegistry(ctrl)
-	// 4. Verify Status is undefined
+	// 4.
 	setStatus1 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_UNDEFINED, status)
 	})
-	// 7. Verify Status is open
+	// 7.
 	setStatus2 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_OPEN, status)
 	}).After(setStatus1)
-	// 10. Verify Status is undefined
+	// 10.
 	setStatus3 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_UNDEFINED, status)
@@ -455,46 +473,47 @@ func Test_Manager_Add_Non_Existing_Stream(t *testing.T) {
 	streamA := typesMocks.NewMockStream(ctrl)
 	streamFactory.EXPECT().New(gomock.Any()).Return(streamA, nil)
 	streamA.EXPECT().GetStream().Return(s).AnyTimes()
-	// 6. verify open is called
+	// 6.
 	openCtx, openCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
 	streamA.EXPECT().Open(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, nspStream *nspAPI.Stream) error {
 		openCancel()
 		return nil
 	})
-	// 9. verify close is called
+	// 9.
 	closeCtx, closeCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
 	streamA.EXPECT().Close(gomock.Any()).DoAndReturn(func(ctx context.Context) error {
 		closeCancel()
 		return nil
 	}).AnyTimes()
 
-	// 1. Creates the stream manager
+	// 1.
 	manager := conduit.NewStreamManager(nil, nil, r, streamFactory, timeout, 30*time.Second)
+	manager.RetryDelay = 1 * time.Millisecond
 
-	// 2. Run the stream manager (with no NSP Streams)
+	// 2.
 	manager.Run()
 
-	// 3. Add a new stream
+	// 3.
 	err := manager.AddStream(s)
 	assert.Nil(t, err)
 
-	// 5. Set the NSP Streams
+	// 5.
 	manager.SetStreams(streams)
 
-	// 6. verify open is called
+	// 6.
 	<-openCtx.Done()
 
-	// 8. Remove the NSP Streams (set to empty list)
+	// 8.
 	manager.SetStreams([]*nspAPI.Stream{})
 
-	// 9. verify close is called
+	// 9.
 	<-closeCtx.Done()
 
-	// 11. Remove the stream
+	// 11.
 	err = manager.RemoveStream(context.TODO(), s)
 	assert.Nil(t, err)
 
-	// 12. Stop the stream manager
+	// 12.
 	err = manager.Stop(context.TODO())
 	assert.Nil(t, err)
 }
