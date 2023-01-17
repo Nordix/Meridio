@@ -83,6 +83,21 @@ func main() {
 	}
 
 	logger := log.New("Meridio-tapa", config.LogLevel)
+	logger.Info("Configuration read", "config", config)
+	if err := config.IsValid(); err != nil {
+		log.Fatal(logger, "config.IsValid", "error", err)
+	}
+
+	if config.LogLevel == "TRACE" {
+		nsmlog.EnableTracing(true) // enable tracing in NSM
+		logrus.SetLevel(logrus.TraceLevel)
+	}
+
+	logger.Info("NSM trace", "enabled", nsmlog.IsTracingEnabled())
+	nsmlogger := log.NSMLogger(logger)
+	nsmlog.SetGlobalLogger(nsmlogger)
+
+	// Create context with loggers
 	ctx, cancel := signal.NotifyContext(
 		logr.NewContext(context.Background(), logger),
 		os.Interrupt,
@@ -91,12 +106,7 @@ func main() {
 		syscall.SIGQUIT,
 	)
 	defer cancel()
-	logger.Info("Config read", "config", config)
-
-	if config.LogLevel == "TRACE" {
-		nsmlog.EnableTracing(true) // enable tracing in NSM
-		logrus.SetLevel(logrus.TraceLevel)
-	}
+	ctx = nsmlog.WithLog(ctx, nsmlogger)
 
 	netUtils := &linuxKernel.KernelUtils{}
 

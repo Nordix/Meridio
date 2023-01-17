@@ -65,9 +65,6 @@ func main() {
 	}
 
 	config := &env.Config{}
-	if err := envconfig.Usage("nfe", config); err != nil {
-		panic(err)
-	}
 	if err := envconfig.Process("nfe", config); err != nil {
 		panic(err)
 	}

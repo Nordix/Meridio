@@ -109,8 +109,10 @@ func main() {
 		logrus.SetLevel(logrus.TraceLevel)
 	}
 	logger.Info("NSM trace", "enabled", nsmlog.IsTracingEnabled())
-	// Doesn't work, see https://github.com/networkservicemesh/sdk/issues/1272
-	ctx = nsmlog.WithLog(ctx, log.NSMLogger(logger)) // allow NSM logs
+	// See https://github.com/networkservicemesh/sdk/issues/1272
+	nsmlogger := log.NSMLogger(logger)
+	nsmlog.SetGlobalLogger(nsmlogger)
+	ctx = nsmlog.WithLog(ctx, nsmlogger)
 
 	netUtils := &linuxKernel.KernelUtils{}
 
