@@ -96,7 +96,9 @@ func main() {
 		logrus.SetLevel(logrus.TraceLevel)
 	}
 	logger.Info("NSM trace", "enabled", nsmlog.IsTracingEnabled())
-	ctx = nsmlog.WithLog(ctx, log.NSMLogger(logger))
+	nsmlogger := log.NSMLogger(logger)
+	nsmlog.SetGlobalLogger(nsmlogger)
+	ctx = nsmlog.WithLog(ctx, nsmlogger)
 
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
