@@ -140,6 +140,7 @@ TODO:
 | new-gateway-bgp | Gateway | |
 | new-gateway-bgp-authentication | Gateway | |
 | new-gateway-static | Gateway | |
+| close-no-longer-existing-conduit| TAPA | |
 -->
 
 ### Steps (Kind + Helm)

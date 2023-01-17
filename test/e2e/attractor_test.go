@@ -94,12 +94,8 @@ var _ = Describe("Attractor", func() {
 			})
 
 			AfterEach(func() {
-				By("Reverting the configuration of the new attractor")
-				err := utils.Exec(config.script, "new_attractor_nsm_vlan_revert")
-				Expect(err).ToNot(HaveOccurred())
-
 				By(fmt.Sprintf("Closing stream %s (conduit: %s, trench: %s) in target %s in namespace %s", config.streamAIII, config.conduitA3, config.trenchA, targetPod.Name, targetPod.Namespace))
-				_, err = utils.PodExec(targetPod, "example-target", []string{"./target-client", "close", "-t", config.trenchA, "-c", config.conduitA3, "-s", config.streamAIII})
+				_, err := utils.PodExec(targetPod, "example-target", []string{"./target-client", "close", "-t", config.trenchA, "-c", config.conduitA3, "-s", config.streamAIII})
 				Expect(err).NotTo(HaveOccurred())
 
 				// wait trenchA/conduitA3/streamAIII to be closed
@@ -117,6 +113,10 @@ var _ = Describe("Attractor", func() {
 					}
 					return false
 				}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
+
+				By("Reverting the configuration of the new attractor")
+				err = utils.Exec(config.script, "new_attractor_nsm_vlan_revert")
+				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("(Traffic) is received by the targets", func(ctx context.Context) {
