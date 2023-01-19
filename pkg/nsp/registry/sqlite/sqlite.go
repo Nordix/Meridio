@@ -35,9 +35,10 @@ type TargetRegistrySQLite struct {
 	watchers map[*common.RegistryWatcher]struct{}
 }
 
-func New(datastore string) (types.TargetRegistry, error) {
+func New(datastore string) (*TargetRegistrySQLite, error) {
 	db, err := gorm.Open(sqlite.Open(datastore), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
+		Logger:               logger.Default.LogMode(logger.Silent),
+		FullSaveAssociations: true,
 	})
 	if err != nil {
 		return nil, err
@@ -53,6 +54,15 @@ func New(datastore string) (types.TargetRegistry, error) {
 	return targetRegistrySQLite, nil
 }
 
+func (trsql *TargetRegistrySQLite) Close() error {
+	sqlDB, err := trsql.DB.DB()
+	if err != nil {
+		return err
+	}
+	sqlDB.Close()
+	return nil
+}
+
 func (trsql *TargetRegistrySQLite) Set(ctx context.Context, target *nspAPI.Target) error {
 	trsql.mu.Lock()
 	defer trsql.mu.Unlock()
@@ -65,6 +75,10 @@ func (trsql *TargetRegistrySQLite) Set(ctx context.Context, target *nspAPI.Targe
 			if tx.Error != nil {
 				return tx.Error
 			}
+			err := trsql.clearConflicts(ctx, target)
+			if err != nil {
+				return err
+			}
 			return trsql.notifyAllWatchers()
 		}
 		return tx.Error
@@ -74,6 +88,10 @@ func (trsql *TargetRegistrySQLite) Set(ctx context.Context, target *nspAPI.Targe
 	if tx.Error != nil {
 		return tx.Error
 	}
+	err := trsql.clearConflicts(ctx, target)
+	if err != nil {
+		return err
+	}
 	return trsql.notifyAllWatchers()
 }
 
@@ -81,7 +99,11 @@ func (trsql *TargetRegistrySQLite) Remove(ctx context.Context, target *nspAPI.Ta
 	trsql.mu.Lock()
 	defer trsql.mu.Unlock()
 	targetModel := NSPTargetToSQLTarget(target)
-	tx := trsql.DB.Delete(targetModel)
+	return trsql.remove(ctx, targetModel)
+}
+
+func (trsql *TargetRegistrySQLite) remove(ctx context.Context, target *Target) error {
+	tx := trsql.DB.Delete(target)
 	if tx.Error != nil {
 		return tx.Error
 	}
@@ -163,4 +185,34 @@ func (trsql *TargetRegistrySQLite) init() error {
 	}
 	err = trsql.DB.AutoMigrate(&Trench{})
 	return err
+}
+
+// Due the way the data are stored, 2 objects (Stream, Conduit, Trench) with the same name but with different parent
+// causes problems.
+// FullSaveAssociations will update the association when a target will be registered/updated. This will cause
+// old targets, with, for instance, the same stream name but different conduit name to get their conduit name
+// replaced. This function will then remove all targets which got their association replaced.
+func (trsql *TargetRegistrySQLite) clearConflicts(ctx context.Context, target *nspAPI.Target) error {
+	if target == nil {
+		return nil
+	}
+	var targets []Target
+	streamName := ""
+	if target.Stream != nil {
+		streamName = target.Stream.Name
+	}
+	tx := trsql.DB.Preload("Stream.Conduit.Trench").Where("stream_name = ?", streamName).Find(&targets)
+	if tx.Error != nil {
+		return tx.Error
+	}
+	for _, tt := range targets {
+		nspT := SQLTargetToNSPTarget(&tt)
+		if tt.ID != GetTargetID(nspT) {
+			err := trsql.remove(ctx, &tt)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
