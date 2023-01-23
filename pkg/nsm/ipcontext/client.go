@@ -40,7 +40,7 @@ func NewClient(ipContextSetter ipContextSetter) networkservice.NetworkServiceCli
 
 // Request
 func (icc *ipcontextClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	err := icc.ics.SetIPContext(request.Connection, networking.NSC)
+	err := icc.ics.SetIPContext(ctx, request.Connection, networking.NSC)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func (icc *ipcontextClient) Request(ctx context.Context, request *networkservice
 
 // Close
 func (icc *ipcontextClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	err := icc.ics.UnsetIPContext(conn, networking.NSC)
+	err := icc.ics.UnsetIPContext(ctx, conn, networking.NSC)
 	if err != nil {
 		return nil, err
 	}

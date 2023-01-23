@@ -183,6 +183,8 @@ func (c *Conduit) GetConduit() *ambassadorAPI.Conduit {
 
 // GetIPs returns the local IPs for this conduit
 func (c *Conduit) GetIPs() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.connection != nil {
 		return c.localIPs
 	}
@@ -197,7 +199,7 @@ func (c *Conduit) SetVIPs(vips []string) error {
 		return nil
 	}
 	// prepare SrcIpAddrs (IPs allocated by the proxy + VIPs)
-	c.connection.Context.IpContext.SrcIpAddrs = append(c.GetIPs(), vips...)
+	c.connection.Context.IpContext.SrcIpAddrs = append(c.localIPs, vips...)
 	// prepare the routes (nexthops = proxy bridge IPs)
 	ipv4Nexthops := []*networkservice.Route{}
 	ipv6Nexthops := []*networkservice.Route{}
@@ -257,6 +259,7 @@ func (c *Conduit) SetVIPs(vips []string) error {
 	}, retry.WithContext(c.ctx),
 		retry.WithDelay(500*time.Millisecond))
 	c.logger.Info("VIPs updated", "vips", vips)
+	c.localIPs = getLocalIPs(c.connection.GetContext().GetIpContext().GetSrcIpAddrs(), vips)
 	return nil
 }
 
@@ -280,4 +283,30 @@ func (c *Conduit) getGateways() []string {
 		return c.connection.GetContext().GetIpContext().GetExtraPrefixes()
 	}
 	return []string{}
+}
+
+func getLocalIPs(srcIpAddrs []string, vips []string) []string {
+	res := []string{}
+	vipsMap := map[string]struct{}{}
+	for _, vip := range vips {
+		ip, ipNet, err := net.ParseCIDR(vip)
+		if err != nil {
+			continue
+		}
+		prefixLength, _ := ipNet.Mask.Size()
+		vipsMap[fmt.Sprintf("%s/%d", ip, prefixLength)] = struct{}{}
+	}
+	for _, srcIpAddr := range srcIpAddrs {
+		ip, ipNet, err := net.ParseCIDR(srcIpAddr)
+		if err != nil {
+			continue
+		}
+		prefixLength, _ := ipNet.Mask.Size()
+		cidr := fmt.Sprintf("%s/%d", ip, prefixLength) // reformat in case srcIpAddrs have been modified (e.g. IPv6 format)
+		_, exists := vipsMap[cidr]
+		if !exists {
+			res = append(res, cidr)
+		}
+	}
+	return res
 }

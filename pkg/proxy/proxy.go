@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 	"sync"
 
@@ -33,11 +34,11 @@ import (
 
 // Proxy -
 type Proxy struct {
-	bridge     networking.Bridge
+	Bridge     networking.Bridge
 	vips       []*virtualIP
 	conduit    *nspAPI.Conduit
 	Subnets    map[ipamAPI.IPFamily]*ipamAPI.Subnet
-	ipamClient ipamAPI.IpamClient
+	IpamClient ipamAPI.IpamClient
 	mutex      sync.Mutex
 	netUtils   networking.Utils
 	nexthops   []string
@@ -56,7 +57,7 @@ func (p *Proxy) InterfaceCreated(intf networking.Iface) {
 	}
 	p.logger.Info("InterfaceCreated", "intf", intf, "nexthops", p.nexthops)
 	// Link the interface to the bridge
-	err := p.bridge.LinkInterface(intf)
+	err := p.Bridge.LinkInterface(intf)
 	if err != nil {
 		p.logger.Error(err, "LinkInterface")
 	}
@@ -91,7 +92,7 @@ func (p *Proxy) InterfaceDeleted(intf networking.Iface) {
 	}
 	p.logger.Info("InterfaceDeleted", "intf", intf, "nexthops", p.nexthops)
 	// Unlink the interface from the bridge
-	err := p.bridge.UnLinkInterface(intf)
+	err := p.Bridge.UnLinkInterface(intf)
 	if err != nil {
 		p.logger.Error(err, "UnLinkInterface")
 	}
@@ -117,7 +118,7 @@ func (p *Proxy) InterfaceDeleted(intf networking.Iface) {
 }
 
 // SetIPContext
-func (p *Proxy) SetIPContext(conn *networkservice.Connection, interfaceType networking.InterfaceType) error {
+func (p *Proxy) SetIPContext(ctx context.Context, conn *networkservice.Connection, interfaceType networking.InterfaceType) error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -128,14 +129,8 @@ func (p *Proxy) SetIPContext(conn *networkservice.Connection, interfaceType netw
 	if conn.GetContext() == nil {
 		conn.Context = &networkservice.ConnectionContext{}
 	}
-
-	// No need to allocate new IPs in case refresh chain component resends Request
-	// belonging to an established connection.
-	// (It is also assumed, that proxy subnets can not change...)
-	if conn.GetContext().GetIpContext() != nil &&
-		conn.GetContext().GetIpContext().GetSrcIpAddrs() != nil &&
-		conn.GetContext().GetIpContext().GetDstIpAddrs() != nil {
-		return nil
+	if conn.GetContext().GetIpContext() == nil {
+		conn.GetContext().IpContext = &networkservice.IPContext{}
 	}
 
 	srcIPAddrs := []string{}
@@ -145,7 +140,7 @@ func (p *Proxy) SetIPContext(conn *networkservice.Connection, interfaceType netw
 			Name:   fmt.Sprintf("%s-src", conn.Id),
 			Subnet: subnet,
 		}
-		srcPrefix, err := p.ipamClient.Allocate(context.TODO(), child)
+		srcPrefix, err := p.IpamClient.Allocate(ctx, child)
 		if err != nil {
 			return err
 		}
@@ -155,32 +150,138 @@ func (p *Proxy) SetIPContext(conn *networkservice.Connection, interfaceType netw
 			Name:   fmt.Sprintf("%s-dst", conn.Id),
 			Subnet: subnet,
 		}
-		dstPrefix, err := p.ipamClient.Allocate(context.TODO(), child)
+		dstPrefix, err := p.IpamClient.Allocate(ctx, child)
 		if err != nil {
 			return err
 		}
 		dstIpAddrs = append(dstIpAddrs, dstPrefix.ToString())
 	}
 
-	conn.GetContext().IpContext = &networkservice.IPContext{}
 	if interfaceType == networking.NSE {
-		conn.GetContext().IpContext.SrcIpAddrs = srcIPAddrs
-		conn.GetContext().IpContext.DstIpAddrs = dstIpAddrs
-		conn.GetContext().GetIpContext().ExtraPrefixes = p.bridge.GetLocalPrefixes()
+		p.setNSEIpContext(conn.GetContext().GetIpContext(), srcIPAddrs, dstIpAddrs)
 	} else if interfaceType == networking.NSC {
-		conn.GetContext().IpContext.SrcIpAddrs = dstIpAddrs
-		conn.GetContext().IpContext.DstIpAddrs = srcIPAddrs
+		conn.GetContext().GetIpContext().SrcIpAddrs = dstIpAddrs
+		conn.GetContext().GetIpContext().DstIpAddrs = srcIPAddrs
 	}
 	return nil
 }
 
-func (p *Proxy) UnsetIPContext(conn *networkservice.Connection, interfaceType networking.InterfaceType) error {
+func (p *Proxy) setNSEIpContext(ipContext *networkservice.IPContext, srcIPAddrs []string, dstIpAddrs []string) {
+	if len(ipContext.SrcIpAddrs) == 0 && len(ipContext.DstIpAddrs) == 0 { // First request
+		ipContext.SrcIpAddrs = srcIPAddrs
+		ipContext.DstIpAddrs = dstIpAddrs
+		ipContext.ExtraPrefixes = p.Bridge.GetLocalPrefixes()
+		return
+	}
+	// The request is an update
+	if contains(ipContext.ExtraPrefixes, p.Bridge.GetLocalPrefixes()) &&
+		contains(ipContext.SrcIpAddrs, srcIPAddrs) &&
+		contains(ipContext.DstIpAddrs, dstIpAddrs) {
+		return
+	}
+	// remove old IPs, add new ones, and set the gateways
+	oldGateways := ipContext.GetExtraPrefixes()
+	ipContext.ExtraPrefixes = p.Bridge.GetLocalPrefixes()
+	ipContext.SrcIpAddrs = removeOldIPs(ipContext.SrcIpAddrs, oldGateways)
+	ipContext.DstIpAddrs = removeOldIPs(ipContext.DstIpAddrs, oldGateways)
+	ipContext.SrcIpAddrs = append(ipContext.SrcIpAddrs, srcIPAddrs...)
+	ipContext.DstIpAddrs = append(ipContext.DstIpAddrs, dstIpAddrs...)
+	// Find IPv4 gateway and IPv6 Gateway
+	gatewayV4 := ""
+	gatewayV6 := ""
+	for _, gw := range ipContext.ExtraPrefixes {
+		ip, _, err := net.ParseCIDR(gw)
+		if err != nil {
+			continue
+		}
+		if ip.To4() != nil {
+			gatewayV4 = ip.String()
+			continue
+		}
+		gatewayV6 = ip.String()
+	}
+	// Replace the nexthops in the policy routes with the up to date gateways
+	for _, policyRoute := range ipContext.GetPolicies() {
+		ipv4 := true
+		ip, _, err := net.ParseCIDR(policyRoute.From)
+		if err != nil {
+			continue
+		}
+		if ip.To4() == nil {
+			ipv4 = false
+		}
+		for _, route := range policyRoute.Routes {
+			if ipv4 {
+				route.NextHop = gatewayV4
+			} else {
+				route.NextHop = gatewayV6
+			}
+		}
+	}
+}
+
+// removes all IPs in the ips list that are in the same subnet as any of the gateway
+func removeOldIPs(ips []string, gateways []string) []string {
+	gws := []*net.IPNet{}
+	for _, ip := range gateways {
+		_, n, err := net.ParseCIDR(ip)
+		if err != nil {
+			continue
+		}
+		gws = append(gws, n)
+	}
+	ipsMap := listToMap(ips)
+	for ip := range ipsMap {
+		i, _, err := net.ParseCIDR(ip)
+		if err != nil {
+			continue
+		}
+		for _, net := range gws {
+			if net.Contains(i) {
+				delete(ipsMap, ip)
+			}
+		}
+	}
+	return mapToList(ipsMap)
+}
+
+// Tells if a contains all b items
+func contains(a []string, b []string) bool {
+	aMap := listToMap(a)
+	for _, i := range b {
+		_, exists := aMap[i]
+		if !exists {
+			return false
+		}
+	}
+	return true
+}
+
+// convert a list of string to a map with values as key
+func listToMap(l []string) map[string]struct{} {
+	res := map[string]struct{}{}
+	for _, s := range l {
+		res[s] = struct{}{}
+	}
+	return res
+}
+
+// convert the keys of a map to a list
+func mapToList(m map[string]struct{}) []string {
+	res := []string{}
+	for k := range m {
+		res = append(res, k)
+	}
+	return res
+}
+
+func (p *Proxy) UnsetIPContext(ctx context.Context, conn *networkservice.Connection, interfaceType networking.InterfaceType) error {
 	for _, subnet := range p.Subnets {
 		child := &ipamAPI.Child{
 			Name:   fmt.Sprintf("%s-src", conn.Id),
 			Subnet: subnet,
 		}
-		_, err := p.ipamClient.Release(context.TODO(), child)
+		_, err := p.IpamClient.Release(ctx, child)
 		if err != nil {
 			return err
 		}
@@ -189,11 +290,11 @@ func (p *Proxy) UnsetIPContext(conn *networkservice.Connection, interfaceType ne
 }
 
 func (p *Proxy) setBridgeIP(prefix string) error {
-	err := p.bridge.AddLocalPrefix(prefix)
+	err := p.Bridge.AddLocalPrefix(prefix)
 	if err != nil {
 		return err
 	}
-	p.bridge.SetLocalPrefixes(append(p.bridge.GetLocalPrefixes(), prefix))
+	p.Bridge.SetLocalPrefixes(append(p.Bridge.GetLocalPrefixes(), prefix))
 	return nil
 }
 
@@ -203,7 +304,7 @@ func (p *Proxy) setBridgeIPs() error {
 			Name:   "bridge",
 			Subnet: subnet,
 		}
-		prefix, err := p.ipamClient.Allocate(context.TODO(), child)
+		prefix, err := p.IpamClient.Allocate(context.TODO(), child)
 		if err != nil {
 			return err
 		}
@@ -260,14 +361,14 @@ func NewProxy(conduit *nspAPI.Conduit, nodeName string, ipamClient ipamAPI.IpamC
 		logger.Error(err, "Creating the bridge")
 	}
 	proxy := &Proxy{
-		bridge:     bridge,
+		Bridge:     bridge,
 		conduit:    conduit,
 		netUtils:   netUtils,
 		nexthops:   []string{},
 		vips:       []*virtualIP{},
 		tableID:    1,
 		Subnets:    make(map[ipamAPI.IPFamily]*ipamAPI.Subnet),
-		ipamClient: ipamClient,
+		IpamClient: ipamClient,
 		logger:     logger,
 	}
 
