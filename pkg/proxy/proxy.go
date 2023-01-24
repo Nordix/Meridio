@@ -230,19 +230,23 @@ func removeOldIPs(ips []string, gateways []string) []string {
 		}
 		gws = append(gws, n)
 	}
-	ipsMap := listToMap(ips)
-	for ip := range ipsMap {
+	res := []string{}
+	for _, ip := range ips {
 		i, _, err := net.ParseCIDR(ip)
 		if err != nil {
 			continue
 		}
+		ipInGatewaySubnet := false
 		for _, net := range gws {
 			if net.Contains(i) {
-				delete(ipsMap, ip)
+				ipInGatewaySubnet = true
 			}
 		}
+		if !ipInGatewaySubnet {
+			res = append(res, ip)
+		}
 	}
-	return mapToList(ipsMap)
+	return res
 }
 
 // Tells if a contains all b items
@@ -262,15 +266,6 @@ func listToMap(l []string) map[string]struct{} {
 	res := map[string]struct{}{}
 	for _, s := range l {
 		res[s] = struct{}{}
-	}
-	return res
-}
-
-// convert the keys of a map to a list
-func mapToList(m map[string]struct{}) []string {
-	res := []string{}
-	for k := range m {
-		res = append(res, k)
 	}
 	return res
 }

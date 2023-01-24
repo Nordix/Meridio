@@ -22,5 +22,19 @@ function configuration_new_vip_revert () {
     kubectl delete vip -n red vip-a-2-v6
 }
 
+function delete_create_trench () {
+    kubectl delete trench trench-a -n red
+    sleep 5
+    kubectl wait --for=condition=Ready pods --all -n red --timeout=4m
+    # Wait for all pods to be in running state (no Terminating pods)
+    while kubectl get pods -n red --no-headers | awk '$3' | grep -v "Running" > /dev/null; do sleep 1; done
+}
+
+function delete_create_trench_revert () {
+    kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/init-trench-a.yaml
+    sleep 5
+    kubectl wait --for=condition=Ready pods --all -n red --timeout=4m
+}
+
 # Required to call the corresponding function
 $1 $@
