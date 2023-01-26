@@ -23,6 +23,7 @@ import (
 
 	"github.com/go-logr/logr"
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ipam/prefix"
 	"github.com/nordix/meridio/pkg/ipam/storage/sqlite"
 	"github.com/nordix/meridio/pkg/ipam/trench"
@@ -69,11 +70,8 @@ func NewServer(
 		is.Trenches[ipFamily] = newTrench
 		trenchWatchers = append(trenchWatchers, newTrench)
 	}
-	conduitWatcher, err := trench.NewConduitWatcher(ctx, nspConn, trenchName, trenchWatchers)
-	if err != nil {
-		return nil, err
-	}
-	go conduitWatcher.Start()
+	configurationManagerClient := nspAPI.NewConfigurationManagerClient(nspConn)
+	go trench.NewConduitWatcher(ctx, configurationManagerClient, trenchName, trenchWatchers)
 
 	return is, nil
 }

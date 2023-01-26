@@ -71,6 +71,13 @@ func (t *Trench) GetConduit(ctx context.Context, name string) (types.Conduit, er
 // AddConduit returns the conduit with the name in parameter and with as parent the current trench.
 // If not existing, a new one will be created and returned.
 func (t *Trench) AddConduit(ctx context.Context, name string) (types.Conduit, error) {
+	c, err := t.GetConduit(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	if c != nil {
+		return c, nil
+	}
 	newPrefix, err := prefix.Allocate(ctx, t, name, t.PrefixLengths.ConduitLength, t.Store)
 	if err != nil {
 		return nil, err
