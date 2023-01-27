@@ -963,7 +963,7 @@ func (fes *FrontEndService) reconfigurationAgent(ctx context.Context, reconfCh <
 func (fes *FrontEndService) reconfigure(ctx context.Context, path string) error {
 	stringOut, err := fes.routingService.Configure(ctx, path)
 	if err != nil {
-		return err
+		return fmt.Errorf("%v; %v", err, stringOut)
 	} else {
 		fes.logger.V(1).Info("routing service reconfigured", "out", strings.Split(stringOut, "\n"))
 		fes.logger.Info("routing service configuration applied")

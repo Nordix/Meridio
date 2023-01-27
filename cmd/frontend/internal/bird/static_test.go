@@ -242,9 +242,9 @@ func TestParseProtocolsStaticWithMissingBfd(t *testing.T) {
 	expectedLog := `BIRD 2.0.7 ready.` + "\n" +
 		`Name       Proto      Table      State  Since         Info` + "\n" +
 		`NBR-gateway1 Static     master4    up     21:10:21.868 bfd: 169.254.100.254           ext-vlan   Up         22:13:19.019    0.100    0.500` + "\n" +
-		`NBR-gateway2 Static     master6    up     21:10:21.868` + "\n" +
+		`NBR-gateway2 Static     master6    up     21:10:21.868 bfd: no session` + "\n" +
 		`NBR-gateway3 Static     master4    up     21:10:21.886 bfd: 169.254.100.253           ext-vlan   Up         22:13:19.439    0.100    0.500` + "\n" +
-		`NBR-gateway4 Static     master6    up     21:10:21.886` + "\n"
+		`NBR-gateway4 Static     master6    up     21:10:21.886 bfd: no session` + "\n"
 
 	assert.NotNil(t, cs)
 	assert.Empty(t, cs.Log())

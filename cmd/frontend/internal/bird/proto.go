@@ -18,6 +18,7 @@ package bird
 
 import (
 	"bufio"
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -95,11 +96,12 @@ func bfdDown(p *Protocol) bool {
 	scanner := bufio.NewScanner(strings.NewReader(p.BfdSessions()))
 	for scanner.Scan() {
 		if bfdMatch := regexBFD.FindStringSubmatch(scanner.Text()); bfdMatch != nil {
-			p.Log(" bfd: " + bfdMatch[0])
+			p.Log(fmt.Sprintf(" bfd: %s", bfdMatch[0]))
 			return bfdMatch[1] != "Up"
 		}
 	}
 	// did not find the BFD session
+	p.Log(" bfd: no session")
 	return true
 }
 

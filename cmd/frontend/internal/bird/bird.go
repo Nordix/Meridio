@@ -31,7 +31,7 @@ import (
 	"github.com/nordix/meridio/pkg/log"
 )
 
-var regexError *regexp.Regexp = regexp.MustCompile(`Error|<ERROR>|<BUG>|<FATAL>`)
+var regexError *regexp.Regexp = regexp.MustCompile(`Error|<ERROR>|<BUG>|<FATAL>|syntax error`)
 var regexInfo *regexp.Regexp = regexp.MustCompile(`<INFO>|<WARNING>|BGP session|Connected|Received:|Started|Neighbor|Startup delayed`)
 
 func NewRoutingService(ctx context.Context, commSocket string, configFile string) *RoutingService {
