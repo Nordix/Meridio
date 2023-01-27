@@ -143,7 +143,9 @@ TODO:
 | close-no-longer-existing-conduit| TAPA | |
 -->
 
-### Steps (Kind + Helm)
+### Steps 
+
+#### Kind + Helm
 
 1. Deploy environment (Kind + Gateways + NSM + Spire) and Meridio (trench-a + trench-b + target-a + target-b)
 
@@ -155,6 +157,25 @@ make -s -C test/e2e/environment/kind-helm/ KUBERNETES_VERSION=v1.25 NSM_VERSION=
 
 ```bash
 make e2e
+```
+
+3. Uninstall environment
+```bash
+make -s -C docs/demo/scripts/kind/ clean
+```
+
+#### Kind + Operator
+
+1. Deploy environment (Kind + Gateways + NSM + Spire) and Meridio (operator + trench-a + trench-b + target-a + target-b)
+
+```bash
+make -s -C test/e2e/environment/kind-operator/ KUBERNETES_VERSION=v1.26 NSM_VERSION=v1.6.1 IP_FAMILY=dualstack KUBERNETES_WORKERS=2
+```
+
+2. Run e2e tests
+
+```bash
+make e2e E2E_ENVIRONMENT="kind-operator"
 ```
 
 3. Uninstall environment
