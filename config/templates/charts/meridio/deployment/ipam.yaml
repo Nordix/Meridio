@@ -24,7 +24,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: ipam
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ipam.image }}:{{ .Values.version }}
+          image: {{ .Values.registry }}/{{ .Values.repository }}/{{ .Values.ipam.image }}:{{ .Values.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
           startupProbe:
             exec:

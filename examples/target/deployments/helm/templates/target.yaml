@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: example-target
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.exampleTarget.image }}:{{ .Values.exampleTarget.version }}
+          image: {{ .Values.registry }}/{{ .Values.repository }}/{{ .Values.exampleTarget.image }}:{{ .Values.exampleTarget.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           args:
             - ./target-client open -t {{ .Values.default.trench.name }} -c {{ .Values.default.conduit.name }} -s {{ .Values.default.stream.name }} ;
@@ -53,7 +53,7 @@ spec:
               mountPath: /var/lib/meridio
               readOnly: true
         - name: tapa
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.tapa.image }}:{{ .Values.tapa.version }}
+          image: {{ .Values.registry }}/{{ .Values.repository }}/{{ .Values.tapa.image }}:{{ .Values.tapa.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
           startupProbe:
 {{ toYaml .Values.startupProbe | indent 12 }}

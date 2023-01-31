@@ -1,10 +1,10 @@
 ---
 version: latest
-registry: registry.nordix.org
-organization: cloud-native/meridio
+registry: "registry.nordix.org"
+repository: "cloud-native/meridio"
 
 nsm:
-  organization: cloud-native/nsm
+  repository: "cloud-native/nsm"
   version: v1.7.1
 
 sysctlInit:

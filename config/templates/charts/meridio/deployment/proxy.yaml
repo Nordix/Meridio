@@ -18,7 +18,7 @@ spec:
     spec:
       initContainers:
         - name: sysctl-init
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.sysctlInit.image }}:{{ .Values.sysctlInit.version }}
+          image: {{ .Values.registry }}/{{ .Values.repository }}/{{ .Values.sysctlInit.image }}:{{ .Values.sysctlInit.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
           securityContext:
             privileged: true
@@ -27,7 +27,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: proxy
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.proxy.image }}:{{ .Values.version }}
+          image: {{ .Values.registry }}/{{ .Values.repository }}/{{ .Values.proxy.image }}:{{ .Values.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
           startupProbe:  # will be filled by operator if not specified
             exec:

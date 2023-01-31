@@ -1,7 +1,7 @@
 ---
 
 registry: registry.nordix.org
-organization: cloud-native/meridio
+repository: cloud-native/meridio
 tag: latest
 pullPolicy: IfNotPresent
 
