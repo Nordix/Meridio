@@ -39,7 +39,7 @@ E2E_SEED ?= $(shell shuf -i 1-2147483647 -n1)
 
 # Contrainer Registry
 REGISTRY ?= registry.nordix.org/cloud-native/meridio
-NSM_REGISTRY_PATH ?= cloud-native/nsm
+NSM_REPOSITORY ?= cloud-native/nsm
 BASE_IMAGE ?= $(REGISTRY)/base-image:$(VERSION_BASE_IMAGE)
 DEBUG_IMAGE ?= $(REGISTRY)/debug:$(VERSION)
 
@@ -221,7 +221,11 @@ generate-controller: controller-gen ## Generate code containing DeepCopy, DeepCo
 
 .PHONY: generate-helm-chart
 generate-helm-chart: output-dir ## Generate Meridio, CRDs and target helm charts.
-	@VERSION=$(VERSION) ./hack/helm-chart/generator.sh
+	@REGISTRY="$(shell echo ${REGISTRY} | cut -d "/" -f 1)" \
+	REPOSITORY="$(shell echo ${REGISTRY} | cut -d "/" -f 2-)" \
+	NSM_REPOSITORY="$(NSM_REPOSITORY)" \
+	VERSION=$(VERSION) \
+	./hack/helm-chart/generator.sh
 
 #############################################################################
 ##@ Operator
@@ -239,9 +243,9 @@ undeploy: namespace ## Undeploy controller from the K8s cluster specified in ~/.
 .PHONY: set-templates-values
 set-templates-values: # Set the values in the templates helm chart
 	sed -i 's/^version: .*/version: ${VERSION}/' ${TEMPLATES_HELM_CHART_VALUES_PATH} ; \
-	sed -i 's/^registry: .*/registry: $(shell echo ${REGISTRY} | cut -d "/" -f 1)/' ${TEMPLATES_HELM_CHART_VALUES_PATH} ; \
-	sed -i 's#^organization: .*#organization: $(shell echo ${REGISTRY} | cut -d "/" -f 2-)#' ${TEMPLATES_HELM_CHART_VALUES_PATH}
-	sed -i 's#^  organization: .*#  organization: ${NSM_REGISTRY_PATH}#' ${TEMPLATES_HELM_CHART_VALUES_PATH}
+	sed -i 's/^registry: .*/registry: "$(shell echo ${REGISTRY} | cut -d "/" -f 1)"/' ${TEMPLATES_HELM_CHART_VALUES_PATH} ; \
+	sed -i 's#^repository: .*#repository: "$(shell echo ${REGISTRY} | cut -d "/" -f 2-)"#' ${TEMPLATES_HELM_CHART_VALUES_PATH}
+	sed -i 's#^  repository: .*#  repository: "${NSM_REPOSITORY}"#' ${TEMPLATES_HELM_CHART_VALUES_PATH}
 
 .PHONY: namespace
 namespace: # Edit the namespace of operator to be deployed

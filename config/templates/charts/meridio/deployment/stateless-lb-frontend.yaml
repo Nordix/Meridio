@@ -37,7 +37,7 @@ spec:
       serviceAccountName:  # to be filled by operator
       initContainers:
         - name: sysctl-init
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.sysctlInit.image }}:{{ .Values.sysctlInit.version }}
+          image: {{ .Values.registry }}/{{ .Values.repository }}/{{ .Values.sysctlInit.image }}:{{ .Values.sysctlInit.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
           securityContext:
             privileged: true
@@ -47,7 +47,7 @@ spec:
           terminationMessagePolicy: File
       containers:
         - name: stateless-lb
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.statelessLB.image }}:{{ .Values.version }}
+          image: {{ .Values.registry }}/{{ .Values.repository }}/{{ .Values.statelessLB.image }}:{{ .Values.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
           startupProbe:  # will be filled by operator if not specified
             exec:
@@ -133,7 +133,7 @@ spec:
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
         - name: nsc
-          image: {{ .Values.registry }}/{{ .Values.nsm.organization }}/{{ .Values.vlanNSC.image }}:{{ .Values.nsm.version }}
+          image: {{ .Values.registry }}/{{ .Values.nsm.repository }}/{{ .Values.vlanNSC.image }}:{{ .Values.nsm.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
           env:
             - name: SPIFFE_ENDPOINT_SOCKET
@@ -174,7 +174,7 @@ spec:
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
         - name: frontend
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.frontEnd.image }}:{{ .Values.version }}
+          image: {{ .Values.registry }}/{{ .Values.repository }}/{{ .Values.frontEnd.image }}:{{ .Values.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
           startupProbe:  # will be filled by operator if not specified
             exec:

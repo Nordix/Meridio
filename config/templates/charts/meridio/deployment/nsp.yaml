@@ -25,7 +25,7 @@ spec:
       serviceAccountName:  # to be filled by operator
       containers:
         - name: nsp
-          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.nsp.image }}:{{ .Values.version }}
+          image: {{ .Values.registry }}/{{ .Values.repository }}/{{ .Values.nsp.image }}:{{ .Values.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
           startupProbe:
             exec:
