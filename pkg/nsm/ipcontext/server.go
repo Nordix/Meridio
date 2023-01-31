@@ -38,7 +38,7 @@ func NewServer(ipContextSetter ipContextSetter) networkservice.NetworkServiceSer
 
 // Request
 func (ics *ipcontextServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	err := ics.ics.SetIPContext(request.Connection, networking.NSE)
+	err := ics.ics.SetIPContext(ctx, request.Connection, networking.NSE)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +47,7 @@ func (ics *ipcontextServer) Request(ctx context.Context, request *networkservice
 
 // Close
 func (ics *ipcontextServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	err := ics.ics.UnsetIPContext(conn, networking.NSE)
+	err := ics.ics.UnsetIPContext(ctx, conn, networking.NSE)
 	if err != nil {
 		return nil, err
 	}

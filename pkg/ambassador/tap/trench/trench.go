@@ -32,7 +32,10 @@ import (
 	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
+
+const grpcKeepaliveTime = 10 * time.Second
 
 // Trench implements types.Trench (/pkg/ambassador/tap/types)
 // Responsible for connection/disconnecting the conduits, and providing
@@ -211,7 +214,12 @@ func (t *Trench) connectNSPService(ctx context.Context, nspServiceName string, n
 		),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
-		))
+		),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			// if the NSP service is re-created, the TAPA will take around 15 minutes to re-connect to the NSP service without this setting.
+			Time: grpcKeepaliveTime,
+		}),
+	)
 }
 
 func (t *Trench) closeStreams(ctx context.Context) error {
@@ -225,9 +233,10 @@ func (t *Trench) closeStreams(ctx context.Context) error {
 	var mu sync.Mutex
 	for _, c := range t.conduits {
 		for _, s := range c.conduit.GetStreams() {
+			conduit := c
 			go func(stream *ambassadorAPI.Stream) {
 				defer wg.Done()
-				err := c.conduit.RemoveStream(ctx, stream) // todo: retry
+				err := conduit.conduit.RemoveStream(ctx, stream) // todo: retry
 				if err != nil {
 					mu.Lock()
 					errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo

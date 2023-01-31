@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -81,13 +81,15 @@ func Test_Connect_Disconnect(t *testing.T) {
 	assert.NotNil(t, cndt)
 	cndt.Configuration = configuration
 
+	assert.Len(t, cndt.GetIPs(), 0)
+
 	err = cndt.Connect(context.TODO())
 	assert.Nil(t, err)
 	assert.Equal(t, srcIpAddrs, cndt.GetIPs())
 
 	err = cndt.Disconnect(context.TODO())
 	assert.Nil(t, err)
-	assert.Equal(t, []string{}, cndt.GetIPs())
+	assert.Len(t, cndt.GetIPs(), 0)
 }
 
 func Test_AddStream(t *testing.T) {
@@ -208,6 +210,237 @@ func Test_RemoveStream(t *testing.T) {
 	streams = cndt.GetStreams()
 	assert.NotNil(t, streams)
 	assert.Len(t, streams, 0)
+}
+
+func Test_SetVIPs_Not_Connected(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	c := &ambassadorAPI.Conduit{
+		Name: "conduit-a",
+		Trench: &ambassadorAPI.Trench{
+			Name: "trench-a",
+		},
+	}
+	targetName := "abc"
+	namespace := "red"
+	node := "worker"
+	cndt, err := conduit.New(c, targetName, namespace, node, nil, nil, nil, nil, nil, 30*time.Second)
+	assert.Nil(t, err)
+	assert.NotNil(t, cndt)
+
+	err = cndt.SetVIPs([]string{})
+	assert.Nil(t, err)
+}
+
+// 1. Create the conduit
+// 2. Connect the conduit
+// 3. Verify Request has been called (and set IPContext)
+// 4. verify local IPs
+// 5. Call SetVips
+// 6. Verify Request has been called and verify IPContext
+// 7. verify local IPs
+// 8. Disconnect the conduit
+// 9. Verify Close has been called
+func Test_SetVIPs(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	c := &ambassadorAPI.Conduit{
+		Name: "conduit-a",
+		Trench: &ambassadorAPI.Trench{
+			Name: "trench-a",
+		},
+	}
+	targetName := "abc"
+	namespace := "red"
+	node := "worker"
+	vips := []string{"20.0.0.1/32", "[2000::1]/128"}
+	srcIpAddrs := []string{"172.16.0.1/24", "fd00::1/64"}
+	dstIpAddrs := []string{"172.16.0.2/24", "fd00::2/64"}
+	extraPrefixes := []string{"172.16.0.100/24", "fd00::100/64"}
+	id := ""
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	configuration := mocks.NewMockConfiguration(ctrl)
+	configuration.EXPECT().Watch().Return()
+	configuration.EXPECT().Stop().Return()
+	networkServiceClient := nsmMocks.NewMockNetworkServiceClient(ctrl)
+	// 3.
+	firstRequest := networkServiceClient.EXPECT().Request(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+		assert.NotNil(t, in)
+		assert.NotNil(t, in.GetConnection())
+		id = in.GetConnection().GetId()
+		in.GetConnection().Context = &networkservice.ConnectionContext{
+			IpContext: &networkservice.IPContext{
+				SrcIpAddrs:    srcIpAddrs,
+				DstIpAddrs:    dstIpAddrs,
+				ExtraPrefixes: extraPrefixes,
+			},
+		}
+		return in.GetConnection(), nil
+	})
+	// 6.
+	networkServiceClient.EXPECT().Request(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+		assert.NotNil(t, in)
+		assert.NotNil(t, in.GetConnection())
+		assert.NotNil(t, in.GetConnection().GetContext())
+		ipContext := in.GetConnection().GetContext().GetIpContext()
+		assert.NotNil(t, ipContext)
+		assert.Equal(t, dstIpAddrs, ipContext.DstIpAddrs)
+		assert.Equal(t, append(srcIpAddrs, vips...), ipContext.SrcIpAddrs)
+		assert.Len(t, ipContext.Policies, 2)
+		assert.Equal(t, []*networkservice.PolicyRoute{
+			{
+				From: "20.0.0.1/32",
+				Routes: []*networkservice.Route{
+					{
+						Prefix:  "0.0.0.0/0",
+						NextHop: "172.16.0.100",
+					},
+				},
+			},
+			{
+				From: "[2000::1]/128",
+				Routes: []*networkservice.Route{
+					{
+						Prefix:  "::/0",
+						NextHop: "fd00::100",
+					},
+				},
+			},
+		}, ipContext.Policies)
+		return in.GetConnection(), nil
+	}).After(firstRequest)
+	// 9.
+	networkServiceClient.EXPECT().Close(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, in *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+		assert.NotNil(t, in)
+		assert.Equal(t, id, in.GetId())
+		return nil, nil
+	})
+
+	// 1.
+	cndt, err := conduit.New(c, targetName, namespace, node, nil, nil, networkServiceClient, nil, nil, 30*time.Second)
+	assert.Nil(t, err)
+	assert.NotNil(t, cndt)
+	cndt.Configuration = configuration
+
+	// 2.
+	err = cndt.Connect(context.TODO())
+	assert.Nil(t, err)
+
+	// 4.
+	assert.Equal(t, srcIpAddrs, cndt.GetIPs())
+
+	// 5.
+	err = cndt.SetVIPs(vips)
+	assert.Nil(t, err)
+
+	// 7.
+	assert.Equal(t, srcIpAddrs, cndt.GetIPs())
+
+	// 8.
+	err = cndt.Disconnect(context.TODO())
+	assert.Nil(t, err)
+	assert.Len(t, cndt.GetIPs(), 0)
+}
+
+// 1. Create the conduit
+// 2. Connect the conduit
+// 3. Verify Request has been called (and set IPContext)
+// 4. verify local IPs
+// 5. Call SetVips
+// 6. Verify Request has been called and change the IPs
+// 7. verify local IPs are the new IPs
+// 8. Disconnect the conduit
+// 9. Verify Close has been called
+func Test_LocalIPs_Switch(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	c := &ambassadorAPI.Conduit{
+		Name: "conduit-a",
+		Trench: &ambassadorAPI.Trench{
+			Name: "trench-a",
+		},
+	}
+	targetName := "abc"
+	namespace := "red"
+	node := "worker"
+	vips := []string{"20.0.0.1/32", "[2000::1]/128"}
+	srcIpAddrs := []string{"172.16.0.1/24", "fd00::1/64"}
+	dstIpAddrs := []string{"172.16.0.2/24", "fd00::2/64"}
+	extraPrefixes := []string{"172.16.0.100/24", "fd00::100/64"}
+
+	srcIpAddrs2 := []string{"172.16.0.10/24", "fd00::10/64"}
+	dstIpAddrs2 := []string{"172.16.0.20/24", "fd00::20/64"}
+	extraPrefixes2 := []string{"172.16.0.200/24", "fd00::200/64"}
+	id := ""
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	configuration := mocks.NewMockConfiguration(ctrl)
+	configuration.EXPECT().Watch().Return()
+	configuration.EXPECT().Stop().Return()
+	networkServiceClient := nsmMocks.NewMockNetworkServiceClient(ctrl)
+	// 3.
+	firstRequest := networkServiceClient.EXPECT().Request(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+		assert.NotNil(t, in)
+		assert.NotNil(t, in.GetConnection())
+		id = in.GetConnection().GetId()
+		in.GetConnection().Context = &networkservice.ConnectionContext{
+			IpContext: &networkservice.IPContext{
+				SrcIpAddrs:    srcIpAddrs,
+				DstIpAddrs:    dstIpAddrs,
+				ExtraPrefixes: extraPrefixes,
+			},
+		}
+		return in.GetConnection(), nil
+	})
+	// 6.
+	networkServiceClient.EXPECT().Request(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+		assert.NotNil(t, in)
+		assert.NotNil(t, in.GetConnection())
+		assert.NotNil(t, in.GetConnection().GetContext())
+		ipContext := in.GetConnection().GetContext().GetIpContext()
+		assert.NotNil(t, ipContext)
+		assert.Equal(t, dstIpAddrs, ipContext.DstIpAddrs)
+		assert.Equal(t, append(srcIpAddrs, vips...), ipContext.SrcIpAddrs)
+		assert.Len(t, ipContext.Policies, 2)
+		ipContext.DstIpAddrs = dstIpAddrs2
+		ipContext.SrcIpAddrs = srcIpAddrs2
+		ipContext.ExtraPrefixes = extraPrefixes2
+		return in.GetConnection(), nil
+	}).After(firstRequest)
+	// 9.
+	networkServiceClient.EXPECT().Close(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, in *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+		assert.NotNil(t, in)
+		assert.Equal(t, id, in.GetId())
+		return nil, nil
+	})
+
+	// 1.
+	cndt, err := conduit.New(c, targetName, namespace, node, nil, nil, networkServiceClient, nil, nil, 30*time.Second)
+	assert.Nil(t, err)
+	assert.NotNil(t, cndt)
+	cndt.Configuration = configuration
+
+	// 2.
+	err = cndt.Connect(context.TODO())
+	assert.Nil(t, err)
+
+	// 4.
+	assert.Equal(t, srcIpAddrs, cndt.GetIPs())
+
+	// 5.
+	err = cndt.SetVIPs(vips)
+	assert.Nil(t, err)
+
+	// 7.
+	assert.Equal(t, srcIpAddrs2, cndt.GetIPs())
+
+	// 8.
+	err = cndt.Disconnect(context.TODO())
+	assert.Nil(t, err)
+	assert.Len(t, cndt.GetIPs(), 0)
 }
 
 func fakeStreamFactory(ctrl *gomock.Controller) *mocks.MockStreamFactory {

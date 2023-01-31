@@ -71,6 +71,8 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 | on_failure () error | Executed on failure |
 | configuration_new_vip () error | Executed just before running the `new-vip` test |
 | configuration_new_vip_revert () error | Executed just after running the `new-vip` test |
+| delete_create_trench | Executed just before running the `delete-create-trench` test |
+| delete_create_trench_revert | Executed just before running the `delete-create-trench` test and after the `delete_create_trench` script |
 
 ### List of tests
 
@@ -86,6 +88,7 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 | Scale-Up | Scaling | Scale up `target-a-deployment-name` |
 | close-open | TAPA | Close `stream-a-I` in one of the target from `target-a-deployment-name` and re-open it |
 | new-vip | Configuration | Configure `vip-2-v4` and `vip-2-v6` in `flow-a-z-tcp` and `attractor-a-1` |
+| delete-create-trench | Trench | Delete `trench-a` and recreate and reconfigure it |
 <!-- TODO: | open | TAPA | Open `stream-a-II` in one of the target from `target-a-deployment-name` and close it | -->
 
 ### Steps (Kind + Helm)
