@@ -98,28 +98,23 @@ func main() {
 	nsmlog.SetGlobalLogger(nsmlogger)
 
 	// Create context with loggers
-	ctx, cancel := signal.NotifyContext(
+	sigCtx, cancelSignalCtx := signal.NotifyContext(
 		logr.NewContext(context.Background(), logger),
 		os.Interrupt,
 		syscall.SIGHUP,
 		syscall.SIGTERM,
 		syscall.SIGQUIT,
 	)
+	defer cancelSignalCtx()
+
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	ctx = nsmlog.WithLog(ctx, nsmlogger)
 
 	netUtils := &linuxKernel.KernelUtils{}
 
-	healthChecker, err := health.NewChecker(health.WithCtx(ctx))
-	if err != nil {
-		log.Fatal(logger, "Unable to create Health checker", "error", err)
-	}
-	go func() {
-		err := healthChecker.Start()
-		if err != nil {
-			log.Fatal(logger, "Unable to start Health checker", "error", err)
-		}
-	}()
+	// create and start health server
+	sigCtx = health.CreateChecker(sigCtx)
 
 	apiClientConfig := &nsm.Config{
 		Name:             config.Name,
@@ -129,6 +124,7 @@ func main() {
 		MaxTokenLifetime: config.MaxTokenLifetime,
 	}
 	nsmAPIClient := nsm.NewAPIClient(ctx, apiClientConfig)
+	defer nsmAPIClient.Delete()
 
 	additionalFunctionality := []networkservice.NetworkServiceClient{
 		sriovtoken.NewClient(),
@@ -184,5 +180,5 @@ func main() {
 		}
 	}()
 
-	<-ctx.Done()
+	<-sigCtx.Done()
 }

@@ -119,6 +119,7 @@ func (t *Trench) Delete(ctx context.Context) error {
 	if err != nil {
 		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 	}
+	t.logger.V(1).Info("Streams closed", "err", err)
 	streamsCancel()
 
 	// disconnect conduits
@@ -128,6 +129,7 @@ func (t *Trench) Delete(ctx context.Context) error {
 		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 	}
 	t.conduits = []*conduitConnect{}
+	t.logger.V(1).Info("Conduits disconnected", "err", err)
 	conduitsCancel()
 
 	// disconnect trench related services (connection to NSP)
@@ -135,6 +137,7 @@ func (t *Trench) Delete(ctx context.Context) error {
 	if err != nil {
 		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 	}
+	t.logger.V(1).Info("NSP connection closed", "err", err)
 	t.ConfigurationManagerClient = nil
 	t.TargetRegistryClient = nil
 	t.nspConn = nil
@@ -256,6 +259,7 @@ func (t *Trench) disconnectConduits(ctx context.Context) error {
 	var mu sync.Mutex
 	for _, c := range t.conduits {
 		go func(conduit *conduitConnect) {
+			defer wg.Done()
 			err := conduit.disconnect(ctx) // todo: retry
 			if err != nil {
 				mu.Lock()
