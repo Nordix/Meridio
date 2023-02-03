@@ -118,7 +118,7 @@ func (s *Stream) setIdentifier(exclusionList []string, maxTargets int) {
 		exclusionListMap[item] = struct{}{}
 	}
 	for !s.isIdentifierValid(exclusionListMap, 1, maxTargets) {
-		rand.Seed(time.Now().UnixNano())
+		rand.New(rand.NewSource(time.Now().UnixNano()))
 		s.identifier = rand.Intn(maxTargets) + 1
 	}
 }

@@ -1,6 +1,6 @@
 module github.com/nordix/meridio/examples/target
 
-go 1.18
+go 1.20
 
 require (
 	github.com/nordix/meridio v0.8.0

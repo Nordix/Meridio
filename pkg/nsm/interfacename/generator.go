@@ -44,7 +44,7 @@ func (rg *RandomGenerator) Generate(prefix string, maxLength int) string {
 	}
 	randomName := ""
 	for randomName == "" {
-		rand.Seed(time.Now().UnixNano())
+		rand.New(rand.NewSource(time.Now().UnixNano()))
 		randomID := rand.Intn(1000)
 		randomName = prefix + strconv.Itoa(randomID)
 		if _, ok := rg.usedNames[randomName]; ok {
