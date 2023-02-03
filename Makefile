@@ -266,7 +266,7 @@ output-dir:
 
 .PHONY: golangci-lint
 golangci-lint:
-	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.51.2)
+	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.52.0)
 
 .PHONY: proto-compiler
 proto-compiler: protoc protoc-gen-go protoc-gen-go-grpc
