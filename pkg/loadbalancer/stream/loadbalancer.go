@@ -433,7 +433,7 @@ func (lb *LoadBalancer) verifyTargets() {
 		}
 		err := lb.RemoveTarget(target.GetIdentifier())
 		if err != nil {
-			lb.logger.Error(err, "deleting target", "target", target.GetIdentifier())
+			lb.logger.Error(err, "deleting target", "target", target)
 		}
 		lb.addPendingTarget(target)
 	}
