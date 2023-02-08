@@ -7,6 +7,8 @@ metadata:
     app: ipam-{{ .Values.trench.name }}
 spec:
   replicas: 1
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Delete
   serviceName: ipam-{{ .Values.trench.name }}
   selector:
     matchLabels:

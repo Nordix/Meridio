@@ -8,6 +8,8 @@ metadata:
     app: nsp
 spec:
   podManagementPolicy: OrderedReady
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Delete
   replicas: 1
   revisionHistoryLimit: 10
   serviceName: nsp
