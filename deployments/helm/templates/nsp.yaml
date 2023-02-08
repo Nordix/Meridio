@@ -7,6 +7,8 @@ metadata:
     app: nsp-{{ .Values.trench.name }}
 spec:
   replicas: 1
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Delete
   serviceName: nsp-{{ .Values.trench.name }}
   selector:
     matchLabels:
