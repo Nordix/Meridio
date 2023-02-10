@@ -32,6 +32,9 @@ import (
 	"github.com/nordix/meridio/pkg/networking"
 )
 
+const dstChildNamePrefix = "-dst"
+const srcChildNamePrefix = "-src"
+
 // Proxy -
 type Proxy struct {
 	Bridge     networking.Bridge
@@ -137,7 +140,7 @@ func (p *Proxy) SetIPContext(ctx context.Context, conn *networkservice.Connectio
 	dstIpAddrs := []string{}
 	for _, subnet := range p.Subnets {
 		child := &ipamAPI.Child{
-			Name:   fmt.Sprintf("%s-src", conn.Id),
+			Name:   fmt.Sprintf("%s%s", conn.Id, srcChildNamePrefix),
 			Subnet: subnet,
 		}
 		srcPrefix, err := p.IpamClient.Allocate(ctx, child)
@@ -147,7 +150,7 @@ func (p *Proxy) SetIPContext(ctx context.Context, conn *networkservice.Connectio
 		srcIPAddrs = append(srcIPAddrs, srcPrefix.ToString())
 
 		child = &ipamAPI.Child{
-			Name:   fmt.Sprintf("%s-dst", conn.Id),
+			Name:   fmt.Sprintf("%s%s", conn.Id, dstChildNamePrefix),
 			Subnet: subnet,
 		}
 		dstPrefix, err := p.IpamClient.Allocate(ctx, child)
@@ -273,10 +276,18 @@ func listToMap(l []string) map[string]struct{} {
 func (p *Proxy) UnsetIPContext(ctx context.Context, conn *networkservice.Connection, interfaceType networking.InterfaceType) error {
 	for _, subnet := range p.Subnets {
 		child := &ipamAPI.Child{
-			Name:   fmt.Sprintf("%s-src", conn.Id),
+			Name:   fmt.Sprintf("%s%s", conn.Id, srcChildNamePrefix),
 			Subnet: subnet,
 		}
 		_, err := p.IpamClient.Release(ctx, child)
+		if err != nil {
+			return err
+		}
+		child = &ipamAPI.Child{
+			Name:   fmt.Sprintf("%s%s", conn.Id, dstChildNamePrefix),
+			Subnet: subnet,
+		}
+		_, err = p.IpamClient.Release(ctx, child)
 		if err != nil {
 			return err
 		}
