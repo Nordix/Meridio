@@ -59,6 +59,24 @@ collect_logs() {
     done <<< "$pods"
 }
 
+collect_exec_vpp_forwarder() {
+    mkdir -p "$full_output_path/pods"
+    mkdir -p "$full_output_path/pods/exec"
+    pods=$(kubectl get pods -n $EXEC_NSM_NAMESPACE --no-headers=true --selector="$EXEC_NSM_FORWARDER_LABEL")
+    pod_names=$(echo "$pods" | awk '{print $1}')
+    for pod_name in $pod_names
+    do
+        kubectl exec $pod_name -n $EXEC_NSM_NAMESPACE -- ip a > "$full_output_path/pods/exec/$EXEC_NSM_NAMESPACE.$pod_name.ip-a.txt" 2>/dev/null
+        kubectl exec $pod_name -n $EXEC_NSM_NAMESPACE -- vppctl show interface address > "$full_output_path/pods/exec/$EXEC_NSM_NAMESPACE.$pod_name.vppctl-show-interface-address.txt" 2>/dev/null
+        kubectl exec $pod_name -n $EXEC_NSM_NAMESPACE -- vppctl show interface > "$full_output_path/pods/exec/$EXEC_NSM_NAMESPACE.$pod_name.vppctl-show-interface.txt" 2>/dev/null
+        kubectl exec $pod_name -n $EXEC_NSM_NAMESPACE -- vppctl show tap > "$full_output_path/pods/exec/$EXEC_NSM_NAMESPACE.$pod_name.vppctl-show-tap.txt" 2>/dev/null
+        kubectl exec $pod_name -n $EXEC_NSM_NAMESPACE -- vppctl show mode > "$full_output_path/pods/exec/$EXEC_NSM_NAMESPACE.$pod_name.vppctl-show-mode.txt" 2>/dev/null
+        kubectl exec $pod_name -n $EXEC_NSM_NAMESPACE -- vppctl show bridge-domain > "$full_output_path/pods/exec/$EXEC_NSM_NAMESPACE.$pod_name.vppctl-show-bridge-domain.txt" 2>/dev/null
+        kubectl exec $pod_name -n $EXEC_NSM_NAMESPACE -- vppctl show vxlan tunnel raw > "$full_output_path/pods/exec/$EXEC_NSM_NAMESPACE.$pod_name.vppctl-show-vxlan-tunnel-raw.txt" 2>/dev/null
+        kubectl exec $pod_name -n $EXEC_NSM_NAMESPACE -- vppctl show acl-plugin acl > "$full_output_path/pods/exec/$EXEC_NSM_NAMESPACE.$pod_name.vppctl-show-acl-plugin-acl.txt" 2>/dev/null
+    done
+}
+
 collect_exec_stateless_lb_frontend() {
     mkdir -p "$full_output_path/pods"
     mkdir -p "$full_output_path/pods/exec"
@@ -77,6 +95,8 @@ collect_exec_stateless_lb_frontend() {
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- nfqlb flow-list > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.nfqlb-flow-list.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-s.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -6 -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-6-s.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip neighbour > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-neighbour.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c frontend -- birdc -s /var/run/bird/bird.ctl show protocol all > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.birdc-show-protocol-all.txt" 2>/dev/null
             shared_memory=$(kubectl exec $pod_name -n $EXEC_NAMESPACE -- ls /dev/shm/ | grep "tshm-")
             while IFS= read -r shm; do
                 kubectl exec $pod_name -n $EXEC_NAMESPACE -- nfqlb show --shm=$shm > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.nfqlb-show-shm-$shm.txt" 2>/dev/null
@@ -101,6 +121,7 @@ collect_exec_proxy() {
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- ps aux > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ps-aux.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-s.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -6 -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-6-s.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip neighbour > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-neighbour.txt" 2>/dev/null
         done
     done
 }
@@ -122,6 +143,7 @@ collect_exec_targets() {
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- timeout --preserve-status 0.5 ./target-client watch > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.target-client-watch.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-s.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -6 -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-6-s.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip neighbour > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-neighbour.txt" 2>/dev/null
         done
     done
 }
@@ -134,6 +156,7 @@ collect_all() {
     collect_exec_stateless_lb_frontend
     collect_exec_proxy
     collect_exec_targets
+    collect_exec_vpp_forwarder
     while IFS= read -r resource; do
         namespaced=$(echo "$resource" | awk '{print $(NF-1)}')
         resource_name=$(echo "$resource" | awk '{print $1}')
@@ -150,6 +173,9 @@ collect_all() {
 timestamp=$(date +%s)
 
 EXCLUDE_RESOURCES="bindings componentstatuses events limitranges podtemplates replicationcontrollers resourcequotas controllerrevisions tokenreviews localsubjectaccessreviews selfsubjectaccessreviews selfsubjectrulesreviews subjectaccessreviews certificatesigningrequests leases events flowschemas prioritylevelconfigurations runtimeclasses priorityclasses apiservices csinodes csistoragecapacities"
+
+EXEC_NSM_NAMESPACE=${EXEC_NSM_NAMESPACE:-"nsm"}
+EXEC_NSM_FORWARDER_LABEL=${EXEC_NSM_FORWARDER_LABEL:-"app=forwarder-vpp"}
 
 EXEC_NAMESPACE=${EXEC_NAMESPACE:-""}
 EXEC_STATELESS_LB_FRONTEND_LABELS=${EXEC_STATELESS_LB_FRONTEND_LABELS:-""}

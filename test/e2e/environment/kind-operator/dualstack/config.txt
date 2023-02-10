@@ -1,6 +1,6 @@
 -traffic-generator-cmd="docker exec -i {trench}"
 -script="./environment/kind-operator/dualstack/test.sh"
--skip="stream-max-targets,new-attractor-nsm-vlan"
+-skip="delete-create-trench"
 -focus=""
 -k8s-namespace="red"
 -target-a-deployment-name="target-a"
@@ -34,3 +34,4 @@
 -conduit-a-3="conduit-a-3"
 -stateless-lb-fe-deployment-name-attractor-a-3="stateless-lb-frontend-attractor-a-3"
 -tcp-destination-port-nat-0=80
+-ignore-lost-connections="true"

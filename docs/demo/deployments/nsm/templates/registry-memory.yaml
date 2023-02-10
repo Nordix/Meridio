@@ -44,7 +44,7 @@ spec:
             requests:
               cpu: 100m
             limits:
-              memory: 40Mi
+              memory: 200Mi
               cpu: 200m
       volumes:
         - name: spire-agent-socket

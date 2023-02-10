@@ -119,7 +119,7 @@ func (mc *MConnect) AnalyzeTraffic(output []byte) (map[string]int, int, error) {
 	if err := json.Unmarshal(output, &data); err != nil {
 		return lastingConn, 0, err
 	}
-	lostConn := 0
+	lostConn := int(data["failed_connects"].(float64))
 	hosts := data["hosts"].(map[string]interface{})
 	for name, connections := range hosts {
 		lastingConn[name] = int(connections.(float64))

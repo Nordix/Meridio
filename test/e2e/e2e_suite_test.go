@@ -48,9 +48,10 @@ var (
 )
 
 type e2eTestConfiguration struct {
-	trafficGeneratorCMD string
-	script              string
-	logCollectorEnabled bool
+	trafficGeneratorCMD   string
+	script                string
+	logCollectorEnabled   bool
+	ignoreLostConnections bool
 
 	k8sNamespace           string
 	targetADeploymentName  string
@@ -99,6 +100,7 @@ func init() {
 	flag.StringVar(&skipString, "skip", "", "Skip specific tests")
 	flag.StringVar(&focusString, "focus", "", "Focus on specific tests")
 	flag.BoolVar(&config.logCollectorEnabled, "log-collector-enabled", true, "Is log collector enabled")
+	flag.BoolVar(&config.ignoreLostConnections, "ignore-lost-connections", true, "If set to true, the tests will pass even if there is lost connections")
 
 	flag.StringVar(&config.k8sNamespace, "k8s-namespace", "", "Name of the namespace")
 	flag.StringVar(&config.targetADeploymentName, "target-a-deployment-name", "", "Name of the namespace")

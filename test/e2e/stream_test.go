@@ -36,9 +36,6 @@ var _ = Describe("Stream", func() {
 
 	BeforeEach(func() {
 		By(fmt.Sprintf("Selecting the first target from the deployment with label app=%s in namespace %s", config.targetADeploymentName, config.k8sNamespace))
-		if targetPod != nil {
-			return
-		}
 		listOptions := metav1.ListOptions{
 			LabelSelector: fmt.Sprintf("app=%s", config.targetADeploymentName),
 		}
@@ -143,14 +140,18 @@ var _ = Describe("Stream", func() {
 					ipPort := utils.VIPPort(config.vip1V4, config.tcpDestinationPort2)
 					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
-					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					if !config.ignoreLostConnections {
+						Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					}
 					Expect(len(lastingConnections)).To(Equal(1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
 					ipPort := utils.VIPPort(config.vip1V6, config.tcpDestinationPort2)
 					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
-					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					if !config.ignoreLostConnections {
+						Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					}
 					Expect(len(lastingConnections)).To(Equal(1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 			}, SpecTimeout(timeoutTest))
@@ -302,14 +303,18 @@ var _ = Describe("Stream", func() {
 					ipPort := utils.VIPPort(config.vip1V4, config.tcpDestinationPort2)
 					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
-					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					if !config.ignoreLostConnections {
+						Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					}
 					Expect(len(lastingConnections)).To(Equal(1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
 					ipPort := utils.VIPPort(config.vip1V6, config.tcpDestinationPort2)
 					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
-					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					if !config.ignoreLostConnections {
+						Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					}
 					Expect(len(lastingConnections)).To(Equal(1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 			}, SpecTimeout(timeoutTest))

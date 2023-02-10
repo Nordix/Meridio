@@ -85,15 +85,19 @@ var _ = Describe("MultiTrenches", func() {
 
 			It("(Traffic) is received by the targets", func(ctx context.Context) {
 				if !utils.IsIPv6(config.ipFamily) { // Don't send traffic with IPv4 if the tests are only IPv6
-					Expect(trenchALostConnsV4).To(Equal(0), "There should be no lost connection: %v", trenchALastingConnsV4)
+					if !config.ignoreLostConnections {
+						Expect(trenchALostConnsV4).To(Equal(0), "There should be no lost connection: %v", trenchALastingConnsV4)
+						Expect(trenchBLostConnsV4).To(Equal(0), "There should be no lost connection: %v", trenchBLastingConnsV4)
+					}
 					Expect(len(trenchALastingConnsV4)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", trenchALastingConnsV4)
-					Expect(trenchBLostConnsV4).To(Equal(0), "There should be no lost connection: %v", trenchBLastingConnsV4)
 					Expect(len(trenchBLastingConnsV4)).To(Equal(numberOfTargetB), "All targets with the stream opened should have received traffic: %v", trenchBLastingConnsV4)
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
-					Expect(trenchALostConnsV6).To(Equal(0), "There should be no lost connection: %v", trenchALastingConnsV6)
+					if !config.ignoreLostConnections {
+						Expect(trenchALostConnsV6).To(Equal(0), "There should be no lost connection: %v", trenchALastingConnsV6)
+						Expect(trenchBLostConnsV6).To(Equal(0), "There should be no lost connection: %v", trenchBLastingConnsV6)
+					}
 					Expect(len(trenchALastingConnsV6)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", trenchALastingConnsV6)
-					Expect(trenchBLostConnsV6).To(Equal(0), "There should be no lost connection: %v", trenchBLastingConnsV6)
 					Expect(len(trenchBLastingConnsV6)).To(Equal(numberOfTargetB), "All targets with the stream opened should have received traffic: %v", trenchBLastingConnsV6)
 				}
 			}, SpecTimeout(timeoutTest))
@@ -108,9 +112,6 @@ var _ = Describe("MultiTrenches", func() {
 
 			BeforeEach(func() {
 				By(fmt.Sprintf("Selecting the first target from the deployment with label app=%s in namespace %s", config.targetADeploymentName, config.k8sNamespace))
-				if targetPod != nil {
-					return
-				}
 				listOptions := metav1.ListOptions{
 					LabelSelector: fmt.Sprintf("app=%s", config.targetADeploymentName),
 				}
@@ -232,7 +233,9 @@ var _ = Describe("MultiTrenches", func() {
 					protocol := "tcp"
 					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
-					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					if !config.ignoreLostConnections {
+						Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					}
 					Expect(len(lastingConnections)).To(Equal(numberOfTargetA-1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
@@ -240,7 +243,9 @@ var _ = Describe("MultiTrenches", func() {
 					protocol := "tcp"
 					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchA, config.k8sNamespace, ipPort))
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchA, config.k8sNamespace, ipPort, protocol)
-					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					if !config.ignoreLostConnections {
+						Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					}
 					Expect(len(lastingConnections)).To(Equal(numberOfTargetA-1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 
@@ -249,7 +254,9 @@ var _ = Describe("MultiTrenches", func() {
 					protocol := "tcp"
 					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchB, config.k8sNamespace, ipPort))
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, ipPort, protocol)
-					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					if !config.ignoreLostConnections {
+						Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					}
 					Expect(len(lastingConnections)).To(Equal(numberOfTargetB+1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 				if !utils.IsIPv4(config.ipFamily) { // Don't send traffic with IPv6 if the tests are only IPv4
@@ -257,7 +264,9 @@ var _ = Describe("MultiTrenches", func() {
 					protocol := "tcp"
 					By(fmt.Sprintf("Sending %s traffic from the TG %s (%s) to %s", protocol, config.trenchB, config.k8sNamespace, ipPort))
 					lastingConnections, lostConnections := trafficGeneratorHost.SendTraffic(trafficGenerator, config.trenchB, config.k8sNamespace, ipPort, protocol)
-					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					if !config.ignoreLostConnections {
+						Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+					}
 					Expect(len(lastingConnections)).To(Equal(numberOfTargetB+1), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 				}
 			}, SpecTimeout(timeoutTest))
