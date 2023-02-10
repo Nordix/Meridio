@@ -49,7 +49,9 @@ var _ = Describe("IngressTraffic", func() {
 				if utils.IsIPv6(config.ipFamily) {
 					Skip("The test runs only IPv6")
 				}
-				Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+				if !config.ignoreLostConnections {
+					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+				}
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 			}, SpecTimeout(timeoutTest))
 		})
@@ -65,7 +67,9 @@ var _ = Describe("IngressTraffic", func() {
 				if utils.IsIPv4(config.ipFamily) {
 					Skip("The test runs only IPv4")
 				}
-				Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+				if !config.ignoreLostConnections {
+					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+				}
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 			}, SpecTimeout(timeoutTest))
 		})
@@ -81,7 +85,9 @@ var _ = Describe("IngressTraffic", func() {
 				if utils.IsIPv6(config.ipFamily) {
 					Skip("The test runs only IPv6")
 				}
-				Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+				if !config.ignoreLostConnections {
+					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+				}
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 			}, SpecTimeout(timeoutTest))
 		})
@@ -97,7 +103,9 @@ var _ = Describe("IngressTraffic", func() {
 				if utils.IsIPv4(config.ipFamily) {
 					Skip("The test runs only IPv4")
 				}
-				Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+				if !config.ignoreLostConnections {
+					Expect(lostConnections).To(Equal(0), "There should be no lost connection: %v", lastingConnections)
+				}
 				Expect(len(lastingConnections)).To(Equal(numberOfTargetA), "All targets with the stream opened should have received traffic: %v", lastingConnections)
 			}, SpecTimeout(timeoutTest))
 		})
