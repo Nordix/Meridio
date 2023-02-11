@@ -1,0 +1,18 @@
+{
+    "items": [
+        {
+            "path": "Playground"
+        },
+        {
+            "path": "Installation"
+        },
+        {
+            "path": "Traffic-Path"
+        },
+        {
+            "path": "Troubleshooting",
+            "title": "Troubleshooting CTF",
+            "description": "Set of challenges/exercises to debug and troubleshoot common Meridio problems such as non ready pods, traffic loss, errors..."
+        }
+    ]
+}

@@ -1,0 +1,26 @@
+{
+    "title": "Scenario 2",
+    "description": "Meridio Troubleshooting CTF - Scenario 2 - stateless-lb-frontend pods are not ready...",
+    "details": {
+        "intro": {
+            "text": "intro.md",
+            "foreground": "foreground.sh"
+        },
+        "steps": [
+            {
+                "title": "Scenario",
+                "text": "scenario.md"
+            },
+            {
+                "title": "Solution",
+                "text": "solution.md"
+            }
+        ],
+        "finish": {
+            "text": "finish.md"
+        }
+    },
+    "backend": {
+        "imageid": "ubuntu20.04-4GB"
+    }
+}

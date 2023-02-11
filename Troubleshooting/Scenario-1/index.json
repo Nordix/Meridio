@@ -1,0 +1,26 @@
+{
+    "title": "Scenario 1",
+    "description": "Meridio Troubleshooting CTF - Scenario 1 - Traffic does not reach the application pods (targets)...",
+    "details": {
+        "intro": {
+            "text": "intro.md",
+            "foreground": "foreground.sh"
+        },
+        "steps": [
+            {
+                "title": "Scenario",
+                "text": "scenario.md"
+            },
+            {
+                "title": "Solution",
+                "text": "solution.md"
+            }
+        ],
+        "finish": {
+            "text": "finish.md"
+        }
+    },
+    "backend": {
+        "imageid": "ubuntu20.04-4GB"
+    }
+}

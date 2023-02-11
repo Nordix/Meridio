@@ -1,0 +1,58 @@
+{
+    "title": "Installation",
+    "description": "The deployment of the operator and the application of different resources Meridio offers (Trench, VIP, Conduit, Stream, Flow, Attactor, Gateway)",
+    "details": {
+        "intro": {
+            "text": "intro.md",
+            "foreground": "foreground.sh"
+        },
+        "steps": [
+            {
+                "title": "Operator / CRDs",
+                "text": "step-1.md"
+            },
+            {
+                "title": "Trench",
+                "text": "step-2.md"
+            },
+            {
+                "title": "VIPs",
+                "text": "step-3.md"
+            },
+            {
+                "title": "Conduit",
+                "text": "step-4.md"
+            },
+            {
+                "title": "Attractor",
+                "text": "step-5.md"
+            },
+            {
+                "title": "Gateways",
+                "text": "step-6.md"
+            },
+            {
+                "title": "Stream",
+                "text": "step-7.md"
+            },
+            {
+                "title": "Flow",
+                "text": "step-8.md"
+            },
+            {
+                "title": "Targets",
+                "text": "step-9.md"
+            },
+            {
+                "title": "Traffic",
+                "text": "step-10.md"
+            }
+        ],
+        "finish": {
+            "text": "finish.md"
+        }
+    },
+    "backend": {
+        "imageid": "ubuntu20.04-4GB"
+    }
+}

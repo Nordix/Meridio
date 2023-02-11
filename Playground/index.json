@@ -1,0 +1,16 @@
+{
+    "title": "Playground",
+    "description": "Simple playground environment with Meridio",
+    "details": {
+        "intro": {
+            "text": "intro.md",
+            "foreground": "foreground.sh"
+        },
+        "finish": {
+            "text": "finish.md"
+        }
+    },
+    "backend": {
+        "imageid": "ubuntu20.04-4GB"
+    }
+}

@@ -1,0 +1,54 @@
+{
+    "title": "Traffic Path",
+    "description": "With NSM v1.7.1 and Meridio v1.0.0, Follow the ingress and egress traffic path from the gateway, Worker network, VPP forwarder, stateless-lb-frontend, proxy and the target",
+    "details": {
+        "intro": {
+            "text": "intro.md",
+            "foreground": "foreground.sh"
+        },
+        "steps": [
+            {
+                "title": "Overview",
+                "text": "step-1.md"
+            },
+            {
+                "title": "Ingress - External network",
+                "text": "step-2.md"
+            },
+            {
+                "title": "Ingress - Classification / Load-balancing / NATting",
+                "text": "step-3.md"
+            },
+            {
+                "title": "Ingress - Local stateless-lb-frontend -> proxy -> target",
+                "text": "step-4.md"
+            },
+            {
+                "title": "Ingress/Egress - Target",
+                "text": "step-5.md"
+            },
+            {
+                "title": "Egress - Local target -> proxy",
+                "text": "step-6.md"
+            },
+            {
+                "title": "Egress - Remote proxy -> stateless-lb-frontend",
+                "text": "step-7.md"
+            },
+            {
+                "title": "Egress - stateless-lb-frontend",
+                "text": "step-8.md"
+            },
+            {
+                "title": "Egress - External network",
+                "text": "step-9.md"
+            }
+        ],
+        "finish": {
+            "text": "finish.md"
+        }
+    },
+    "backend": {
+        "imageid": "ubuntu20.04-4GB"
+    }
+}
