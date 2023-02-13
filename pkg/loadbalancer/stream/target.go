@@ -26,34 +26,43 @@ import (
 	"github.com/nordix/meridio/pkg/networking"
 )
 
-type Target struct {
-	fwMarks   []networking.FWMarkRoute
-	nspTarget *nspAPI.Target
-	netUtils  networking.Utils
+type target struct {
+	fwMarks    []networking.FWMarkRoute
+	nspTarget  *nspAPI.Target
+	netUtils   networking.Utils
+	identifier int
 }
 
 func NewTarget(nspTarget *nspAPI.Target, netUtils networking.Utils) (types.Target, error) {
-	target := &Target{
+	target := &target{
 		fwMarks:   []networking.FWMarkRoute{},
 		nspTarget: nspTarget,
 		netUtils:  netUtils,
 	}
-	err := target.isValid()
+	if nspTarget.GetStatus() != nspAPI.Target_ENABLED {
+		return nil, errors.New("the target is not enabled")
+	}
+	idStr, exists := nspTarget.GetContext()[types.IdentifierKey]
+	if !exists {
+		return nil, fmt.Errorf("No identifier")
+	}
+	var err error
+	target.identifier, err = strconv.Atoi(idStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Invalid identifier: %w", err)
 	}
 	return target, nil
 }
 
-func (t *Target) GetIps() []string {
+func (t *target) GetIps() []string {
 	return t.nspTarget.GetIps()
 }
 
-func (t *Target) GetIdentifier() int {
-	return t.getIdentifier()
+func (t *target) GetIdentifier() int {
+	return t.identifier
 }
 
-func (t *Target) Verify() bool {
+func (t *target) Verify() bool {
 	for _, fwMark := range t.fwMarks {
 		if !fwMark.Verify() {
 			return false
@@ -62,13 +71,14 @@ func (t *Target) Verify() bool {
 	return true
 }
 
-func (t *Target) Configure(identifierOffset int) error {
+func (t *target) Configure(identifierOffset int) error {
 	if t.fwMarks == nil {
 		t.fwMarks = []networking.FWMarkRoute{}
 	}
 	for _, ip := range t.GetIps() {
 		var fwMark networking.FWMarkRoute
-		fwMark, err := t.netUtils.NewFWMarkRoute(ip, t.GetIdentifier()+identifierOffset, t.GetIdentifier()+identifierOffset)
+		offsetId := t.identifier + identifierOffset
+		fwMark, err := t.netUtils.NewFWMarkRoute(ip, offsetId, offsetId)
 		if err != nil {
 			return err
 		}
@@ -77,7 +87,7 @@ func (t *Target) Configure(identifierOffset int) error {
 	return nil
 }
 
-func (t *Target) Delete() error {
+func (t *target) Delete() error {
 	if t.fwMarks == nil {
 		t.fwMarks = []networking.FWMarkRoute{}
 		return nil
@@ -91,26 +101,4 @@ func (t *Target) Delete() error {
 	}
 	t.fwMarks = []networking.FWMarkRoute{}
 	return errFinal
-}
-
-func (t *Target) isValid() error {
-	if t.nspTarget.GetStatus() != nspAPI.Target_ENABLED {
-		return errors.New("the target is not enabled")
-	}
-	if t.getIdentifier() < 0 {
-		return errors.New("identifier is not a number")
-	}
-	return nil
-}
-
-func (t *Target) getIdentifier() int {
-	identifierStr, exists := t.nspTarget.GetContext()[types.IdentifierKey]
-	if !exists {
-		return -1
-	}
-	identifier, err := strconv.Atoi(identifierStr)
-	if err != nil {
-		return -1
-	}
-	return identifier
 }
