@@ -72,3 +72,25 @@ func Test_RemoveNode(t *testing.T) {
 	assert.Equal(t, node.GetName(), "node-b")
 	assert.Equal(t, node.GetCidr(), "172.0.0.0/24")
 }
+
+func Test_GetNode_Full(t *testing.T) {
+	prefixConduit := prefix.New("conduit-a", "172.0.0.0/31", nil)
+	store := memory.New()
+	conduit := conduit.New(prefixConduit, store, types.NewPrefixLengths(31, 32, 32))
+	assert.NotNil(t, conduit)
+	node, err := conduit.GetNode(context.Background(), "node-a")
+	assert.Nil(t, err)
+	assert.NotNil(t, node)
+	assert.True(t, node.GetParent().Equals(prefixConduit))
+	assert.Equal(t, node.GetName(), "node-a")
+	assert.Equal(t, node.GetCidr(), "172.0.0.0/32")
+	node, err = conduit.GetNode(context.Background(), "node-b")
+	assert.Nil(t, err)
+	assert.NotNil(t, node)
+	assert.True(t, node.GetParent().Equals(prefixConduit))
+	assert.Equal(t, node.GetName(), "node-b")
+	assert.Equal(t, node.GetCidr(), "172.0.0.1/32")
+	node, err = conduit.GetNode(context.Background(), "node-c")
+	assert.NotNil(t, err)
+	assert.Nil(t, node)
+}

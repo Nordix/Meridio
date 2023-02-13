@@ -18,7 +18,6 @@ package conduit
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/nordix/meridio/pkg/ipam/node"
 	"github.com/nordix/meridio/pkg/ipam/prefix"
@@ -76,11 +75,7 @@ func (c *Conduit) RemoveNode(ctx context.Context, name string) error {
 func (c *Conduit) addNode(ctx context.Context, name string) (types.Node, error) {
 	newPrefix, err := prefix.Allocate(ctx, c, name, c.PrefixLengths.NodeLength, c.Store)
 	if err != nil {
-		errFinal := err
-		newPrefix, err = c.Store.Get(ctx, name, c)
-		if err != nil {
-			return nil, fmt.Errorf("%w; %v", errFinal, err) // todo
-		}
+		return nil, err
 	}
 	return node.New(newPrefix, c.Store, c.PrefixLengths), nil
 }
