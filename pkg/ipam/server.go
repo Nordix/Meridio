@@ -25,6 +25,7 @@ import (
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ipam/prefix"
+	"github.com/nordix/meridio/pkg/ipam/storage/logger"
 	"github.com/nordix/meridio/pkg/ipam/storage/sqlite"
 	"github.com/nordix/meridio/pkg/ipam/trench"
 	"github.com/nordix/meridio/pkg/ipam/types"
@@ -58,12 +59,15 @@ func NewServer(
 	if err != nil {
 		return nil, err
 	}
+	logStore := &logger.Store{
+		Store: store,
+	}
 
 	trenchWatchers := []trench.TrenchWatcher{}
 	for ipFamily, cidr := range cidrs {
 		name := getTrenchName(trenchName, ipFamily)
 		prefix := prefix.New(name, cidr, nil)
-		newTrench, err := trench.New(ctx, prefix, store, is.PrefixLengths[ipFamily])
+		newTrench, err := trench.New(ctx, prefix, logStore, is.PrefixLengths[ipFamily])
 		if err != nil {
 			return nil, err
 		}
@@ -77,7 +81,7 @@ func NewServer(
 }
 
 func (is *IpamServer) Allocate(ctx context.Context, child *ipamAPI.Child) (*ipamAPI.Prefix, error) {
-	is.logger.Info("Allocate", "child", child)
+	ctx = logr.NewContext(ctx, is.logger)
 	trench, exists := is.Trenches[child.GetSubnet().GetIpFamily()]
 	if !exists {
 		return nil, fmt.Errorf("cannot allocate in this ip family")
@@ -121,12 +125,11 @@ func (is *IpamServer) Allocate(ctx context.Context, child *ipamAPI.Child) (*ipam
 		Address:      ip.String(),
 		PrefixLength: int32(is.PrefixLengths[child.GetSubnet().GetIpFamily()].NodeLength),
 	}
-	is.logger.Info("Allocated", "prefix", ret)
 	return ret, nil
 }
 
 func (is *IpamServer) Release(ctx context.Context, child *ipamAPI.Child) (*emptypb.Empty, error) {
-	is.logger.Info("Release", "child", child)
+	ctx = logr.NewContext(ctx, is.logger)
 	trench, exists := is.Trenches[child.GetSubnet().GetIpFamily()]
 	if !exists {
 		return &emptypb.Empty{}, nil

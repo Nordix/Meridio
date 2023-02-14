@@ -81,25 +81,14 @@ func SetConduits(ctx context.Context, tw TrenchWatcher, currentConduits map[stri
 	for k, v := range currentConduits {
 		cc[k] = v
 	}
-	logger := log.FromContextOrGlobal(ctx).WithValues("class", "ConduitWatcher")
 	// To add/update
 	for _, conduit := range newConduits {
 		// To add
-		prefix, err := tw.AddConduit(ctx, conduit.GetName())
-		if err != nil {
-			logger.Error(err, "AddConduit", "Name", conduit.GetName())
-		} else {
-			logger.Info("AddConduit", "Name", conduit.GetName(), "prefix", prefix.GetCidr())
-		}
+		_, _ = tw.AddConduit(ctx, conduit.GetName())
 		delete(cc, conduit.GetName())
 	}
 	// To remove
 	for conduitName := range cc {
-		err := tw.RemoveConduit(ctx, conduitName)
-		if err != nil {
-			logger.Error(err, "RemoveConduit", "Name", conduitName)
-			continue
-		}
-		logger.Info("RemoveConduit", "Name", conduitName)
+		_ = tw.RemoveConduit(ctx, conduitName)
 	}
 }
