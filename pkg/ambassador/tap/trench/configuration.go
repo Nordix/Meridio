@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-//go:generate mockgen -source=configuration.go -destination=mocks/configuration.go -package=mocks
-package conduit
+package trench
 
 import (
 	"context"
+	"errors"
 	"io"
 	"sync"
 	"time"
@@ -32,25 +32,23 @@ const (
 	channelBufferSize = 1
 )
 
-type Configuration interface {
-	Watch()
-	Stop()
-}
+type vipSetter func(context.Context, []string) error
 
 type configurationImpl struct {
-	SetStreams                 func([]*nspAPI.Stream)
+	SetVips                    vipSetter
 	Conduit                    *nspAPI.Conduit
 	ConfigurationManagerClient nspAPI.ConfigurationManagerClient
 	cancel                     context.CancelFunc
 	mu                         sync.Mutex
+	vipChan                    chan []string
 	streamChan                 chan []*nspAPI.Stream
 }
 
-func newConfigurationImpl(setStreams func([]*nspAPI.Stream),
+func newConfigurationImpl(setVips vipSetter,
 	conduit *nspAPI.Conduit,
 	configurationManagerClient nspAPI.ConfigurationManagerClient) *configurationImpl {
 	c := &configurationImpl{
-		SetStreams:                 setStreams,
+		SetVips:                    setVips,
 		Conduit:                    conduit,
 		ConfigurationManagerClient: configurationManagerClient,
 	}
@@ -62,9 +60,10 @@ func (c *configurationImpl) Watch() {
 	defer c.mu.Unlock()
 	var ctx context.Context
 	ctx, c.cancel = context.WithCancel(context.TODO())
+	c.vipChan = make(chan []string, channelBufferSize)
 	c.streamChan = make(chan []*nspAPI.Stream, channelBufferSize)
-	go c.streamHandler(ctx)
-	go c.watchStreams(ctx)
+	go c.vipHandler(ctx)
+	go c.watchVIPs(ctx)
 }
 
 func (c *configurationImpl) Stop() {
@@ -75,62 +74,68 @@ func (c *configurationImpl) Stop() {
 	}
 }
 
-func (c *configurationImpl) streamHandler(ctx context.Context) {
+func (c *configurationImpl) vipHandler(ctx context.Context) {
 	for {
 		select {
-		case streams := <-c.streamChan:
-			c.SetStreams(streams)
+		case vips := <-c.vipChan:
+			err := c.SetVips(ctx, vips)
+			if err != nil {
+				log.Logger.Error(err, "set vips")
+			}
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (c *configurationImpl) watchStreams(ctx context.Context) {
+func (c *configurationImpl) watchVIPs(ctx context.Context) {
 	err := retry.Do(func() error {
-		vipsToWatch := &nspAPI.Stream{
-			Conduit: c.Conduit,
+		toWatch := &nspAPI.Flow{
+			Stream: &nspAPI.Stream{
+				Conduit: c.Conduit,
+			},
 		}
-		watchStreamClient, err := c.ConfigurationManagerClient.WatchStream(ctx, vipsToWatch)
+		if c.ConfigurationManagerClient == nil {
+			return errors.New("ConfigurationManagerClient is nil")
+		}
+		watchClient, err := c.ConfigurationManagerClient.WatchFlow(ctx, toWatch)
 		if err != nil {
 			return err
 		}
 		for {
-			streamResponse, err := watchStreamClient.Recv()
+			response, err := watchClient.Recv()
 			if err == io.EOF {
 				break
 			}
 			if err != nil {
 				return err
 			}
-			fixStreamsMaxTargets(streamResponse.GetStreams())
 			// flush previous context in channel
 			select {
-			case <-c.streamChan:
+			case <-c.vipChan:
 			default:
 			}
-			c.streamChan <- streamResponse.GetStreams()
+			c.vipChan <- flowResponseToVIPSlice(response)
 		}
 		return nil
 	}, retry.WithContext(ctx),
-		retry.WithDelay(500*time.Millisecond),
+		retry.WithDelay(2000*time.Millisecond),
 		retry.WithErrorIngnored())
 	if err != nil {
-		log.Logger.Error(err, "watchStreams") // todo
+		log.Logger.Error(err, "watchVIPs") // todo
 	}
 }
 
-// fixStreamsMaxTargets fixes the max-target property in the streams received
-// by the NSP. NSP clients Version >= to v0.9.0 will wait for the max-target
-// property to be received from the NSP, but if NSP used is lower than v0.9.0,
-// then this field will not be sent and will be considered as 0.
-// To keep everything backward compatible, the value must be 100, not 0.
-// Max target has been introduced from commit cca757e1a54f4c19564a1202b88c97f51d8e813b
-// (PR 175: https://github.com/Nordix/Meridio/pull/175)
-func fixStreamsMaxTargets(streams []*nspAPI.Stream) {
-	for _, stream := range streams {
-		if stream.GetMaxTargets() <= 0 {
-			stream.MaxTargets = 100
+func flowResponseToVIPSlice(flowResponse *nspAPI.FlowResponse) []string {
+	vipMap := map[string]struct{}{}
+	for _, flow := range flowResponse.GetFlows() {
+		for _, vip := range flow.Vips {
+			vipMap[vip.Address] = struct{}{}
 		}
 	}
+	vips := []string{}
+	for vip := range vipMap {
+		vips = append(vips, vip)
+	}
+	return vips
 }

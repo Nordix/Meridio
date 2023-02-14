@@ -157,7 +157,7 @@ func (t *Trench) AddConduit(ctx context.Context, cndt *ambassadorAPI.Conduit) (t
 	if err != nil {
 		return nil, err
 	}
-	cc := newConduitConnect(c)
+	cc := newConduitConnect(c, t.ConfigurationManagerClient)
 	go cc.connect()
 	t.conduits = append(t.conduits, cc)
 	return c, nil

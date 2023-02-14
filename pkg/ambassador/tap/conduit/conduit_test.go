@@ -228,7 +228,7 @@ func Test_SetVIPs_Not_Connected(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, cndt)
 
-	err = cndt.SetVIPs([]string{})
+	err = cndt.SetVIPs(context.Background(), []string{})
 	assert.Nil(t, err)
 }
 
@@ -332,7 +332,7 @@ func Test_SetVIPs(t *testing.T) {
 	assert.Equal(t, srcIpAddrs, cndt.GetIPs())
 
 	// 5.
-	err = cndt.SetVIPs(vips)
+	err = cndt.SetVIPs(context.Background(), vips)
 	assert.Nil(t, err)
 
 	// 7.
@@ -431,7 +431,7 @@ func Test_LocalIPs_Switch(t *testing.T) {
 	assert.Equal(t, srcIpAddrs, cndt.GetIPs())
 
 	// 5.
-	err = cndt.SetVIPs(vips)
+	err = cndt.SetVIPs(context.Background(), vips)
 	assert.Nil(t, err)
 
 	// 7.

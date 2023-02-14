@@ -21,66 +21,65 @@ import (
 	"sync"
 	"time"
 
+	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
 	"github.com/nordix/meridio/pkg/log"
+	"github.com/nordix/meridio/pkg/retry"
 )
-
-const (
-	disconnected = iota
-	connected
-)
-
-type status int
 
 type conduitConnect struct {
-	conduit   types.Conduit
-	status    status
-	cancelCtx context.CancelFunc
-	mu        sync.Mutex
-	ctxMu     sync.Mutex
+	Timeout       time.Duration
+	RetryDelay    time.Duration
+	configuration *configurationImpl
+	conduit       types.Conduit
+	cancelOpen    context.CancelFunc
+	ctxMu         sync.Mutex
 }
 
-func newConduitConnect(conduit types.Conduit) *conduitConnect {
+func newConduitConnect(conduit types.Conduit, configurationManagerClient nspAPI.ConfigurationManagerClient) *conduitConnect {
 	cc := &conduitConnect{
-		conduit: conduit,
-		status:  disconnected,
+		conduit:       conduit,
+		configuration: newConfigurationImpl(conduit.SetVIPs, conduit.GetConduit().ToNSP(), configurationManagerClient),
+		Timeout:       10 * time.Second,
+		RetryDelay:    2 * time.Second,
 	}
 	return cc
 }
 
 func (cc *conduitConnect) connect() {
-	cc.mu.Lock()
-	defer cc.mu.Unlock()
-	if cc.status == connected {
+	cc.ctxMu.Lock()
+	if cc.cancelOpen != nil {
 		return
 	}
-	var ctx context.Context
-	cc.ctxMu.Lock()
-	ctx, cc.cancelCtx = context.WithCancel(context.TODO())
+	ctx, cancelOpen := context.WithCancel(context.TODO())
+	cc.cancelOpen = cancelOpen
 	cc.ctxMu.Unlock()
-	for { // todo: retry
-		if ctx.Err() != nil {
-			return
-		}
-		ctx, cancel := context.WithTimeout(ctx, 10*time.Second) // todo: configurable timeout
-		err := cc.conduit.Connect(ctx)
-		cancel()
+	_ = retry.Do(func() error {
+		retryCtx, cancel := context.WithTimeout(ctx, cc.Timeout) // todo: configurable timeout
+		err := cc.conduit.Connect(retryCtx)
+		defer cancel()
 		if err != nil {
 			log.Logger.Error(err, "connecting conduit", "conduit", cc.conduit.GetConduit())
-			continue
+			return err
 		}
-		cc.status = connected
-		break
+		return nil
+	}, retry.WithContext(ctx),
+		retry.WithDelay(cc.RetryDelay))
+
+	cc.ctxMu.Lock()
+	defer cc.ctxMu.Unlock()
+	if ctx.Err() == nil {
+		cc.configuration.Watch()
 	}
 }
 
 func (cc *conduitConnect) disconnect(ctx context.Context) error {
 	cc.ctxMu.Lock()
-	if cc.cancelCtx != nil {
-		cc.cancelCtx() // cancel open
+	defer cc.ctxMu.Unlock()
+	if cc.cancelOpen != nil {
+		cc.cancelOpen() // cancel open
 	}
-	cc.ctxMu.Unlock()
-	cc.mu.Lock()
-	defer cc.mu.Unlock()
+	cc.cancelOpen = nil
+	cc.configuration.Stop()
 	return cc.conduit.Disconnect(ctx)
 }
