@@ -111,7 +111,7 @@ func (sm *streamManager) AddStream(strm *ambassadorAPI.Stream) error {
 		return nil
 	}
 	sr.setStatus(ambassadorAPI.StreamStatus_PENDING)
-	go sr.Open(nspStream)
+	sr.Open(nspStream)
 	return nil
 }
 
@@ -160,7 +160,7 @@ func (sm *streamManager) SetStreams(streams []*nspAPI.Stream) {
 	for _, sr := range sm.Streams {
 		nspStream := sm.getNSPStream(sr)
 		if nspStream != nil {
-			go sr.Open(nspStream)
+			sr.Open(nspStream)
 		} else {
 			ctx, cancel := context.WithTimeout(context.TODO(), sr.Timeout)
 			defer cancel()
@@ -186,7 +186,7 @@ func (sm *streamManager) Run() {
 	for _, sr := range sm.Streams {
 		nspStream := sm.getNSPStream(sr)
 		if nspStream != nil {
-			go sr.Open(nspStream)
+			sr.Open(nspStream)
 		} else {
 			sr.setStatus(ambassadorAPI.StreamStatus_UNDEFINED)
 		}
@@ -229,52 +229,48 @@ type streamRetry struct {
 	NSPEntryTimeout time.Duration
 	RetryDelay      time.Duration
 	currentStatus   ambassadorAPI.StreamStatus_Status
-	mu              sync.Mutex
 	ctxMu           sync.Mutex
-	statusMu        sync.Mutex
 	cancelOpen      context.CancelFunc
 }
 
 // Open continually tries to open the stream. The function
 // finishes when the stream is successfully opened or when the
 // close function is called.
-// This function is excepted to run as a goroutine.
 func (sr *streamRetry) Open(nspStream *nspAPI.Stream) {
-	sr.mu.Lock()
-	defer sr.mu.Unlock()
-	if sr.getStatus() == ambassadorAPI.StreamStatus_OPEN {
-		return
-	}
-
 	// Set cancelOpen, so the close function could cancel this Open function.
 	sr.ctxMu.Lock()
+	if sr.cancelOpen != nil { // a previous open is still running
+		sr.ctxMu.Unlock()
+		return
+	}
 	var ctx context.Context
 	ctx, sr.cancelOpen = context.WithCancel(context.TODO())
 	sr.ctxMu.Unlock()
-
-	// retry to refresh
-	_ = retry.Do(func() error {
-		openCtx, cancel := context.WithTimeout(ctx, sr.Timeout)
-		defer cancel()
-
-		// retry to open
+	go func() {
+		// retry to refresh
 		_ = retry.Do(func() error {
-			err := sr.Stream.Open(openCtx, nspStream)
-			if err != nil {
-				log.Logger.Error(err, "opening stream", "stream", sr.Stream.GetStream())
-				// opened unsuccessfully, set status to UNDEFINED (might be due to lack of identifier, no connection to NSP)
-				sr.setStatus(ambassadorAPI.StreamStatus_UNAVAILABLE)
-				return err
-			}
-			sr.setStatus(ambassadorAPI.StreamStatus_OPEN)
-			return nil
-		}, retry.WithContext(openCtx),
-			retry.WithDelay(sr.RetryDelay))
+			openCtx, cancel := context.WithTimeout(ctx, sr.Timeout)
+			defer cancel()
 
-		return nil
-	}, retry.WithContext(ctx),
-		retry.WithDelay(sr.NSPEntryTimeout),
-		retry.WithErrorIngnored())
+			// retry to open
+			_ = retry.Do(func() error {
+				err := sr.Stream.Open(openCtx, nspStream)
+				if err != nil {
+					log.Logger.Error(err, "opening stream", "stream", sr.Stream.GetStream())
+					// opened unsuccessfully, set status to UNDEFINED (might be due to lack of identifier, no connection to NSP)
+					sr.setStatus(ambassadorAPI.StreamStatus_UNAVAILABLE)
+					return err
+				}
+				sr.setStatus(ambassadorAPI.StreamStatus_OPEN)
+				return nil
+			}, retry.WithContext(openCtx),
+				retry.WithDelay(sr.RetryDelay))
+
+			return nil
+		}, retry.WithContext(ctx),
+			retry.WithDelay(sr.NSPEntryTimeout),
+			retry.WithErrorIngnored())
+	}()
 }
 
 // Close cancel the opening of the stream and tries 1 time
@@ -285,26 +281,19 @@ func (sr *streamRetry) Close(ctx context.Context) error {
 	if sr.cancelOpen != nil {
 		sr.cancelOpen() // cancel open
 	}
-	sr.ctxMu.Unlock()
-	sr.mu.Lock()
-	defer sr.mu.Unlock()
+	defer func() {
+		sr.cancelOpen = nil
+		sr.ctxMu.Unlock()
+	}()
 	return sr.Stream.Close(ctx)
 }
 
 func (sr *streamRetry) setStatus(status ambassadorAPI.StreamStatus_Status) {
-	sr.statusMu.Lock()
-	defer sr.statusMu.Unlock()
 	sr.currentStatus = status
 	if sr.StreamRegistry == nil {
 		return
 	}
 	sr.StreamRegistry.SetStatus(sr.Stream.GetStream(), status)
-}
-
-func (sr *streamRetry) getStatus() ambassadorAPI.StreamStatus_Status {
-	sr.statusMu.Lock()
-	defer sr.statusMu.Unlock()
-	return sr.currentStatus
 }
 
 func convert(streams []*nspAPI.Stream) map[string]*nspAPI.Stream {

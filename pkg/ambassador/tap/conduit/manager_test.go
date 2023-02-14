@@ -19,6 +19,7 @@ package conduit_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	"github.com/nordix/meridio/pkg/ambassador/tap/conduit"
 	"github.com/nordix/meridio/pkg/ambassador/tap/conduit/mocks"
 	typesMocks "github.com/nordix/meridio/pkg/ambassador/tap/types/mocks"
+	"github.com/nordix/meridio/test/utils"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
@@ -95,22 +97,28 @@ func Test_Manager_Running_AddStream_Stop(t *testing.T) {
 			},
 		},
 	}
+
+	var wg sync.WaitGroup
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	r := typesMocks.NewMockRegistry(ctrl)
 	// 4.
 	setStatus1 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
+		defer wg.Done()
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_PENDING, status)
 	})
 	// 5.
 	setStatus2 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
+		defer wg.Done()
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_OPEN, status)
 	}).After(setStatus1)
 	// 7.
 	r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
+		defer wg.Done()
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_UNDEFINED, status)
 	}).After(setStatus2)
@@ -120,13 +128,15 @@ func Test_Manager_Running_AddStream_Stop(t *testing.T) {
 	streamFactory.EXPECT().New(gomock.Any()).Return(streamA, nil)
 	streamA.EXPECT().GetStream().Return(s).AnyTimes()
 	// Check Open (Stream) has been called
-	openCtx, openCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
 	open := streamA.EXPECT().Open(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, nspStream *nspAPI.Stream) error {
-		openCancel()
+		defer wg.Done()
 		return nil
 	})
 	// Check Close (Stream) has been called
-	streamA.EXPECT().Close(gomock.Any()).Return(nil).After(open)
+	streamA.EXPECT().Close(gomock.Any()).DoAndReturn(func(ctx context.Context) error {
+		defer wg.Done()
+		return nil
+	}).After(open)
 
 	// 1.
 	manager := conduit.NewStreamManager(nil, nil, r, streamFactory, timeout, 30*time.Second)
@@ -137,15 +147,20 @@ func Test_Manager_Running_AddStream_Stop(t *testing.T) {
 	manager.Run()
 
 	// 3.
+	wg.Add(3)
 	err := manager.AddStream(s)
 	assert.Nil(t, err)
 
-	// Check Open (Stream) has been called
-	<-openCtx.Done()
+	err = utils.WaitTimeout(&wg, utils.TestTimeout)
+	assert.Nil(t, err) // wait for SetStatus + Open + SetStatus
 
 	// 6.
+	wg.Add(2)
 	err = manager.Stop(context.TODO())
 	assert.Nil(t, err)
+
+	err = utils.WaitTimeout(&wg, utils.TestTimeout)
+	assert.Nil(t, err) // wait for Close + SetStatus
 }
 
 // 1. Create the stream manager with a stream set
@@ -182,20 +197,14 @@ func Test_Manager_RemoveStream(t *testing.T) {
 			},
 		},
 	}
+
+	var wg sync.WaitGroup
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	r := typesMocks.NewMockRegistry(ctrl)
-	// 4.
-	setStatus1 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
-		assert.Equal(t, s, strm)
-		assert.Equal(t, ambassadorAPI.StreamStatus_PENDING, status)
-	})
-	// 5.
-	r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
-		assert.Equal(t, s, strm)
-		assert.Equal(t, ambassadorAPI.StreamStatus_OPEN, status)
-	}).After(setStatus1)
+
 	// 7.
 	r.EXPECT().Remove(gomock.Any()).Return()
 
@@ -203,12 +212,25 @@ func Test_Manager_RemoveStream(t *testing.T) {
 	streamA := typesMocks.NewMockStream(ctrl)
 	streamFactory.EXPECT().New(gomock.Any()).Return(streamA, nil)
 	streamA.EXPECT().GetStream().Return(s).AnyTimes()
-	// Check Open (Stream) has been called
-	openCtx, openCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
-	streamA.EXPECT().Open(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, nspStream *nspAPI.Stream) error {
-		openCancel()
-		return nil
+
+	// 4.
+	setStatus1 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
+		defer wg.Done()
+		assert.Equal(t, s, strm)
+		assert.Equal(t, ambassadorAPI.StreamStatus_PENDING, status)
 	})
+	// Check Open (Stream) has been called
+	open := streamA.EXPECT().Open(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, nspStream *nspAPI.Stream) error {
+		defer wg.Done()
+		return nil
+	}).After(setStatus1)
+	// 5.
+	r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
+		defer wg.Done()
+		assert.Equal(t, s, strm)
+		assert.Equal(t, ambassadorAPI.StreamStatus_OPEN, status)
+	}).After(open)
+
 	// Check Close (Stream) has been called
 	streamA.EXPECT().Close(gomock.Any()).Return(nil)
 
@@ -221,11 +243,12 @@ func Test_Manager_RemoveStream(t *testing.T) {
 	manager.Run()
 
 	// 3.
+	wg.Add(3)
 	err := manager.AddStream(s)
 	assert.Nil(t, err)
 
-	// Check Open (Stream) has been called
-	<-openCtx.Done()
+	err = utils.WaitTimeout(&wg, utils.TestTimeout)
+	assert.Nil(t, err) // wait for SetStatus + Open + SetStatus
 
 	// 6.
 	err = manager.RemoveStream(context.TODO(), s)
@@ -269,12 +292,16 @@ func Test_Manager_Close_While_Opening(t *testing.T) {
 			},
 		},
 	}
+
+	var wg sync.WaitGroup
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	r := typesMocks.NewMockRegistry(ctrl)
 	// 4.
 	setStatus1 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
+		defer wg.Done()
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_PENDING, status)
 	})
@@ -283,16 +310,18 @@ func Test_Manager_Close_While_Opening(t *testing.T) {
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_UNAVAILABLE, status)
 	}).After(setStatus1).AnyTimes()
-	r.EXPECT().Remove(gomock.Any()).Return()
+	r.EXPECT().Remove(gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream) {
+		defer wg.Done()
+		assert.Equal(t, s, strm)
+	})
 
 	streamFactory := mocks.NewMockStreamFactory(ctrl)
 	streamA := typesMocks.NewMockStream(ctrl)
 	streamFactory.EXPECT().New(gomock.Any()).Return(streamA, nil)
 	streamA.EXPECT().GetStream().Return(s).AnyTimes()
 	// Check Open (Stream) has been called
-	openCtx, openCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
 	streamA.EXPECT().Open(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, nspStream *nspAPI.Stream) error {
-		openCancel()
+		wg.Done()
 		<-ctx.Done()
 		return ctx.Err()
 	}).AnyTimes()
@@ -308,14 +337,20 @@ func Test_Manager_Close_While_Opening(t *testing.T) {
 	manager.Run()
 
 	// 3.
+	wg.Add(2)
 	err := manager.AddStream(s)
 	assert.Nil(t, err)
 
-	<-openCtx.Done()
+	err = utils.WaitTimeout(&wg, utils.TestTimeout)
+	assert.Nil(t, err) // wait for SetStatus + Open
 
 	// 5.
+	wg.Add(1)
 	err = manager.RemoveStream(context.TODO(), s)
 	assert.Nil(t, err)
+
+	err = utils.WaitTimeout(&wg, utils.TestTimeout)
+	assert.Nil(t, err) // wait for Remove
 
 	// 7.
 	err = manager.Stop(context.TODO())
@@ -355,22 +390,28 @@ func Test_Manager_Retry_Open(t *testing.T) {
 			},
 		},
 	}
+
+	var wg sync.WaitGroup
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	r := typesMocks.NewMockRegistry(ctrl)
 	// 4.
 	setStatus1 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
+		defer wg.Done()
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_PENDING, status)
 	})
 	// 6.
 	setStatus2 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
+		defer wg.Done()
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_UNAVAILABLE, status)
 	}).After(setStatus1)
 	// 8.
 	setStatus3 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
+		defer wg.Done()
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_OPEN, status)
 	}).After(setStatus2)
@@ -383,9 +424,8 @@ func Test_Manager_Retry_Open(t *testing.T) {
 	// 5.
 	firstOpen := streamA.EXPECT().Open(gomock.Any(), gomock.Any()).Return(errors.New(""))
 	// 7.
-	secondOpenCtx, secondOpenCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
 	secondOpen := streamA.EXPECT().Open(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, nspStream *nspAPI.Stream) error {
-		secondOpenCancel()
+		defer wg.Done()
 		return nil
 	}).After(firstOpen)
 	streamA.EXPECT().Close(gomock.Any()).Return(nil).After(secondOpen)
@@ -399,10 +439,12 @@ func Test_Manager_Retry_Open(t *testing.T) {
 	manager.Run()
 
 	// 3.
+	wg.Add(4)
 	err := manager.AddStream(s)
 	assert.Nil(t, err)
 
-	<-secondOpenCtx.Done()
+	err = utils.WaitTimeout(&wg, utils.TestTimeout)
+	assert.Nil(t, err) // wait for SetStatus + SetStatus + Open + SetStatus
 
 	// 9.
 	err = manager.RemoveStream(context.TODO(), s)
@@ -448,22 +490,28 @@ func Test_Manager_Add_Non_Existing_Stream(t *testing.T) {
 			},
 		},
 	}
+
+	var wg sync.WaitGroup
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	r := typesMocks.NewMockRegistry(ctrl)
 	// 4.
 	setStatus1 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
+		defer wg.Done()
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_UNDEFINED, status)
 	})
 	// 7.
 	setStatus2 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
+		defer wg.Done()
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_OPEN, status)
 	}).After(setStatus1)
 	// 10.
 	setStatus3 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
+		defer wg.Done()
 		assert.Equal(t, s, strm)
 		assert.Equal(t, ambassadorAPI.StreamStatus_UNDEFINED, status)
 	}).After(setStatus2)
@@ -474,17 +522,18 @@ func Test_Manager_Add_Non_Existing_Stream(t *testing.T) {
 	streamFactory.EXPECT().New(gomock.Any()).Return(streamA, nil)
 	streamA.EXPECT().GetStream().Return(s).AnyTimes()
 	// 6.
-	openCtx, openCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
 	streamA.EXPECT().Open(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, nspStream *nspAPI.Stream) error {
-		openCancel()
+		defer wg.Done()
 		return nil
 	})
 	// 9.
-	closeCtx, closeCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
-	streamA.EXPECT().Close(gomock.Any()).DoAndReturn(func(ctx context.Context) error {
-		closeCancel()
+	firstClose := streamA.EXPECT().Close(gomock.Any()).DoAndReturn(func(ctx context.Context) error {
+		defer wg.Done()
 		return nil
-	}).AnyTimes()
+	})
+	streamA.EXPECT().Close(gomock.Any()).DoAndReturn(func(ctx context.Context) error {
+		return nil
+	}).After(firstClose).AnyTimes()
 
 	// 1.
 	manager := conduit.NewStreamManager(nil, nil, r, streamFactory, timeout, 30*time.Second)
@@ -494,26 +543,133 @@ func Test_Manager_Add_Non_Existing_Stream(t *testing.T) {
 	manager.Run()
 
 	// 3.
+	wg.Add(1)
 	err := manager.AddStream(s)
 	assert.Nil(t, err)
 
+	err = utils.WaitTimeout(&wg, utils.TestTimeout)
+	assert.Nil(t, err) // wait for set status
+
 	// 5.
+	wg.Add(2)
 	manager.SetStreams(streams)
 
-	// 6.
-	<-openCtx.Done()
+	err = utils.WaitTimeout(&wg, utils.TestTimeout)
+	assert.Nil(t, err) // wait for open call + set status
 
 	// 8.
+	wg.Add(2)
 	manager.SetStreams([]*nspAPI.Stream{})
 
-	// 9.
-	<-closeCtx.Done()
+	err = utils.WaitTimeout(&wg, utils.TestTimeout)
+	assert.Nil(t, err) // wait for close + set status
 
 	// 11.
 	err = manager.RemoveStream(context.TODO(), s)
 	assert.Nil(t, err)
 
 	// 12.
+	err = manager.Stop(context.TODO())
+	assert.Nil(t, err)
+}
+
+// 1. Create the stream manager with a stream set
+// 2. Run the stream manager
+// 3. Add (open) a new stream
+// 4. Verify Status is pending
+// 5. Verify Status is open
+// 6. Trigger SetStreams many times
+// 7. Remove (close) the stream
+// 8. Verify stream has been removed
+// 9. Stop the stream manager
+// If multiple events occur (AddStream, SetStreams), a stack of Open would
+// pile up waiting for the mutex to be unlocked. When the mutex would be
+// unlocked (on close call), the close could then be executed, and after,
+// piled open calls would execute again, which would cause the stream to be
+// re-opened. This test should cover this specific case.
+func Test_Manager_Add_Remove_Concurrent_Event(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	s := &ambassadorAPI.Stream{
+		Name: "stream-a",
+		Conduit: &ambassadorAPI.Conduit{
+			Name: "conduit-a",
+			Trench: &ambassadorAPI.Trench{
+				Name: "trench-a",
+			},
+		},
+	}
+	streams := []*nspAPI.Stream{
+		{
+			Name: "stream-a",
+			Conduit: &nspAPI.Conduit{
+				Name: "conduit-a",
+				Trench: &nspAPI.Trench{
+					Name: "trench-a",
+				},
+			},
+		},
+	}
+
+	var wg sync.WaitGroup
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	r := typesMocks.NewMockRegistry(ctrl)
+	// 4.
+	setStatus1 := r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
+		defer wg.Done()
+		assert.Equal(t, s, strm)
+		assert.Equal(t, ambassadorAPI.StreamStatus_PENDING, status)
+	})
+	// 5.
+	r.EXPECT().SetStatus(gomock.Any(), gomock.Any()).DoAndReturn(func(strm *ambassadorAPI.Stream, status ambassadorAPI.StreamStatus_Status) {
+		defer wg.Done()
+		assert.Equal(t, s, strm)
+		assert.Equal(t, ambassadorAPI.StreamStatus_UNAVAILABLE, status)
+	}).After(setStatus1)
+	// 8.
+	r.EXPECT().Remove(gomock.Any()).Return()
+
+	streamFactory := mocks.NewMockStreamFactory(ctrl)
+	streamA := typesMocks.NewMockStream(ctrl)
+	streamFactory.EXPECT().New(gomock.Any()).Return(streamA, nil)
+	streamA.EXPECT().GetStream().Return(s).AnyTimes()
+	// Check Open (Stream) has been called
+	firstOpen := streamA.EXPECT().Open(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, nspStream *nspAPI.Stream) error {
+		defer wg.Done()
+		return errors.New("")
+	})
+	// Check Close (Stream) has been called
+	streamA.EXPECT().Close(gomock.Any()).Return(nil).After(firstOpen)
+
+	// 1.
+	manager := conduit.NewStreamManager(nil, nil, r, streamFactory, timeout, 30*time.Second)
+	manager.RetryDelay = 5000 * time.Millisecond
+	manager.SetStreams(streams)
+
+	// 2.
+	manager.Run()
+
+	// 3.
+	wg.Add(3)
+	err := manager.AddStream(s)
+	assert.Nil(t, err)
+
+	// 6.
+	for i := 1; i < 100; i++ { // TODO: to be fixed, how to test this?
+		go manager.SetStreams(streams)
+	}
+
+	err = utils.WaitTimeout(&wg, utils.TestTimeout)
+	assert.Nil(t, err) // wait for SetStatus + Open + SetStatus
+
+	// 7.
+	err = manager.RemoveStream(context.TODO(), s)
+	assert.Nil(t, err)
+
+	// 9.
 	err = manager.Stop(context.TODO())
 	assert.Nil(t, err)
 }
