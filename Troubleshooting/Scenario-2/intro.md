@@ -6,4 +6,4 @@ The prerequisites take about 5 minutes to install.
 
 On completing this course, You will learn the following skills:
 
-* TODO
+* Knowledge on how to debug when the stateless-lb-frontend pods are not ready

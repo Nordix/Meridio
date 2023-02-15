@@ -30,6 +30,8 @@ EOF
 ```{{exec}}
 This flow will be serving in `stream-a-i`. It will accept only TCP, any source IP and source port, only `vip-a-1-v4` and `vip-a-1-v6` as destination IP and only `4000` as destination port.
 
+Flow documentation: https://meridio.nordix.org/docs/v1.0.0/concepts#flow
+
 # Verify
 
 The flow is now deployed

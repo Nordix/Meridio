@@ -16,3 +16,11 @@ On completing this course, You will learn the following skills:
 * Installation of the Meridio CRDs and Operator
 * Deployment of each custom resource Meridio offers
 * Knowledge about which resource being deployed per custom resource
+
+# Helpful resources
+
+* [Meridio](https://meridio.nordix.org/docs/v1.0.0/)
+* [Kubernetes documentation](https://kubernetes.io/docs/home/)
+* [Kubectl Reference Docs](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands)
+* [Kubernetes operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/)
+* [mconnect](https://github.com/Nordix/mconnect)

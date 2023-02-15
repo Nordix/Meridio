@@ -26,6 +26,8 @@ spec:
 EOF
 ```{{exec}}
 
+VIP documentation: https://meridio.nordix.org/docs/v1.0.0/concepts#vip
+
 # Verify
 
 The vips are now deployed

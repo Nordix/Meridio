@@ -16,6 +16,8 @@ spec:
 EOF
 ```{{exec}}
 
+Conduit documentation: https://meridio.nordix.org/docs/v1.0.0/concepts#conduit
+
 # Verify
 
 The conduit is now deployed
