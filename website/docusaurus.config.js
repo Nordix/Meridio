@@ -92,6 +92,11 @@ const config = {
                         label: 'Documentation',
                     },
                     {
+                        to: '/training',
+                        position: 'left',
+                        label: 'Training',
+                    },
+                    {
                         href: 'https://github.com/nordix/meridio',
                         position: 'right',
                         className: 'header-github-link header-icon-link',
