@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import (
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/retry"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // LoadBalancer -
@@ -340,27 +341,37 @@ func (lb *LoadBalancer) setTargets(targets []*nspAPI.Target) error {
 		return nil
 	}
 	var errFinal error
-	toRemoveTargetsMap := make(map[int]struct{})
-	for identifier := range lb.targets {
-		toRemoveTargetsMap[identifier] = struct{}{}
-	}
-	lb.logger.V(2).Info("setTargets", "targets", targets)
-	for _, target := range targets { // targets to add
+	newTargetsMap := make(map[int]types.Target)
+	for _, target := range targets {
 		t, err := NewTarget(target, lb.netUtils)
 		if err != nil {
 			continue
 		}
-		if lb.targetExists(t.GetIdentifier()) {
-			delete(toRemoveTargetsMap, t.GetIdentifier())
-		} else {
-			err = lb.AddTarget(t) // todo: pending targets?
+		newTargetsMap[t.GetIdentifier()] = t
+	}
+	for identifier, target := range lb.targets { // targets to remove
+		newTarget, exists := newTargetsMap[identifier]
+		if !exists {
+			err := lb.RemoveTarget(identifier)
 			if err != nil {
 				errFinal = fmt.Errorf("%w; %v", errFinal, err)
 			}
+			continue
+		}
+		targetIPSet := sets.New(target.GetIps()...)
+		newTargetIPSet := sets.New(newTarget.GetIps()...)
+		if targetIPSet.Equal(newTargetIPSet) { // have the same IPs?
+			delete(newTargetsMap, identifier)
+			continue
+		}
+		// Have different IPs, so the target IPs have changed and need to be removed and re-added
+		err := lb.RemoveTarget(identifier)
+		if err != nil {
+			errFinal = fmt.Errorf("%w; %v", errFinal, err)
 		}
 	}
-	for identifier := range toRemoveTargetsMap { // targets to remove
-		err := lb.RemoveTarget(identifier)
+	for _, target := range newTargetsMap { // targets to add
+		err := lb.AddTarget(target)
 		if err != nil {
 			errFinal = fmt.Errorf("%w; %v", errFinal, err)
 		}
