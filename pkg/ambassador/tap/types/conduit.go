@@ -46,4 +46,5 @@ type Conduit interface {
 	GetStreams() []*ambassadorAPI.Stream
 	Equals(*ambassadorAPI.Conduit) bool
 	GetConduit() *ambassadorAPI.Conduit
+	SetVIPs(context.Context, []string) error
 }

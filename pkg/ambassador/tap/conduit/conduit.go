@@ -55,13 +55,13 @@ type Conduit struct {
 	Configuration        Configuration
 	StreamManager        StreamManager
 	NetUtils             networking.Utils
-	StreamFactory        StreamFactory
-	connection           *networkservice.Connection
-	mu                   sync.Mutex
-	localIPs             []string
-	ctx                  context.Context
-	cancel               context.CancelFunc
-	logger               logr.Logger
+	// RetryDelay corresponds to the time between each Request call attempt
+	RetryDelay    time.Duration
+	StreamFactory StreamFactory
+	connection    *networkservice.Connection
+	mu            sync.Mutex
+	localIPs      []string
+	logger        logr.Logger
 }
 
 // New is the constructor of Conduit.
@@ -83,12 +83,13 @@ func New(conduit *ambassadorAPI.Conduit,
 		NodeName:             nodeName,
 		NetworkServiceClient: networkServiceClient,
 		NetUtils:             netUtils,
+		RetryDelay:           1 * time.Second,
 		connection:           nil,
 		localIPs:             []string{},
 	}
 	c.StreamFactory = stream.NewFactory(targetRegistryClient, c)
 	c.StreamManager = NewStreamManager(configurationManagerClient, targetRegistryClient, streamRegistry, c.StreamFactory, PendingTime, nspEntryTimeout)
-	c.Configuration = newConfigurationImpl(c.SetVIPs, c.StreamManager.SetStreams, c.Conduit.ToNSP(), configurationManagerClient)
+	c.Configuration = newConfigurationImpl(c.StreamManager.SetStreams, c.Conduit.ToNSP(), configurationManagerClient)
 	c.logger = log.Logger.WithValues("class", "Conduit", "instance", conduit.Name)
 	return c, nil
 }
@@ -101,10 +102,9 @@ func (c *Conduit) Connect(ctx context.Context) error {
 	if c.isConnected() {
 		return nil
 	}
-	c.ctx, c.cancel = context.WithCancel(ctx)
 	c.logger.Info("Connect")
 	nsName := conduit.GetNetworkServiceNameWithProxy(c.Conduit.GetName(), c.Conduit.GetTrench().GetName(), c.Namespace)
-	connection, err := c.NetworkServiceClient.Request(c.ctx,
+	connection, err := c.NetworkServiceClient.Request(ctx,
 		&networkservice.NetworkServiceRequest{
 			Connection: &networkservice.Connection{
 				Id:             fmt.Sprintf("%s-%s-%d", c.TargetName, nsName, 0),
@@ -137,9 +137,6 @@ func (c *Conduit) Connect(ctx context.Context) error {
 // Disconnect closes the connection from NSM, closes all streams
 // and stop the VIP watcher
 func (c *Conduit) Disconnect(ctx context.Context) error {
-	if c.cancel != nil {
-		c.cancel()
-	}
 	c.logger.Info("Disconnect")
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -192,7 +189,7 @@ func (c *Conduit) GetIPs() []string {
 }
 
 // SetVIPs checks the vips which has to be added or removed
-func (c *Conduit) SetVIPs(vips []string) error {
+func (c *Conduit) SetVIPs(ctx context.Context, vips []string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if !c.isConnected() {
@@ -232,10 +229,9 @@ func (c *Conduit) SetVIPs(vips []string) error {
 		}
 		c.connection.Context.IpContext.Policies = append(c.connection.Context.IpContext.Policies, newPolicyRoute)
 	}
-	c.ctx, c.cancel = context.WithCancel(context.TODO())
 	// update the NSM connection
 	_ = retry.Do(func() error {
-		ctx, cancel := context.WithTimeout(c.ctx, 20*time.Second) // todo: configurable timeout
+		ctx, cancel := context.WithTimeout(ctx, 20*time.Second) // todo: configurable timeout
 		defer cancel()
 		request := &networkservice.NetworkServiceRequest{
 			Connection: &networkservice.Connection{
@@ -256,8 +252,8 @@ func (c *Conduit) SetVIPs(vips []string) error {
 		}
 		c.connection = connection
 		return nil
-	}, retry.WithContext(c.ctx),
-		retry.WithDelay(500*time.Millisecond))
+	}, retry.WithContext(ctx),
+		retry.WithDelay(c.RetryDelay))
 	c.logger.Info("VIPs updated", "vips", vips)
 	c.localIPs = getLocalIPs(c.connection.GetContext().GetIpContext().GetSrcIpAddrs(), vips)
 	return nil

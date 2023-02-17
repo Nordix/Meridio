@@ -19,6 +19,7 @@ package trench
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/trench/mocks"
 	typesMocks "github.com/nordix/meridio/pkg/ambassador/tap/types/mocks"
+	"github.com/nordix/meridio/test/utils"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
@@ -64,16 +66,18 @@ func Test_AddConduit_RemoveConduit(t *testing.T) {
 	}
 	trnch := c.GetTrench()
 
+	var wg sync.WaitGroup
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	conduitFactory := mocks.NewMockConduitFactory(ctrl)
 	conduitA := typesMocks.NewMockConduit(ctrl)
 	conduitFactory.EXPECT().New(gomock.Any()).Return(conduitA, nil)
+	conduitA.EXPECT().GetConduit().Return(c)
 	conduitA.EXPECT().Equals(gomock.Any()).Return(true)
 
-	connectCtx, connectCancel := context.WithTimeout(context.TODO(), 500*time.Millisecond)
 	conduitA.EXPECT().Connect(gomock.Any()).DoAndReturn(func(_ context.Context) error {
-		connectCancel()
+		defer wg.Done()
 		return nil
 	})
 	conduitA.EXPECT().Disconnect(gomock.Any()).Return(nil)
@@ -84,6 +88,7 @@ func Test_AddConduit_RemoveConduit(t *testing.T) {
 		logger:         logr.Discard(),
 	}
 
+	wg.Add(1)
 	conduit, err := trench.AddConduit(context.TODO(), c)
 	assert.Nil(t, err)
 	assert.Equal(t, conduitA, conduit)
@@ -91,7 +96,8 @@ func Test_AddConduit_RemoveConduit(t *testing.T) {
 	assert.Len(t, conduits, 1)
 	assert.Contains(t, conduits, conduitA)
 
-	<-connectCtx.Done()
+	err = utils.WaitTimeout(&wg, utils.TestTimeout) // wait for Connect call
+	assert.Nil(t, err)
 
 	err = trench.RemoveConduit(context.TODO(), c)
 	assert.Nil(t, err)

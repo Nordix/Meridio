@@ -150,13 +150,8 @@ e2e: ginkgo output-dir ## Run the E2E tests.
 	./test/e2e/... -- $(E2E_PARAMETERS)
 
 .PHONY: test
-test: ## Run the Unit tests.
-	go test -race -cover -short -count=1 ./... 
-
-.PHONY: cover
-cover: 
-	go test -race -coverprofile cover.out -short ./... 
-	go tool cover -html=cover.out -o cover.html
+test: output-dir ## Run the Unit tests (read coverage report: go tool cover -html=_output/cover_unit_test.out -o _output/cover_unit_test.html).
+	go test -race -cover -short -count=1 -coverprofile $(OUTPUT_DIR)/cover_unit_test.out ./... 
 
 .PHONY: check
 check: lint test ## Run the linter and the Unit tests.
