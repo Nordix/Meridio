@@ -4,6 +4,14 @@ Congratulations! 🎉
 
 You completed Installation course!
 
+# Helpful resources
+
+* [Meridio](https://meridio.nordix.org/docs/v1.0.0/)
+* [Kubernetes documentation](https://kubernetes.io/docs/home/)
+* [Kubectl Reference Docs](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands)
+* [Kubernetes operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/)
+* [mconnect](https://github.com/Nordix/mconnect)
+
 ### Feedback
 
 Do you see any bug, typo in the tutorial or you have some feedback?

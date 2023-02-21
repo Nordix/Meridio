@@ -14,6 +14,8 @@ spec:
 EOF
 ```{{exec}}
 
+Trench documentation: https://meridio.nordix.org/docs/v1.0.0/concepts#trench
+
 # Verify
 
 The trench is now deployed

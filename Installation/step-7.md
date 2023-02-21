@@ -17,6 +17,8 @@ EOF
 ```{{exec}}
 This stream will be serving in `conduit-a-1`.
 
+Stream documentation: https://meridio.nordix.org/docs/v1.0.0/concepts#stream
+
 # Verify
 
 The vips is now deployed

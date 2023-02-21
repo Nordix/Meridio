@@ -33,6 +33,8 @@ EOF
 ```{{exec}}
 The attractor will serve conduit `conduit-a-1` from the 2 gateways `gateway-a-1-v4` and `gateway-a-1-v6` for the 2 VIPs `vip-a-1-v4` and `vip-a-1-v6`. It will receive an nsm-vlan interface based on eth0 with 100 as VLAN ID and will get an IPv4 in the `169.254.100.0/24` subnet and an IPv6 in the `100:100::/64` subnet. 2 replicas of this attractor will be deployed.
 
+Attractor documentation: https://meridio.nordix.org/docs/v1.0.0/concepts#attractor
+
 # Verify
 
 The attractor is now deployed

@@ -49,6 +49,8 @@ EOF
 ```{{exec}}
 The 2 gateways are using GBP + BFD as routing protocol.
 
+Gateway documentation: https://meridio.nordix.org/docs/v1.0.0/concepts#gateway
+
 # Verify
 
 The gateways are now deployed
