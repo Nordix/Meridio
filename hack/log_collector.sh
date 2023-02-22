@@ -97,6 +97,8 @@ collect_exec_stateless_lb_frontend() {
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -6 -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-6-s.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip neighbour > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-neighbour.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -c frontend -- birdc -s /var/run/bird/bird.ctl show protocol all > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.birdc-show-protocol-all.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c frontend -- cat /var/log/bird.log > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.bird.log" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- cat /proc/net/dev > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.proc-net-dev.txt" 2>/dev/null
             shared_memory=$(kubectl exec $pod_name -n $EXEC_NAMESPACE -- ls /dev/shm/ | grep "tshm-")
             while IFS= read -r shm; do
                 kubectl exec $pod_name -n $EXEC_NAMESPACE -- nfqlb show --shm=$shm > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.nfqlb-show-shm-$shm.txt" 2>/dev/null
@@ -122,6 +124,8 @@ collect_exec_proxy() {
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-s.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -6 -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-6-s.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip neighbour > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-neighbour.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- bridge fdb > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.bridge-fdb.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- cat /proc/net/dev > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.proc-net-dev.txt" 2>/dev/null
         done
     done
 }
@@ -144,6 +148,7 @@ collect_exec_targets() {
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-s.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -6 -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-6-s.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip neighbour > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-neighbour.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -- cat /proc/net/dev > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.proc-net-dev.txt" 2>/dev/null
         done
     done
 }
@@ -165,9 +170,9 @@ collect_all() {
         fi
         mkdir -p "$full_output_path/$resource_name"
         echo "collecting $resource_name ..."
-        collect_resource $resource_name $namespaced
+        # collect_resource $resource_name $namespaced
     done <<< "$resources_no_header"
-    collect_logs
+    # collect_logs
 }
 
 timestamp=$(date +%s)

@@ -24,7 +24,6 @@ function new_vip_revert () {
 function delete_create_trench () {
     kubectl delete trench trench-a -n red
     sleep 10
-    kubectl wait --for=condition=Ready pods --all -n red --timeout=4m
     # Wait for all pods to be in running state (no Terminating pods)
     while kubectl get pods -n red --no-headers | awk '$3' | grep -v "Running" > /dev/null; do sleep 1; done
 }
@@ -55,54 +54,64 @@ function stream_max_targets_revert () {
 
 function new_flow () {
     kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/new-flow.yaml
+    sleep 5
 }
 
 function new_flow_revert () {
     kubectl delete flow -n red flow-a-x-tcp
+    sleep 5
 }
 
 function flow_priority () {
     kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/flow-priority.yaml
+    sleep 5
 }
 
 function flow_priority_revert () {
     kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/init-trench-a.yaml
+    sleep 5
 }
 
 function flow_destination_ports_range () {
     kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/flow-destination-ports-range.yaml
+    sleep 5
 }
 
 function flow_destination_ports_range_revert () {
     kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/init-trench-a.yaml
+    sleep 5
 }
 
 function flow_byte_matches () {
     kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/flow-byte-matches.yaml
+    sleep 5
 }
 
 function flow_byte_matches_revert () {
     kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/init-trench-a.yaml
+    sleep 5
 }
 
 function new_attractor_nsm_vlan () {
     kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/new-attractor-nsm-vlan.yaml
-    sleep 10
+    sleep 5
     kubectl wait --for=condition=Ready pods --all -n red --timeout=4m
 }
 
 function new_attractor_nsm_vlan_revert () {
     kubectl delete -f $(dirname -- $(readlink -fn -- "$0"))/configuration/new-attractor-nsm-vlan.yaml
-    sleep 10
-    kubectl wait --for=condition=Ready pods --all -n red --timeout=4m
+    sleep 5
+    while kubectl get pods -n red --no-headers | awk '$3' | grep -v "Running" > /dev/null; do sleep 1; done
 }
 
 function conduit_destination_port_nats () {
     kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/conduit-destination-port-nats.yaml
+    sleep 5
 }
 
 function conduit_destination_port_nats_revert () {
     kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/init-trench-a.yaml
+    sleep 5
 }
 
 # Required to call the corresponding function
