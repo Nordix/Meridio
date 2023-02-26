@@ -30,7 +30,7 @@ The only error the TAPA can return is to indicate to the client that the pod is 
 
 TODO
 
-![TAPA-Sequence-Register](resources/TAPA-Sequence-Register.svg)
+![TAPA-Sequence-Register](../resources/TAPA-Sequence-Register.svg)
 
 #### Refresh
 
@@ -38,7 +38,7 @@ While a stream is opened, the TAPA has to refresh its registration to the target
 
 To achieve the refresh, the TAPA will update its target with the same properties by calling the Register function regularly. After the call, the TAPA will check if the target is still in the `ENABLED` status for the target registry. If not, it means the target registry has previously removed the target and consider the last register call as a new entry, so it has overwritten the status to `DISABLED`. The TAPA will then start the registeration process a new time to register itself with a unique identifier.
 
-![TAPA-Sequence-Refresh](resources/TAPA-Sequence-Refresh.svg)
+![TAPA-Sequence-Refresh](../resources/TAPA-Sequence-Refresh.svg)
 ## Configuration 
 
 https://github.com/Nordix/Meridio/blob/master/cmd/tapa/config.go
@@ -66,14 +66,20 @@ Command | Action | Default
 
 ## Communication 
 
-Component | Secured | Method
---- | --- | ---
-Spire | TBD | Unix Socket
-NSM | yes (mTLS) | Unix Socket
-NSP Service | yes (mTLS) | TCP
-User Application | no | Unix Socket
+Here are all components the tapa is communicating with:
+
+Component | Secured | Method | Description 
+--- | --- | --- | ---
+Spire | TBD | Unix Socket | Obtain and validate SVIDs
+NSM | yes (mTLS) | Unix Socket | Request/Close/Watch connections
+NSP Service | yes (mTLS) | TCP | Watch configuration. Register/Unregister targets
+User Application | no | Unix Socket | Provide TAPA service
+
+An overview of the communications between all components is available [here](resources.md).
 
 ## Health check
+
+The health check is provided by the [GRPC Health Checking Protocol](https://github.com/grpc/grpc/blob/master/doc/health-checking.md). The status returned can be `UNKNOWN`, `SERVING`, `NOT_SERVING` or `SERVICE_UNKNOWN`.
 
 TODO
 

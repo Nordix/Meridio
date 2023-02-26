@@ -1,4 +1,4 @@
-# Meridio - Troubleshooting Guide
+# Troubleshooting Guide
 
 This guide focuses on `Meridio`, the Operator is only briefly touched.
 
@@ -116,7 +116,7 @@ closely, what is logged on setup for instance. Check logs with;
 For PODs with multiple containers you must specify the container with
 the `-c` option.
 
-Meridio uses [structured logging](../logging.md) so logs are printed
+Meridio uses [structured logging](../dev/logging.md) so logs are printed
 in `json` format. The [jq](https://stedolan.github.io/jq/) program can
 be used for formatting and filter. NSM [cannot be configured](
 https://github.com/networkservicemesh/sdk/pull/1348) for structured

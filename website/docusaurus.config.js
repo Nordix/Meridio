@@ -83,11 +83,12 @@ const config = {
                     {
                         type: 'docsVersionDropdown',
                         position: 'left',
+                        dropdownItemsAfter: [{ to: '/versions', label: 'All versions' }],
                         dropdownActiveClassDisabled: true,
                     },
                     {
                         type: 'doc',
-                        docId: 'overview',
+                        docId: 'readme',
                         position: 'left',
                         label: 'Documentation',
                     },
@@ -121,7 +122,7 @@ const config = {
                         items: [
                             {
                                 label: 'Overview',
-                                to: '/docs/overview',
+                                to: '/docs',
                             },
                             {
                                 label: 'Frequently Asked Questions',
@@ -148,6 +149,14 @@ const config = {
                             {
                                 label: 'GitHub',
                                 href: 'https://github.com/nordix/meridio',
+                            },
+                            {
+                                label: 'Killercoda',
+                                href: 'https://killercoda.com/meridio',
+                            },
+                            {
+                                label: 'Asciinema',
+                                href: 'https://asciinema.org/~LionelJouin',
                             },
                         ],
                     },

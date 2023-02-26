@@ -24,7 +24,7 @@ const sidebars = {
         },
         {
             type: 'doc',
-            id: 'overview',
+            id: 'use-cases',
         },
         {
             type: 'category',
@@ -36,7 +36,7 @@ const sidebars = {
                 keywords: ['guides'],
             },
             items: [
-                'deployment',
+                'deployment/operator',
             ]
         },
         {
@@ -51,59 +51,86 @@ const sidebars = {
             items: [
                 {
                     type: 'doc',
-                    id: 'concepts',
+                    id: 'concepts/trench',
                     label: 'Trench',
                 },
                 {
                     type: 'doc',
-                    id: 'concepts',
+                    id: 'concepts/conduit',
                     label: 'Conduit',
                 },
                 {
                     type: 'doc',
-                    id: 'concepts',
+                    id: 'concepts/stream',
                     label: 'Stream',
                 },
                 {
                     type: 'doc',
-                    id: 'concepts',
+                    id: 'concepts/flow',
                     label: 'Flow',
                 },
                 {
                     type: 'doc',
-                    id: 'concepts',
+                    id: 'concepts/vip',
                     label: 'VIP',
                 },
                 {
                     type: 'doc',
-                    id: 'concepts',
+                    id: 'concepts/attractor',
                     label: 'Attractor',
                 },
                 {
                     type: 'doc',
-                    id: 'concepts',
+                    id: 'concepts/gateway',
                     label: 'Gateway',
                 },
             ],
         },
         {
             type: 'category',
-            label: 'Components',
+            label: 'Data Plane',
             link: {
                 type: 'generated-index',
-                title: 'Meridio Components',
-                description: 'Learn about the Meridio components',
+                title: 'Data Plane',
+                description: 'Learn how the traffic is flowing in Meridio',
                 keywords: ['guides'],
             },
             items: [
-                'deployment/operator',
-                'tapa',
-                'stateless-load-balancer',
-                'front-end',
-                'nsp',
-                'ipam',
-                'proxy',
+                'dataplane/gateway-frontend',
+                'dataplane/stateless-lb-frontend',
+                'dataplane/stateless-lb-frontend-target',
+                'dataplane/target',
             ]
+        },
+        {
+            type: 'category',
+            label: 'Components',
+            link: {
+                type: 'doc',
+                id: 'components/resources',
+            },
+            items: [
+                {
+                    type: 'category',
+                    label: 'Containers',
+                    collapsed: false,
+                    link: {
+                        type: 'generated-index',
+                        title: 'Meridio Components',
+                        description: 'Learn about the Meridio components',
+                        keywords: ['guides'],
+                    },
+                    items: [
+                        'components/operator',
+                        'components/tapa',
+                        'components/stateless-lb',
+                        'components/frontend',
+                        'components/nsp',
+                        'components/ipam',
+                        'components/proxy',
+                    ]
+                }
+            ],
         },
         {
             type: 'category',
@@ -115,7 +142,9 @@ const sidebars = {
                 keywords: ['guides'],
             },
             items: [
-                'user-application',
+                'integrate/user-application',
+                'integrate/public-cloud',
+                'integrate/kubernetes-distributions',
             ]
         },
         {
@@ -129,7 +158,6 @@ const sidebars = {
             },
             items: [
                 'port-nat',
-                'logging',
             ]
         },
         {
@@ -142,12 +170,17 @@ const sidebars = {
                 keywords: ['guides'],
             },
             items: [
-                'test',
-                'security-scan',
+                'contributing',
+                'dev/testing',
+                'dev/security-scanning',
+                'dev/logging',
+                'dev/environment',
+                'dev/e2e-test-list',
             ]
         },
         "trouble-shooting/README",
         "faq",
+        "glossary",
     ],
 };
 

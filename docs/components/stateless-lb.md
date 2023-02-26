@@ -1,4 +1,4 @@
-# Stateless Load-balancer
+# Stateless-lb
 
 * [cmd](https://github.com/Nordix/Meridio/tree/master/cmd/stateless-lb)
 * [Dockerfile](https://github.com/Nordix/Meridio/tree/master/build/stateless-lb)
@@ -39,26 +39,40 @@ Command | Action | Default
 
 ## Communication 
 
-Component | Secured | Method
---- | --- | ---
-Spire | TBD | Unix Socket
-NSM | yes (mTLS) | Unix Socket
-NSP Service | yes (mTLS) | TCP
+Here are all components the stateless-lb is communicating with:
+
+Component | Secured | Method | Description
+--- | --- | --- | ---
+Spire | TBD | Unix Socket | Obtain and validate SVIDs
+NSM | yes (mTLS) | Unix Socket | Register NSE
+NSP Service | yes (mTLS) | TCP | Watch configuration. Watch target registry.
+
+An overview of the communications between all components is available [here](resources.md).
 
 ## Health check
 
-TODO
+The health check is provided by the [GRPC Health Checking Protocol](https://github.com/grpc/grpc/blob/master/doc/health-checking.md). The status returned can be `UNKNOWN`, `SERVING`, `NOT_SERVING` or `SERVICE_UNKNOWN`.
+
+Service | Description
+--- | ---
+NSPCli | Monitor status of the connection to the NSP service
+NSMEndpoint | Monitor status of the NSE
+Egress | Monitor the frontend availability
+Stream | Check if at least 1 stream is serving
+Flow | Check if at least 1 flow is serving
 
 ## Privileges
 
+To work properly, here are the privileges required by the stateless-lb:
+
 Name | Description
 --- | ---
-Sysctl: net.ipv6.conf.all.forwarding=1  | 
-Sysctl: net.ipv4.conf.all.forwarding=1 | 
-Sysctl: net.ipv4.fib_multipath_hash_policy=1 | 
-Sysctl: net.ipv6.fib_multipath_hash_policy=1 | 
-Sysctl: net.ipv4.conf.all.rp_filter=0 | 
-Sysctl: net.ipv4.conf.default.rp_filter=0 | 
+Sysctl: net.ipv4.conf.all.forwarding=1 | Enable IP forwarding
+Sysctl: net.ipv6.conf.all.forwarding=1 | Enable IP forwarding
+Sysctl: net.ipv4.fib_multipath_hash_policy=1 | To use Layer 4 hash policy for ECMP on IPv4
+Sysctl: net.ipv6.fib_multipath_hash_policy=1 | To use Layer 4 hash policy for ECMP on IPv6
+Sysctl: net.ipv4.conf.all.rp_filter=0 | Allow packets to have a source IPv4 address which does not correspond to any routing destination address.
+Sysctl: net.ipv4.conf.default.rp_filter=0 | Allow packets to have a source IPv6 address which does not correspond to any routing destination address.
 NET_ADMIN | The load balancer configures IP rules and IP routes to steer packets (processed by [nfqueue-loadbalancer program](https://github.com/Nordix/nfqueue-loadbalancer)) to targets. The user space load balancer program relies on [libnetfilter_queue](https://netfilter.org/projects/libnetfilter_queue).
 IPC_LOCK | The user space load balancer program uses shared memory.
 IPC_OWNER | The user space load balancer program uses shared memory.

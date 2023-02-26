@@ -1,4 +1,4 @@
-# Test
+# Testing
 
 ## E2E Tests
 
@@ -20,7 +20,7 @@
 
 The picture below shows the initial deployment that should be installed in a kubernetes cluster in order to execute the complete e2e test suite in dualstack. With only IPv4, elements containing `v6` are not used, and with only IPv6, elements containing `v4` are not used. Elements between `[]` are configurable via parameters, see the `Configuration` section. 
 
-![Initial-Deployment-E2E](resources/Initial-Deployment-E2E.svg)
+![Initial-Deployment-E2E](../resources/Initial-Deployment-E2E.svg)
 
 #### Configuration
 
@@ -111,9 +111,9 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 | Scale-Down | Scaling | Scale down `target-a-deployment-name` |
 | Scale-Up | Scaling | Scale up `target-a-deployment-name` |
 | close-open | TAPA | Close `stream-a-I` in one of the target from `target-a-deployment-name` and re-open it |
-| delete-create-trench | Trench | Delete `trench-a` and recreate and reconfigure it |
 | open-second-stream | TAPA | Open `stream-a-II` in one of the target from `target-a-deployment-name` and close it |
 | open-second-stream-second-conduit | TAPA | Open `stream-a-IV` in one of the target from `target-a-deployment-name` and close it |
+| delete-create-trench | Trench | Delete `trench-a` and recreate and reconfigure it |
 | new-vip | Vip | Configure `vip-2-v4` and `vip-2-v6` in `flow-a-z-tcp` and `attractor-a-1` |
 | new-stream | Stream | Configure `stream-a-III` in `conduit-a-1` with a new flow with tcp, `tcp-destination-port-2` as destination port and `vip-1-v4` and `vip-1-v6` |
 | stream-max-targets | Stream | Configure `stream-a-III` as in `new-stream` test with the max-targets field set to 1 and 2 targets with `stream-a-III` opened |
