@@ -15,7 +15,7 @@ From the network service instances side, the proxy acts as a bridge, so the netw
 
 Note: Currently the proxy support only 1 conduit.
 
-![Proxy](resources/Proxy.svg)
+![Proxy](../resources/Proxy.svg)
 
 ## Configuration 
 
@@ -49,26 +49,39 @@ Command | Action | Default
 
 ## Communication 
 
-Component | Secured | Method
---- | --- | ---
-Spire | TBD | Unix Socket
-NSM | yes (mTLS) | Unix Socket
-NSP Service | yes (mTLS) | TCP
-IPAM Service | yes (mTLS) | TCP
+Here are all components the proxy is communicating with:
+
+Component | Secured | Method | Description
+--- | --- | --- | ---
+Spire | TBD | Unix Socket | Obtain and validate SVIDs
+NSM | yes (mTLS) | Unix Socket | Request/Close connections. Register NSE.
+NSP Service | yes (mTLS) | TCP | Watch configuration
+IPAM Service | yes (mTLS) | TCP | Allocate/Release IPs
+
+An overview of the communications between all components is available [here](resources.md).
 
 ## Health check
 
-TODO
+The health check is provided by the [GRPC Health Checking Protocol](https://github.com/grpc/grpc/blob/master/doc/health-checking.md). The status returned can be `UNKNOWN`, `SERVING`, `NOT_SERVING` or `SERVICE_UNKNOWN`.
+
+Service | Description
+--- | ---
+IPAMCli | Monitor status of the connection to the IPAM service
+NSPCli | Monitor status of the connection to the NSP service
+NSMEndpoint | Monitor status of the NSE
+Egress | Check if at least 1 stateless-lb-frontend is connected
 
 ## Privileges
 
+To work properly, here are the privileges required by the proxy:
+
 Name | Description
 --- | ---
-Sysctl: net.ipv6.conf.all.forwarding=1 | 
-Sysctl: net.ipv4.conf.all.forwarding=1 | 
-Sysctl: net.ipv6.conf.all.accept_dad=0 | 
-Sysctl: net.ipv4.fib_multipath_hash_policy=1 | 
-Sysctl: net.ipv6.fib_multipath_hash_policy=1 | 
-Sysctl: net.ipv4.conf.all.rp_filter=0 | 
-Sysctl: net.ipv4.conf.default.rp_filter=0 | 
+Sysctl: net.ipv4.conf.all.forwarding=1 | Enable IP forwarding
+Sysctl: net.ipv6.conf.all.forwarding=1 | Enable IP forwarding
+Sysctl: net.ipv6.conf.all.accept_dad=0 | Disable DAD (Duplicate Address Detection)
+Sysctl: net.ipv4.fib_multipath_hash_policy=1 | To use Layer 4 hash policy for ECMP on IPv4
+Sysctl: net.ipv6.fib_multipath_hash_policy=1 | To use Layer 4 hash policy for ECMP on IPv6
+Sysctl: net.ipv4.conf.all.rp_filter=0 | Allow packets to have a source IPv4 address which does not correspond to any routing destination address.
+Sysctl: net.ipv4.conf.default.rp_filter=0 | Allow packets to have a source IPv6 address which does not correspond to any routing destination address.
 NET_ADMIN | The proxy creates IP rules, IP routes, bridge interfaces and modifies NSM interfaces to link them to bridge interfaces.

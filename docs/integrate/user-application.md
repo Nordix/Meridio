@@ -16,6 +16,21 @@ Here is the minimal TAPA container specification required:
 
 ```yaml
 - name: tapa
+  env:
+  - name: MERIDIO_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.name
+  - name: MERIDIO_NODE
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
+  - name: MERIDIO_NAMESPACE
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.namespace
+  - name: MERIDIO_SOCKET
+    value: "/var/lib/meridio/ambassador.sock"
   volumeMounts:
     - name: spire-agent-socket
       mountPath: /run/spire/sockets
@@ -37,7 +52,7 @@ Here is the minimal TAPA container specification required:
       - all
 ```
 
-Additional configuration via environment variables can be found on the [TAPA Configuration](tapa.md#configuration) documentation page.
+Additional configuration via environment variables can be found on the [TAPA Configuration](../components/tapa.md#configuration) documentation page.
 
 ### Volumes
 

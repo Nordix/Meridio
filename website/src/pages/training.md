@@ -16,12 +16,21 @@ The deployment of the operator and the application of different resources Meridi
 
 * Access the Killercoda environment [here](https://killercoda.com/meridio/scenario/Installation)
 * Play the recording [here](https://asciinema.org/a/558008)
+* [Operator Deployment Documentation](docs/deployment/operator#deployment)
+* [Trench Deployment Documentation](docs/concepts/trench#deployment)
+* [Conduit Deployment Documentation](docs/concepts/conduit#deployment)
+* [Stream Deployment Documentation](docs/concepts/stream#deployment)
+* [Flow Deployment Documentation](docs/concepts/flow#deployment)
+* [VIP Deployment Documentation](docs/concepts/vip#deployment)
+* [Attractor Deployment Documentation](docs/concepts/gateway#deployment)
+* [Gateway Deployment Documentation](docs/concepts/attractor#deployment)
 
 ## Traffic Path
 
 With NSM v1.7.1 and Meridio v1.0.0, Follow the ingress and egress traffic path from the gateway, worker network, VPP forwarder, stateless-lb-frontend, proxy and the target
 
 * Access the Killercoda environment [here](https://killercoda.com/meridio/scenario/Traffic-Path)
+* [Data Plane Documentation](docs/category/data-plane)
 
 ## Troubleshooting CTFs
 

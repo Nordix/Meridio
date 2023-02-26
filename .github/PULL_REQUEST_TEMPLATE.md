@@ -17,6 +17,3 @@
 - Introduce a breaking change
     - [ ] Yes (description required)
     - [ ] No
-- Introduce changes in the Operator 
-    - [ ] Yes (description required)
-    - [ ] No

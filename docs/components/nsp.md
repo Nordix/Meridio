@@ -43,24 +43,32 @@ NSM_LOG_LEVEL | string | Log level | DEBUG
 
 ## Command Line 
 
-Command | Action | Default
+Command | Action | Default 
 --- | --- | ---
 --help | Display a help describing |
 --version | Display the version |
 
 ## Communication 
 
-Component | Secured | Method
---- | --- | ---
-Spire | TBD | Unix Socket
-Kubernetes API | TBD | TCP
+Here are all components the nsp is communicating with:
+
+Component | Secured | Method | Description
+--- | --- | --- | ---
+Spire | TBD | Unix Socket | Obtain and validate SVIDs
+Kubernetes API | TBD | TCP | Watch the trench configmap
+
+An overview of the communications between all components is available [here](resources.md).
 
 ## Health check
+
+The health check is provided by the [GRPC Health Checking Protocol](https://github.com/grpc/grpc/blob/master/doc/health-checking.md). The status returned can be `UNKNOWN`, `SERVING`, `NOT_SERVING` or `SERVICE_UNKNOWN`.
 
 TODO
 
 ## Privileges
 
+To work properly, here are the privileges required by the nsp:
+
 Name | Description
 --- | ---
-Kubernetes API | The NSP watches a configmap to get updated about the configuration of the trench
+Kubernetes API | nsp-role - configmaps - watch

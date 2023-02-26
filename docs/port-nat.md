@@ -1,4 +1,4 @@
-# Meridio - Stateless port-NAT
+# Stateless port-NAT
 
 Stateless port-NAT can be used to map a privileged port, e.g. 80, to
 an unprivileged port in the server, e.g. 8080. Port-NAT is enabled

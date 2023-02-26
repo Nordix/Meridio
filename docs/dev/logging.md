@@ -1,4 +1,4 @@
-# Meridio - logging
+# Logging
 
 Meridio uses structured logging implemented by
 [go-logr/logr](https://github.com/go-logr/logr). Structured logging

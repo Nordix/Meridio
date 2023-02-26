@@ -1,4 +1,4 @@
-# Front-End
+# Frontend
 
 * [cmd](https://github.com/Nordix/Meridio/tree/master/cmd/frontend)
 * [Dockerfile](https://github.com/Nordix/Meridio/tree/master/build/frontend)
@@ -63,27 +63,40 @@ Command | Action | Default
 
 ## Communication 
 
-Component | Secured | Method
---- | --- | ---
-Spire | TBD | Unix Socket
-NSP Service | yes (mTLS) | TCP
-Gateways | / | /
+Here are all components the frontend is communicating with:
+
+Component | Secured | Method | Description
+--- | --- | --- | ---
+Spire | TBD | Unix Socket | Obtain and validate SVIDs
+NSP Service | yes (mTLS) | TCP | Watch configuration. Register/Unregister target (Advertise its readiness to the NSP target registry)
+Gateways | / | / | Routing protocol
+Kubernetes API | TDB | TCP | Watch the secrets for BGP authentication
+
+An overview of the communications between all components is available [here](resources.md).
 
 ## Health check
 
-TODO
+The health check is provided by the [GRPC Health Checking Protocol](https://github.com/grpc/grpc/blob/master/doc/health-checking.md). The status returned can be `UNKNOWN`, `SERVING`, `NOT_SERVING` or `SERVICE_UNKNOWN`.
+
+Service | Description
+--- | ---
+NSPCli | Monitor status of the connection to the NSP service
+TargetRegistryCli | Monitor status of the connection to the NSP Target Registry service
+Egress | Monitor the gateways connectivity
 
 ## Privileges
 
+To work properly, here are the privileges required by the frontend:
+
 Name | Description
 --- | ---
-Sysctl: net.ipv6.conf.all.forwarding=1  | 
-Sysctl: net.ipv4.conf.all.forwarding=1 | 
-Sysctl: net.ipv4.fib_multipath_hash_policy=1 | 
-Sysctl: net.ipv6.fib_multipath_hash_policy=1 | 
-Sysctl: net.ipv4.conf.all.rp_filter=0 | 
-Sysctl: net.ipv4.conf.default.rp_filter=0 | 
+Sysctl: net.ipv4.conf.all.forwarding=1 | Enable IP forwarding
+Sysctl: net.ipv6.conf.all.forwarding=1 | Enable IP forwarding
+Sysctl: net.ipv4.fib_multipath_hash_policy=1 | To use Layer 4 hash policy for ECMP on IPv4
+Sysctl: net.ipv6.fib_multipath_hash_policy=1 | To use Layer 4 hash policy for ECMP on IPv6
+Sysctl: net.ipv4.conf.all.rp_filter=0 | Allow packets to have a source IPv4 address which does not correspond to any routing destination address.
+Sysctl: net.ipv4.conf.default.rp_filter=0 | Allow packets to have a source IPv6 address which does not correspond to any routing destination address.
 NET_ADMIN | The frontend creates IP rules to handle outbound traffic from VIP sources. BIRD interacts with kernel routing tables.
 NET_BIND_SERVICE | Allows BIRD to bind to privileged ports depending on the config (for example to BGP port 173).
 NET_RAW | Allows BIRD to use the SO_BINDTODEVICE socket option.
-Kubernetes API | The Frontend watches Secrets taking part in BGP authentication.
+Kubernetes API | fes-role - secrets - watch

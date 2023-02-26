@@ -19,7 +19,7 @@ The second one is at the node level. Represented in black in the picture below (
 
 The third (last one) is at the pod level. Each pod will get assigned a unique IP address with `IPAM_NODE_PREFIX_LENGTH_IPV4` or `IPAM_NODE_PREFIX_LENGTH_IPV6` as prefix length.
 
-![ipam](resources/IPAM.svg)
+![ipam](../resources/IPAM.svg)
 
 Picture representing a cluster with 2 nodes (worked-A and worker-B), 2 conduits (Conduit-A and Conduit-B), 4 targets and the corresponding subnets.
 * Target-1 is running on worker-A and connected to Conduit-A
@@ -59,14 +59,23 @@ Command | Action | Default
 
 ## Communication 
 
-Component | Secured | Method
---- | --- | ---
-Spire | TBD | Unix Socket
-NSP Service | yes (mTLS) | TCP
+Here are all components the ipam is communicating with:
+
+Component | Secured | Method | Description
+--- | --- | --- | ---
+Spire | TBD | Unix Socket | Obtain and validate SVIDs
+NSP Service | yes (mTLS) | TCP | Watch configuration
+
+An overview of the communications between all components is available [here](resources.md).
 
 ## Health check
 
-TODO
+The health check is provided by the [GRPC Health Checking Protocol](https://github.com/grpc/grpc/blob/master/doc/health-checking.md). The status returned can be `UNKNOWN`, `SERVING`, `NOT_SERVING` or `SERVICE_UNKNOWN`.
+
+Service | Description
+--- | ---
+NSPCli | Monitor status of the connection to the NSP service
+IPAM | Monitor status of the server
 
 ## Privileges
 

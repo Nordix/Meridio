@@ -1,4 +1,4 @@
-# Security Scan
+# Security Scanning
 
 [Grype](https://github.com/anchore/grype), [Nancy](https://github.com/sonatype-nexus-community/nancy) and [Trivy](https://github.com/aquasecurity/trivy) are available in the makefile to scan the Meridio images and dependencies and report the vulnerabilities. The make commands are the following:
 - `make grype`
