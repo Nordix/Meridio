@@ -248,7 +248,7 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 			}
 		case "nsc":
 			if container.Image == "" {
-				container.Image = "registry.nordix.org/cloud-native/nsm/cmd-nsc:v1.7.1"
+				container.Image = "registry.nordix.org/cloud-native/nsm/cmd-nsc:v1.8.0"
 				container.ImagePullPolicy = corev1.PullAlways
 			}
 			container.Env = l.getNscEnvVars(container.Env)

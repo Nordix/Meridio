@@ -125,6 +125,8 @@ github.com/dustin/go-humanize v1.0.0 h1:VSnTsYCnlFHaM2/igO1h6X3HA71jcobQuxemgkq4
 github.com/dustin/go-humanize v1.0.0/go.mod h1:HtrtbFcZ19U5GC7JDqmcUSB87Iq5E25KnS6fMYU6eOk=
 github.com/edwarnicke/exechelper v1.0.2 h1:dD49Ui2U0FBFxxhalnKw6vLS0P0TkgnXBRvKL/xmC5w=
 github.com/edwarnicke/exechelper v1.0.2/go.mod h1:/T271jtNX/ND4De6pa2aRy2+8sNtyCDB1A2pp4M+fUs=
+github.com/edwarnicke/genericsync v0.0.0-20220910010113-61a344f9bc29 h1:4/2wgileNvQB4HfJbq7u4FFLKIfc38a6P0S/51ZGgX8=
+github.com/edwarnicke/genericsync v0.0.0-20220910010113-61a344f9bc29/go.mod h1:3m+ZfVq+z0pTLW798jmqnifMsalrVLIKmfXaMFvqSuc=
 github.com/edwarnicke/grpcfd v1.1.2 h1:2b8kCABQ1+JjSKGDoHadqSW7whCeTXMqtyo6jmB5B8k=
 github.com/edwarnicke/grpcfd v1.1.2/go.mod h1:rHihB9YvNMixz8rS+ZbwosI2kj65VLkeyYAI2M+/cGA=
 github.com/edwarnicke/serialize v0.0.0-20200705214914-ebc43080eecf/go.mod h1:XvbCO/QGsl3X8RzjBMoRpkm54FIAZH5ChK2j+aox7pw=
@@ -427,12 +429,12 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8m
 github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
 github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
 github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f/go.mod h1:ZdcZmHo+o7JKHSa8/e818NopupXU1YMK5fe1lsApnBw=
-github.com/networkservicemesh/api v1.7.1 h1:M+8o1Rz3bEFFpE98r220fVfGJK4SZMi+PAobnwadob8=
-github.com/networkservicemesh/api v1.7.1/go.mod h1:hOF2844BSstH1311oDMDgqqXS+kdc77htZNPRKl9mf8=
-github.com/networkservicemesh/sdk v1.7.1 h1:7NUHHvnzRCUnM0M/Xbdx+vfyo966ceof/NDvd/wS19Y=
-github.com/networkservicemesh/sdk v1.7.1/go.mod h1:Lhrd8a9tBq45GA+CeiWjS9y4HFntvknpVR6f+4XjeH4=
-github.com/networkservicemesh/sdk-sriov v1.7.1 h1:6uBaAGe0ojeeeGs5OFQyn8hMVQXyTxEjcRbkfT8iWSA=
-github.com/networkservicemesh/sdk-sriov v1.7.1/go.mod h1:F+fCiqSWVbbcRUT9ImjGUm6ccf14YcuM32fUHSLnAak=
+github.com/networkservicemesh/api v1.8.0 h1:N2zze+phj8h9gVrA07qsD54TXX8RgB69Mr3JAP99Wn8=
+github.com/networkservicemesh/api v1.8.0/go.mod h1:hOF2844BSstH1311oDMDgqqXS+kdc77htZNPRKl9mf8=
+github.com/networkservicemesh/sdk v1.8.0 h1:fadIN+0y+ZAdsW6bBowlr0s67S3Fqk6vDs8ckz8XahE=
+github.com/networkservicemesh/sdk v1.8.0/go.mod h1:LR1mnYwQVgBCMFfeH8QT89EEWSfIFmhaqCKEv9mwiaQ=
+github.com/networkservicemesh/sdk-sriov v1.8.0 h1:a+6AUShlLqlOUh/EG007fkorILwz8iAls4LoUaHNp8I=
+github.com/networkservicemesh/sdk-sriov v1.8.0/go.mod h1:iRcO1rqo4kJzmigWO5z/KSbRkh4PhKgksqbpb2oePsY=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
