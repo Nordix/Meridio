@@ -12,9 +12,9 @@ require (
 	github.com/google/nftables v0.0.0-20220808154552-2eca00135732
 	github.com/google/uuid v1.3.0
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/networkservicemesh/api v1.7.1
-	github.com/networkservicemesh/sdk v1.7.1
-	github.com/networkservicemesh/sdk-sriov v1.7.1
+	github.com/networkservicemesh/api v1.8.0
+	github.com/networkservicemesh/sdk v1.8.0
+	github.com/networkservicemesh/sdk-sriov v1.8.0
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/ginkgo/v2 v2.5.1
 	github.com/onsi/gomega v1.24.0
@@ -60,6 +60,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/edwarnicke/exechelper v1.0.2 // indirect
+	github.com/edwarnicke/genericsync v0.0.0-20220910010113-61a344f9bc29 // indirect
 	github.com/edwarnicke/serialize v1.0.7 // indirect
 	github.com/emicklei/go-restful/v3 v3.8.0 // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect

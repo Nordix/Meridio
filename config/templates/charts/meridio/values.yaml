@@ -4,8 +4,8 @@ registry: "registry.nordix.org"
 repository: "cloud-native/meridio"
 
 nsm:
-  repository: "cloud-native/nsm"
-  version: v1.7.1
+  repository: cloud-native/nsm
+  version: v1.8.0
 
 sysctlInit:
   image: busybox
