@@ -149,7 +149,14 @@ func Test_SetIPContext_NSE(t *testing.T) {
 		IpamClient: ipamClient,
 	}
 
-	conn := &networkservice.Connection{}
+	conn := &networkservice.Connection{
+		Path: &networkservice.Path{
+			Index: 3,
+			PathSegments: []*networkservice.PathSegment{
+				{},
+			},
+		},
+	}
 
 	err := proxy.SetIPContext(context.TODO(), conn, networking.NSE)
 	assert.Nil(t, err)
@@ -240,6 +247,14 @@ func Test_SetIPContext_NSE_Update(t *testing.T) {
 							},
 						},
 					},
+				},
+			},
+		},
+		Path: &networkservice.Path{
+			Index: 3,
+			PathSegments: []*networkservice.PathSegment{
+				{
+					Id: "xyz",
 				},
 			},
 		},
@@ -334,6 +349,14 @@ func Test_SetIPContext_NSE_Update_New_IPs(t *testing.T) {
 							},
 						},
 					},
+				},
+			},
+		},
+		Path: &networkservice.Path{
+			Index: 3,
+			PathSegments: []*networkservice.PathSegment{
+				{
+					Id: "xyz",
 				},
 			},
 		},
