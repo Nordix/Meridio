@@ -39,6 +39,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	nsmlog "github.com/networkservicemesh/sdk/pkg/tools/log"
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap"
@@ -146,6 +147,13 @@ func main() {
 		client.WithDialOptions(nsmAPIClient.GRPCDialOption...),
 	)
 
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(&nsmAPIClient.Config.ConnectTo), nsmAPIClient.GRPCDialOption...)
+	if err != nil {
+		log.Fatal(logger, "dial to NSMgr", "error", err)
+	}
+	defer cc.Close()
+	monitorClient := networkservice.NewMonitorConnectionClient(cc)
+
 	if err := os.RemoveAll(config.Socket); err != nil {
 		log.Fatal(logger, "removing socket", "error", err)
 	}
@@ -159,7 +167,7 @@ func main() {
 	s := grpc.NewServer()
 	defer s.Stop()
 
-	ambassador, err := tap.New(config.Name, config.Namespace, config.Node, networkServiceClient, config.NSPServiceName, config.NSPServicePort, config.NSPEntryTimeout, netUtils)
+	ambassador, err := tap.New(config.Name, config.Namespace, config.Node, networkServiceClient, monitorClient, config.NSPServiceName, config.NSPServicePort, config.NSPEntryTimeout, netUtils)
 	if err != nil {
 		log.Fatal(logger, "creating new tap ambassador", "error", err)
 	}

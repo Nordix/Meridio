@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"sync"
@@ -50,18 +51,21 @@ type Conduit struct {
 	Namespace string
 	Conduit   *ambassadorAPI.Conduit
 	// Node name the pod is running on
-	NodeName             string
-	NetworkServiceClient networkservice.NetworkServiceClient
-	Configuration        Configuration
-	StreamManager        StreamManager
-	NetUtils             networking.Utils
+	NodeName                string
+	NetworkServiceClient    networkservice.NetworkServiceClient
+	MonitorConnectionClient networkservice.MonitorConnectionClient
+	Configuration           Configuration
+	StreamManager           StreamManager
+	NetUtils                networking.Utils
 	// RetryDelay corresponds to the time between each Request call attempt
-	RetryDelay    time.Duration
-	StreamFactory StreamFactory
-	connection    *networkservice.Connection
-	mu            sync.Mutex
-	localIPs      []string
-	logger        logr.Logger
+	RetryDelay              time.Duration
+	StreamFactory           StreamFactory
+	connection              *networkservice.Connection
+	mu                      sync.Mutex
+	localIPs                []string
+	vips                    []string
+	logger                  logr.Logger
+	monitorConnectionCancel context.CancelFunc
 }
 
 // New is the constructor of Conduit.
@@ -73,19 +77,22 @@ func New(conduit *ambassadorAPI.Conduit,
 	configurationManagerClient nspAPI.ConfigurationManagerClient,
 	targetRegistryClient nspAPI.TargetRegistryClient,
 	networkServiceClient networkservice.NetworkServiceClient,
+	monitorConnectionClient networkservice.MonitorConnectionClient,
 	streamRegistry types.Registry,
 	netUtils networking.Utils,
 	nspEntryTimeout time.Duration) (*Conduit, error) {
 	c := &Conduit{
-		TargetName:           targetName,
-		Namespace:            namespace,
-		Conduit:              conduit,
-		NodeName:             nodeName,
-		NetworkServiceClient: networkServiceClient,
-		NetUtils:             netUtils,
-		RetryDelay:           1 * time.Second,
-		connection:           nil,
-		localIPs:             []string{},
+		TargetName:              targetName,
+		Namespace:               namespace,
+		Conduit:                 conduit,
+		NodeName:                nodeName,
+		NetworkServiceClient:    networkServiceClient,
+		MonitorConnectionClient: monitorConnectionClient,
+		NetUtils:                netUtils,
+		RetryDelay:              1 * time.Second,
+		connection:              nil,
+		localIPs:                []string{},
+		vips:                    []string{},
 	}
 	c.StreamFactory = stream.NewFactory(targetRegistryClient, c)
 	c.StreamManager = NewStreamManager(configurationManagerClient, targetRegistryClient, streamRegistry, c.StreamFactory, PendingTime, nspEntryTimeout)
@@ -130,6 +137,10 @@ func (c *Conduit) Connect(ctx context.Context) error {
 
 	c.Configuration.Watch()
 
+	var ctxMonitorConnection context.Context
+	ctxMonitorConnection, c.monitorConnectionCancel = context.WithCancel(context.Background())
+	go c.monitorConnection(ctxMonitorConnection, connection)
+
 	c.StreamManager.Run()
 	return nil
 }
@@ -140,6 +151,9 @@ func (c *Conduit) Disconnect(ctx context.Context) error {
 	c.logger.Info("Disconnect")
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if c.monitorConnectionCancel != nil {
+		c.monitorConnectionCancel()
+	}
 	// Stops the configuration
 	c.Configuration.Stop()
 	var errFinal error
@@ -195,6 +209,7 @@ func (c *Conduit) SetVIPs(ctx context.Context, vips []string) error {
 	if !c.isConnected() {
 		return nil
 	}
+	// TODO: remove VIPs overlapping with internal subnets.
 	// prepare SrcIpAddrs (IPs allocated by the proxy + VIPs)
 	c.connection.Context.IpContext.SrcIpAddrs = append(c.localIPs, vips...)
 	// prepare the routes (nexthops = proxy bridge IPs)
@@ -255,6 +270,7 @@ func (c *Conduit) SetVIPs(ctx context.Context, vips []string) error {
 	}, retry.WithContext(ctx),
 		retry.WithDelay(c.RetryDelay))
 	c.logger.Info("VIPs updated", "vips", vips)
+	c.vips = vips
 	c.localIPs = getLocalIPs(c.connection.GetContext().GetIpContext().GetSrcIpAddrs(), vips)
 	return nil
 }
@@ -281,6 +297,52 @@ func (c *Conduit) getGateways() []string {
 	return []string{}
 }
 
+// monitor the current nsm connection in order to get the new local IPs in case of a change made by the proxy.
+// TODO: Reflect the NSM connection status with the stream status in the TAPA API.
+func (c *Conduit) monitorConnection(ctx context.Context, initialConnection *networkservice.Connection) {
+	if c.MonitorConnectionClient == nil {
+		return
+	}
+	monitorScope := &networkservice.MonitorScopeSelector{
+		PathSegments: []*networkservice.PathSegment{
+			{
+				Id: initialConnection.GetId(),
+			},
+		},
+	}
+	_ = retry.Do(func() error {
+		monitorConnectionsClient, err := c.MonitorConnectionClient.MonitorConnections(ctx, monitorScope)
+		if err != nil {
+			return err
+		}
+		for {
+			mccResponse, err := monitorConnectionsClient.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return err
+			}
+			for _, connection := range mccResponse.Connections {
+				path := connection.GetPath()
+				if path != nil && len(path.PathSegments) >= 1 && path.PathSegments[0].Id == initialConnection.GetId() {
+					c.mu.Lock()
+					if c.isConnected() {
+						c.connection.Context = connection.GetContext()
+						c.localIPs = getLocalIPs(c.connection.GetContext().GetIpContext().GetSrcIpAddrs(), c.vips)
+					}
+					c.mu.Unlock()
+					break
+				}
+			}
+		}
+		return nil
+	}, retry.WithContext(ctx),
+		retry.WithDelay(5*time.Second),
+		retry.WithErrorIngnored())
+}
+
+// TODO: verify the IPs are in the same subnet as ExtraPrefixes / DstIpAddrs
 func getLocalIPs(srcIpAddrs []string, vips []string) []string {
 	res := []string{}
 	vipsMap := map[string]struct{}{}
