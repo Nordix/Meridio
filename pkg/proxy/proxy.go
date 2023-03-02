@@ -136,11 +136,24 @@ func (p *Proxy) SetIPContext(ctx context.Context, conn *networkservice.Connectio
 		conn.GetContext().IpContext = &networkservice.IPContext{}
 	}
 
+	id := conn.Id
+	if interfaceType == networking.NSE {
+		// For TAPA originated connections (i.e. when Proxy acts as NSE) use the
+		// segment ID referring to the TAPA side of the NSM connection from now on.
+		// The ID is used as key by IPAM to store/lookup the associated IP addresses.
+		// The intial segment of the NSM connection represent the TAPA (NSC), thus it
+		// will stay intact even if the Proxy NSM segment change (e.g. after POD kill or upgrade).
+		//
+		// This is an NBC. (It could be addrssed by introducing versioning for the NSM connection or by
+		// adding excess code to try and recover IPs the old way as well.)
+		id = conn.GetPath().GetPathSegments()[0].Id
+	}
+
 	srcIPAddrs := []string{}
 	dstIpAddrs := []string{}
 	for _, subnet := range p.Subnets {
 		child := &ipamAPI.Child{
-			Name:   fmt.Sprintf("%s%s", conn.Id, srcChildNamePrefix),
+			Name:   fmt.Sprintf("%s%s", id, srcChildNamePrefix),
 			Subnet: subnet,
 		}
 		srcPrefix, err := p.IpamClient.Allocate(ctx, child)
@@ -150,7 +163,7 @@ func (p *Proxy) SetIPContext(ctx context.Context, conn *networkservice.Connectio
 		srcIPAddrs = append(srcIPAddrs, srcPrefix.ToString())
 
 		child = &ipamAPI.Child{
-			Name:   fmt.Sprintf("%s%s", conn.Id, dstChildNamePrefix),
+			Name:   fmt.Sprintf("%s%s", id, dstChildNamePrefix),
 			Subnet: subnet,
 		}
 		dstPrefix, err := p.IpamClient.Allocate(ctx, child)
@@ -274,9 +287,14 @@ func listToMap(l []string) map[string]struct{} {
 }
 
 func (p *Proxy) UnsetIPContext(ctx context.Context, conn *networkservice.Connection, interfaceType networking.InterfaceType) error {
+	id := conn.Id
+	if interfaceType == networking.NSE {
+		// Use the segment ID referring to the TAPA side of the NSM connection
+		id = conn.GetPath().GetPathSegments()[0].Id
+	}
 	for _, subnet := range p.Subnets {
 		child := &ipamAPI.Child{
-			Name:   fmt.Sprintf("%s%s", conn.Id, srcChildNamePrefix),
+			Name:   fmt.Sprintf("%s%s", id, srcChildNamePrefix),
 			Subnet: subnet,
 		}
 		_, err := p.IpamClient.Release(ctx, child)
@@ -284,7 +302,7 @@ func (p *Proxy) UnsetIPContext(ctx context.Context, conn *networkservice.Connect
 			return err
 		}
 		child = &ipamAPI.Child{
-			Name:   fmt.Sprintf("%s%s", conn.Id, dstChildNamePrefix),
+			Name:   fmt.Sprintf("%s%s", id, dstChildNamePrefix),
 			Subnet: subnet,
 		}
 		_, err = p.IpamClient.Release(ctx, child)
