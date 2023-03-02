@@ -36,38 +36,41 @@ import (
 // Tap implements ambassadorAPI.TapServer
 type Tap struct {
 	ambassadorAPI.UnimplementedTapServer
-	TargetName           string
-	Namespace            string
-	NodeName             string
-	NetworkServiceClient networkservice.NetworkServiceClient
-	NSPServiceName       string
-	NSPServicePort       int
-	NSPEntryTimeout      time.Duration
-	NetUtils             networking.Utils
-	StreamRegistry       types.Registry
-	currentTrench        types.Trench
-	mu                   sync.Mutex
-	logger               logr.Logger
+	TargetName              string
+	Namespace               string
+	NodeName                string
+	NetworkServiceClient    networkservice.NetworkServiceClient
+	MonitorConnectionClient networkservice.MonitorConnectionClient
+	NSPServiceName          string
+	NSPServicePort          int
+	NSPEntryTimeout         time.Duration
+	NetUtils                networking.Utils
+	StreamRegistry          types.Registry
+	currentTrench           types.Trench
+	mu                      sync.Mutex
+	logger                  logr.Logger
 }
 
 func New(targetName string,
 	namespace string,
 	nodeName string,
 	networkServiceClient networkservice.NetworkServiceClient,
+	monitorConnectionClient networkservice.MonitorConnectionClient,
 	nspServiceName string,
 	nspServicePort int,
 	nspEntryTimeout time.Duration,
 	netUtils networking.Utils) (*Tap, error) {
 	tap := &Tap{
-		TargetName:           targetName,
-		NetworkServiceClient: networkServiceClient,
-		Namespace:            namespace,
-		NodeName:             nodeName,
-		NSPServiceName:       nspServiceName,
-		NSPServicePort:       nspServicePort,
-		NSPEntryTimeout:      nspEntryTimeout,
-		NetUtils:             netUtils,
-		logger:               log.Logger.WithValues("class", "Tap"),
+		TargetName:              targetName,
+		NetworkServiceClient:    networkServiceClient,
+		MonitorConnectionClient: monitorConnectionClient,
+		Namespace:               namespace,
+		NodeName:                nodeName,
+		NSPServiceName:          nspServiceName,
+		NSPServicePort:          nspServicePort,
+		NSPEntryTimeout:         nspEntryTimeout,
+		NetUtils:                netUtils,
+		logger:                  log.Logger.WithValues("class", "Tap"),
 	}
 	tap.StreamRegistry = registry.New()
 	return tap, nil
@@ -167,6 +170,7 @@ func (tap *Tap) setTrench(t *ambassadorAPI.Trench) (types.Trench, error) {
 		tap.Namespace,
 		tap.NodeName,
 		tap.NetworkServiceClient,
+		tap.MonitorConnectionClient,
 		tap.StreamRegistry,
 		tap.NSPServiceName,
 		tap.NSPServicePort,

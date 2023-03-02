@@ -39,6 +39,7 @@ type conduitFactoryImpl struct {
 	Namespace                  string
 	NodeName                   string
 	ConfigurationManagerClient nspAPI.ConfigurationManagerClient
+	MonitorConnectionClient    networkservice.MonitorConnectionClient
 	TargetRegistryClient       nspAPI.TargetRegistryClient
 	NetworkServiceClient       networkservice.NetworkServiceClient
 	StreamRegistry             types.Registry
@@ -53,6 +54,7 @@ func newConduitFactoryImpl(
 	configurationManagerClient nspAPI.ConfigurationManagerClient,
 	targetRegistryClient nspAPI.TargetRegistryClient,
 	networkServiceClient networkservice.NetworkServiceClient,
+	monitorConnectionClient networkservice.MonitorConnectionClient,
 	streamRegistry types.Registry,
 	netUtils networking.Utils,
 	nspEntryTimeout time.Duration) *conduitFactoryImpl {
@@ -61,6 +63,7 @@ func newConduitFactoryImpl(
 		Namespace:                  namespace,
 		NodeName:                   nodeName,
 		ConfigurationManagerClient: configurationManagerClient,
+		MonitorConnectionClient:    monitorConnectionClient,
 		TargetRegistryClient:       targetRegistryClient,
 		NetworkServiceClient:       networkServiceClient,
 		StreamRegistry:             streamRegistry,
@@ -78,6 +81,7 @@ func (cfi *conduitFactoryImpl) New(cndt *ambassadorAPI.Conduit) (types.Conduit, 
 		cfi.ConfigurationManagerClient,
 		cfi.TargetRegistryClient,
 		cfi.NetworkServiceClient,
+		cfi.MonitorConnectionClient,
 		cfi.StreamRegistry,
 		cfi.NetUtils,
 		cfi.NSPEntryTimeout)

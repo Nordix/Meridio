@@ -35,7 +35,7 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
-const grpcKeepaliveTime = 10 * time.Second
+const grpcKeepaliveTime = 20 * time.Second
 
 // Trench implements types.Trench (/pkg/ambassador/tap/types)
 // Responsible for connection/disconnecting the conduits, and providing
@@ -68,6 +68,7 @@ func New(trench *ambassadorAPI.Trench,
 	namespace string,
 	nodeName string,
 	networkServiceClient networkservice.NetworkServiceClient,
+	monitorConnectionClient networkservice.MonitorConnectionClient,
 	streamRegistry types.Registry,
 	nspServiceName string,
 	nspServicePort int,
@@ -100,6 +101,7 @@ func New(trench *ambassadorAPI.Trench,
 		t.ConfigurationManagerClient,
 		t.TargetRegistryClient,
 		t.NetworkServiceClient,
+		monitorConnectionClient,
 		t.StreamRegistry,
 		t.NetUtils,
 		nspEntryTimeout)
