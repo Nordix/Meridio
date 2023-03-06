@@ -17,6 +17,7 @@ limitations under the License.
 package stream
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -102,3 +103,14 @@ func (t *target) Delete() error {
 	t.fwMarks = []networking.FWMarkRoute{}
 	return errFinal
 }
+func (t *target) MarshalJSON() ([]byte, error) {
+	ts := struct {
+		Identifier int      `json:"identifier"`
+		IPs        []string `json:"ips"`
+	}{
+		t.identifier,
+		t.nspTarget.GetIps(),
+	}
+	return json.Marshal(&ts)
+}
+
