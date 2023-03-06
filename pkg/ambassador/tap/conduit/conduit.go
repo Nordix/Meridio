@@ -39,6 +39,7 @@ import (
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/retry"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // Conduit implements types.Conduit (/pkg/ambassador/tap/types)
@@ -209,7 +210,11 @@ func (c *Conduit) SetVIPs(ctx context.Context, vips []string) error {
 	if !c.isConnected() {
 		return nil
 	}
-	// TODO: remove VIPs overlapping with internal subnets.
+	// remove VIPs overlapping with internal subnets.
+	vipsInGatewaySubnet := getIPsInGatewaySubnet(vips, c.getGateways())
+	vipsInGatewaySubnetSet := sets.New(vipsInGatewaySubnet...)
+	vipsSet := sets.New(formatPrefixes(vips)...)
+	vips = vipsSet.Difference(vipsInGatewaySubnetSet).UnsortedList()
 	// prepare SrcIpAddrs (IPs allocated by the proxy + VIPs)
 	c.connection.Context.IpContext.SrcIpAddrs = append(c.localIPs, vips...)
 	// prepare the routes (nexthops = proxy bridge IPs)
@@ -271,7 +276,7 @@ func (c *Conduit) SetVIPs(ctx context.Context, vips []string) error {
 		retry.WithDelay(c.RetryDelay))
 	c.logger.Info("VIPs updated", "vips", vips)
 	c.vips = vips
-	c.localIPs = getLocalIPs(c.connection.GetContext().GetIpContext().GetSrcIpAddrs(), vips)
+	c.localIPs = getLocalIPs(c.connection.GetContext().GetIpContext().GetSrcIpAddrs(), vips, c.getGateways())
 	return nil
 }
 
@@ -329,7 +334,7 @@ func (c *Conduit) monitorConnection(ctx context.Context, initialConnection *netw
 					c.mu.Lock()
 					if c.isConnected() {
 						c.connection.Context = connection.GetContext()
-						c.localIPs = getLocalIPs(c.connection.GetContext().GetIpContext().GetSrcIpAddrs(), c.vips)
+						c.localIPs = getLocalIPs(c.connection.GetContext().GetIpContext().GetSrcIpAddrs(), c.vips, c.getGateways())
 					}
 					c.mu.Unlock()
 					break
@@ -342,8 +347,13 @@ func (c *Conduit) monitorConnection(ctx context.Context, initialConnection *netw
 		retry.WithErrorIngnored())
 }
 
-// TODO: verify the IPs are in the same subnet as ExtraPrefixes / DstIpAddrs
-func getLocalIPs(srcIpAddrs []string, vips []string) []string {
+// removes return addresses that are not in the VIP list and that are in one of the gateway subnet
+func getLocalIPs(addresses []string, vips []string, gateways []string) []string {
+	return getIPsInGatewaySubnet(getLocalIPsBasedOnVIP(addresses, vips), gateways)
+}
+
+// remove VIPs from addresses list
+func getLocalIPsBasedOnVIP(addresses []string, vips []string) []string {
 	res := []string{}
 	vipsMap := map[string]struct{}{}
 	for _, vip := range vips {
@@ -354,17 +364,60 @@ func getLocalIPs(srcIpAddrs []string, vips []string) []string {
 		prefixLength, _ := ipNet.Mask.Size()
 		vipsMap[fmt.Sprintf("%s/%d", ip, prefixLength)] = struct{}{}
 	}
-	for _, srcIpAddr := range srcIpAddrs {
-		ip, ipNet, err := net.ParseCIDR(srcIpAddr)
+	for _, address := range addresses {
+		ip, ipNet, err := net.ParseCIDR(address)
 		if err != nil {
 			continue
 		}
 		prefixLength, _ := ipNet.Mask.Size()
-		cidr := fmt.Sprintf("%s/%d", ip, prefixLength) // reformat in case srcIpAddrs have been modified (e.g. IPv6 format)
+		cidr := fmt.Sprintf("%s/%d", ip, prefixLength) // reformat in case address have been modified (e.g. IPv6 format)
 		_, exists := vipsMap[cidr]
 		if !exists {
 			res = append(res, cidr)
 		}
+	}
+	return res
+}
+
+// Remove all addresses that are not in subnet of gateways
+func getIPsInGatewaySubnet(addresses []string, gateways []string) []string {
+	res := []string{}
+	subnets := []*net.IPNet{}
+	for _, prefix := range gateways {
+		_, ipNet, err := net.ParseCIDR(prefix)
+		if err != nil {
+			continue
+		}
+		subnets = append(subnets, ipNet)
+	}
+	for _, prefix := range addresses {
+		ip, ipNet, err := net.ParseCIDR(prefix)
+		if err != nil {
+			continue
+		}
+		prefixLength, _ := ipNet.Mask.Size()
+		for _, subnet := range subnets {
+			subnetLength, _ := subnet.Mask.Size()
+			if subnet.Contains(ip) && prefixLength >= subnetLength {
+				cidr := fmt.Sprintf("%s/%d", ip, prefixLength) // reformat in case srcIpAddrs have been modified (e.g. IPv6 format)
+				res = append(res, cidr)
+				break
+			}
+		}
+	}
+	return res
+}
+
+func formatPrefixes(prefixes []string) []string {
+	res := []string{}
+	for _, prefix := range prefixes {
+		ip, ipNet, err := net.ParseCIDR(prefix)
+		if err != nil {
+			continue
+		}
+		prefixLength, _ := ipNet.Mask.Size()
+		cidr := fmt.Sprintf("%s/%d", ip, prefixLength)
+		res = append(res, cidr)
 	}
 	return res
 }
