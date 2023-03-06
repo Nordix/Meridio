@@ -126,7 +126,7 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 	request.Connection.NetworkServiceEndpointName = networkServiceEndpointName
 	// UUID part at the start of the conn id will be used by NSM to generate the interface name (we want it to be unique)
 	request.Connection.Id = fmt.Sprintf("%s-%s-%s-%s", uuid.New().String(), fmnsc.config.Name, request.Connection.NetworkService, request.Connection.NetworkServiceEndpointName)
-	fmnsc.logger.Info("Add endpoint", "service", networkServiceEndpointName, "id", request.Connection.NetworkService, request.Connection.Id)
+	fmnsc.logger.Info("Add endpoint", "service", networkServiceEndpointName, "NetworkService", request.Connection.NetworkService, "id", request.Connection.Id)
 
 	// Request would try forever, but what if the NetworkServiceEndpoint is removed in the meantime?
 	// The recv() method must not be blocked by a pending Request that might not ever succeed.

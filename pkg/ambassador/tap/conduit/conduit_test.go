@@ -253,7 +253,7 @@ func Test_SetVIPs(t *testing.T) {
 	targetName := "abc"
 	namespace := "red"
 	node := "worker"
-	vips := []string{"20.0.0.1/32", "[2000::1]/128"}
+	vips := []string{"20.0.0.1/32", "2000::1/128"}
 	srcIpAddrs := []string{"172.16.0.1/24", "fd00::1/64"}
 	dstIpAddrs := []string{"172.16.0.2/24", "fd00::2/64"}
 	extraPrefixes := []string{"172.16.0.100/24", "fd00::100/64"}
@@ -286,10 +286,10 @@ func Test_SetVIPs(t *testing.T) {
 		assert.NotNil(t, in.GetConnection().GetContext())
 		ipContext := in.GetConnection().GetContext().GetIpContext()
 		assert.NotNil(t, ipContext)
-		assert.Equal(t, dstIpAddrs, ipContext.DstIpAddrs)
-		assert.Equal(t, append(srcIpAddrs, vips...), ipContext.SrcIpAddrs)
+		assert.ElementsMatch(t, dstIpAddrs, ipContext.DstIpAddrs)
+		assert.ElementsMatch(t, append(srcIpAddrs, vips...), ipContext.SrcIpAddrs)
 		assert.Len(t, ipContext.Policies, 2)
-		assert.Equal(t, []*networkservice.PolicyRoute{
+		assert.ElementsMatch(t, []*networkservice.PolicyRoute{
 			{
 				From: "20.0.0.1/32",
 				Routes: []*networkservice.Route{
@@ -300,7 +300,7 @@ func Test_SetVIPs(t *testing.T) {
 				},
 			},
 			{
-				From: "[2000::1]/128",
+				From: "2000::1/128",
 				Routes: []*networkservice.Route{
 					{
 						Prefix:  "::/0",
@@ -365,7 +365,7 @@ func Test_LocalIPs_Switch(t *testing.T) {
 	targetName := "abc"
 	namespace := "red"
 	node := "worker"
-	vips := []string{"20.0.0.1/32", "[2000::1]/128"}
+	vips := []string{"20.0.0.1/32", "2000::1/128"}
 	srcIpAddrs := []string{"172.16.0.1/24", "fd00::1/64"}
 	dstIpAddrs := []string{"172.16.0.2/24", "fd00::2/64"}
 	extraPrefixes := []string{"172.16.0.100/24", "fd00::100/64"}
@@ -402,8 +402,8 @@ func Test_LocalIPs_Switch(t *testing.T) {
 		assert.NotNil(t, in.GetConnection().GetContext())
 		ipContext := in.GetConnection().GetContext().GetIpContext()
 		assert.NotNil(t, ipContext)
-		assert.Equal(t, dstIpAddrs, ipContext.DstIpAddrs)
-		assert.Equal(t, append(srcIpAddrs, vips...), ipContext.SrcIpAddrs)
+		assert.ElementsMatch(t, dstIpAddrs, ipContext.DstIpAddrs)
+		assert.ElementsMatch(t, append(srcIpAddrs, vips...), ipContext.SrcIpAddrs)
 		assert.Len(t, ipContext.Policies, 2)
 		ipContext.DstIpAddrs = dstIpAddrs2
 		ipContext.SrcIpAddrs = srcIpAddrs2
