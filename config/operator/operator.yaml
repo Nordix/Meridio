@@ -35,11 +35,7 @@ spec:
         configMap:
           name: deployment-templates
       containers:
-      - command:
-        - /manager
-        args:
-        - --leader-elect
-        image: operator:latest
+      - image: operator:latest
         imagePullPolicy: IfNotPresent
         name: operator
         env:
@@ -88,7 +84,7 @@ spec:
             cpu: 100m
             memory: 20Mi
         volumeMounts:
-        - mountPath: /deployment
+        - mountPath: /home/meridio/deployment
           name: templates-volume
       serviceAccountName: operator
       terminationGracePeriodSeconds: 10
