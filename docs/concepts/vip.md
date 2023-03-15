@@ -58,6 +58,8 @@ The picture below represents a Kubernetes cluster with VIPs applied and highligh
 ## Limitations
 
 * VIP ranges are not supported. The prefix length must be `/32` for IPv4, and `/128` for IPv6.
+* `.spec.address` property is mandatory and immutable.
+* `.metadata.labels.trench` property is mandatory and immutable.
 
 ## Configuration
 

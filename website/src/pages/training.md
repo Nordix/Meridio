@@ -30,7 +30,7 @@ The deployment of the operator and the application of different resources Meridi
 With NSM v1.7.1 and Meridio v1.0.0, Follow the ingress and egress traffic path from the gateway, worker network, VPP forwarder, stateless-lb-frontend, proxy and the target
 
 * Access the Killercoda environment [here](https://killercoda.com/meridio/scenario/Traffic-Path)
-* [Data Plane Documentation](docs/category/data-plane)
+* [Data Plane Documentation](docs/dataplane)
 
 ## Troubleshooting CTFs
 

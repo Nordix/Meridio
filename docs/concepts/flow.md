@@ -64,7 +64,7 @@ The picture below represents a Kubernetes cluster with Flow applied and highligh
 
 ## Limitations
 
-TODO
+* `.metadata.labels.trench` property is mandatory and immutable.
 
 ## Configuration
 

@@ -149,7 +149,7 @@ TODO
 
 ## Limitations
 
-TODO
+* `.metadata.labels.trench` property is mandatory and immutable.
 
 ## Configuration
 
