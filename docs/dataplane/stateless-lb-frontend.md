@@ -261,7 +261,7 @@ IP address       HW type     Flags       HW address            Mask     Device
 note: it is also possible to use `arp -a` or also `ip neighbour`
 
 Check the NDP table:
-* 100:100::150: IPv6 of the gateway
+* `100:100::150`: IPv6 of the gateway
 * 02:42:ac:12:00:06: MAC address of the target with `fd00:0:0:1::6` as IP
 * ext-vlan0: The MAC address `02:42:ac:12:00:06` can be reached via this interface
 ```sh

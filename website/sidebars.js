@@ -90,10 +90,8 @@ const sidebars = {
             type: 'category',
             label: 'Data Plane',
             link: {
-                type: 'generated-index',
-                title: 'Data Plane',
-                description: 'Learn how the traffic is flowing in Meridio',
-                keywords: ['guides'],
+                type: 'doc',
+                id: 'dataplane/readme',
             },
             items: [
                 'dataplane/gateway-frontend',
@@ -178,7 +176,17 @@ const sidebars = {
                 'dev/e2e-test-list',
             ]
         },
-        "trouble-shooting/README",
+        {
+            type: 'category',
+            label: 'Trouble Shooting Guide',
+            link: {
+                type: 'doc',
+                id: 'trouble-shooting/README',
+            },
+            items: [
+                'trouble-shooting/common-issues',
+            ]
+        },
         "faq",
         "glossary",
     ],

@@ -17,6 +17,9 @@ $ kubectl exec -it stateless-lb-frontend-attractor-a-1-ghi -n red -- ip a show d
     inet6 fe80::fe:18ff:fe32:8d87/64 scope link 
        valid_lft forever preferred_lft forever
 ```
+note: if ip command is not available, it is also possible to use these commands:
+* List the interfaces: `cat /proc/net/dev`
+* Get the MAC address of an interface: `cat /sys/class/net/conduit-a--f75b/address`
 
 List the interfaces in the proxy:
 * conduit-a--1b2a: peer of VPP `tap4` interface
@@ -31,6 +34,9 @@ $ kubectl exec -it proxy-conduit-a-1-abc -n red -- ip a show dev conduit-a--1b2a
     inet6 fe80::fe:7dff:fee7:f62a/64 scope link 
        valid_lft forever preferred_lft forever
 ```
+note: if ip command is not available, it is also possible to use these commands:
+* List the interfaces: `cat /proc/net/dev`
+* Get the MAC address of an interface: `cat /sys/class/net/conduit-a--1b2a/address`
 
 List the VPP interfaces:
 * tap3: VPP vETH (might also be tapV2). Its peer interface is the Linux kernel interface in the `stateless-lb-frontend` (conduit-a--f75b). It is cross connected (l2 xconnect) with `tap4`
@@ -178,6 +184,9 @@ $ kubectl exec -it proxy-conduit-a-1-abc -n red -- ip a show dev conduit-a--90c8
     inet6 fe80::fe:ebff:fe4a:2dc/64 scope link 
        valid_lft forever preferred_lft forever
 ```
+note: if ip command is not available, it is also possible to use these commands:
+* List the interfaces: `cat /proc/net/dev`
+* Get the MAC address of an interface: `cat /sys/class/net/conduit-a--90c8/address`
 
 List the VPP interfaces:
 * vxlan_tunnel0: VPP VxLAN. It is cross connected (l2 xconnect) with `tap1`. The VxLAN ID is 9832580, it uses the host IP addresses and port 4789
@@ -308,6 +317,9 @@ $ kubectl exec -it stateless-lb-frontend-attractor-a-1-jkl -n red -- ip a show d
     inet6 fe80::fe:66ff:fe8b:f7da/64 scope link 
        valid_lft forever preferred_lft forever
 ```
+note: if ip command is not available, it is also possible to use these commands:
+* List the interfaces: `cat /proc/net/dev`
+* Get the MAC address of an interface: `cat /sys/class/net/conduit-a--0a17/address`
 
 List the VPP interfaces:
 * vxlan_tunnel0: VPP VxLAN. It is cross connected (l2 xconnect) with `tap1`. The VxLAN ID is 9832580, it uses the host IP addresses and port 4789
@@ -468,6 +480,9 @@ $ kubectl exec -it proxy-conduit-a-1-abc -n red -- ip a
     inet6 fe80::fe:d4ff:fed5:c453/64 scope link 
        valid_lft forever preferred_lft forever
 ```
+note: if ip command is not available, it is also possible to use these commands:
+* List the interfaces: `cat /proc/net/dev`
+* Get the MAC address of an interface: `cat /sys/class/net/bridge0/address`
 
 Check the Forwarding Database entry:
 * 02:fe:c2:14:ec:dd: (MAC address of a target) is accessible via `proxy.cond-97e3`
@@ -542,6 +557,9 @@ $ kubectl exec -it proxy-conduit-a-1-abc -n red -- ip a show dev proxy.cond-97e3
     inet6 fe80::fe:d4ff:fed5:c453/64 scope link 
        valid_lft forever preferred_lft forever
 ```
+note: if ip command is not available, it is also possible to use these commands:
+* List the interfaces: `cat /proc/net/dev`
+* Get the MAC address of an interface: `cat /sys/class/net/proxy.cond-97e3/address`
 
 List the interfaces in the target:
 * nsm-0: peer of VPP `tap6` interface
@@ -560,6 +578,9 @@ $ kubectl exec -it target-a-1 -n red -- ip a show dev nsm-0
     inet6 fe80::fe:c2ff:fe14:ecdd/64 scope link 
        valid_lft forever preferred_lft forever
 ```
+note: if ip command is not available, it is also possible to use these commands:
+* List the interfaces: `cat /proc/net/dev`
+* Get the MAC address of an interface: `cat /sys/class/net/nsm-0/address`
 
 List the VPP interfaces:
 * tap5: VPP vETH (might also be tapV2). Its peer interface is the Linux kernel interface in the `proxy` (proxy.cond-97e3). It is cross connected (l2 xconnect) with `tap6`

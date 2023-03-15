@@ -203,9 +203,15 @@ TODO
 
 ## Limitations
 
+* `.metadata.name` has a limit of `41` (`63 - RESOURCE_NAME_PREFIX - 22`) characters.
+   * `63`: The maximum length for `.metadata.name` in Kubernetes.
+   * `RESOURCE_NAME_PREFIX`: An environemnt variable in the operator adding a prefix to the resources being deployed.
+   * `22`: Due to the pods names in the `stateless-lb-frontend` deployment.
 * As described in the [data plane documentation](../dataplane/gateway-frontend.md), using NSM < v1.7.0, deploying multiple attractors with the same VLAN ID will not work.
 * An attractor can serve only 1 conduit with `.spec.composites`.
 * Using `nsm-vlan`, the based interface (`.spec.interface.nsm-vlan.vlan-id`) must be configured in the device-selector configuration of the NSM forwarder.
+* `.spec.interface.*` properties are mandatory and immutable.
+* `.metadata.labels.trench` property is mandatory and immutable.
 
 ## Configuration
 

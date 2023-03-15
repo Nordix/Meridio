@@ -50,7 +50,11 @@ The picture below represents a Kubernetes cluster with Stream applied and highli
 
 ## Limitations
 
-TODO
+* `.metadata.labels.trench` property is mandatory and immutable.
+* A stream belonging to a `stateless-lb` conduit will consume memory. Here is the formula to calculate how much memory a stream will consume per pod: `(n*100*max)*4`. The shared memory files can be found in `/dev/shm/`.
+   * `(n*100)`: in reality is a prime number close to this number.
+   * `4`: sizeof(int).
+   * e.g. With `max-targets` set to 100 (default), the stream will take 4000000 bytes (4mb) (`(100*100*100)*4`).
 
 ## Configuration
 

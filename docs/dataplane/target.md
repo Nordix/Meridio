@@ -19,6 +19,9 @@ $ kubectl exec -it target-a-1 -n red -- ip a show dev nsm-0
     inet6 fe80::fe:c2ff:fe14:ecdd/64 scope link 
        valid_lft forever preferred_lft forever
 ```
+note: if ip command is not available, it is also possible to use these commands:
+* List the interfaces: `cat /proc/net/dev`
+* Get the MAC address of an interface: `cat /sys/class/net/nsm-0/address`
 
 List the ip rules for IPv4:
 ```sh

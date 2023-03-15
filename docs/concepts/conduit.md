@@ -90,7 +90,12 @@ The picture below represents a Kubernetes cluster with Conduit applied and highl
 
 ## Limitations
 
-TODO
+* `.metadata.name` has a limit of `57` (`63 - RESOURCE_NAME_PREFIX - 6`) characters.
+   * `63`: The maximum length for `.metadata.name` in Kubernetes.
+   * `RESOURCE_NAME_PREFIX`: An environemnt variable in the operator adding a prefix to the resources being deployed.
+   * `6`: Due to the pods names in the `proxy` deployment.
+* `.metadata.labels.trench` property is mandatory and immutable.
+* `.spec.type` property is mandatory and immutable.
 
 ## Configuration
 
