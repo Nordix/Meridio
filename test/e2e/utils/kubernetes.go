@@ -18,6 +18,7 @@ package utils
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 
@@ -78,7 +79,7 @@ func PodExec(pod *corev1.Pod, container string, command []string) (string, error
 	}
 
 	var stdout, stderr bytes.Buffer
-	err = exec.Stream(remotecommand.StreamOptions{
+	err = exec.StreamWithContext(context.TODO(), remotecommand.StreamOptions{
 		Stdin:  nil,
 		Stdout: &stdout,
 		Stderr: &stderr,

@@ -19,10 +19,10 @@ package ipcontext
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/nordix/meridio/pkg/networking"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type ipcontextServer struct {
@@ -46,7 +46,7 @@ func (ics *ipcontextServer) Request(ctx context.Context, request *networkservice
 }
 
 // Close
-func (ics *ipcontextServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+func (ics *ipcontextServer) Close(ctx context.Context, conn *networkservice.Connection) (*emptypb.Empty, error) {
 	err := ics.ics.UnsetIPContext(ctx, conn, networking.NSE)
 	if err != nil {
 		return nil, err

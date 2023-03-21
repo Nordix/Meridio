@@ -19,10 +19,10 @@ package interfacemonitor
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/nordix/meridio/pkg/networking"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type interfaceMonitorEndpoint struct {
@@ -50,7 +50,7 @@ func (ime *interfaceMonitorEndpoint) Request(ctx context.Context, request *netwo
 }
 
 // Close will call the InterfaceDeleted function in the interfaceMonitorSubscriber
-func (ime *interfaceMonitorEndpoint) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+func (ime *interfaceMonitorEndpoint) Close(ctx context.Context, conn *networkservice.Connection) (*emptypb.Empty, error) {
 	if conn != nil {
 		ime.ConnectionClosed(&connection{conn}, networking.NSE)
 	}

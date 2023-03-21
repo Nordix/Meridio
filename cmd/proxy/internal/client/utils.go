@@ -19,17 +19,17 @@ package client
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/nordix/meridio/pkg/nsm"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func expirationTimeIsNull(expirationTime *timestamp.Timestamp) bool {
-	nullTImeStamp := &timestamp.Timestamp{
+func expirationTimeIsNull(expirationTime *timestamppb.Timestamp) bool {
+	nullTImeStamp := &timestamppb.Timestamp{
 		Seconds: -1,
 	}
 	return expirationTime == nil || expirationTime.AsTime().Equal(nullTImeStamp.AsTime())

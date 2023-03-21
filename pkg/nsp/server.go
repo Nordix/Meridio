@@ -19,10 +19,10 @@ package nsp
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/nsp/types"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type Server struct {
@@ -39,12 +39,12 @@ func NewServer(targetRegistry types.TargetRegistry) nspAPI.TargetRegistryServer 
 	return networkServicePlateformService
 }
 
-func (s *Server) Register(ctx context.Context, target *nspAPI.Target) (*empty.Empty, error) {
-	return &empty.Empty{}, s.TargetRegistry.Set(ctx, target)
+func (s *Server) Register(ctx context.Context, target *nspAPI.Target) (*emptypb.Empty, error) {
+	return &emptypb.Empty{}, s.TargetRegistry.Set(ctx, target)
 }
 
-func (s *Server) Unregister(ctx context.Context, target *nspAPI.Target) (*empty.Empty, error) {
-	return &empty.Empty{}, s.TargetRegistry.Remove(ctx, target)
+func (s *Server) Unregister(ctx context.Context, target *nspAPI.Target) (*emptypb.Empty, error) {
+	return &emptypb.Empty{}, s.TargetRegistry.Remove(ctx, target)
 }
 
 func (s *Server) Watch(t *nspAPI.Target, watcher nspAPI.TargetRegistry_WatchServer) error {

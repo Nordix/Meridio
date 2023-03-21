@@ -20,12 +20,12 @@ import (
 	"context"
 	"sync"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/log"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type healthServiceClient struct {
@@ -61,7 +61,7 @@ func (h *healthServiceClient) Request(ctx context.Context, request *networkservi
 }
 
 // Close -
-func (h *healthServiceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (h *healthServiceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	logger := log.FromContextOrGlobal(ctx)
 	logger.V(2).Info("HealthServiceClient:Close", "id", conn.Id)
 	h.mu.Lock()

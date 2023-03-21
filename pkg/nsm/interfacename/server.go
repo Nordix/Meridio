@@ -19,9 +19,9 @@ package interfacename
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type interfaceNameServer struct {
@@ -50,7 +50,7 @@ func (ine *interfaceNameServer) Request(ctx context.Context, request *networkser
 // Close it does nothing except calling the next Close in the chain
 // A non-nil error if a next element in the chain returns a non-nil error
 // It implements NetworkServiceServer for the interfacename package
-func (ine *interfaceNameServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+func (ine *interfaceNameServer) Close(ctx context.Context, conn *networkservice.Connection) (*emptypb.Empty, error) {
 	ine.UnsetInterfaceName(conn)
 	return next.Server(ctx).Close(ctx, conn)
 }

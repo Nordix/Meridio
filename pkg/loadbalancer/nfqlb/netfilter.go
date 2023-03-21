@@ -217,10 +217,11 @@ func (na *netfilterAdaptor) configureChainAndRules() error {
 	conn := &nftables.Conn{}
 
 	na.chain = conn.AddChain(&nftables.Chain{
-		Name:    chainName,
-		Table:   na.table,
-		Type:    nftables.ChainTypeFilter,
-		Hooknum: nftables.ChainHookPrerouting,
+		Name:     chainName,
+		Table:    na.table,
+		Type:     nftables.ChainTypeFilter,
+		Hooknum:  nftables.ChainHookPrerouting,
+		Priority: nftables.ChainPriorityFilter,
 	})
 
 	if rules, _ := conn.GetRules(na.table, na.chain); len(rules) != 0 {
@@ -327,10 +328,11 @@ func (na *netfilterAdaptor) configureLocalChainAndRules() error {
 	conn := &nftables.Conn{}
 
 	na.localchain = conn.AddChain(&nftables.Chain{
-		Name:    localChainName,
-		Table:   na.table,
-		Type:    nftables.ChainTypeFilter,
-		Hooknum: nftables.ChainHookOutput,
+		Name:     localChainName,
+		Table:    na.table,
+		Type:     nftables.ChainTypeFilter,
+		Hooknum:  nftables.ChainHookOutput,
+		Priority: nftables.ChainPriorityFilter,
 	})
 
 	if rules, _ := conn.GetRules(na.table, na.localchain); len(rules) != 0 {

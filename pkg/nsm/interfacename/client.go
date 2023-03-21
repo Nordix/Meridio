@@ -19,8 +19,8 @@ package interfacename
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -49,7 +49,7 @@ func (inc *interfaceNameClient) Request(ctx context.Context, request *networkser
 // Close it does nothing except calling the next Close in the chain
 // A non-nil error if a next element in the chain returns a non-nil error
 // It implements NetworkServiceClient for the interfacename package
-func (inc *interfaceNameClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (inc *interfaceNameClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	inc.UnsetInterfaceName(conn)
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
