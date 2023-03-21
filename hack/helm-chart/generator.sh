@@ -46,7 +46,7 @@ function chart_meridio_target () {
     helm package $MERIDIO_TARGET_HELM_PATH --version $HELM_CHART_VERSION --destination $HELM_CHART_PATH
 }
 
-HELM_CHART_PATH="_output/helm/"
+HELM_CHART_PATH="_output/helm"
 VERSION="${VERSION:-latest}"
 HELM_CHART_VERSION="$VERSION"
 REGISTRY="${REGISTRY:-registry.nordix.org}"

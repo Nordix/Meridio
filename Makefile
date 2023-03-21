@@ -193,7 +193,10 @@ nancy: nancy-tool output-dir ## Run nancy scanner on dependencies.
 #############################################################################
 
 .PHONY: generate
-generate: mockgen ## Generate the mocks.
+generate: go-generate proto manifests generate-controller ## Generate all.
+
+.PHONY: go-generate
+go-generate: mockgen ## Generate the mocks.
 	go generate ./... 
 
 .PHONY: ipam-proto
