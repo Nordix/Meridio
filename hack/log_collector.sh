@@ -86,22 +86,22 @@ collect_exec_stateless_lb_frontend() {
         pod_names=$(echo "$pods" | awk '{print $1}')
         for pod_name in $pod_names
         do
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip a > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-a.txt" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip rule > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-rule.txt" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip -6 rule > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-6-rule.txt" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip route show table all > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-route-show-table-all.txt" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- nft list ruleset > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.nft-list-ruleset.txt" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ps aux > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ps-aux.txt" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- nfqlb flow-list > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.nfqlb-flow-list.txt" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-s.txt" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -6 -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-6-s.txt" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip neighbour > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-neighbour.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_STATELESS_LB_CONTAINER -- ip a > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-a.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_STATELESS_LB_CONTAINER -- ip rule > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-rule.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_STATELESS_LB_CONTAINER -- ip -6 rule > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-6-rule.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_STATELESS_LB_CONTAINER -- ip route show table all > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-route-show-table-all.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_STATELESS_LB_CONTAINER -- nft list ruleset > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.nft-list-ruleset.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c stateless-lb -- ps aux > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ps-aux.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c stateless-lb -- nfqlb flow-list > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.nfqlb-flow-list.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_STATELESS_LB_CONTAINER -- netstat -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-s.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_STATELESS_LB_CONTAINER -- netstat -6 -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-6-s.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_STATELESS_LB_CONTAINER -- ip neighbour > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-neighbour.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -c frontend -- birdc -s /var/run/bird/bird.ctl show protocol all > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.birdc-show-protocol-all.txt" 2>/dev/null
             kubectl exec $pod_name -n $EXEC_NAMESPACE -c frontend -- cat /var/log/bird.log > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.bird.log" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- cat /proc/net/dev > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.proc-net-dev.txt" 2>/dev/null
-            shared_memory=$(kubectl exec $pod_name -n $EXEC_NAMESPACE -- ls /dev/shm/ | grep "tshm-")
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_STATELESS_LB_CONTAINER -- cat /proc/net/dev > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.proc-net-dev.txt" 2>/dev/null
+            shared_memory=$(kubectl exec $pod_name -n $EXEC_NAMESPACE -c stateless-lb -- ls /dev/shm/ | grep "tshm-")
             while IFS= read -r shm; do
-                kubectl exec $pod_name -n $EXEC_NAMESPACE -- nfqlb show --shm=$shm > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.nfqlb-show-shm-$shm.txt" 2>/dev/null
+                kubectl exec $pod_name -n $EXEC_NAMESPACE -c stateless-lb -- nfqlb show --shm=$shm > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.nfqlb-show-shm-$shm.txt" 2>/dev/null
             done <<< "$shared_memory"
         done
     done
@@ -139,16 +139,16 @@ collect_exec_targets() {
         pod_names=$(echo "$pods" | awk '{print $1}')
         for pod_name in $pod_names
         do
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip a > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-a.txt" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip rule > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-rule.txt" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip -6 rule > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-6-rule.txt" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip route show table all > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-route-show-table-all.txt" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ps aux > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ps-aux.txt" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- timeout --preserve-status 0.5 ./target-client watch > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.target-client-watch.txt" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-s.txt" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- netstat -6 -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-6-s.txt" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- ip neighbour > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-neighbour.txt" 2>/dev/null
-            kubectl exec $pod_name -n $EXEC_NAMESPACE -- cat /proc/net/dev > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.proc-net-dev.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_TARGET_CONTAINER -- ip a > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-a.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_TARGET_CONTAINER -- ip rule > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-rule.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_TARGET_CONTAINER -- ip -6 rule > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-6-rule.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_TARGET_CONTAINER -- ip route show table all > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-route-show-table-all.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_TARGET_CONTAINER -- ps aux > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ps-aux.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_TARGET_CONTAINER -- timeout --preserve-status 0.5 ./target-client watch > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.target-client-watch.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_TARGET_CONTAINER -- netstat -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-s.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_TARGET_CONTAINER -- netstat -6 -s > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.netstat-6-s.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_TARGET_CONTAINER -- ip neighbour > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.ip-neighbour.txt" 2>/dev/null
+            kubectl exec $pod_name -n $EXEC_NAMESPACE -c $EXEC_TARGET_CONTAINER -- cat /proc/net/dev > "$full_output_path/pods/exec/$EXEC_NAMESPACE.$pod_name.proc-net-dev.txt" 2>/dev/null
         done
     done
 }
@@ -156,28 +156,42 @@ collect_exec_targets() {
 collect_all() {
     resources=$(kubectl api-resources --verbs=get)
     kubectl api-resources -o wide > "$full_output_path/api-resources.txt"
+    kubectl get pods --all-namespaces -o wide > "$full_output_path/get-pods.txt"
     resources_no_header=$(echo "$resources" | sed '1d')
     collect_top
-    collect_exec_stateless_lb_frontend
-    collect_exec_proxy
-    collect_exec_targets
-    collect_exec_vpp_forwarder
-    while IFS= read -r resource; do
-        namespaced=$(echo "$resource" | awk '{print $(NF-1)}')
-        resource_name=$(echo "$resource" | awk '{print $1}')
-        if [[ " ${EXCLUDE_RESOURCES[*]} " =~ " ${resource_name} " ]]; then
-            continue
-        fi
-        mkdir -p "$full_output_path/$resource_name"
-        echo "collecting $resource_name ..."
-        # collect_resource $resource_name $namespaced
-    done <<< "$resources_no_header"
-    # collect_logs
+    if [[ "$COLLECT_EXECS" == "true" ]]; then
+        collect_exec_stateless_lb_frontend
+        collect_exec_proxy
+        collect_exec_targets
+        collect_exec_vpp_forwarder
+    fi
+    if [[ "$COLLECT_RESOURCES" == "true" ]]; then
+        while IFS= read -r resource; do
+            namespaced=$(echo "$resource" | awk '{print $(NF-1)}')
+            resource_name=$(echo "$resource" | awk '{print $1}')
+            if [[ " ${EXCLUDE_RESOURCES[*]} " =~ " ${resource_name} " ]]; then
+                continue
+            fi
+            mkdir -p "$full_output_path/$resource_name"
+            echo "collecting $resource_name ..."
+            collect_resource $resource_name $namespaced
+        done <<< "$resources_no_header"
+    fi
+    if [[ "$COLLECT_LOGS" == "true" ]]; then
+        collect_logs
+    fi
 }
 
 timestamp=$(date +%s)
 
 EXCLUDE_RESOURCES="bindings componentstatuses events limitranges podtemplates replicationcontrollers resourcequotas controllerrevisions tokenreviews localsubjectaccessreviews selfsubjectaccessreviews selfsubjectrulesreviews subjectaccessreviews certificatesigningrequests leases events flowschemas prioritylevelconfigurations runtimeclasses priorityclasses apiservices csinodes csistoragecapacities"
+
+EXEC_TARGET_CONTAINER=${EXEC_TARGET_CONTAINER:-"example-target"}
+EXEC_STATELESS_LB_CONTAINER=${EXEC_STATELESS_LB_CONTAINER:-"stateless-lb"}
+
+COLLECT_LOGS=${COLLECT_LOGS:-"true"}
+COLLECT_RESOURCES=${COLLECT_RESOURCES:-"true"}
+COLLECT_EXECS=${COLLECT_EXECS:-"true"}
 
 EXEC_NSM_NAMESPACE=${EXEC_NSM_NAMESPACE:-"nsm"}
 EXEC_NSM_FORWARDER_LABEL=${EXEC_NSM_FORWARDER_LABEL:-"app=forwarder-vpp"}
@@ -207,3 +221,11 @@ collect_all
 rm -rf $OUTPUT_PATH/log_collector_$OUTPUT_ID.tgz
 tar -cvzf $OUTPUT_PATH/log_collector_$OUTPUT_ID.tgz $full_output_path > /dev/null 2>&1
 rm -rf $full_output_path
+
+echo "-----------------------"
+echo "Log file available: $OUTPUT_PATH/log_collector_$OUTPUT_ID.tgz"
+echo "-----------------------"
+
+# Example: EXEC_NAMESPACE="red" EXEC_STATELESS_LB_FRONTEND_LABELS="app=stateless-lb-frontend-attractor-a-1 app=stateless-lb-frontend-attractor-b-1 app=stateless-lb-frontend-attractor-a-2 app=stateless-lb-frontend-attractor-a-3" EXEC_PROXY_LABELS="app=proxy-conduit-a-1 app=proxy-conduit-b-1 app=proxy-conduit-a-2 app=proxy-conduit-a-3" EXEC_TARGETS_LABELS="app=target-a app=target-b" ./hack/log_collector.sh
+
+# Example 2: COLLECT_LOGS="false" COLLECT_RESOURCES="false" EXEC_NAMESPACE="red" EXEC_STATELESS_LB_FRONTEND_LABELS="app=stateless-lb-frontend-attractor-a-1 app=stateless-lb-frontend-attractor-b-1 app=stateless-lb-frontend-attractor-a-2 app=stateless-lb-frontend-attractor-a-3" EXEC_PROXY_LABELS="app=proxy-conduit-a-1 app=proxy-conduit-b-1 app=proxy-conduit-a-2 app=proxy-conduit-a-3" EXEC_TARGETS_LABELS="app=target-a app=target-b" ./hack/log_collector.sh
