@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/stream/registry"
@@ -31,6 +30,7 @@ import (
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // Tap implements ambassadorAPI.TapServer
@@ -76,38 +76,38 @@ func New(targetName string,
 	return tap, nil
 }
 
-func (tap *Tap) Open(ctx context.Context, s *ambassadorAPI.Stream) (*empty.Empty, error) {
+func (tap *Tap) Open(ctx context.Context, s *ambassadorAPI.Stream) (*emptypb.Empty, error) {
 	tap.mu.Lock()
 	defer tap.mu.Unlock()
 	err := checkStream(s)
 	if err != nil {
-		return &empty.Empty{}, err
+		return &emptypb.Empty{}, err
 	}
 	// set the trench if tap.currentTrench in nil, get if s.conduit.trench == currentTrench
 	// return an error if s.conduit.trench != currentTrench
 	trench, err := tap.setTrench(s.GetConduit().GetTrench())
 	if err != nil {
-		return &empty.Empty{}, err
+		return &emptypb.Empty{}, err
 	}
 	// add/get conduit (get if already existing)
 	// will be connected when the trench will be ready
 	conduit, err := trench.AddConduit(context.TODO(), s.GetConduit())
 	if err != nil {
-		return &empty.Empty{}, err
+		return &emptypb.Empty{}, err
 	}
 	// add/get a stream (get if already existing)
 	// will be opened when the conduit will be ready
 	err = conduit.AddStream(context.TODO(), s)
 	if err != nil {
-		return &empty.Empty{}, err
+		return &emptypb.Empty{}, err
 	}
-	return &empty.Empty{}, err
+	return &emptypb.Empty{}, err
 }
 
-func (tap *Tap) Close(ctx context.Context, s *ambassadorAPI.Stream) (*empty.Empty, error) {
+func (tap *Tap) Close(ctx context.Context, s *ambassadorAPI.Stream) (*emptypb.Empty, error) {
 	err := checkStream(s)
 	if err != nil {
-		return &empty.Empty{}, err
+		return &emptypb.Empty{}, err
 	}
 	go func() {
 		tap.mu.Lock()
@@ -145,7 +145,7 @@ func (tap *Tap) Close(ctx context.Context, s *ambassadorAPI.Stream) (*empty.Empt
 		tap.currentTrench = nil
 	}()
 
-	return &empty.Empty{}, nil
+	return &emptypb.Empty{}, nil
 }
 
 func (tap *Tap) Watch(filter *ambassadorAPI.Stream, watcher ambassadorAPI.Tap_WatchServer) error {

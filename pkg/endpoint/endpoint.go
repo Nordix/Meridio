@@ -24,12 +24,12 @@ import (
 	"time"
 
 	"github.com/edwarnicke/grpcfd"
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/pkg/errors"
 	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/go-logr/logr"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -168,7 +168,7 @@ func (e *Endpoint) register() error {
 }
 
 func (e *Endpoint) unregister(ctx context.Context) error {
-	e.nse.ExpirationTime = &timestamp.Timestamp{
+	e.nse.ExpirationTime = &timestamppb.Timestamp{
 		Seconds: -1,
 	}
 

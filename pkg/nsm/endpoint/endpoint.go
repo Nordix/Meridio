@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/nordix/meridio/pkg/log"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type Endpoint struct {
@@ -84,7 +84,7 @@ func (e *Endpoint) Register(ctx context.Context) error {
 }
 
 func (e *Endpoint) Unregister(ctx context.Context) error {
-	e.NSE.ExpirationTime = &timestamp.Timestamp{
+	e.NSE.ExpirationTime = &timestamppb.Timestamp{
 		Seconds: -1,
 	}
 	_, err := e.NSERegistryClient.Unregister(ctx, e.NSE)

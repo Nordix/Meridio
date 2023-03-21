@@ -19,9 +19,9 @@ package interfacemonitor
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/nordix/meridio/pkg/networking"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -54,7 +54,7 @@ func (inc *interfaceMonitorClient) Request(ctx context.Context, request *network
 }
 
 // Close will call the InterfaceDeleted function in the interfaceMonitorSubscriber
-func (inc *interfaceMonitorClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (inc *interfaceMonitorClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	if conn != nil {
 		inc.ConnectionClosed(&connection{conn}, networking.NSC)
 	}

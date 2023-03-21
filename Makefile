@@ -169,7 +169,7 @@ grype: ## Run grype scanner on images.
 .PHONY: grype-scan
 grype-scan: output-dir
 	docker run --rm $(SECURITY_SCAN_VOLUME) \
-	--name Grype anchore/grype:v0.47.0 \
+	--name Grype anchore/grype:v0.59.1 \
 	$(REGISTRY)/$(IMAGE):$(VERSION) -o json --add-cpes-if-none > $(OUTPUT_DIR)/grype_$(IMAGE)_$(VERSION).json
 
 # https://github.com/aquasecurity/trivy
@@ -180,7 +180,7 @@ trivy: ## Run trivy scanner on images.
 .PHONY: trivy-scan
 trivy-scan: output-dir
 	docker run --rm $(SECURITY_SCAN_VOLUME) \
-	aquasec/trivy:0.31.3 image \
+	aquasec/trivy:0.38.3 image \
 	-f json $(REGISTRY)/$(IMAGE):$(VERSION) > $(OUTPUT_DIR)/trivy_$(IMAGE)_$(VERSION).json
 
 # https://github.com/sonatype-nexus-community/nancy
@@ -279,11 +279,11 @@ protoc:
 
 .PHONY: protoc-gen-go
 protoc-gen-go:
-	$(call go-get-tool,$(PROTOC_GEN_GO),google.golang.org/protobuf/cmd/protoc-gen-go@v1.28)
+	$(call go-get-tool,$(PROTOC_GEN_GO),google.golang.org/protobuf/cmd/protoc-gen-go@v1.30.0)
 
 .PHONY: protoc-gen-go-grpc
 protoc-gen-go-grpc:
-	$(call go-get-tool,$(PROTOC_GEN_GO_GRPC),google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2)
+	$(call go-get-tool,$(PROTOC_GEN_GO_GRPC),google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0)
 
 .PHONY: mockgen
 mockgen:
@@ -291,15 +291,15 @@ mockgen:
 
 .PHONY: ginkgo
 ginkgo:
-	$(call go-get-tool,$(GINKGO),github.com/onsi/ginkgo/v2/ginkgo@v2.5.1)
+	$(call go-get-tool,$(GINKGO),github.com/onsi/ginkgo/v2/ginkgo@v2.9.1)
 
 .PHONY: nancy-tool
 nancy-tool:
-	$(call go-get-tool,$(NANCY),github.com/sonatype-nexus-community/nancy@v1.0.37)
+	$(call go-get-tool,$(NANCY),github.com/sonatype-nexus-community/nancy@v1.0.42)
 
 .PHONY: controller-gen
 controller-gen:
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.10.0)
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.11.3)
 
 .PHONY: kustomize
 kustomize:

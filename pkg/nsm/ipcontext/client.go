@@ -19,9 +19,9 @@ package ipcontext
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/nordix/meridio/pkg/networking"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -48,7 +48,7 @@ func (icc *ipcontextClient) Request(ctx context.Context, request *networkservice
 }
 
 // Close
-func (icc *ipcontextClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (icc *ipcontextClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	err := icc.ics.UnsetIPContext(ctx, conn, networking.NSC)
 	if err != nil {
 		return nil, err

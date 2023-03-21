@@ -19,10 +19,10 @@ package mtu
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // mtuClient adds proposed MTU to the Request. To be used by NSC.
@@ -46,6 +46,6 @@ func (m *mtuClient) Request(ctx context.Context, request *networkservice.Network
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
-func (m *mtuClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (m *mtuClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }

@@ -20,7 +20,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 
@@ -55,7 +54,7 @@ func (fmtc *fullMeshTrackerClient) Request(ctx context.Context, request *network
 
 // Close -
 // TODO: remove NSE from the map when they are removed (real close)
-func (fmtc *fullMeshTrackerClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (fmtc *fullMeshTrackerClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	_, err := next.Client(ctx).Close(ctx, conn, opts...)
 	return &emptypb.Empty{}, err
 }

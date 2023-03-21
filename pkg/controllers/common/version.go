@@ -44,7 +44,12 @@ func PdbV1Beta1ToV1(pdb *policyv1beta1.PodDisruptionBudget) *policyv1.PodDisrupt
 	}
 	v1Pdb := &policyv1.PodDisruptionBudget{}
 	v1Pdb.ObjectMeta = pdb.ObjectMeta
-	v1Pdb.Spec = policyv1.PodDisruptionBudgetSpec(pdb.Spec)
+	v1Pdb.Spec = policyv1.PodDisruptionBudgetSpec{
+		MinAvailable:               pdb.Spec.MinAvailable,
+		Selector:                   pdb.Spec.Selector,
+		MaxUnavailable:             pdb.Spec.MaxUnavailable,
+		UnhealthyPodEvictionPolicy: v1Pdb.Spec.UnhealthyPodEvictionPolicy,
+	}
 	return v1Pdb
 }
 
@@ -54,6 +59,11 @@ func PdbV1ToV1Beta1(pdb *policyv1.PodDisruptionBudget) *policyv1beta1.PodDisrupt
 	}
 	v1beta1Pdb := &policyv1beta1.PodDisruptionBudget{}
 	v1beta1Pdb.ObjectMeta = pdb.ObjectMeta
-	v1beta1Pdb.Spec = policyv1beta1.PodDisruptionBudgetSpec(pdb.Spec)
+	v1beta1Pdb.Spec = policyv1beta1.PodDisruptionBudgetSpec{
+		MinAvailable:               pdb.Spec.MinAvailable,
+		Selector:                   pdb.Spec.Selector,
+		MaxUnavailable:             pdb.Spec.MaxUnavailable,
+		UnhealthyPodEvictionPolicy: v1beta1Pdb.Spec.UnhealthyPodEvictionPolicy,
+	}
 	return v1beta1Pdb
 }

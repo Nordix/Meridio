@@ -75,7 +75,7 @@ func (d *Defrag) configure() error {
 		Table:    d.table,
 		Type:     nftables.ChainTypeFilter,
 		Hooknum:  nftables.ChainHookPrerouting,
-		Priority: nftables.ChainPriority(-500),
+		Priority: nftables.ChainPriorityRef(-500),
 	})
 
 	// load defrag via dummy conntrack statement, but do not conntrack ingress packets
@@ -84,7 +84,7 @@ func (d *Defrag) configure() error {
 		Table:    d.table,
 		Type:     nftables.ChainTypeFilter,
 		Hooknum:  nftables.ChainHookPrerouting,
-		Priority: nftables.ChainPriority(nftables.ChainPriorityRaw),
+		Priority: nftables.ChainPriorityRaw,
 	})
 
 	// do not conntrack local out packets
@@ -93,7 +93,7 @@ func (d *Defrag) configure() error {
 		Table:    d.table,
 		Type:     nftables.ChainTypeFilter,
 		Hooknum:  nftables.ChainHookOutput,
-		Priority: nftables.ChainPriority(nftables.ChainPriorityRaw),
+		Priority: nftables.ChainPriorityRaw,
 	})
 	return conn.Flush()
 }
