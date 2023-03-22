@@ -67,6 +67,11 @@ if ! [[ $HELM_CHART_VERSION =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]
     HELM_CHART_VERSION="v0.0.0-$VERSION"
 fi
 
+# required to download the tools
+make -s print-manifests OPERATOR_NAMESPACE="{{.Release.Namespace}}" VERSION="$VERSION" REGISTRY="{{.Values.registry}}/{{.Values.repository}}" NSM_REPOSITORY="{{.Values.nsm.repository}}" > /dev/null 2>&1
+# Generates the charts
 chart_meridio
 chart_meridio_crds
 chart_meridio_target
+# restore the previous state
+make -s print-manifests REGISTRY="$REGISTRY/$REPOSITORY" > /dev/null 2>&1
