@@ -31,6 +31,8 @@ WAIT_TIMEOUT ?= 4m # Kubectl wait timeout
 
 BASE_PATH ?= $(shell pwd)/../../../..
 
+HELM_REGISTRY ?= https://artifactory.nordix.org/artifactory/cloud-native/meridio
+
 #############################################################################
 ##@ Environment
 #############################################################################
@@ -41,14 +43,15 @@ environment: ## Deploy the enviroment (Kind + Gateways + NSM + Spire)
 
 .PHONY: operator
 operator: ## Deploy operator
-	$(MAKE) -s -C $(BASE_PATH) deploy OPERATOR_NAMESPACE=$(NAMESPACE)
+	helm install meridio-crds $(HELM_REGISTRY)/Meridio-CRDs-$(shell $(MAKE) -s format-version VERSION=$(MERIDIO_VERSION)).tgz --create-namespace --namespace $(NAMESPACE) ; \
+	helm install meridio $(HELM_REGISTRY)/Meridio-$(shell $(MAKE) -s format-version VERSION=$(MERIDIO_VERSION)).tgz --create-namespace --namespace $(NAMESPACE)
 
 .PHONY: trenches-targets
 trenches-targets: ## Deploy trench-a + trench-b + target-a + target-b
 	kubectl apply -f $(IP_FAMILY)/configuration/init-trench-a.yaml ; \
 	kubectl apply -f $(IP_FAMILY)/configuration/init-trench-b.yaml ; \
-	helm install target-a $(BASE_PATH)/examples/target/deployments/helm/ --create-namespace --namespace red --set applicationName=target-a --set default.trench.name=trench-a --set default.conduit.name=conduit-a-1 --set default.stream.name=stream-a-i ; \
-	helm install target-b $(BASE_PATH)/examples/target/deployments/helm/ --create-namespace --namespace red --set applicationName=target-b --set default.trench.name=trench-b --set default.conduit.name=conduit-b-1 --set default.stream.name=stream-b-i
+	helm install target-a $(HELM_REGISTRY)/Meridio-Target-$(shell $(MAKE) -s format-version VERSION=$(TAPA_VERSION)).tgz --create-namespace --namespace $(NAMESPACE) --set applicationName=target-a --set default.trench.name=trench-a --set default.conduit.name=conduit-a-1 --set default.stream.name=stream-a-i ; \
+	helm install target-b $(HELM_REGISTRY)/Meridio-Target-$(shell $(MAKE) -s format-version VERSION=$(TAPA_VERSION)).tgz --create-namespace --namespace $(NAMESPACE) --set applicationName=target-b --set default.trench.name=trench-b --set default.conduit.name=conduit-b-1 --set default.stream.name=stream-b-i
 
 .PHONY: wait-operator
 wait-operator:
@@ -65,3 +68,14 @@ wait-trenches-targets:
 .PHONY: wait
 wait:
 	sleep $(WAIT_TIME)
+
+# https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+# https://github.com/semver/semver/pull/724
+VERSION_REGEX = ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$
+.PHONY: format-version
+format-version:
+	version="$(VERSION)" ; \
+	if ! echo "$${version}" | grep -Eq "$(VERSION_REGEX)" ; then \
+		version="v0.0.0-$${version}" ; \
+	fi ; \
+	printf "$${version}"

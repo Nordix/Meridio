@@ -16,6 +16,7 @@ spec:
         "spiffe.io/spiffe-id": "true"
     spec:
       hostNetwork: true
+      hostPID: true
       dnsPolicy: ClusterFirstWithHostNet
       containers:
         - image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.forwarderVPPImage }}:{{ .Values.tag }}
