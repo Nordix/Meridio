@@ -2,7 +2,7 @@ ARG USER=tapa-user
 ARG UID=10006
 ARG HOME=/home/${USER}
 
-FROM golang:1.20.2 as build
+FROM golang:1.20 as build
 
 ENV GO111MODULE=on
 
