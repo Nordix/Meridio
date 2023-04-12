@@ -54,17 +54,19 @@ endef
 export KIND_CONFIG_NO_NODE
 
 define KIND_CONFIG
-version="kindest/node:v1.26.0@sha256:691e24bd2417609db7e589e1a479b902d2e209892a10ce375fab60a8407c7352" ; \
-if [ $(KUBERNETES_VERSION) = "v1.25" ]; then \
-    version="kindest/node:v1.25.3@sha256:f52781bc0d7a19fb6c405c2af83abfeb311f130707a0e219175677e366cc45d1" ; \
+version="kindest/node:v1.27.0@sha256:c6b22e613523b1af67d4bc8a0c38a4c3ea3a2b8fbc5b367ae36345c9cb844518" ; \
+if [ $(KUBERNETES_VERSION) = "v1.26" ]; then \
+    version="kindest/node:v1.26.3@sha256:61b92f38dff6ccc29969e7aa154d34e38b89443af1a2c14e6cfbd2df6419c66f" ; \
+elif [ $(KUBERNETES_VERSION) = "v1.25" ]; then \
+    version="kindest/node:v1.25.8@sha256:00d3f5314cc35327706776e95b2f8e504198ce59ac545d0200a89e69fce10b7f" ; \
 elif [ $(KUBERNETES_VERSION) = "v1.24" ]; then \
-    version="kindest/node:v1.24.7@sha256:97e8d00bc37a7598a0b32d1fabd155a96355c49fa0d4d4790aab0f161bf31be1" ; \
+    version="kindest/node:v1.24.12@sha256:1e12918b8bc3d4253bc08f640a231bb0d3b2c5a9b28aa3f2ca1aee93e1e8db16" ; \
 elif [ $(KUBERNETES_VERSION) = "v1.23" ]; then \
-    version="kindest/node:v1.23.13@sha256:9402cf1330bbd3a0d097d2033fa489b2abe40d479cc5ef47d0b6a6960613148a" ; \
+    version="kindest/node:v1.23.17@sha256:e5fd1d9cd7a9a50939f9c005684df5a6d145e8d695e78463637b79464292e66c" ; \
 elif [ $(KUBERNETES_VERSION) = "v1.22" ]; then \
-    version="kindest/node:v1.22.15@sha256:bfd5eaae36849bfb3c1e3b9442f3da17d730718248939d9d547e86bbac5da586" ; \
+    version="kindest/node:v1.22.17@sha256:c8a828709a53c25cbdc0790c8afe12f25538617c7be879083248981945c38693" ; \
 elif [ $(KUBERNETES_VERSION) = "v1.21" ]; then \
-    version="kindest/node:v1.21.14@sha256:ad5b7446dd8332439f22a1efdac73670f0da158c00f0a70b45716e7ef3fae20b" ; \
+    version="kindest/node:v1.21.14@sha256:27ef72ea623ee879a25fe6f9982690a3e370c68286f4356bf643467c552a3888" ; \
 elif [ $(KUBERNETES_VERSION) = "v1.20" ]; then \
     version="kindest/node:v1.20.15@sha256:45d0194a8069c46483a0e509088ab9249302af561ebee76a1281a1f08ecb4ed3" ; \
 elif [ $(KUBERNETES_VERSION) = "v1.19" ]; then \
@@ -185,7 +187,7 @@ temp-dir:
 
 .PHONY: kind
 kind:
-	$(call go-get-tool,$(KIND),sigs.k8s.io/kind@v0.16.0)
+	$(call go-get-tool,$(KIND),sigs.k8s.io/kind@v0.18.0)
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 define go-get-tool
