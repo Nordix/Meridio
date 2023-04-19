@@ -22,6 +22,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/signal"
 	"sync"
@@ -382,6 +383,7 @@ func (sns *SimpleNetworkService) startStreamWatcher() {
 
 // InterfaceCreated -
 func (sns *SimpleNetworkService) InterfaceCreated(intf networking.Iface) {
+	_ = intf.GetName() // fills the Name field if needed
 	sns.logger.Info("InterfaceCreated", "interface", intf)
 	if sns.serviceBlocked() {
 		// if service blocked, do not process new interface events (which
@@ -390,7 +392,44 @@ func (sns *SimpleNetworkService) InterfaceCreated(intf networking.Iface) {
 		sns.disableInterface(intf)
 		return
 	}
+	// https://github.com/Nordix/Meridio/issues/392
+	// The LB may get double interfaces to the same proxy. The new one works,
+	// the older must be disabled
+	sns.interfaces.Range(func(key, value any) bool {
+		if key == intf.GetIndex() {
+			return true // Possibe? (better safe than sorry)
+		}
+		oldif := value.(networking.Iface)
+		if sameSubnet(intf, oldif) {
+			sns.logger.Info("Interface replaced", "old", oldif, "new", intf)
+			sns.disableInterface(oldif)
+		}
+		return true
+	})
 	sns.interfaces.Store(intf.GetIndex(), intf)
+}
+
+// sameSubnet Returns true if interfaces uses the same subnet.
+func sameSubnet(if1, if2 networking.Iface) bool {
+	cidrs1 := if1.GetLocalPrefixes()
+	if len(cidrs1) < 1 {
+		return false // Possibe? (better safe than sorry)
+	}
+	// It is enough to check either ipv4 or ipv6.
+	_, net1, err := net.ParseCIDR(cidrs1[0])
+	if err != nil {
+		return false // Shouldn't happen
+	}
+	for _, cidr2 := range if2.GetLocalPrefixes() {
+		_, net2, err := net.ParseCIDR(cidr2)
+		if err != nil {
+			return false // Shouldn't happen
+		}
+		if net1.IP.Equal(net2.IP) {
+			return true
+		}
+	}
+	return false
 }
 
 // InterfaceDeleted -
