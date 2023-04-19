@@ -27,7 +27,7 @@ import (
 
 type Interface struct {
 	index         int
-	name          string
+	Name          string
 	LocalIPs      []string
 	NeighborIPs   []string
 	Gateways      []string
@@ -43,14 +43,13 @@ func (intf *Interface) GetIndex() int {
 }
 
 func (intf *Interface) GetName() string {
-	if intf.name != "" {
-		return intf.name
+	if intf.Name == "" {
+		i, err := intf.getLink()
+		if err == nil {
+			intf.Name = i.Attrs().Name
+		}
 	}
-	i, err := intf.getLink()
-	if err != nil {
-		return ""
-	}
-	return i.Attrs().Name
+	return intf.Name
 }
 
 func (intf *Interface) GetLocalPrefixes() []string {
@@ -129,7 +128,7 @@ func NewInterface(index int, options ...InterfaceOption) *Interface {
 	}
 	intf := &Interface{
 		index:         index,
-		name:          opts.name,
+		Name:          opts.name,
 		LocalIPs:      []string{},
 		NeighborIPs:   []string{},
 		Gateways:      []string{},
