@@ -150,6 +150,7 @@ func main() {
 		},
 	}
 	p := proxy.NewProxy(conduit, config.Host, ipamClient, config.IPFamily, netUtils)
+	go p.IPReleaser(ctx)
 
 	apiClientConfig := &nsm.Config{
 		Name:             config.Name,

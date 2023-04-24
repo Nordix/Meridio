@@ -23,6 +23,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -37,16 +38,17 @@ const srcChildNamePrefix = "-src"
 
 // Proxy -
 type Proxy struct {
-	Bridge     networking.Bridge
-	vips       []*virtualIP
-	conduit    *nspAPI.Conduit
-	Subnets    map[ipamAPI.IPFamily]*ipamAPI.Subnet
-	IpamClient ipamAPI.IpamClient
-	mutex      sync.Mutex
-	netUtils   networking.Utils
-	nexthops   []string
-	tableID    int
-	logger     logr.Logger
+	Bridge              networking.Bridge
+	vips                []*virtualIP
+	conduit             *nspAPI.Conduit
+	Subnets             map[ipamAPI.IPFamily]*ipamAPI.Subnet
+	IpamClient          ipamAPI.IpamClient
+	mutex               sync.Mutex
+	netUtils            networking.Utils
+	nexthops            []string
+	tableID             int
+	logger              logr.Logger
+	connectionToRelease chan string
 }
 
 func (p *Proxy) isNSMInterface(intf networking.Iface) bool {
@@ -292,25 +294,52 @@ func (p *Proxy) UnsetIPContext(ctx context.Context, conn *networkservice.Connect
 		// Use the segment ID referring to the TAPA side of the NSM connection
 		id = conn.GetPath().GetPathSegments()[0].Id
 	}
-	for _, subnet := range p.Subnets {
-		child := &ipamAPI.Child{
-			Name:   fmt.Sprintf("%s%s", id, srcChildNamePrefix),
-			Subnet: subnet,
-		}
-		_, err := p.IpamClient.Release(ctx, child)
-		if err != nil {
-			return err
-		}
-		child = &ipamAPI.Child{
-			Name:   fmt.Sprintf("%s%s", id, dstChildNamePrefix),
-			Subnet: subnet,
-		}
-		_, err = p.IpamClient.Release(ctx, child)
-		if err != nil {
-			return err
+	p.connectionToRelease <- id
+	return nil
+}
+
+func (p *Proxy) IPReleaser(ctx context.Context) {
+	for {
+		select {
+		case id := <-p.connectionToRelease:
+			ctxRelease, cancel := context.WithTimeout(ctx, 10*time.Second)
+			for _, subnet := range p.Subnets {
+				child := &ipamAPI.Child{
+					Name:   fmt.Sprintf("%s%s", id, srcChildNamePrefix),
+					Subnet: subnet,
+				}
+				_, err := p.IpamClient.Release(ctxRelease, child)
+				if err != nil {
+					p.logger.Error(err, "failed to release IP", "id", id, "subnet", subnet)
+					select {
+					case p.connectionToRelease <- id:
+						p.connectionToRelease <- id
+					default:
+						p.logger.V(1).Info("dropping IP release since connectionToRelease if full", "id", id, "subnet", subnet)
+					}
+					break
+				}
+				child = &ipamAPI.Child{
+					Name:   fmt.Sprintf("%s%s", id, dstChildNamePrefix),
+					Subnet: subnet,
+				}
+				_, err = p.IpamClient.Release(ctxRelease, child)
+				if err != nil {
+					p.logger.Error(err, "failed to release IP", "id", id, "subnet", subnet)
+					select {
+					case p.connectionToRelease <- id:
+						p.connectionToRelease <- id
+					default:
+						p.logger.V(1).Info("dropping IP release since connectionToRelease if full", "id", id, "subnet", subnet)
+					}
+					break
+				}
+			}
+			cancel()
+		case <-ctx.Done():
+			return
 		}
 	}
-	return nil
 }
 
 func (p *Proxy) setBridgeIP(prefix string) error {
@@ -385,15 +414,16 @@ func NewProxy(conduit *nspAPI.Conduit, nodeName string, ipamClient ipamAPI.IpamC
 		logger.Error(err, "Creating the bridge")
 	}
 	proxy := &Proxy{
-		Bridge:     bridge,
-		conduit:    conduit,
-		netUtils:   netUtils,
-		nexthops:   []string{},
-		vips:       []*virtualIP{},
-		tableID:    1,
-		Subnets:    make(map[ipamAPI.IPFamily]*ipamAPI.Subnet),
-		IpamClient: ipamClient,
-		logger:     logger,
+		Bridge:              bridge,
+		conduit:             conduit,
+		netUtils:            netUtils,
+		nexthops:            []string{},
+		vips:                []*virtualIP{},
+		tableID:             1,
+		Subnets:             make(map[ipamAPI.IPFamily]*ipamAPI.Subnet),
+		IpamClient:          ipamClient,
+		logger:              logger,
+		connectionToRelease: make(chan string, 40),
 	}
 
 	if strings.ToLower(ipFamily) == "ipv4" {
