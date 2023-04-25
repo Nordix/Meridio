@@ -23,6 +23,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -30,6 +31,7 @@ import (
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
+	"github.com/nordix/meridio/pkg/retry"
 )
 
 const dstChildNamePrefix = "-dst"
@@ -37,16 +39,18 @@ const srcChildNamePrefix = "-src"
 
 // Proxy -
 type Proxy struct {
-	Bridge     networking.Bridge
-	vips       []*virtualIP
-	conduit    *nspAPI.Conduit
-	Subnets    map[ipamAPI.IPFamily]*ipamAPI.Subnet
-	IpamClient ipamAPI.IpamClient
-	mutex      sync.Mutex
-	netUtils   networking.Utils
-	nexthops   []string
-	tableID    int
-	logger     logr.Logger
+	Bridge                   networking.Bridge
+	vips                     []*virtualIP
+	conduit                  *nspAPI.Conduit
+	Subnets                  map[ipamAPI.IPFamily]*ipamAPI.Subnet
+	IpamClient               ipamAPI.IpamClient
+	mutex                    sync.Mutex
+	netUtils                 networking.Utils
+	nexthops                 []string
+	tableID                  int
+	logger                   logr.Logger
+	connectionToReleaseMap   map[string]context.CancelFunc
+	connectionToReleaseMutex sync.Mutex
 }
 
 func (p *Proxy) isNSMInterface(intf networking.Iface) bool {
@@ -148,6 +152,14 @@ func (p *Proxy) SetIPContext(ctx context.Context, conn *networkservice.Connectio
 		// adding excess code to try and recover IPs the old way as well.)
 		id = conn.GetPath().GetPathSegments()[0].Id
 	}
+
+	// cancels the ip release for this connection if it is in progress
+	p.connectionToReleaseMutex.Lock()
+	cancel, exists := p.connectionToReleaseMap[id]
+	if exists {
+		cancel()
+	}
+	p.connectionToReleaseMutex.Unlock()
 
 	srcIPAddrs := []string{}
 	dstIpAddrs := []string{}
@@ -292,25 +304,51 @@ func (p *Proxy) UnsetIPContext(ctx context.Context, conn *networkservice.Connect
 		// Use the segment ID referring to the TAPA side of the NSM connection
 		id = conn.GetPath().GetPathSegments()[0].Id
 	}
-	for _, subnet := range p.Subnets {
-		child := &ipamAPI.Child{
-			Name:   fmt.Sprintf("%s%s", id, srcChildNamePrefix),
-			Subnet: subnet,
-		}
-		_, err := p.IpamClient.Release(ctx, child)
-		if err != nil {
-			return err
-		}
-		child = &ipamAPI.Child{
-			Name:   fmt.Sprintf("%s%s", id, dstChildNamePrefix),
-			Subnet: subnet,
-		}
-		_, err = p.IpamClient.Release(ctx, child)
-		if err != nil {
-			return err
-		}
-	}
+	// Release the IPs in background, so it is not blocking in case the IPAM is down
+	go p.ipReleaser(id)
 	return nil
+}
+
+func (p *Proxy) ipReleaser(id string) {
+	p.connectionToReleaseMutex.Lock()
+	_, exists := p.connectionToReleaseMap[id]
+	if exists { // If an ipReleaser is already running for this connection Id
+		return
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	p.connectionToReleaseMap[id] = cancel // So SetIPContext can cancel in case it needs the IP for this connection
+	p.connectionToReleaseMutex.Unlock()
+	_ = retry.Do(func() error {
+		ctxRelease, cancelRelease := context.WithTimeout(ctx, 10*time.Second)
+		defer cancelRelease()
+		for _, subnet := range p.Subnets {
+			child := &ipamAPI.Child{
+				Name:   fmt.Sprintf("%s%s", id, srcChildNamePrefix),
+				Subnet: subnet,
+			}
+			_, err := p.IpamClient.Release(ctxRelease, child)
+			if err != nil {
+				p.logger.Error(err, "failed to release IP", "id", id, "subnet", subnet)
+				return err
+			}
+			child = &ipamAPI.Child{
+				Name:   fmt.Sprintf("%s%s", id, dstChildNamePrefix),
+				Subnet: subnet,
+			}
+			_, err = p.IpamClient.Release(ctxRelease, child)
+			if err != nil {
+				p.logger.Error(err, "failed to release IP", "id", id, "subnet", subnet)
+				return err
+			}
+			p.logger.Info("release IP", "id", id, "subnet", subnet)
+		}
+		return nil
+	}, retry.WithContext(ctx),
+		retry.WithDelay(2*time.Second))
+	p.connectionToReleaseMutex.Lock()
+	delete(p.connectionToReleaseMap, id)
+	p.connectionToReleaseMutex.Unlock()
 }
 
 func (p *Proxy) setBridgeIP(prefix string) error {
@@ -385,15 +423,16 @@ func NewProxy(conduit *nspAPI.Conduit, nodeName string, ipamClient ipamAPI.IpamC
 		logger.Error(err, "Creating the bridge")
 	}
 	proxy := &Proxy{
-		Bridge:     bridge,
-		conduit:    conduit,
-		netUtils:   netUtils,
-		nexthops:   []string{},
-		vips:       []*virtualIP{},
-		tableID:    1,
-		Subnets:    make(map[ipamAPI.IPFamily]*ipamAPI.Subnet),
-		IpamClient: ipamClient,
-		logger:     logger,
+		Bridge:                 bridge,
+		conduit:                conduit,
+		netUtils:               netUtils,
+		nexthops:               []string{},
+		vips:                   []*virtualIP{},
+		tableID:                1,
+		Subnets:                make(map[ipamAPI.IPFamily]*ipamAPI.Subnet),
+		IpamClient:             ipamClient,
+		logger:                 logger,
+		connectionToReleaseMap: map[string]context.CancelFunc{},
 	}
 
 	if strings.ToLower(ipFamily) == "ipv4" {
