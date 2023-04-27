@@ -48,6 +48,7 @@ import (
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 func printHelp() {
@@ -131,7 +132,11 @@ func main() {
 		),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
-		))
+		),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time: config.GRPCKeepaliveTime,
+		}),
+	)
 	if err != nil {
 		log.Fatal(logger, "Dialing IPAM", "error", err)
 	}
@@ -205,7 +210,11 @@ func main() {
 		),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
-		))
+		),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time: config.GRPCKeepaliveTime,
+		}),
+	)
 	if err != nil {
 		log.Fatal(logger, "Dialing NSP", "error", err)
 	}

@@ -29,6 +29,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kelseyhightower/envconfig"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	feConfig "github.com/nordix/meridio/cmd/frontend/internal/config"
@@ -98,7 +99,11 @@ func main() {
 		),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
-		))
+		),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time: config.GRPCKeepaliveTime,
+		}),
+	)
 	if err != nil {
 		log.Fatal(logger, "Dial NSP", "error", err)
 	}
