@@ -42,6 +42,7 @@ type Config struct {
 	IPFamily           string        `default:"dualstack" desc:"ip family" envconfig:"ip_family"`
 	LogLevel           string        `default:"DEBUG" desc:"Log level" split_words:"true"`
 	MTU                int           `default:"1500" desc:"Conduit MTU considered by local NSCs and NSE composing the network mesh" split_words:"true"`
+	GRPCKeepaliveTime  time.Duration `default:"30s" desc:"gRPC keepalive timeout"`
 }
 
 // IsValid checks if the configuration is valid

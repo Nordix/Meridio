@@ -40,6 +40,7 @@ type Config struct {
 	Nfqueue               string        `default:"0:3" desc:"netfilter queue(s) to be used by nfqlb" split_words:"true"`
 	NfqueueFanout         bool          `default:"false" desc:"enable fanout nfqueue option" split_words:"true"`
 	IdentifierOffsetStart int           `default:"5000" desc:"Each Stream will get a unique identifier range starting from that value" split_words:"true"`
+	GRPCKeepaliveTime     time.Duration `default:"30s" desc:"gRPC keepalive timeout"`
 }
 
 // IsValid checks if the configuration is valid

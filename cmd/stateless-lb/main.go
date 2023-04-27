@@ -59,6 +59,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 func printHelp() {
@@ -131,7 +132,11 @@ func main() {
 		),
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
-		))
+		),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time: config.GRPCKeepaliveTime,
+		}),
+	)
 	if err != nil {
 		log.Fatal(logger, "Dial NSP", "error", err)
 	}
