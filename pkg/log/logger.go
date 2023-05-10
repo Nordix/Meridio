@@ -127,6 +127,7 @@ func newLogger(level string) logr.Logger {
 	zc.EncoderConfig.EncodeTime = timeEncoder
 	zc.EncoderConfig.EncodeLevel = levelEncoder
 	zc.Encoding = "json"
+	zc.Sampling = nil
 	zc.OutputPaths = []string{"stdout"}
 	z, err := zc.Build()
 	if err != nil {
