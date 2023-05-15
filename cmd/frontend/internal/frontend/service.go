@@ -245,7 +245,11 @@ func (fes *FrontEndService) SetNewConfig(ctx context.Context, c interface{}) err
 // Check bgp prorocols' status by periodically querying birdc.
 // - Log changes in availablity/connectivity.
 // - Reflect external connectivity through NSP to be used by LBs
-// to steer outbound traffic.
+// to steer outbound traffic. (NSP target registration is valid
+// for a certain amount of time, has to be renewed periodically.
+// Related RPC calls initiated by FE have a deadline to avoid
+// blocking undefintely. Loss of external connectivity worst case
+// will be announced through expired registration on the NSP side.)
 // - Withdraw VIPs in case FE is considered down, in order to not
 // attract traffic through other available links if any. More like
 // VIPs must be added to BIRD only if the frontend is considered up.
@@ -283,6 +287,13 @@ func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 				if refreshCancel != nil {
 					refreshCancel()
 				}
+				// denounce the FE on shutdown so that watchers could be notified early on
+				// (do not block too long, the NSP might not be available, but at least give it a try)
+				denounceCtx, cancelDenounce := context.WithTimeout(context.Background(), 3*time.Second)
+				if err := denounceFrontend(denounceCtx, fes.targetRegistryClient); err != nil {
+					logger.Info("Denounce frontend connectivity", "err", err)
+				}
+				cancelDenounce()
 				return
 			case <-time.After(delay): //timeout
 				delay = 1 * time.Second
@@ -299,7 +310,9 @@ func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 					if refreshCancel != nil {
 						refreshCancel()
 					}
-					_ = denounceFrontend(fes.targetRegistryClient)
+					denounceCtx, cancelDenounce := context.WithTimeout(ctx, 15*time.Second)
+					_ = denounceFrontend(denounceCtx, fes.targetRegistryClient)
+					cancelDenounce()
 					noConnectivity = true
 					connectivityMap = map[string]bool{}
 					logger.Info("protocol output", "out", protocolOut)
@@ -329,9 +342,11 @@ func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 						if refreshCancel != nil {
 							refreshCancel()
 						}
-						if err := denounceFrontend(fes.targetRegistryClient); err != nil {
+						denounceCtx, cancelDenounce := context.WithTimeout(ctx, 15*time.Second)
+						if err := denounceFrontend(denounceCtx, fes.targetRegistryClient); err != nil {
 							logger.Error(err, "Denounce frontend connectivity")
 						}
+						cancelDenounce()
 						fes.denounceVIP(ctx, errCh)
 					}
 				} else {
@@ -339,18 +354,24 @@ func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 						noConnectivity = false
 						health.SetServingStatus(ctx, health.EgressSvc, true)
 						logger.Info("Announce frontend")
-						if err := announceFrontend(fes.targetRegistryClient); err != nil {
+						announceCtx, cancelAnnounce := context.WithTimeout(ctx, 10*time.Second)
+						if err := announceFrontend(announceCtx, fes.targetRegistryClient); err != nil {
 							logger.Error(err, "Announce frontend connectivity")
 						}
+						cancelAnnounce()
 						// refresh NSP entry
 						var refreshCtx context.Context
 						refreshCtx, refreshCancel = context.WithCancel(ctx)
 						go func() {
+							l := fes.logger.WithValues("func", "announceFrontend")
 							_ = retry.Do(func() error {
-								return announceFrontend(fes.targetRegistryClient)
+								announceCtx, cancelAnnounce := context.WithTimeout(refreshCtx, 10*time.Second)
+								defer cancelAnnounce()
+								return announceFrontend(announceCtx, fes.targetRegistryClient)
 							}, retry.WithContext(refreshCtx),
 								retry.WithDelay(fes.nspEntryTimeout),
-								retry.WithErrorIngnored())
+								retry.WithErrorIngnored(),
+								retry.WithLogger(&l))
 						}()
 						fes.announceVIP(ctx, errCh)
 					}

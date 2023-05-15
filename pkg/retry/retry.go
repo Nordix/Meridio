@@ -47,6 +47,9 @@ retry:
 		err := retryableFunc()
 
 		if err != nil {
+			if config.logger != nil {
+				(*config.logger).Info("retryable function failed", "error", err)
+			}
 			errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 		}
 

@@ -19,6 +19,8 @@ package retry
 import (
 	"context"
 	"time"
+
+	"github.com/go-logr/logr"
 )
 
 // RetryTrigger is the function definition specifying when the Do
@@ -33,6 +35,7 @@ type Config struct {
 	context            context.Context
 	retryTriggerFunc   RetryTrigger
 	retryConditionFunc RetryCondition
+	logger             *logr.Logger
 }
 
 func newConfig() *Config {

@@ -19,6 +19,8 @@ package retry
 import (
 	"context"
 	"time"
+
+	"github.com/go-logr/logr"
 )
 
 type Option func(*Config)
@@ -73,4 +75,11 @@ func WithErrorIngnored() Option {
 	return WithRetryCondition(func(err error) bool {
 		return true
 	})
+}
+
+// WithLogger sets a logger to log error return of the retryableFunc.
+func WithLogger(logger *logr.Logger) Option {
+	return func(c *Config) {
+		c.logger = logger
+	}
 }
