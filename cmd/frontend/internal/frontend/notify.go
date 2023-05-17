@@ -36,39 +36,34 @@ import (
 // Note: Currently IPv4/IPv6 connectivity is not separated, as IPv4/IPv6 handling is not properly
 // separated in Meridio when managing the NSM backplane either.
 
-// TODO: add context to nspClient calls so that they could be cancelled
 // TODO: must denounce FE upon its shutdown (make sure it won't block forever e.g. in case NSP is no longer available)
 // TODO: maybe introduce update target through new context keyword, indicating nsp to replace found item with new one
-func announceFrontend(targetRegistryClient nspAPI.TargetRegistryClient) error {
+func announceFrontend(ctx context.Context, targetRegistryClient nspAPI.TargetRegistryClient) error {
 	hn, _ := os.Hostname()
 	targetContext := map[string]string{
 		types.IdentifierKey: hn,
 	}
-	log.Logger.V(2).Info("Announce frontend", "hostname", hn, "targetType", nspAPI.Target_FRONTEND)
-	_, err := targetRegistryClient.Register(context.Background(), &nspAPI.Target{
+	logger := log.FromContextOrGlobal(ctx)
+	logger.V(2).Info("Announce frontend", "hostname", hn, "targetType", nspAPI.Target_FRONTEND)
+	_, err := targetRegistryClient.Register(ctx, &nspAPI.Target{
 		Ips:     []string{hn},
 		Type:    nspAPI.Target_FRONTEND,
 		Context: targetContext,
 	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
-func denounceFrontend(targetRegistryClient nspAPI.TargetRegistryClient) error {
+func denounceFrontend(ctx context.Context, targetRegistryClient nspAPI.TargetRegistryClient) error {
 	hn, _ := os.Hostname()
 	targetContext := map[string]string{
 		types.IdentifierKey: hn,
 	}
-	log.Logger.Info("Denounce frontend", "hostname", hn, "targetType", nspAPI.Target_FRONTEND)
-	_, err := targetRegistryClient.Unregister(context.Background(), &nspAPI.Target{
+	logger := log.FromContextOrGlobal(ctx)
+	logger.Info("Denounce frontend", "hostname", hn, "targetType", nspAPI.Target_FRONTEND)
+	_, err := targetRegistryClient.Unregister(ctx, &nspAPI.Target{
 		Ips:     []string{hn},
 		Type:    nspAPI.Target_FRONTEND,
 		Context: targetContext,
 	})
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }

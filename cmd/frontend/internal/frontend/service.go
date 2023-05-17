@@ -84,6 +84,7 @@ func NewFrontEndService(ctx context.Context, c *feConfig.Config) *FrontEndServic
 		secretManager:        watcher.NewObjectMonitorManager(ctx, c.Namespace, sdb, secret.CreateSecretInterface),
 		authCh:               authCh,
 		logger:               logger,
+		config:               c,
 	}
 
 	if len(frontEndService.vrrps) > 0 {
@@ -129,6 +130,7 @@ type FrontEndService struct {
 	secretManager        watcher.ObjectMonitorManagerInterface // keeps track changes of Secrets
 	authCh               chan struct{}                         // used by secretDatabase to signal updates to FE Service
 	logger               logr.Logger
+	config               *feConfig.Config
 }
 
 // CleanUp -
@@ -252,131 +254,148 @@ func (fes *FrontEndService) SetNewConfig(ctx context.Context, c interface{}) err
 // (Note: IPv4/IPv6 backplane not separated).
 func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 	logger := fes.logger.WithValues("func", "Monitor")
-	lp, err := fes.routingService.LookupCli()
-	if err != nil {
-		errCh <- fmt.Errorf("routing service cli not found: %v", err)
-		return
-	}
 
-	logForced := func() bool {
-		fes.monitorMu.Lock()
-		defer fes.monitorMu.Unlock()
-		forced := fes.logNextMonitorStatus
-		fes.logNextMonitorStatus = false
-		return forced
-	}
+	var (
+		// hasConnectivity indicates external connectivity
+		// requires 1 GW per IP family if configured to be reachable
+		hasConnectivity bool
+		// sessionErrors may be temporary
+		sessionErrors int
+		// lastStatusMap is the last statusMap
+		lastStatusMap map[string]bool
+		// delay between checks
+		delay time.Duration
+		// refreshCancel cancel periodic announcement to NSP
+		refreshCancel context.CancelFunc
+		// denounce indicates that the FE shall be denounced in the NSP
+		denounce bool = true // Always denounce on container start
+	)
 
-	//linkCh := make(chan string, 1)
 	go func() {
-		var once sync.Once
-		//defer close(linkCh)
-		// status of external connectivity; requires 1 GW per IP family if configured to be reachable
-		init, noConnectivity := true, true
-		connectivityMap := map[string]bool{}
-		delay := 3 * time.Second // when started grant more time to write the whole config (minimize intial link flapping)
-		_ = fes.WaitStart(ctx)
-		var refreshCancel context.CancelFunc
+		// Wait until BIRD started
+		if err := fes.WaitStart(ctx); err != nil {
+			logger.Error(err, "WaitStart")
+		}
+		lp, err := fes.routingService.LookupCli()
+		if err != nil {
+			// shoudn't fail if WaitStart() was ok
+			errCh <- fmt.Errorf("routing service cli not found: %v", err)
+			return
+		}
+
 		for {
+			if denounce || sessionErrors > fes.config.MaxSessionErrors {
+				denounce = false
+				sessionErrors = 0
+				hasConnectivity = false
+				lastStatusMap = nil
+				delay = fes.config.DelayNoConnectivity
+
+				if refreshCancel != nil {
+					refreshCancel()
+					refreshCancel = nil
+				}
+				ctxTimeout, cancel := context.WithTimeout(ctx, time.Second*30)
+				if err := denounceFrontend(ctxTimeout, fes.targetRegistryClient); err != nil {
+					logger.Error(err, "denounceFrontend")
+				}
+				cancel()
+				health.SetServingStatus(ctx, health.EgressSvc, false)
+				fes.denounceVIP(ctx, errCh)
+			}
+
 			select {
 			case <-ctx.Done():
 				logger.Info("Shutting down")
 				if refreshCancel != nil {
 					refreshCancel()
 				}
+				if hasConnectivity {
+					ctxTimeout, cancel := context.WithTimeout(context.Background(), time.Second*5)
+					defer cancel()
+					if err := denounceFrontend(ctxTimeout, fes.targetRegistryClient); err != nil {
+						logger.Error(err, "Last denounceFrontend")
+					}
+				}
 				return
 			case <-time.After(delay): //timeout
-				delay = 1 * time.Second
+				delay = fes.config.DelayConnectivity
 			}
 
-			forced := logForced() // force status logs after config updates
+			// These errors may be temporary, so don't denounce immediately
 			protocolOut, err := fes.routingService.ShowProtocolSessions(ctx, lp, `NBR-*`)
 			if err != nil {
-				logger.Info("protocol output", "err", err, "out", strings.Split(protocolOut, "\n"))
-				//Note: if birdc is not yet running, no need to bail out
-				//linkCh <- "Failed to fetch protocol status"
-			} else if strings.Contains(protocolOut, bird.NoProtocolsLog) {
-				if !noConnectivity || init {
-					if refreshCancel != nil {
-						refreshCancel()
-					}
-					_ = denounceFrontend(fes.targetRegistryClient)
-					noConnectivity = true
-					connectivityMap = map[string]bool{}
-					logger.Info("protocol output", "out", protocolOut)
-					//linkCh <- "No protocols match"
+				logger.Error(err, "protocol output", "out", strings.Split(protocolOut, "\n"))
+				sessionErrors++
+				continue
+			}
+			bfdOut, err := fes.routingService.ShowBfdSessions(ctx, lp, `NBR-BFD`)
+			if err != nil {
+				logger.Error(err, "BFD output", "out", strings.Split(bfdOut, "\n"))
+				sessionErrors++
+				continue
+			}
+			sessionErrors = 0
+
+			if strings.Contains(protocolOut, bird.NoProtocolsLog) {
+				logger.Info("protocol output", "out", protocolOut)
+				denounce = true
+				continue
+			}
+
+			// determine status of gateways and connectivity
+			status := fes.parseStatusOutput(protocolOut, bfdOut)
+
+			// Gateway availibility notifications
+			if status.NoConnectivity() {
+				// although configured at least one IP family has no connectivity
+				if hasConnectivity {
+					denounce = true
 				}
 			} else {
-				bfdOut, err := fes.routingService.ShowBfdSessions(ctx, lp, `NBR-BFD`)
-				if err != nil {
-					logger.Info("BFD output", "err", err, "out", strings.Split(bfdOut, "\n"))
-					//Note: if birdc is not yet running, no need to bail out
-					//linkCh <- "Failed to fetch bfd status"
-					break
-				}
-				// determine status of gateways and connectivity
-				status := fes.parseStatusOutput(protocolOut, bfdOut)
-
-				// Gateway availibility notifications
-				// XXX: in case denounceFrontend/announceFrontend would block the thread for too long
-				// (no NSP is listening etc.), and it is a problem, move them to dedicated go thread
-				// TODO: maybe move logic to separate function
-				if status.NoConnectivity() {
-					// although configured at least one IP family has no connectivity
-					// Note: deanounce FE even if just started (init); container might have crashed
-					if !noConnectivity || init {
-						noConnectivity = true
-						health.SetServingStatus(ctx, health.EgressSvc, false)
-						if refreshCancel != nil {
-							refreshCancel()
-						}
-						if err := denounceFrontend(fes.targetRegistryClient); err != nil {
-							logger.Error(err, "Denounce frontend connectivity")
-						}
-						fes.denounceVIP(ctx, errCh)
+				if !hasConnectivity {
+					hasConnectivity = true
+					health.SetServingStatus(ctx, health.EgressSvc, true)
+					logger.Info("Announce frontend")
+					ctxTimeout, cancel := context.WithTimeout(ctx, time.Second*30)
+					if err := announceFrontend(ctxTimeout, fes.targetRegistryClient); err != nil {
+						logger.Error(err, "Announce frontend connectivity")
 					}
-				} else {
-					if noConnectivity {
-						noConnectivity = false
-						health.SetServingStatus(ctx, health.EgressSvc, true)
-						logger.Info("Announce frontend")
-						if err := announceFrontend(fes.targetRegistryClient); err != nil {
-							logger.Error(err, "Announce frontend connectivity")
-						}
-						// refresh NSP entry
-						var refreshCtx context.Context
-						refreshCtx, refreshCancel = context.WithCancel(ctx)
-						go func() {
-							_ = retry.Do(func() error {
-								return announceFrontend(fes.targetRegistryClient)
-							}, retry.WithContext(refreshCtx),
-								retry.WithDelay(fes.nspEntryTimeout),
-								retry.WithErrorIngnored())
-						}()
-						fes.announceVIP(ctx, errCh)
-					}
+					cancel()
+					// Refresh NSP entry even if announceFrontend() above fails.
+					// The FE still has external connectivity and should keep trying to
+					// inform NSP about it.
+					var refreshCtx context.Context
+					refreshCtx, refreshCancel = context.WithCancel(ctx)
+					go func() {
+						_ = retry.Do(func() error {
+							ctxTimeout, cancel := context.WithTimeout(ctx, time.Second*30)
+							defer cancel()
+							return announceFrontend(ctxTimeout, fes.targetRegistryClient)
+						}, retry.WithContext(refreshCtx),
+							retry.WithDelay(fes.nspEntryTimeout),
+							retry.WithErrorIngnored())
+					}()
+					fes.announceVIP(ctx, errCh)
 				}
-
-				// Logging
-				// log gateway connectivity information upon config or protocol status changes
-				if forced || !reflect.DeepEqual(connectivityMap, status.StatusMap()) {
-					if status.AnyGatewayDown() {
-						logger.Error(fmt.Errorf("gateway down"), "connectivity", "status", status.Status(), "out", strings.Split(status.Log(), "\n"))
-					} else {
-						logger.Info("connectivity", "status", status.Status(), "out", strings.Split(status.Log(), "\n"))
-					}
-
-				}
-				connectivityMap = status.StatusMap()
-
-				// TODO: ugly
-				once.Do(func() {
-					init = false
-				})
 			}
-		}
-		if refreshCancel != nil {
-			refreshCancel()
-		}
+
+			// Logging
+			// log gateway connectivity information upon config or protocol status changes
+			fes.monitorMu.Lock()
+			logForced := fes.logNextMonitorStatus
+			fes.logNextMonitorStatus = false
+			fes.monitorMu.Unlock()
+			if logForced || !reflect.DeepEqual(lastStatusMap, status.StatusMap()) {
+				if status.AnyGatewayDown() {
+					logger.Error(fmt.Errorf("gateway down"), "connectivity", "status", status.Status(), "out", strings.Split(status.Log(), "\n"))
+				} else {
+					logger.Info("connectivity", "status", status.Status(), "out", strings.Split(status.Log(), "\n"))
+				}
+
+			}
+			lastStatusMap = status.StatusMap()
+		} // for {
 	}()
 }
 
