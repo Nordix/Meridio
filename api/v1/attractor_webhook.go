@@ -117,10 +117,6 @@ func (r *Attractor) validateAttractor() error {
 			allErrs = append(allErrs, field.Forbidden(field.NewPath("spec").Child("ipv6-prefix"), "not supported for type"))
 		}
 
-		if len(r.Spec.Interface.NetworkAttachments) != 1 {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("interface").Child("multus-interface"),
-				r.Spec.Interface.NetworkAttachments, "single Network Attachment item required"))
-		}
 		for _, na := range r.Spec.Interface.NetworkAttachments {
 			if na.Name == "" {
 				allErrs = append(allErrs, field.Required(field.NewPath("spec").Child("interface").Child("network-attachments").Child("name"),
