@@ -52,7 +52,7 @@ require (
 	github.com/edwarnicke/exechelper v1.0.2 // indirect
 	github.com/edwarnicke/genericsync v0.0.0-20220910010113-61a344f9bc29 // indirect
 	github.com/edwarnicke/serialize v1.0.7 // indirect
-	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
+	github.com/emicklei/go-restful/v3 v3.10.2 // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
