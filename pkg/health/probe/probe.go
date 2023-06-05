@@ -44,8 +44,8 @@ func NewGRPCHealthProbe(options ...Option) (*GrpcHealthProbe, error) {
 		cmd:         "grpc_health_probe",
 		addr:        fmt.Sprintf("-addr=%v", health.DefaultURL),
 		service:     "-service=",
-		rpcTimeout:  "-rpc-timeout=350ms",
-		connTimeout: "-connect-timeout=250ms",
+		rpcTimeout:  "-rpc-timeout=400ms",
+		connTimeout: "-connect-timeout=400ms",
 	}
 	for _, opt := range options {
 		opt(opts)
@@ -67,7 +67,7 @@ func NewGRPCHealthProbe(options ...Option) (*GrpcHealthProbe, error) {
 
 // String -
 func (ghp *GrpcHealthProbe) String() string {
-	return fmt.Sprintf("%v %v %v %v %v %v", ghp.cmd, ghp.addr, ghp.service, ghp.rpcTimeout, ghp.rpcTimeout, ghp.spiffe)
+	return fmt.Sprintf("%v %v %v %v %v %v", ghp.cmd, ghp.addr, ghp.service, ghp.connTimeout, ghp.rpcTimeout, ghp.spiffe)
 }
 
 // Run -
@@ -84,8 +84,8 @@ func (ghp *GrpcHealthProbe) Run(ctx context.Context) error {
 }
 
 // CreateAndRunGRPCHealthProbe -
-// Creates gRPC Health Probe and starts running it background while registering
-// the probing results to Health Server.
+// Creates gRPC Health Probe and starts running it in background.
+// Registers probing results to Health Server retrieved from context.
 // TODO: configurable period, timeout
 func CreateAndRunGRPCHealthProbe(ctx context.Context, healthService string, options ...Option) {
 	// create the probe for the servie
@@ -97,7 +97,7 @@ func CreateAndRunGRPCHealthProbe(ctx context.Context, healthService string, opti
 	log.Logger.V(1).Info("Created background probe", "probe", ghp)
 
 	runf := func(ctx context.Context) error {
-		cancelCtx, cancel := context.WithTimeout(ctx, 3*time.Second) // probe timeout
+		cancelCtx, cancel := context.WithTimeout(ctx, 4*time.Second) // probe timeout
 		defer cancel()
 		servingStatus := grpc_health_v1.HealthCheckResponse_SERVING
 		if err := ghp.Run(cancelCtx); err != nil {

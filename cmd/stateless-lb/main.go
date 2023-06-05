@@ -223,7 +223,13 @@ func main() {
 		log.Fatal(logger, "Unable to start nse", "error", err)
 	}
 
-	probe.CreateAndRunGRPCHealthProbe(ctx, health.NSMEndpointSvc, probe.WithAddress(ep.GetUrl()), probe.WithSpiffe())
+	probe.CreateAndRunGRPCHealthProbe(
+		ctx,
+		health.NSMEndpointSvc,
+		probe.WithAddress(ep.GetUrl()),
+		probe.WithSpiffe(),
+		probe.WithRPCTimeout(config.GRPCProbeRPCTimeout.String()),
+	)
 
 	ctx = lbFactory.Start(ctx) // start nfqlb process in background
 	sns.Start()

@@ -197,7 +197,13 @@ func main() {
 		}
 	}()
 	// internal probe checking health of NSE
-	probe.CreateAndRunGRPCHealthProbe(signalCtx, health.NSMEndpointSvc, probe.WithAddress(ep.Server.GetUrl()), probe.WithSpiffe())
+	probe.CreateAndRunGRPCHealthProbe(
+		signalCtx,
+		health.NSMEndpointSvc,
+		probe.WithAddress(ep.Server.GetUrl()),
+		probe.WithSpiffe(),
+		probe.WithRPCTimeout(config.GRPCProbeRPCTimeout.String()),
+	)
 
 	// connect NSP and start watching config events of interest
 	configurationContext, configurationCancel := context.WithCancel(signalCtx)
