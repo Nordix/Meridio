@@ -55,8 +55,8 @@ spec:
                 - /bin/grpc_health_probe
                 - -addr=unix:///tmp/health.sock
                 - -service=
-                - -connect-timeout=250ms
-                - -rpc-timeout=350ms
+                - -connect-timeout=400ms
+                - -rpc-timeout=400ms
             initialDelaySeconds: 0
             periodSeconds: 2
             timeoutSeconds: 2
@@ -68,8 +68,8 @@ spec:
                 - /bin/grpc_health_probe
                 - -addr=unix:///tmp/health.sock
                 - -service=Readiness
-                - -connect-timeout=250ms
-                - -rpc-timeout=350ms
+                - -connect-timeout=400ms
+                - -rpc-timeout=400ms
             failureThreshold: 5
             initialDelaySeconds: 0
             periodSeconds: 10
@@ -81,10 +81,10 @@ spec:
                 - /bin/grpc_health_probe
                 - -addr=unix:///tmp/health.sock
                 - -service=
-                - -connect-timeout=250ms
-                - -rpc-timeout=350ms
+                - -connect-timeout=400ms
+                - -rpc-timeout=400ms
             failureThreshold: 5
-            initialDelaySeconds: 0
+            initialDelaySeconds: 2
             periodSeconds: 10
             timeoutSeconds: 3
             successThreshold: 1
@@ -182,8 +182,8 @@ spec:
                 - /bin/grpc_health_probe
                 - -addr=unix:///tmp/health.sock
                 - -service=
-                - -connect-timeout=250ms
-                - -rpc-timeout=350ms
+                - -connect-timeout=400ms
+                - -rpc-timeout=400ms
             initialDelaySeconds: 0
             periodSeconds: 2
             timeoutSeconds: 2
@@ -195,8 +195,8 @@ spec:
                 - /bin/grpc_health_probe
                 - -addr=unix:///tmp/health.sock
                 - -service=Readiness
-                - -connect-timeout=250ms
-                - -rpc-timeout=350ms
+                - -connect-timeout=400ms
+                - -rpc-timeout=400ms
             initialDelaySeconds: 0
             periodSeconds: 10
             timeoutSeconds: 3
@@ -208,9 +208,9 @@ spec:
                 - /bin/grpc_health_probe
                 - -addr=unix:///tmp/health.sock
                 - -service=
-                - -connect-timeout=250ms
-                - -rpc-timeout=350ms
-            initialDelaySeconds: 0
+                - -connect-timeout=400ms
+                - -rpc-timeout=400ms
+            initialDelaySeconds: 2
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 5

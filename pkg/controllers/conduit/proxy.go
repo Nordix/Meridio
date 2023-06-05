@@ -69,6 +69,9 @@ func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 		"NSM_NAMESPACE":        i.conduit.ObjectMeta.Namespace,
 		"NSM_LOG_LEVEL":        common.GetLogLevel(),
 	}
+	if rpcTimeout := common.GetGRPCProbeRPCTimeout(); rpcTimeout != "" {
+		operatorEnv["NSM_GRPC_PROBE_RPC_TIMEOUT"] = rpcTimeout
+	}
 	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }
 

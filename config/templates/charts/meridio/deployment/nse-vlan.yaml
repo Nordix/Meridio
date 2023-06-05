@@ -36,8 +36,8 @@ spec:
                 - -spiffe
                 - -addr=:5003
                 - -service=
-                - -connect-timeout=250ms
-                - -rpc-timeout=350ms
+                - -connect-timeout=400ms
+                - -rpc-timeout=1s
             initialDelaySeconds: 0
             periodSeconds: 2
             timeoutSeconds: 2
@@ -50,8 +50,8 @@ spec:
                 - -spiffe
                 - -addr=:5003
                 - -service=
-                - -connect-timeout=250ms
-                - -rpc-timeout=350ms
+                - -connect-timeout=400ms
+                - -rpc-timeout=1s
             initialDelaySeconds: 0
             periodSeconds: 10
             timeoutSeconds: 3
@@ -64,9 +64,9 @@ spec:
                 - -spiffe
                 - -addr=:5003
                 - -service=
-                - -connect-timeout=250ms
-                - -rpc-timeout=350ms
-            initialDelaySeconds: 0
+                - -connect-timeout=400ms
+                - -rpc-timeout=1s
+            initialDelaySeconds: 2
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 5

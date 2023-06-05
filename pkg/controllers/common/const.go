@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -28,12 +29,13 @@ import (
 )
 
 const (
-	ResourceNamePrefixEnv = "RESOURCE_NAME_PREFIX"
-	ImagePullSecretEnv    = "IMAGE_PULL_SECRET"
-	NSMRegistryServiceEnv = "NSM_REGISTRY_SERVICE"
-	LogLevelEnv           = "LOG_LEVEL"
-	NspServiceAccountEnv  = "NSP_SERVICE_ACCOUNT"
-	FeServiceAccountEnv   = "FE_SERVICE_ACCOUNT"
+	ResourceNamePrefixEnv   = "RESOURCE_NAME_PREFIX"
+	ImagePullSecretEnv      = "IMAGE_PULL_SECRET"
+	NSMRegistryServiceEnv   = "NSM_REGISTRY_SERVICE"
+	LogLevelEnv             = "LOG_LEVEL"
+	NspServiceAccountEnv    = "NSP_SERVICE_ACCOUNT"
+	FeServiceAccountEnv     = "FE_SERVICE_ACCOUNT"
+	GRPCHealthRPCTimeoutEnv = "GRPC_PROBE_RPC_TIMEOUT" // RPC timeout of grpc_health_probes run from code
 
 	Registry        = "registry.nordix.org"
 	Organization    = "cloud-native/meridio"
@@ -170,6 +172,14 @@ func GetImagePullSecrets() []corev1.LocalObjectReference {
 		})
 	}
 	return pullSecs
+}
+
+func GetGRPCProbeRPCTimeout() string {
+	timeout := os.Getenv(GRPCHealthRPCTimeoutEnv)
+	if _, err := time.ParseDuration(timeout); err != nil {
+		return ""
+	}
+	return timeout
 }
 
 func NsName(meta metav1.ObjectMeta) string {
