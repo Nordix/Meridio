@@ -33,4 +33,5 @@ type Config struct {
 	IPFamily                string        `default:"dualstack" desc:"ip family" envconfig:"ip_family"`
 	LogLevel                string        `default:"DEBUG" desc:"Log level" split_words:"true"`
 	GRPCKeepaliveTime       time.Duration `default:"30s" desc:"gRPC keepalive timeout"`
+	GRPCProbeRPCTimeout     time.Duration `default:"1s" desc:"RPC timeout of internal gRPC health probe" envconfig:"grpc_probe_rpc_timeout"`
 }

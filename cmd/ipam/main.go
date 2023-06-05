@@ -158,7 +158,13 @@ func main() {
 	}
 
 	// internal probe checking health of IPAM server
-	probe.CreateAndRunGRPCHealthProbe(ctx, health.IPAMSvc, probe.WithAddress(fmt.Sprintf(":%d", config.Port)), probe.WithSpiffe())
+	probe.CreateAndRunGRPCHealthProbe(
+		ctx,
+		health.IPAMSvc,
+		probe.WithAddress(fmt.Sprintf(":%d", config.Port)),
+		probe.WithSpiffe(),
+		probe.WithRPCTimeout(config.GRPCProbeRPCTimeout.String()),
+	)
 
 	if err := startServer(ctx, server, listener); err != nil {
 		logger.Error(err, "IPAM Service: failed to serve: %v")

@@ -87,13 +87,15 @@ Set IP Family
 exec:
   command:
   - /bin/grpc_health_probe
-{{- if $spiffe }}
-  - -spiffe
-{{- end }}
   - -addr={{ $healthAddr }}
   - -service={{ $healthService }}
-  - -connect-timeout=100ms
-  - -rpc-timeout=150ms
+{{- if $spiffe }}
+  - -spiffe
+  - -rpc-timeout=1s
+{{- else }}
+  - -rpc-timeout=400ms
+{{- end }}
+  - -connect-timeout=400ms
 initialDelaySeconds: 0
 periodSeconds: 2
 timeoutSeconds: 2
@@ -119,14 +121,16 @@ failureThreshold: 30
 exec:
   command:
   - /bin/grpc_health_probe
-{{- if $spiffe }}
-  - -spiffe
-{{- end }}
   - -addr={{ $healthAddr }}
   - -service={{ $healthService }}
-  - -connect-timeout=100ms
-  - -rpc-timeout=150ms
-initialDelaySeconds: 0
+{{- if $spiffe }}
+  - -spiffe
+  - -rpc-timeout=1s
+{{- else }}
+  - -rpc-timeout=400ms
+{{- end }}
+  - -connect-timeout=400ms
+initialDelaySeconds: 2
 periodSeconds: 10
 timeoutSeconds: 3
 failureThreshold: 5
@@ -151,13 +155,15 @@ failureThreshold: 5
 exec:
   command:
   - /bin/grpc_health_probe
-{{- if $spiffe }}
-  - -spiffe
-{{- end }}
   - -addr={{ $healthAddr }}
   - -service={{ $healthService }}
-  - -connect-timeout=100ms
-  - -rpc-timeout=150ms
+{{- if $spiffe }}
+  - -spiffe
+  - -rpc-timeout=1s
+{{- else }}
+  - -rpc-timeout=400ms
+{{- end }}
+  - -connect-timeout=400ms
 initialDelaySeconds: 0
 periodSeconds: 10
 timeoutSeconds: 3

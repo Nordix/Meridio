@@ -41,6 +41,7 @@ type Config struct {
 	NfqueueFanout         bool          `default:"false" desc:"enable fanout nfqueue option" split_words:"true"`
 	IdentifierOffsetStart int           `default:"5000" desc:"Each Stream will get a unique identifier range starting from that value" split_words:"true"`
 	GRPCKeepaliveTime     time.Duration `default:"30s" desc:"gRPC keepalive timeout"`
+	GRPCProbeRPCTimeout   time.Duration `default:"1s" desc:"RPC timeout of internal gRPC health probe" envconfig:"grpc_probe_rpc_timeout"`
 }
 
 // IsValid checks if the configuration is valid
