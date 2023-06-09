@@ -18,6 +18,7 @@ package stream_test
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"testing"
 
@@ -180,9 +181,21 @@ func Test_Open_Concurrent(t *testing.T) {
 	firstGet := tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return(getTargets([]string{"1"}), nil)
 	secondGet := tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) ([]*nspAPI.Target, error) {
 		concurrentIdentifier = identifierSelected
-		return getTargets([]string{"1", concurrentIdentifier, identifierSelected}), nil
+		newTarget := &nspAPI.Target{
+			Ips:     ips,
+			Context: map[string]string{types.IdentifierKey: identifierSelected},
+		}
+		targets := append(getTargets([]string{"1", concurrentIdentifier}), newTarget)
+		return targets, nil
 	}).After(firstGet)
-	tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return(getTargets([]string{"1", concurrentIdentifier, identifierSelected}), nil).After(secondGet)
+	tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) ([]*nspAPI.Target, error) {
+		newTarget := &nspAPI.Target{
+			Ips:     ips,
+			Context: map[string]string{types.IdentifierKey: identifierSelected},
+		}
+		targets := append(getTargets([]string{"1", concurrentIdentifier}), newTarget)
+		return targets, nil
+	}).After(secondGet)
 
 	firstRegister := tr.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) error {
 		assert.NotNil(t, target)
@@ -454,6 +467,108 @@ func Test_Open_Failed_Refresh(t *testing.T) {
 		identifier, exists := target.Context[types.IdentifierKey]
 		assert.True(t, exists)
 		assert.Equal(t, "1", identifier)
+		return nil
+	}).After(fourthRegister)
+
+	strm, err := stream.New(s, nil, cndt)
+	assert.Nil(t, err)
+	assert.NotNil(t, strm)
+	strm.TargetRegistry = tr
+
+	err = strm.Open(context.TODO(), nspStream)
+	assert.Nil(t, err)
+
+	err = strm.Open(context.TODO(), nspStream)
+	assert.Nil(t, err)
+}
+
+func Test_Open_Refresh_Disabled(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	s := &ambassadorAPI.Stream{
+		Name: "stream-a",
+		Conduit: &ambassadorAPI.Conduit{
+			Name: "conduit-a",
+			Trench: &ambassadorAPI.Trench{
+				Name: "trench-a",
+			},
+		},
+	}
+	ips := []string{"172.16.0.1/24", "fd00::1/64"}
+	nspStream := &nspAPI.Stream{
+		Name:       s.GetName(),
+		MaxTargets: 1,
+		Conduit: &nspAPI.Conduit{
+			Name: s.GetConduit().GetName(),
+			Trench: &nspAPI.Trench{
+				Name: s.GetConduit().GetTrench().GetName(),
+			},
+		},
+	}
+	var createdTarget *nspAPI.Target
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	cndt := mocks.NewMockConduit(ctrl)
+	tr := mocks.NewMockTargetRegistry(ctrl)
+	cndt.EXPECT().GetIPs().Return(ips).AnyTimes()
+	tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return([]*nspAPI.Target{}, nil)
+	firstRegister := tr.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) error {
+		assert.NotNil(t, target)
+		assert.Equal(t, target.Ips, ips)
+		assert.Equal(t, target.Status, nspAPI.Target_DISABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
+		assert.True(t, exists)
+		assert.Equal(t, "1", identifier)
+		createdTarget = target
+		tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return([]*nspAPI.Target{createdTarget}, nil)
+		return nil
+	})
+	secondRegister := tr.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) error {
+		assert.NotNil(t, target)
+		assert.Equal(t, target.Ips, ips)
+		assert.Equal(t, target.Status, nspAPI.Target_ENABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
+		assert.True(t, exists)
+		assert.Equal(t, "1", identifier)
+		createdTarget = target
+		tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return([]*nspAPI.Target{createdTarget}, nil)
+		createdTarget.Status = nspAPI.Target_DISABLED
+		return nil
+	}).After(firstRegister)
+	thirdRegister := tr.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) error {
+		assert.NotNil(t, target)
+		assert.Equal(t, target.Ips, ips)
+		assert.Equal(t, target.Status, nspAPI.Target_ENABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
+		assert.True(t, exists)
+		assert.Equal(t, "1", identifier)
+		createdTarget = target
+		fmt.Println("ABC")
+		tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return([]*nspAPI.Target{createdTarget}, nil)
+		createdTarget.Status = nspAPI.Target_DISABLED
+		return nil
+	}).After(secondRegister)
+	fourthRegister := tr.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) error {
+		assert.NotNil(t, target)
+		assert.Equal(t, target.Ips, ips)
+		assert.Equal(t, target.Status, nspAPI.Target_DISABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
+		assert.True(t, exists)
+		assert.Equal(t, "1", identifier)
+		createdTarget = target
+		tr.EXPECT().GetTargets(gomock.Any(), gomock.Any()).Return([]*nspAPI.Target{createdTarget}, nil)
+		createdTarget.Status = nspAPI.Target_DISABLED
+		return nil
+	}).After(thirdRegister)
+	tr.EXPECT().Register(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) error {
+		assert.NotNil(t, target)
+		assert.Equal(t, target.Ips, ips)
+		assert.Equal(t, target.Status, nspAPI.Target_ENABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
+		assert.True(t, exists)
+		assert.Equal(t, "1", identifier)
+		createdTarget = target
 		return nil
 	}).After(fourthRegister)
 

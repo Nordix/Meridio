@@ -133,20 +133,18 @@ func (s *Stream) isIdentifierInRange(min int, max int) bool {
 }
 
 func (s *Stream) checkIdentifierCollision(identifiersInUse []string) bool {
-	found := 0
 	for _, identifier := range identifiersInUse {
 		if identifier == strconv.Itoa(s.identifier) {
-			found++
+			return true
 		}
 	}
-	return found > 1
+	return false
 }
 
+// getIdentifiersInUse except current one
 func (s *Stream) getIdentifiersInUse(ctx context.Context) ([]string, error) {
 	identifiers := []string{}
-	context, cancel := context.WithCancel(ctx)
-	defer cancel()
-	targets, err := s.TargetRegistry.GetTargets(context, &nspAPI.Target{
+	targets, err := s.TargetRegistry.GetTargets(ctx, &nspAPI.Target{
 		Status: nspAPI.Target_ANY,
 		Type:   nspAPI.Target_DEFAULT,
 		Stream: s.Stream.ToNSP(),
@@ -155,6 +153,9 @@ func (s *Stream) getIdentifiersInUse(ctx context.Context) ([]string, error) {
 		return identifiers, err
 	}
 	for _, target := range targets {
+		if sameIps(target.GetIps(), s.ips) {
+			continue
+		}
 		identifiers = append(identifiers, target.Context[lbTypes.IdentifierKey])
 	}
 	return identifiers, nil
@@ -186,7 +187,9 @@ func (s *Stream) open(ctx context.Context, nspStream *nspAPI.Stream) error {
 	if s.targetStatus != nspAPI.Target_DISABLED {
 		return nil
 	}
-	s.setIdentifier(identifiersInUse, int(nspStream.GetMaxTargets()))
+	if s.identifier <= 0 {
+		s.setIdentifier(identifiersInUse, int(nspStream.GetMaxTargets()))
+	}
 	// register the target as disabled status
 	err = s.TargetRegistry.Register(ctx, s.getTarget())
 	if err != nil {
@@ -202,7 +205,7 @@ func (s *Stream) open(ctx context.Context, nspStream *nspAPI.Stream) error {
 			return err
 		}
 		// Check if any identifier is available to be registered with
-		if len(identifiersInUse) > int(nspStream.GetMaxTargets()) {
+		if len(identifiersInUse) >= int(nspStream.GetMaxTargets()) {
 			err = errors.New("no identifier available to register the target")
 			errUnregister := s.TargetRegistry.Unregister(ctx, s.getTarget())
 			if errUnregister != nil {
@@ -265,7 +268,6 @@ func (s *Stream) refresh(ctx context.Context, nspStream *nspAPI.Stream) error {
 	// a target as enabled, the target has to be registered to DISABLED, and then
 	// updated to ENABLED). The target then has to call open function.
 	s.targetStatus = nspAPI.Target_DISABLED
-	s.identifier = -1
 	return s.open(ctx, nspStream)
 }
 
