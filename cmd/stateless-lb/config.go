@@ -43,6 +43,8 @@ type Config struct {
 	GRPCKeepaliveTime     time.Duration `default:"30s" desc:"gRPC keepalive timeout"`
 	GRPCProbeRPCTimeout   time.Duration `default:"1s" desc:"RPC timeout of internal gRPC health probe" envconfig:"grpc_probe_rpc_timeout"`
 	GRPCMaxBackoff        time.Duration `default:"5s" desc:"Upper bound on gRPC connection backoff delay" envconfig:"grpc_max_backoff"`
+	OTCollectorService    string        `default:"ot-collector.default:4317" desc:"Open Telemetry Collector Service" envconfig:"OT_COLLECTOR_SERVICE"`
+	OTCollectorInterval   time.Duration `default:"30s" desc:"Open Telemetry Interval of data collection" envconfig:"OT_COLLECTOR_INTERVAL"`
 }
 
 // IsValid checks if the configuration is valid
