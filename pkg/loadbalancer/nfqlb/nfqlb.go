@@ -17,6 +17,7 @@ limitations under the License.
 package nfqlb
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os/exec"
@@ -287,6 +288,29 @@ func (n *nfqlb) DeleteFlow(flow *nspAPI.Flow) error {
 		err = fmt.Errorf("%v; %s", err, stdoutStderr)
 	}
 	return err
+}
+
+// FlowList runs the nfqlb flow-list commands and returns the output
+func FlowList() (string, error) {
+	ctx := context.TODO()
+	args := []string{
+		"flow-list",
+	}
+
+	cmd := exec.CommandContext(
+		ctx,
+		nfqlbCmd,
+		args...,
+	)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err != nil {
+		return "", fmt.Errorf("%w; %s", err, stderr.String())
+	}
+	return stdout.String(), nil
 }
 
 // anyPortRange -
