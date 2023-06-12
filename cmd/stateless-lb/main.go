@@ -46,10 +46,12 @@ import (
 	"github.com/nordix/meridio/pkg/health/connection"
 	"github.com/nordix/meridio/pkg/health/probe"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
+	"github.com/nordix/meridio/pkg/loadbalancer/flow"
 	"github.com/nordix/meridio/pkg/loadbalancer/nfqlb"
 	"github.com/nordix/meridio/pkg/loadbalancer/stream"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/log"
+	"github.com/nordix/meridio/pkg/metric"
 	"github.com/nordix/meridio/pkg/nat"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
@@ -244,6 +246,34 @@ func main() {
 	// monitor availibilty of frontends; if no feasible FE don't advertise NSE to proxies
 	fns := NewFrontendNetworkService(ctx, targetRegistryClient, ep, NewServiceControlDispatcher(sns))
 	go fns.Start()
+
+	_, err = metric.Init(
+		ctx,
+		metric.WithGRPCKeepaliveTime(config.GRPCKeepaliveTime),
+		metric.WithOTCollectorService(config.OTCollectorService),
+		metric.WithOTCollectorInterval(config.OTCollectorInterval),
+	)
+	if err != nil {
+		log.Fatal(logger, "Unable to init metric collector", "error", err)
+	}
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Fatal(logger, "Unable to get hostname", "error", err)
+	}
+
+	go func() {
+		err = flow.CollectMetrics(
+			ctx,
+			flow.WithHostname(hostname),
+			flow.WithTrenchName(config.TrenchName),
+			flow.WithConduitName(config.ConduitName),
+			flow.WithInterval(config.OTCollectorInterval/2),
+		)
+		if err != nil {
+			log.Fatal(logger, "Unable to start flow metric collector", "error", err)
+		}
+	}()
 
 	<-ctx.Done()
 }

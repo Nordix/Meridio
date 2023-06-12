@@ -147,6 +147,19 @@ const sidebars = {
         },
         {
             type: 'category',
+            label: 'Observability',
+            link: {
+                type: 'generated-index',
+                title: 'Observability int Meridio',
+                description: 'Learn about the Observability in Meridio',
+                keywords: ['guides'],
+            },
+            items: [
+                'observability/metrics',
+            ]
+        },
+        {
+            type: 'category',
             label: 'Features',
             link: {
                 type: 'generated-index',
