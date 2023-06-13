@@ -249,11 +249,10 @@ func (sr *streamRetry) Open(nspStream *nspAPI.Stream) {
 	go func() {
 		// retry to refresh
 		_ = retry.Do(func() error {
-			openCtx, cancel := context.WithTimeout(ctx, sr.Timeout)
-			defer cancel()
-
 			// retry to open
 			_ = retry.Do(func() error {
+				openCtx, cancel := context.WithTimeout(ctx, sr.Timeout)
+				defer cancel()
 				err := sr.Stream.Open(openCtx, nspStream)
 				if err != nil {
 					log.Logger.Error(err, "opening stream", "stream", sr.Stream.GetStream())
@@ -263,7 +262,7 @@ func (sr *streamRetry) Open(nspStream *nspAPI.Stream) {
 				}
 				sr.setStatus(ambassadorAPI.StreamStatus_OPEN)
 				return nil
-			}, retry.WithContext(openCtx),
+			}, retry.WithContext(ctx),
 				retry.WithDelay(sr.RetryDelay))
 
 			return nil
