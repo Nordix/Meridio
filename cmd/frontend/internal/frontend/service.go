@@ -368,10 +368,17 @@ func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 					var refreshCtx context.Context
 					refreshCtx, refreshCancel = context.WithCancel(ctx)
 					go func() {
+						// refresh
 						_ = retry.Do(func() error {
-							ctxTimeout, cancel := context.WithTimeout(ctx, time.Second*30)
-							defer cancel()
-							return announceFrontend(ctxTimeout, fes.targetRegistryClient)
+							// guarantee connection with server (if announce timed out FE could retry right away)
+							_ = retry.Do(func() error {
+								ctxTimeout, cancel := context.WithTimeout(refreshCtx, time.Second*30)
+								defer cancel()
+								return announceFrontend(ctxTimeout, fes.targetRegistryClient)
+							}, retry.WithContext(refreshCtx),
+								retry.WithDelay(time.Second))
+
+							return nil
 						}, retry.WithContext(refreshCtx),
 							retry.WithDelay(fes.nspEntryTimeout),
 							retry.WithErrorIngnored())
