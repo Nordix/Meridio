@@ -32,6 +32,7 @@ import (
 	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/keepalive"
 )
 
@@ -73,6 +74,7 @@ func New(trench *ambassadorAPI.Trench,
 	nspServiceName string,
 	nspServicePort int,
 	nspEntryTimeout time.Duration,
+	grpcMaxBackoff time.Duration,
 	netUtils networking.Utils) (*Trench, error) {
 
 	t := &Trench{
@@ -88,7 +90,7 @@ func New(trench *ambassadorAPI.Trench,
 	}
 
 	var err error
-	t.nspConn, err = t.connectNSPService(context.TODO(), nspServiceName, nspServicePort)
+	t.nspConn, err = t.connectNSPService(context.TODO(), nspServiceName, nspServicePort, grpcMaxBackoff)
 	if err != nil {
 		return nil, err
 	}
@@ -210,9 +212,20 @@ func (t *Trench) GetTrench() *ambassadorAPI.Trench {
 	return t.Trench
 }
 
-func (t *Trench) connectNSPService(ctx context.Context, nspServiceName string, nspServicePort int) (*grpc.ClientConn, error) {
+func (t *Trench) connectNSPService(ctx context.Context,
+	nspServiceName string,
+	nspServicePort int,
+	grpcMaxBackoff time.Duration) (*grpc.ClientConn, error) {
 	service := nsp.GetService(nspServiceName, t.Trench.GetName(), t.Namespace, nspServicePort)
 	t.logger.Info("Connect to NSP Service", "service", service)
+	// Allow changing max backoff delay from gRPC default 120s to limit reconnect interval.
+	// Thus, allow faster reconnect if NSP has been unavailable. Otherwise gRPC might
+	// wait up to 2 minutes to attempt reconnect due to the default backoff algorithm.
+	// (refer to: https://github.com/grpc/grpc/blob/master/doc/connection-backoff.md)
+	grpcBackoffCfg := backoff.DefaultConfig
+	if grpcBackoffCfg.MaxDelay != grpcMaxBackoff {
+		grpcBackoffCfg.MaxDelay = grpcMaxBackoff
+	}
 	return grpc.Dial(service,
 		grpc.WithTransportCredentials(
 			credentials.GetClient(ctx),
@@ -220,6 +233,9 @@ func (t *Trench) connectNSPService(ctx context.Context, nspServiceName string, n
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
 		),
+		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff: grpcBackoffCfg,
+		}),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
 			// if the NSP service is re-created, the TAPA will take around 15 minutes to re-connect to the NSP service without this setting.
 			Time: grpcKeepaliveTime,

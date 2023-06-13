@@ -44,6 +44,7 @@ type Tap struct {
 	NSPServiceName          string
 	NSPServicePort          int
 	NSPEntryTimeout         time.Duration
+	GRPCMaxBackoff          time.Duration
 	NetUtils                networking.Utils
 	StreamRegistry          types.Registry
 	currentTrench           types.Trench
@@ -59,6 +60,7 @@ func New(targetName string,
 	nspServiceName string,
 	nspServicePort int,
 	nspEntryTimeout time.Duration,
+	grpcMaxBackoff time.Duration,
 	netUtils networking.Utils) (*Tap, error) {
 	tap := &Tap{
 		TargetName:              targetName,
@@ -69,6 +71,7 @@ func New(targetName string,
 		NSPServiceName:          nspServiceName,
 		NSPServicePort:          nspServicePort,
 		NSPEntryTimeout:         nspEntryTimeout,
+		GRPCMaxBackoff:          grpcMaxBackoff,
 		NetUtils:                netUtils,
 		logger:                  log.Logger.WithValues("class", "Tap"),
 	}
@@ -175,6 +178,7 @@ func (tap *Tap) setTrench(t *ambassadorAPI.Trench) (types.Trench, error) {
 		tap.NSPServiceName,
 		tap.NSPServicePort,
 		tap.NSPEntryTimeout,
+		tap.GRPCMaxBackoff,
 		tap.NetUtils)
 	if err != nil {
 		return nil, err

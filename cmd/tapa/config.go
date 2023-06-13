@@ -35,6 +35,7 @@ type Config struct {
 	MaxTokenLifetime time.Duration `default:"24h" desc:"maximum lifetime of tokens" split_words:"true"`
 	LogLevel         string        `default:"DEBUG" desc:"Log level" split_words:"true"`
 	NSPEntryTimeout  time.Duration `default:"30s" desc:"Timeout of the entries" envconfig:"nsp_entry_timeout"`
+	GRPCMaxBackoff   time.Duration `default:"5s" desc:"Upper bound on gRPC connection backoff delay" envconfig:"grpc_max_backoff"`
 }
 
 // IsValid checks if the configuration is valid

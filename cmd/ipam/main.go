@@ -39,6 +39,7 @@ import (
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
 	grpcHealth "google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
@@ -99,6 +100,10 @@ func main() {
 	}
 
 	// connect NSP
+	grpcBackoffCfg := backoff.DefaultConfig
+	if grpcBackoffCfg.MaxDelay != config.GRPCMaxBackoff {
+		grpcBackoffCfg.MaxDelay = config.GRPCMaxBackoff
+	}
 	conn, err := grpc.DialContext(
 		ctx,
 		config.NSPService,
@@ -108,6 +113,9 @@ func main() {
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
 		),
+		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff: grpcBackoffCfg,
+		}),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
 			Time: config.GRPCKeepaliveTime,
 		}),

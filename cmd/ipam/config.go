@@ -34,4 +34,5 @@ type Config struct {
 	LogLevel                string        `default:"DEBUG" desc:"Log level" split_words:"true"`
 	GRPCKeepaliveTime       time.Duration `default:"30s" desc:"gRPC keepalive timeout"`
 	GRPCProbeRPCTimeout     time.Duration `default:"1s" desc:"RPC timeout of internal gRPC health probe" envconfig:"grpc_probe_rpc_timeout"`
+	GRPCMaxBackoff          time.Duration `default:"5s" desc:"Upper bound on gRPC connection backoff delay" envconfig:"grpc_max_backoff"`
 }
