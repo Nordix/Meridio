@@ -59,6 +59,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/keepalive"
 )
 
@@ -125,6 +126,10 @@ func main() {
 	}
 
 	logger.Info("Dial NSP", "NSPService", config.NSPService)
+	grpcBackoffCfg := backoff.DefaultConfig
+	if grpcBackoffCfg.MaxDelay != config.GRPCMaxBackoff {
+		grpcBackoffCfg.MaxDelay = config.GRPCMaxBackoff
+	}
 	conn, err := grpc.DialContext(ctx,
 		config.NSPService,
 		grpc.WithTransportCredentials(
@@ -133,6 +138,9 @@ func main() {
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
 		),
+		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff: grpcBackoffCfg,
+		}),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
 			Time: config.GRPCKeepaliveTime,
 		}),

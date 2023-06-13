@@ -167,7 +167,18 @@ func main() {
 	s := grpc.NewServer()
 	defer s.Stop()
 
-	ambassador, err := tap.New(config.Name, config.Namespace, config.Node, networkServiceClient, monitorClient, config.NSPServiceName, config.NSPServicePort, config.NSPEntryTimeout, netUtils)
+	ambassador, err := tap.New(
+		config.Name,
+		config.Namespace,
+		config.Node,
+		networkServiceClient,
+		monitorClient,
+		config.NSPServiceName,
+		config.NSPServicePort,
+		config.NSPEntryTimeout,
+		config.GRPCMaxBackoff,
+		netUtils,
+	)
 	if err != nil {
 		log.Fatal(logger, "creating new tap ambassador", "error", err)
 	}

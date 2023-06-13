@@ -48,6 +48,7 @@ import (
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/keepalive"
 )
 
@@ -125,6 +126,10 @@ func main() {
 
 	// connect IPAM the proxy relies on to assign IPs both locally and remote via nsc and nse
 	logger.Info("Dial IPAM", "service", config.IPAMService)
+	grpcBackoffCfg := backoff.DefaultConfig
+	if grpcBackoffCfg.MaxDelay != config.GRPCMaxBackoff {
+		grpcBackoffCfg.MaxDelay = config.GRPCMaxBackoff
+	}
 	conn, err := grpc.DialContext(signalCtx,
 		config.IPAMService,
 		grpc.WithTransportCredentials(
@@ -133,6 +138,9 @@ func main() {
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
 		),
+		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff: grpcBackoffCfg,
+		}),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
 			Time: config.GRPCKeepaliveTime,
 		}),
@@ -217,6 +225,9 @@ func main() {
 		grpc.WithDefaultCallOptions(
 			grpc.WaitForReady(true),
 		),
+		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff: grpcBackoffCfg,
+		}),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
 			Time: config.GRPCKeepaliveTime,
 		}),

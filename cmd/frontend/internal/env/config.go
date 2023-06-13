@@ -40,6 +40,7 @@ type Config struct {
 	LogLevel              string        `default:"DEBUG" desc:"Log level" split_words:"true"`
 	NSPEntryTimeout       time.Duration `default:"30s" desc:"Timeout of the entries" envconfig:"nsp_entry_timeout"`
 	GRPCKeepaliveTime     time.Duration `default:"30s" desc:"gRPC keepalive timeout"`
+	GRPCMaxBackoff        time.Duration `default:"5s" desc:"Upper bound on gRPC connection backoff delay" envconfig:"grpc_max_backoff"`
 	DelayConnectivity     time.Duration `default:"1s" desc:"Delay between checks with connectivity"`
 	DelayNoConnectivity   time.Duration `default:"3s" desc:"Delay between checks without connectivity"`
 	MaxSessionErrors      int           `default:"5" desc:"Max session errors when checking Bird until denounce"`

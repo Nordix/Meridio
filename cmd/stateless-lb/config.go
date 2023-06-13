@@ -42,6 +42,7 @@ type Config struct {
 	IdentifierOffsetStart int           `default:"5000" desc:"Each Stream will get a unique identifier range starting from that value" split_words:"true"`
 	GRPCKeepaliveTime     time.Duration `default:"30s" desc:"gRPC keepalive timeout"`
 	GRPCProbeRPCTimeout   time.Duration `default:"1s" desc:"RPC timeout of internal gRPC health probe" envconfig:"grpc_probe_rpc_timeout"`
+	GRPCMaxBackoff        time.Duration `default:"5s" desc:"Upper bound on gRPC connection backoff delay" envconfig:"grpc_max_backoff"`
 }
 
 // IsValid checks if the configuration is valid
