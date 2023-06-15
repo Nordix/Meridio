@@ -38,6 +38,8 @@ REGISTRY ?= registry.nordix.org/cloud-native/meridio
 VERSION ?= latest
 KIND_EXTERNAL_HOST_VERSION ?= $(VERSION)
 
+OBSERVABILITY_ENABLED ?= false
+
 #############################################################################
 # Kind Config
 #############################################################################
@@ -167,13 +169,19 @@ wait-nsm: ## Wait for NSM to be ready
 	kubectl wait -n nsm --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=nsm-registry
 
 #############################################################################
-##@ Metrics
+##@ Observability
 #############################################################################
 
 .PHONY: install-metrics-server
 install-metrics-server: ## Install metrics-server
 	kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml ; \
 	kubectl patch deployment metrics-server -n kube-system -p '{"spec":{"template":{"spec":{"containers":[{"name":"metrics-server","args":["--cert-dir=/tmp", "--secure-port=4443", "--kubelet-insecure-tls", "--metric-resolution=15s", "--kubelet-preferred-address-types=InternalIP"]}]}}}}'
+
+.PHONY: install-optl-prometheus-grafana
+install-optl-prometheus-grafana: ## Install Open-Telemetry + Prometheus + Grafana
+	if [ $(OBSERVABILITY_ENABLED) = "true" ]; then \
+		./../../deployments/optl-prometheus-grafana/deploy.sh ; \
+	fi
 
 #############################################################################
 # Tools
