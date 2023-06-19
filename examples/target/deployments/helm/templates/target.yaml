@@ -55,6 +55,13 @@ spec:
         - name: tapa
           image: {{ .Values.registry }}/{{ .Values.repository }}/{{ .Values.tapa.image }}:{{ .Values.tapa.version }}
           imagePullPolicy: {{ .Values.pullPolicy }}
+          resources:
+            limits:
+              cpu: 16m
+              memory: 128Mi
+            requests:
+              cpu: 8m
+              memory: 24Mi
           startupProbe:
 {{ toYaml .Values.startupProbe | indent 12 }}
           readinessProbe:
