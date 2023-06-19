@@ -18,7 +18,6 @@ package retry
 
 import (
 	"context"
-	"fmt"
 )
 
 // Function definition to be executed and retried.
@@ -47,7 +46,7 @@ retry:
 		err := retryableFunc()
 
 		if err != nil {
-			errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+			errFinal = err // todo: concat errors with limit
 		}
 
 		if !config.retryConditionFunc(err) {
