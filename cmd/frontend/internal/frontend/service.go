@@ -519,7 +519,7 @@ func (fes *FrontEndService) writeConfig() error {
 	routingConfig := bird.NewRoutingConfig(fes.birdConfFile)
 	routingConfig.Append(conf)
 	fes.logger.Info("routing configuration generated")
-	fes.logger.V(1).Info("routing configuration", "config", strings.Split(routingConfig.String(), "\n"))
+	fes.logger.V(1).Info("config", "config", strings.Split(routingConfig.String(), "\n"))
 
 	return routingConfig.Apply()
 }
@@ -528,11 +528,8 @@ func (fes *FrontEndService) writeConfig() error {
 // Common part of BIRD config
 func (fes *FrontEndService) writeConfigBase(conf *string) {
 	if fes.birdLogFileSize > 0 {
-		// TODO: const or make them configurable
-		logFile := "/var/log/bird.log"
-		logFileBackup := "/var/log/bird.log.backup"
-		*conf += fmt.Sprintf("log \"%s\" %v \"%s\" { debug, trace, info, remote, warning, error, auth, fatal, bug };\n",
-			logFile, fes.birdLogFileSize, logFileBackup)
+		*conf += fmt.Sprintf("log \"%s\" %v \"%s\" { %s };\n",
+			bird.LogFilePath, fes.birdLogFileSize, bird.BackupLogFilePath, bird.LogClasses)
 	}
 	if fes.logBird {
 		*conf += "log stderr all;\n"
@@ -570,28 +567,34 @@ func (fes *FrontEndService) writeConfigBase(conf *string) {
 	*conf += "}\n"
 	*conf += "\n"
 
-	// BGP protocol template
-	*conf += "template bgp LINK {\n"
-	*conf += "\tdebug {events, states, interfaces};\n"
-	*conf += "\tdirect;\n"
-	*conf += "\thold time " + fes.holdTimeBGP + ";\n"
-	*conf += "\tbfd off;\n" // can be enabled per protocol session i.e. per gateway
-	*conf += "\tgraceful restart off;\n"
-	*conf += "\tsetkey off;\n"
-	*conf += "\tipv4 {\n"
-	*conf += "\t\timport none;\n"
-	*conf += "\t\texport none;\n"
-	// advertise this router as next-hop
-	*conf += "\t\tnext hop self;\n"
-	*conf += "\t};\n"
-
-	*conf += "\tipv6 {\n"
-	*conf += "\t\timport none;\n"
-	*conf += "\t\texport none;\n"
-	// advertise this router as next-hop
-	*conf += "\t\tnext hop self;\n"
-	*conf += "\t};\n"
-	*conf += "}\n"
+	// BGP protocol templates (IPv4 and IPv6)
+	// Separate templates ensure that multi-protocol extension capability is
+	// only advertised for a single protocol when a Gateway is created from
+	// any of the templates.
+	bgpTemplate := func(af int, name string) string {
+		template := fmt.Sprintf("template bgp %s {\n", name)
+		template += "\tdebug {events, states, interfaces};\n"
+		template += "\tdirect;\n"
+		template += "\thold time " + fes.holdTimeBGP + ";\n"
+		template += "\tbfd off;\n" // can be enabled per protocol session i.e. per gateway
+		template += "\tgraceful restart off;\n"
+		template += "\tsetkey off;\n"
+		if af == syscall.AF_INET {
+			template += "\tipv4 {\n"
+		} else {
+			template += "\tipv6 {\n"
+		}
+		template += "\t\timport none;\n"
+		template += "\t\texport none;\n"
+		// advertise this router as next-hop
+		template += "\t\tnext hop self;\n"
+		template += "\t};\n"
+		template += "}\n"
+		return template
+	}
+	*conf += bgpTemplate(syscall.AF_INET, bird.BGPTemplateIPv4)
+	*conf += "\n"
+	*conf += bgpTemplate(syscall.AF_INET6, bird.BGPTemplateIPv6)
 	*conf += "\n"
 }
 
@@ -668,7 +671,16 @@ func (fes *FrontEndService) writeConfigGW(conf *string) {
 						password = key
 					}
 
-					*conf += fmt.Sprintf("protocol bgp '%v' from LINK {\n", name)
+					// chose BGP template based on IP protocol version
+					*conf += fmt.Sprintf("protocol bgp '%v' from %s {\n",
+						name,
+						func() string {
+							if af == syscall.AF_INET {
+								return bird.BGPTemplateIPv4
+							}
+							return bird.BGPTemplateIPv6
+						}(),
+					)
 					*conf += fmt.Sprintf("\tinterface \"%v\";\n", fes.extInterface)
 					// session specific BGP params
 					if password != nil {

@@ -39,3 +39,14 @@ const (
 	bfdSessions
 	bfd
 )
+
+const (
+	BGPTemplateIPv4 string = "LINK4" // name of BGP template for IPv4 to generate
+	BGPTemplateIPv6 string = "LINK6" // name of BGP template for IPv6 to generate
+)
+
+const (
+	LogFilePath       string = "/var/log/bird.log"                                            // file to write BIRD logs to
+	BackupLogFilePath string = "/var/log/bird.log.backup"                                     // backup log file; when current log file reaches the limit, it's renamed to the backup filename
+	LogClasses        string = "debug, trace, info, remote, warning, error, auth, fatal, bug" // list of log classes for which BIRD messages are logged
+)

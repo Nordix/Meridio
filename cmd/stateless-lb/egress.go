@@ -112,6 +112,7 @@ func (fns *FrontendNetworkService) recv() error {
 				logger.Error(err, "Announce")
 				continue
 			}
+			logger.Info("LB endpoint announced")
 			health.SetServingStatus(fns.ctx, health.EgressSvc, true)
 		} else {
 			logger.Info("FE unavailable", "IdentifierKey", target.GetContext()[types.IdentifierKey])
@@ -131,6 +132,7 @@ func (fns *FrontendNetworkService) recv() error {
 				logger.Error(err, "Denounce")
 				continue
 			}
+			logger.Info("LB endpoint denounced")
 		}
 	}
 	return nil
