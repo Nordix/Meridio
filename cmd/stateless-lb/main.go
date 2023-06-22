@@ -422,6 +422,10 @@ func (sns *SimpleNetworkService) InterfaceCreated(intf networking.Iface) {
 		if sameSubnet(intf, oldif) {
 			sns.logger.Info("Interface replaced", "old", oldif, "new", intf)
 			sns.disableInterface(oldif)
+			// remove replaced interface from the list in order to avoid further
+			// unnecessary and confusing replace printouts and disable attempts
+			// in case the old interface lingers on
+			sns.interfaces.Delete(oldif.GetIndex())
 		}
 		return true
 	})
