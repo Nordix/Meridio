@@ -247,33 +247,35 @@ func main() {
 	fns := NewFrontendNetworkService(ctx, targetRegistryClient, ep, NewServiceControlDispatcher(sns))
 	go fns.Start()
 
-	_, err = metric.Init(
-		ctx,
-		metric.WithGRPCKeepaliveTime(config.GRPCKeepaliveTime),
-		metric.WithOTCollectorService(config.OTCollectorService),
-		metric.WithOTCollectorInterval(config.OTCollectorInterval),
-	)
-	if err != nil {
-		log.Fatal(logger, "Unable to init metric collector", "error", err)
-	}
-
-	hostname, err := os.Hostname()
-	if err != nil {
-		log.Fatal(logger, "Unable to get hostname", "error", err)
-	}
-
-	go func() {
-		err = flow.CollectMetrics(
+	if config.OTCollectorEnabled {
+		_, err = metric.Init(
 			ctx,
-			flow.WithHostname(hostname),
-			flow.WithTrenchName(config.TrenchName),
-			flow.WithConduitName(config.ConduitName),
-			flow.WithInterval(config.OTCollectorInterval/2),
+			metric.WithGRPCKeepaliveTime(config.GRPCKeepaliveTime),
+			metric.WithOTCollectorService(config.OTCollectorService),
+			metric.WithOTCollectorInterval(config.OTCollectorInterval),
 		)
 		if err != nil {
-			log.Fatal(logger, "Unable to start flow metric collector", "error", err)
+			log.Fatal(logger, "Unable to init metric collector", "error", err)
 		}
-	}()
+
+		hostname, err := os.Hostname()
+		if err != nil {
+			log.Fatal(logger, "Unable to get hostname", "error", err)
+		}
+
+		go func() {
+			err = flow.CollectMetrics(
+				ctx,
+				flow.WithHostname(hostname),
+				flow.WithTrenchName(config.TrenchName),
+				flow.WithConduitName(config.ConduitName),
+				flow.WithInterval(config.OTCollectorInterval/2),
+			)
+			if err != nil {
+				log.Fatal(logger, "Unable to start flow metric collector", "error", err)
+			}
+		}()
+	}
 
 	<-ctx.Done()
 }

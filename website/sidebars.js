@@ -149,10 +149,8 @@ const sidebars = {
             type: 'category',
             label: 'Observability',
             link: {
-                type: 'generated-index',
-                title: 'Observability int Meridio',
-                description: 'Learn about the Observability in Meridio',
-                keywords: ['guides'],
+                type: 'doc',
+                id: 'observability/readme',
             },
             items: [
                 'observability/metrics',
