@@ -1,5 +1,9 @@
 #! /bin/bash
 
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo update
+
 helm install prometheus prometheus-community/kube-prometheus-stack
 
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.11.0/cert-manager.yaml
@@ -16,7 +20,7 @@ sleep 15
 
 while kubectl get pods --no-headers | awk '$3' | grep -v "Running" > /dev/null; do sleep 1; done
 
-sleep 5
+sleep 10
 
 kubectl apply -f - <<EOF
 apiVersion: opentelemetry.io/v1alpha1
