@@ -18,6 +18,7 @@ package endpoint
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -43,35 +44,36 @@ import (
 	"github.com/nordix/meridio/pkg/log"
 )
 
+// TODO:
+// There's another endpoint package with almost the same functionality:
+// pkg/nsm/endpoint/endpoint.go
+// Try to get rid of one of the two.
+
 // Endpoint -
 type Endpoint struct {
-	context  context.Context
 	config   *Config
-	source   *workloadapi.X509Source
 	listenOn *url.URL
-	tmpDir   string
+	tmpDir   string // used to generate unix socket path
 
 	networkServiceRegistryClient         registryapi.NetworkServiceRegistryClient
 	networkServiceEndpointRegistryClient registryapi.NetworkServiceEndpointRegistryClient
 
 	nse    *registryapi.NetworkServiceEndpoint
 	logger logr.Logger
+	cancel context.CancelFunc // so that the gRPC server could be closed
 }
 
-// Start -
-func (e *Endpoint) Start(additionalFunctionality ...networkservice.NetworkServiceServer) error {
-	err := e.StartWithoutRegister(additionalFunctionality...)
+// startWithoutRegister -
+// Starts NSM endpoint along with the gRPC server according to the configuration.
+// The NSM endpoint is not registered yet in NSM.
+func (e *Endpoint) startWithoutRegister(ctx context.Context, additionalFunctionality ...networkservice.NetworkServiceServer) error {
+	source, err := e.getSource(ctx)
 	if err != nil {
 		return err
 	}
 
-	return e.register()
-}
-
-// Start -
-func (e *Endpoint) StartWithoutRegister(additionalFunctionality ...networkservice.NetworkServiceServer) error {
-	responderEndpoint := endpoint.NewServer(e.context,
-		spiffejwt.TokenGeneratorFunc(e.source, e.config.MaxTokenLifetime),
+	responderEndpoint := endpoint.NewServer(ctx,
+		spiffejwt.TokenGeneratorFunc(source, e.config.MaxTokenLifetime),
 		endpoint.WithName(e.config.Name),
 		endpoint.WithAuthorizeServer(authorize.NewServer()),
 		endpoint.WithAdditionalFunctionality(additionalFunctionality...))
@@ -81,7 +83,7 @@ func (e *Endpoint) StartWithoutRegister(additionalFunctionality ...networkservic
 		grpc.Creds(
 			grpcfd.TransportCredentials(
 				credentials.NewTLS(
-					tlsconfig.MTLSServerConfig(e.source, e.source, tlsconfig.AuthorizeAny()),
+					tlsconfig.MTLSServerConfig(source, source, tlsconfig.AuthorizeAny()),
 				),
 			),
 		),
@@ -89,15 +91,14 @@ func (e *Endpoint) StartWithoutRegister(additionalFunctionality ...networkservic
 	server := grpc.NewServer(options...)
 	responderEndpoint.Register(server)
 
-	var err error
 	e.tmpDir, err = os.MkdirTemp("", e.config.Name)
 	if err != nil {
 		return errors.Wrap(err, "error creating tmpDir")
 	}
 	e.listenOn = &(url.URL{Scheme: "unix", Path: filepath.Join(e.tmpDir, "listen.on")})
-	srvErrCh := grpcutils.ListenAndServe(e.context, e.listenOn, server)
+	srvErrCh := grpcutils.ListenAndServe(ctx, e.listenOn, server) // note: also stops the server if the context is closed
 	go e.errorHandler(srvErrCh)
-	e.logger.Info("StartWithoutRegister")
+	e.logger.Info("startWithoutRegister")
 
 	e.nse = &registryapi.NetworkServiceEndpoint{
 		Name:                e.config.Name,
@@ -113,107 +114,133 @@ func (e *Endpoint) StartWithoutRegister(additionalFunctionality ...networkservic
 	return nil
 }
 
-// ErrorHandler -
 func (e *Endpoint) errorHandler(errCh <-chan error) {
 	err := <-errCh
-	e.logger.Error(err, "errorHandler")
+	e.logger.Error(err, "endpoint server errorHandler")
 }
 
-// Delete -
-func (e *Endpoint) Delete() {
-	logger := e.logger.WithValues("func", "Delete")
-	logger.Info("Called")
-	ctx, cancel := context.WithTimeout(e.context, time.Duration(time.Second*3))
-	defer cancel()
-
-	if err := e.unregister(ctx); err != nil {
-		logger.Error(err, "unregister")
-	} else {
-		logger.Info("unregistered")
-	}
-	_ = os.Remove(e.tmpDir)
-}
-
-func (e *Endpoint) setSource() error {
+func (e *Endpoint) getSource(ctx context.Context) (*workloadapi.X509Source, error) {
 	// retrieving svid, check spire agent logs if this is the last line you see
-	source, err := workloadapi.NewX509Source(e.context)
+	source, err := workloadapi.NewX509Source(ctx)
 	if err != nil {
-		return errors.Wrap(err, "Error getting x509 source")
+		return nil, errors.Wrap(err, "error getting x509 source")
 	}
 	svid, err := source.GetX509SVID()
 	if err != nil {
-		return errors.Wrap(err, "Error getting x509 svid")
+		return nil, errors.Wrap(err, "error getting x509 svid")
 	}
-	e.logger.Info("setSource", "sVID", svid.ID)
-	e.source = source
-	return nil
+	e.logger.Info("getSource", "sVID", svid.ID)
+	return source, nil
 }
 
-func (e *Endpoint) register() error {
-	networkService, err := e.networkServiceRegistryClient.Register(e.context, &registryapi.NetworkService{
+func (e *Endpoint) register(ctx context.Context) error {
+	if e.nse == nil {
+		return fmt.Errorf("registry api endpoint missing")
+	}
+
+	networkService, err := e.networkServiceRegistryClient.Register(ctx, &registryapi.NetworkService{
 		Name:    e.config.ServiceName,
 		Payload: payload.Ethernet,
 	})
+	if err != nil {
+		return err
+	}
 	e.logger.Info("register", "networkService", networkService)
 
-	if err != nil {
-		return errors.Wrap(err, "Error register network service")
-	}
-
 	e.nse.ExpirationTime = nil
-	nse, err := e.networkServiceEndpointRegistryClient.Register(e.context, e.nse)
+	nse, err := e.networkServiceEndpointRegistryClient.Register(ctx, e.nse)
+	if err != nil {
+		return err
+	}
 	e.logger.Info("register", "nse", nse)
 
-	return err
+	return nil
 }
 
+// note: calling unregister without prior call to register
+// will most likely lead to an error being returned by NSM
 func (e *Endpoint) unregister(ctx context.Context) error {
+	if e.nse == nil {
+		return nil
+	}
+
 	e.nse.ExpirationTime = &timestamppb.Timestamp{
 		Seconds: -1,
 	}
 
 	e.logger.Info("unregister", "nse", e.nse)
-	_, err := e.networkServiceEndpointRegistryClient.Unregister(e.context, e.nse)
-	if err != nil {
-		e.logger.Error(err, "unregister")
-	}
-
+	_, err := e.networkServiceEndpointRegistryClient.Unregister(ctx, e.nse)
 	return err
 }
 
-func (e *Endpoint) Announce() error {
-	return e.register()
+// Delete -
+func (e *Endpoint) Delete(ctx context.Context) {
+	logger := e.logger.WithValues("func", "Delete")
+	logger.Info("Called")
+
+	defer func() {
+		if e.cancel != nil {
+			e.cancel()
+		}
+	}()
+
+	if e.nse != nil {
+		if err := e.unregister(ctx); err != nil {
+			logger.Error(err, "unregister")
+		}
+	}
+
+	if e.tmpDir != "" {
+		_ = os.Remove(e.tmpDir)
+	}
 }
 
-func (e *Endpoint) Denounce() error {
-	return e.unregister(e.context)
+// Register -
+// Registers Network Service and Network Service Endpoint in NSM.
+func (e *Endpoint) Register(ctx context.Context) error {
+	return e.register(ctx)
 }
 
+// Unregister -
+// Unregisters Network Service Endpoint in NSM.
+func (e *Endpoint) Unregister(ctx context.Context) error {
+	return e.unregister(ctx)
+}
+
+// GetUrl -
+// Gets URL of the server
 func (e *Endpoint) GetUrl() string {
 	return e.listenOn.String()
 }
 
 // NewEndpoint -
+// Creates and starts NSM endpoint according to the configuration, which can be
+// registered or unregistered in NSM using the respective Register/Unregister methods.
 //
 // Note: on teardown if endpoint is expected to explicitly unregister,
 // then the context shall not be cancelled/closed before Delete() is called
 func NewEndpoint(
-	context context.Context,
+	ctx context.Context,
 	config *Config,
 	networkServiceRegistryClient registryapi.NetworkServiceRegistryClient,
-	networkServiceEndpointRegistryClient registryapi.NetworkServiceEndpointRegistryClient) (*Endpoint, error) {
+	networkServiceEndpointRegistryClient registryapi.NetworkServiceEndpointRegistryClient,
+	additionalFunctionality ...networkservice.NetworkServiceServer) (*Endpoint, error) {
 
+	serverCtx, serverCancel := context.WithCancel(ctx)
 	endpoint := &Endpoint{
-		context:                              context,
 		config:                               config,
 		networkServiceRegistryClient:         networkServiceRegistryClient,
 		networkServiceEndpointRegistryClient: networkServiceEndpointRegistryClient,
-		logger:                               log.FromContextOrGlobal(context).WithValues("class", "Endpoint", "instrance", config.Name),
+		logger:                               log.FromContextOrGlobal(ctx).WithValues("class", "Endpoint", "instance", config.Name),
+		cancel:                               serverCancel,
 	}
 
-	err := endpoint.setSource()
+	err := endpoint.startWithoutRegister(serverCtx, additionalFunctionality...)
 	if err != nil {
-		return nil, errors.Wrap(err, "Error register network service")
+		ctx, cancel := context.WithTimeout(ctx, time.Duration(time.Second))
+		defer cancel()
+		endpoint.Delete(ctx)
+		return nil, err
 	}
 
 	return endpoint, nil

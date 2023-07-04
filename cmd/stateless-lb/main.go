@@ -216,20 +216,20 @@ func main() {
 		MaxTokenLifetime: config.MaxTokenLifetime,
 	}
 	ep, err := endpoint.NewEndpoint(
-		context.Background(), // background context to allow endpoint unregistration on tear down
+		context.Background(), // use background context to allow endpoint unregistration on tear down
 		endpointConfig,
 		nsmAPIClient.NetworkServiceRegistryClient,
 		nsmAPIClient.NetworkServiceEndpointRegistryClient,
+		responderEndpoint...,
 	)
 	if err != nil {
-		log.Fatal(logger, "Unable to create a new nse", "error", err)
+		log.Fatal(logger, "Unable to create a new NSE", "error", err)
 	}
-
-	defer ep.Delete() // let endpoint unregister with NSM to inform proxies in time
-	err = ep.StartWithoutRegister(responderEndpoint...)
-	if err != nil {
-		log.Fatal(logger, "Unable to start nse", "error", err)
-	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*3))
+		defer cancel()
+		ep.Delete(ctx) // let endpoint unregister with NSM to inform proxies in time
+	}()
 
 	probe.CreateAndRunGRPCHealthProbe(
 		ctx,

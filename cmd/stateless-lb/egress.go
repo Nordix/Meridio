@@ -59,7 +59,7 @@ type FrontendNetworkService struct {
 func (fns *FrontendNetworkService) Start() {
 	err := retry.Do(func() error {
 		var err error
-		fns.targetRegistryStream, err = fns.targetRegistryClient.Watch(context.Background(), &nspAPI.Target{
+		fns.targetRegistryStream, err = fns.targetRegistryClient.Watch(fns.ctx, &nspAPI.Target{
 			Status: nspAPI.Target_ANY,
 			Type:   nspAPI.Target_FRONTEND,
 		})
@@ -107,12 +107,12 @@ func (fns *FrontendNetworkService) recv() error {
 			}
 			// announce the southbound NSE (to the proxies, so that they could
 			// establish NSM connection, and forward egress traffic to this LB)
-			err := fns.loadBalancerEndpoint.Announce()
+			err := fns.loadBalancerEndpoint.Register(fns.ctx)
 			if err != nil {
-				logger.Error(err, "Announce")
+				logger.Error(err, "Register LB endpoint")
 				continue
 			}
-			logger.Info("LB endpoint announced")
+			logger.Info("LB endpoint registered")
 			health.SetServingStatus(fns.ctx, health.EgressSvc, true)
 		} else {
 			logger.Info("FE unavailable", "IdentifierKey", target.GetContext()[types.IdentifierKey])
@@ -125,14 +125,19 @@ func (fns *FrontendNetworkService) recv() error {
 				fns.serviceControlDispatcher.Dispatch(false)
 			}
 			health.SetServingStatus(fns.ctx, health.EgressSvc, false)
-			// denounce southbound NSE (to the proxies, in order to block egress
-			// traffic; proxies monitor the LB NSE endpoints via registry)
-			err := fns.loadBalancerEndpoint.Denounce()
+			// denounce NSE facing proxies:
+			// Do not attract egress traffic if LB lacks external connectivity. Proxies monitor
+			// LB NSE endpoints via registry to cease communication with disappeared endpoints.
+			// Note: do not let unregister call block indefinitely; the endpoint should timeout
+			// eventually assuming the refresh was stopped
+			ctx, cancel := context.WithTimeout(fns.ctx, time.Duration(time.Second*15))
+			err := fns.loadBalancerEndpoint.Unregister(ctx)
+			cancel()
 			if err != nil {
-				logger.Error(err, "Denounce")
+				logger.Error(err, "Unregister LB endpoint")
 				continue
 			}
-			logger.Info("LB endpoint denounced")
+			logger.Info("LB endpoint unregistered")
 		}
 	}
 	return nil
