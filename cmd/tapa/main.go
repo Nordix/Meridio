@@ -33,7 +33,6 @@ import (
 	"github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/mechanisms/vfio"
 	sriovtoken "github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/token"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
@@ -140,7 +139,6 @@ func main() {
 	networkServiceClient := client.NewClient(ctx,
 		client.WithClientURL(&nsmAPIClient.Config.ConnectTo),
 		client.WithName(config.Name),
-		client.WithAuthorizeClient(authorize.NewClient()),
 		client.WithHealClient(heal.NewClient(ctx)),
 		client.WithAdditionalFunctionality(additionalFunctionality...),
 		client.WithDialTimeout(nsmAPIClient.Config.DialTimeout),
