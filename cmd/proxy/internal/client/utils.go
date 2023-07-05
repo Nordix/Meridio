@@ -21,7 +21,6 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/nordix/meridio/pkg/nsm"
@@ -50,7 +49,6 @@ func newClient(ctx context.Context, name string, nsmAPIClient *nsm.APIClient, ad
 	return client.NewClient(ctx,
 		client.WithClientURL(&nsmAPIClient.Config.ConnectTo),
 		client.WithName(name),
-		client.WithAuthorizeClient(authorize.NewClient()),
 		client.WithHealClient(heal.NewClient(ctx)),
 		client.WithAdditionalFunctionality(additionalFunctionality...),
 		client.WithDialTimeout(nsmAPIClient.Config.DialTimeout),
