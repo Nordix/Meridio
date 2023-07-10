@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package nsm
 
 import (
 	"context"
+	"time"
 
 	"github.com/edwarnicke/grpcfd"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -32,6 +33,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 	"github.com/networkservicemesh/sdk/pkg/tools/tracing"
 	"github.com/nordix/meridio/pkg/log"
+	"github.com/nordix/meridio/pkg/nsm/endpoint/expirationtime"
 	creds "github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
@@ -82,6 +84,7 @@ func (apiClient *APIClient) setNetworkServiceEndpointRegistryClient() {
 		registryclient.WithClientURL(&apiClient.Config.ConnectTo),
 		registryclient.WithDialOptions(clientOptions...),
 		registryclient.WithNSEAdditionalFunctionality(
+			expirationtime.NewNetworkServiceEndpointRegistryClient(time.Minute), // keep legacy nse lifetime (changed by https://github.com/networkservicemesh/sdk/pull/1404)
 			clientinfo.NewNetworkServiceEndpointRegistryClient(),
 			sendfd.NewNetworkServiceEndpointRegistryClient(),
 		),
