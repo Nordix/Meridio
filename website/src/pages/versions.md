@@ -6,7 +6,7 @@ Latest stable version of Meridio
 
 | Version | Documentation | Release Notes |
 | --- | --- | --- |
-| v1.0.8 | [Documentation](docs/v1.0.0) | [Release Notes](https://github.com/Nordix/Meridio/releases/tag/v1.0.8) |
+| v1.0.9 | [Documentation](docs/v1.0.0) | [Release Notes](https://github.com/Nordix/Meridio/releases/tag/v1.0.9) |
 
 ## Latest version
 
@@ -14,7 +14,7 @@ Here you can find the latest unreleased documentation and code.
 
 | Version | Documentation | Release Notes |
 | --- | --- | --- |
-| latest | [Documentation](docs) | [v1.0.8...master](https://github.com/Nordix/Meridio/compare/v1.0.8...master) |
+| latest | [Documentation](docs) | [v1.0.9...master](https://github.com/Nordix/Meridio/compare/v1.0.9...master) |
 
 ## Past Versions
 
@@ -22,6 +22,7 @@ Here you can find documentation and release notes for previous versions.
 
 | Version | Documentation | Release Notes |
 | --- | --- | --- |
+| v1.0.8 | [Documentation](docs/v1.0.0) | [Release Notes](https://github.com/Nordix/Meridio/releases/tag/v1.0.8) |
 | v1.0.7 | [Documentation](docs/v1.0.0) | [Release Notes](https://github.com/Nordix/Meridio/releases/tag/v1.0.7) |
 | v1.0.6 | [Documentation](docs/v1.0.0) | [Release Notes](https://github.com/Nordix/Meridio/releases/tag/v1.0.6) |
 | v1.0.5 | [Documentation](docs/v1.0.0) | [Release Notes](https://github.com/Nordix/Meridio/releases/tag/v1.0.5) |
