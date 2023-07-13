@@ -96,6 +96,7 @@ Sysctl: net.ipv4.fib_multipath_hash_policy=1 | To use Layer 4 hash policy for EC
 Sysctl: net.ipv6.fib_multipath_hash_policy=1 | To use Layer 4 hash policy for ECMP on IPv6
 Sysctl: net.ipv4.conf.all.rp_filter=0 | Allow packets to have a source IPv4 address which does not correspond to any routing destination address.
 Sysctl: net.ipv4.conf.default.rp_filter=0 | Allow packets to have a source IPv6 address which does not correspond to any routing destination address.
+Sysctl: net.ipv4.ip_local_port_range='49152 65535' | The source port of BFD Control packets must be in the IANA approved range 49152-65535
 NET_ADMIN | The frontend creates IP rules to handle outbound traffic from VIP sources. BIRD interacts with kernel routing tables.
 NET_BIND_SERVICE | Allows BIRD to bind to privileged ports depending on the config (for example to BGP port 173).
 NET_RAW | Allows BIRD to use the SO_BINDTODEVICE socket option.
