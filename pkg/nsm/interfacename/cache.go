@@ -25,7 +25,7 @@ import (
 	"github.com/nordix/meridio/pkg/log"
 )
 
-const defaultReleaseTimeout = 60 * time.Second
+const defaultReleaseTimeout = 600 * time.Second
 
 type ReleaseTrigger func() <-chan struct{}
 
