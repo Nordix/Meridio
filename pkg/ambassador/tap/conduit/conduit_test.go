@@ -92,6 +92,68 @@ func Test_Connect_Disconnect(t *testing.T) {
 	assert.Len(t, cndt.GetIPs(), 0)
 }
 
+func Test_Gateway_Connect_Disconnect(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	c := &ambassadorAPI.Conduit{
+		Name: "conduit-a",
+		Trench: &ambassadorAPI.Trench{
+			Name: "trench-a",
+		},
+	}
+	targetName := "abc"
+	namespace := "red"
+	node := "worker"
+	srcIpAddrs := []string{"172.16.0.2/24", "fd00::2/64"}
+	vipSrcIpAddrs := []string{"20.0.0.1/32", "40.0.0.0/24", "2000::1/128"}
+	gatewayIpAddrs := []string{"172.16.0.1/24", "fd00::1/48"}
+	dstIpAddrs := []string{"172.16.0.3/24", "fd00::3/64"}
+	var allSrcIpAddrs []string
+	id := ""
+
+	allSrcIpAddrs = append(allSrcIpAddrs, srcIpAddrs...)
+	allSrcIpAddrs = append(allSrcIpAddrs, vipSrcIpAddrs...)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	configuration := mocks.NewMockConfiguration(ctrl)
+	configuration.EXPECT().Watch().Return()
+	configuration.EXPECT().Stop().Return()
+	networkServiceClient := nsmMocks.NewMockNetworkServiceClient(ctrl)
+	networkServiceClient.EXPECT().Request(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, in *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
+		assert.NotNil(t, in)
+		assert.NotNil(t, in.GetConnection())
+		id = in.GetConnection().GetId()
+		in.GetConnection().Context = &networkservice.ConnectionContext{
+			IpContext: &networkservice.IPContext{
+				SrcIpAddrs:    allSrcIpAddrs,
+				DstIpAddrs:    dstIpAddrs,
+				ExtraPrefixes: gatewayIpAddrs,
+			},
+		}
+		return in.GetConnection(), nil
+	})
+	networkServiceClient.EXPECT().Close(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, in *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+		assert.NotNil(t, in)
+		assert.Equal(t, id, in.GetId())
+		return nil, nil
+	})
+
+	cndt, err := conduit.New(c, targetName, namespace, node, nil, nil, networkServiceClient, nil, nil, nil, 30*time.Second)
+	assert.Nil(t, err)
+	assert.NotNil(t, cndt)
+	cndt.Configuration = configuration
+
+	assert.Len(t, cndt.GetIPs(), 0)
+
+	err = cndt.Connect(context.TODO())
+	assert.Nil(t, err)
+	assert.Equal(t, srcIpAddrs, cndt.GetIPs())
+
+	err = cndt.Disconnect(context.TODO())
+	assert.Nil(t, err)
+	assert.Len(t, cndt.GetIPs(), 0)
+}
+
 func Test_AddStream(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 

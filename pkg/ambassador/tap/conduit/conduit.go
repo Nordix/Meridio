@@ -103,38 +103,126 @@ func New(conduit *ambassadorAPI.Conduit,
 }
 
 // Connect requests the connection to NSM and, if success, will open all streams added
-// and watch the VIPs
+// and watch the VIPs.
+// Will also try to query NSM if a connection with the same ID already exists. If it does,
+// try to re-use that connection to avoid interference (e.g., when old connection's token
+// lifetime expires).
+//
+// Rational behind using the same connection (segment) ID on the TAPA side:
+// IPs assigned to the NSM connection might be restored even if the Proxy side segment ID changes
+// (e.g., due to proxy kill, upgrade etc.). Thus, there might be no need to update localIPs,
+// hence avoiding update of NSP and LBs about Target IP changes. It also avoids leaking the IPs
+// of "old" TAPA->Proxy connections if the proxy POD has been replaced.
+//
+// If connection was not re-used with the help of connectionMonitor:
+// - Token expiration of "old" connection would lead to a heal event, which could trigger
+// reconnect (depends on both datapath monitoring state and results).
+// - Reconnect re-creates the NSM interfaces. Likely resulting in new MAC addresses
+// causing traffic disturbances even if "old" localIPs were kept (mostly due to
+// the neighbor cache in LB).
+// - Tear down of old connection would make the IPAM release the IPs shared by two connection.
+// (Released IPs could be re-acquired shortly in case of reconnect. But without reconnect IPs
+// could get re-assigned more likely to some other connection.)
 func (c *Conduit) Connect(ctx context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.isConnected() {
 		return nil
 	}
+
 	c.logger.Info("Connect")
-	nsName := conduit.GetNetworkServiceNameWithProxy(c.Conduit.GetName(), c.Conduit.GetTrench().GetName(), c.Namespace)
-	connection, err := c.NetworkServiceClient.Request(ctx,
-		&networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id:             fmt.Sprintf("%s-%s-%d", c.TargetName, nsName, 0),
-				NetworkService: nsName,
-				Labels: map[string]string{
-					"nodeName": c.NodeName, // required to connect to the proxy on same node
-				},
-				Payload: payload.Ethernet,
+	var request *networkservice.NetworkServiceRequest
+	var monitoredConnections map[string]*networkservice.Connection
+	var nsName string = conduit.GetNetworkServiceNameWithProxy(c.Conduit.GetName(), c.Conduit.GetTrench().GetName(), c.Namespace)
+	var id string = fmt.Sprintf("%s-%s-%d", c.TargetName, nsName, 0)
+
+	// initial request
+	request = &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id:             id,
+			NetworkService: nsName,
+			Labels: map[string]string{
+				"nodeName": c.NodeName, // required to connect to the proxy on same node
 			},
-			MechanismPreferences: []*networkservice.Mechanism{
+			Payload: payload.Ethernet,
+		},
+		MechanismPreferences: []*networkservice.Mechanism{
+			{
+				Cls:  cls.LOCAL,
+				Type: kernelmech.MECHANISM,
+			},
+		},
+	}
+
+	if c.MonitorConnectionClient != nil {
+		// check if NSM already tracks a connection with the same ID, if it does, re-use the connection
+		stream, err := c.MonitorConnectionClient.MonitorConnections(ctx, &networkservice.MonitorScopeSelector{
+			PathSegments: []*networkservice.PathSegment{
 				{
-					Cls:  cls.LOCAL,
-					Type: kernelmech.MECHANISM,
+					Id: id,
 				},
 			},
 		})
+		if err != nil {
+			c.logger.Error(err, "Connect failed to create monitorConnectionClient")
+			return err
+		}
+
+		event, err := stream.Recv()
+		if err != nil {
+			c.logger.Info("Connect monitorConnectionClient recv failed", "err", err)
+			return err
+		} else {
+			monitoredConnections = event.Connections
+		}
+	}
+
+	for _, conn := range monitoredConnections {
+		path := conn.GetPath()
+		// XXX: surprisingly, I still got connections that did not match the filter ID.
+		if path != nil && path.Index == 1 && path.PathSegments[0].Id == id && conn.Mechanism.Type == request.MechanismPreferences[0].Type {
+			c.logger.Info("Connect using recovered connection", "conn", conn)
+			// Keeping Policy Routes and VIPs if any as of now. Can mitigate impact of TAPA container crash. (I see no other benefit keeping them.
+			// Note: Might also recover connection that belonged to a recently redeployed trench.
+			// TODO: Maybe ignore Policy Routes and VIPs if last update time of connection had to be over 50% of our MaxTokenLifetime.
+
+			// conn.Context.IpContext.Policies = []*networkservice.PolicyRoute{}
+			// conn.Context.IpContext.SrcIpAddrs = getLocalIPs(
+			// 	conn.GetContext().GetIpContext().GetSrcIpAddrs(),
+			// 	c.vips, conn.GetContext().GetIpContext().GetExtraPrefixes(),
+			// )
+
+			// make sure to connect a local proxy
+			if conn.Labels == nil {
+				conn.Labels = request.Connection.Labels
+			} else {
+				conn.Labels["nodeName"] = c.NodeName
+			}
+
+			// update request based on connection
+			request.Connection = conn
+			request.Connection.Path.Index = 0
+			request.Connection.Id = id
+			break
+		}
+	}
+
+	// request the connection
+	connection, err := c.NetworkServiceClient.Request(ctx, request)
 	if err != nil {
 		return err
 	}
 	c.logger.Info("Connected", "connection", connection)
 	c.connection = connection
-	c.localIPs = c.connection.GetContext().GetIpContext().GetSrcIpAddrs()
+	if len(c.getGateways()) > 0 {
+		// Filter out any VIPs from local IPs by relying on gateway subnets,
+		// in order to avoid announcing VIPs as Target IPs to NSP (if connection
+		// was recovered using monitorConnectionClient).
+		c.localIPs = getLocalIPs(c.connection.GetContext().GetIpContext().GetSrcIpAddrs(), c.vips, c.getGateways())
+	} else {
+		c.localIPs = c.connection.GetContext().GetIpContext().GetSrcIpAddrs()
+	}
+	c.logger.V(1).Info("Connected", "localIPs", c.localIPs)
 
 	c.Configuration.Watch()
 
