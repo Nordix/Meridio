@@ -18,6 +18,7 @@ package trench
 
 import (
 	"net"
+	"sort"
 	"time"
 
 	meridiov1 "github.com/nordix/meridio/api/v1"
@@ -215,6 +216,10 @@ func (c *ConfigMap) getVipsData() ([]byte, error) {
 		}
 	}
 
+	sort.SliceStable(config.Vips, func(i, j int) bool {
+		return config.Vips[i].Name < config.Vips[j].Name
+	})
+
 	return yaml.Marshal(config)
 }
 
@@ -265,6 +270,11 @@ func (c *ConfigMap) getGatewaysData() ([]byte, error) {
 		}
 		config.Gateways = append(config.Gateways, cmGw)
 	}
+
+	sort.SliceStable(config.Gateways, func(i, j int) bool {
+		return config.Gateways[i].Name < config.Gateways[j].Name
+	})
+
 	return yaml.Marshal(config)
 }
 
@@ -296,6 +306,11 @@ func (c *ConfigMap) getAttractorsData() ([]byte, error) {
 			Trench:   c.trench.ObjectMeta.Name,
 		})
 	}
+
+	sort.SliceStable(lst.Attractors, func(i, j int) bool {
+		return lst.Attractors[i].Name < lst.Attractors[j].Name
+	})
+
 	return yaml.Marshal(lst)
 }
 
@@ -313,6 +328,11 @@ func (c *ConfigMap) getConduitsData() ([]byte, error) {
 			DestinationPortNats: getPortNatsData(cr.Spec.DestinationPortNats),
 		})
 	}
+
+	sort.SliceStable(lst.Conduits, func(i, j int) bool {
+		return lst.Conduits[i].Name < lst.Conduits[j].Name
+	})
+
 	return yaml.Marshal(lst)
 }
 
@@ -351,6 +371,11 @@ func (c *ConfigMap) getStreamsData() ([]byte, error) {
 			MaxTargets: maxTargets,
 		})
 	}
+
+	sort.SliceStable(lst.Streams, func(i, j int) bool {
+		return lst.Streams[i].Name < lst.Streams[j].Name
+	})
+
 	return yaml.Marshal(lst)
 }
 
@@ -396,6 +421,11 @@ func (c *ConfigMap) getFlowsData() ([]byte, error) {
 			ByteMatches:           cr.Spec.ByteMatches,
 		})
 	}
+
+	sort.SliceStable(lst.Flows, func(i, j int) bool {
+		return lst.Flows[i].Name < lst.Flows[j].Name
+	})
+
 	return yaml.Marshal(lst)
 }
 
