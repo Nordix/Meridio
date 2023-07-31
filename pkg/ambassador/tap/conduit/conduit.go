@@ -170,8 +170,8 @@ func (c *Conduit) Connect(ctx context.Context) error {
 
 		event, err := stream.Recv()
 		if err != nil {
-			c.logger.Info("Connect monitorConnectionClient recv failed", "err", err)
-			return err
+			// probably running older NSM version, fallback to legacy behavior to request connection
+			c.logger.Error(err, "error from monitorConnection stream")
 		} else {
 			monitoredConnections = event.Connections
 		}
