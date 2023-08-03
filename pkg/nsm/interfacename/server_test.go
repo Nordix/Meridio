@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -35,6 +35,10 @@ func (rg *mockGenerator) Generate(prefix string, maxLength int) string {
 }
 
 func (rg *mockGenerator) Release(name string) {
+}
+
+func (rg *mockGenerator) Reserve(name, prefix string, maxLength int) error {
+	return nil
 }
 
 func Test_Server_Request(t *testing.T) {

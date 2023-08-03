@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,10 +30,12 @@ import (
 func Test_Client_Request(t *testing.T) {
 	generator := &mockGenerator{}
 	networkServiceClient := chain.NewNetworkServiceClient(
-		interfacename.NewClient("NewInterfaceName", generator),
+		interfacename.NewClient("nsm", generator),
 	)
+	// connection has non nil Mechanism, interfacenameClient must generate a feasible interface name for it
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
+			Id:        "conn-id",
 			Mechanism: &networkservice.Mechanism{},
 		},
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -48,7 +50,7 @@ func Test_Client_Request(t *testing.T) {
 	assert.NotNil(t, conn.GetMechanism())
 	assert.NotNil(t, conn.GetMechanism().GetParameters())
 	assert.Contains(t, conn.GetMechanism().GetParameters(), common.InterfaceNameKey)
-	assert.Equal(t, conn.GetMechanism().GetParameters()[common.InterfaceNameKey], "NewInterfaceName")
+	assert.Equal(t, conn.GetMechanism().GetParameters()[common.InterfaceNameKey], "nsm")
 	assert.Equal(t, request.GetMechanismPreferences()[0].GetParameters()[common.InterfaceNameKey], "")
 	assert.Equal(t, request.GetMechanismPreferences()[1].GetParameters()[common.InterfaceNameKey], "")
 }
@@ -56,12 +58,16 @@ func Test_Client_Request(t *testing.T) {
 func Test_Client_Request_Nil_Mechanism(t *testing.T) {
 	generator := &mockGenerator{}
 	networkServiceClient := chain.NewNetworkServiceClient(
-		interfacename.NewClient("NewInterfaceName", generator),
+		interfacename.NewClient("nsm", generator),
 	)
 	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{},
+		Connection: &networkservice.Connection{
+			Id: "conn-id",
+		},
 	}
 
+	// Note: there's no connection mechanism or preferred mechanism, thus
+	// interfacenameClient won't do anything
 	conn, err := networkServiceClient.Request(context.Background(), request)
 	assert.Nil(t, err)
 	assert.NotNil(t, conn)
@@ -71,10 +77,11 @@ func Test_Client_Request_Nil_Mechanism(t *testing.T) {
 func Test_Client_Request_Overwrite(t *testing.T) {
 	generator := &mockGenerator{}
 	networkServiceClient := chain.NewNetworkServiceClient(
-		interfacename.NewClient("NewInterfaceName", generator),
+		interfacename.NewClient("nsm", generator),
 	)
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
+			Id: "conn-id",
 			Mechanism: &networkservice.Mechanism{
 				Parameters: map[string]string{common.InterfaceNameKey: "default"},
 			},
@@ -95,7 +102,93 @@ func Test_Client_Request_Overwrite(t *testing.T) {
 	assert.NotNil(t, conn.GetMechanism())
 	assert.NotNil(t, conn.GetMechanism().GetParameters())
 	assert.Contains(t, conn.GetMechanism().GetParameters(), common.InterfaceNameKey)
-	assert.Equal(t, conn.GetMechanism().GetParameters()[common.InterfaceNameKey], "NewInterfaceName")
+	assert.Equal(t, conn.GetMechanism().GetParameters()[common.InterfaceNameKey], "nsm")
 	assert.Equal(t, request.GetMechanismPreferences()[0].GetParameters()[common.InterfaceNameKey], "default-A")
 	assert.Equal(t, request.GetMechanismPreferences()[1].GetParameters()[common.InterfaceNameKey], "default-B")
+}
+
+func Test_Client_Request_Preferred_Mechanism(t *testing.T) {
+	generator := &mockGenerator{}
+	networkServiceClient := chain.NewNetworkServiceClient(
+		interfacename.NewClient("nsm", generator),
+	)
+
+	// let interfacenameClient generate a feasible interface name for a new connection request,
+	// and save it into MechanismPreferences
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "conn-id",
+		},
+		MechanismPreferences: []*networkservice.Mechanism{
+			{
+				Parameters: map[string]string{common.InterfaceNameKey: "random"},
+				Cls:        "dummy-cls",
+				Type:       "dummy-type",
+			},
+		},
+	}
+
+	conn, err := networkServiceClient.Request(context.Background(), request)
+	assert.Nil(t, err)
+	assert.NotNil(t, conn)
+	assert.Nil(t, conn.GetMechanism())
+	assert.Equal(t, request.GetMechanismPreferences()[0].GetParameters()[common.InterfaceNameKey], "nsm")
+
+	// let interfacenameClient take interfaces in MechanismPreferences into consideration
+	// for a connection with Mechanism but no interface name
+	request = &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "conn-id",
+			Mechanism: &networkservice.Mechanism{
+				Parameters: map[string]string{},
+				Cls:        "dummy-cls",
+				Type:       "dummy-type",
+			},
+		},
+		MechanismPreferences: []*networkservice.Mechanism{
+			{
+				Parameters: map[string]string{common.InterfaceNameKey: "NewInterfaceName-A"},
+			},
+			{
+				Parameters: map[string]string{common.InterfaceNameKey: "nsm"},
+				Cls:        "dummy-cls",
+				Type:       "dummy-type",
+			},
+		},
+	}
+
+	conn, err = networkServiceClient.Request(context.Background(), request)
+	assert.Nil(t, err)
+	assert.NotNil(t, conn)
+	assert.NotNil(t, conn.GetMechanism())
+	assert.NotNil(t, conn.GetMechanism().GetParameters())
+	assert.Contains(t, conn.GetMechanism().GetParameters(), common.InterfaceNameKey)
+	assert.Equal(t, conn.GetMechanism().GetParameters()[common.InterfaceNameKey], "nsm")
+	assert.Equal(t, request.GetMechanismPreferences()[0].GetParameters()[common.InterfaceNameKey], "NewInterfaceName-A")
+	assert.Equal(t, request.GetMechanismPreferences()[1].GetParameters()[common.InterfaceNameKey], "nsm")
+}
+
+func Test_Client_Request_Nil_Mechanism_Overwrite_Preferred_Mechanism(t *testing.T) {
+	generator := &mockGenerator{}
+	networkServiceClient := chain.NewNetworkServiceClient(
+		interfacename.NewClient("nsm", generator),
+	)
+	// no connection yet, and MechanismPreferences contains interface name which does not match the prefix
+	// interfacenameClient must generate new name and overwrite MechanismPreferences
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "conn-id",
+		},
+		MechanismPreferences: []*networkservice.Mechanism{
+			{
+				Parameters: map[string]string{common.InterfaceNameKey: "default-A"},
+			},
+		},
+	}
+
+	conn, err := networkServiceClient.Request(context.Background(), request)
+	assert.Nil(t, err)
+	assert.NotNil(t, conn)
+	assert.Nil(t, conn.GetMechanism())
+	assert.Equal(t, request.GetMechanismPreferences()[0].GetParameters()[common.InterfaceNameKey], "nsm")
 }
