@@ -18,6 +18,7 @@ package interfacename
 
 import (
 	"context"
+	"os"
 	"sync"
 	"time"
 
@@ -37,13 +38,16 @@ type ReleaseTrigger func() <-chan struct{}
 // interface name could be recovered within release timeout
 // for a particular ID. Thus avoiding interface name change
 // upon NSM heal with reselect.
+//
+// A particular interface name can be used by a single user.
 type InterfaceNameChache struct {
-	nameGenerator  NameGenerator
-	interfaceNames map[string]*interfaceName // key: id, value: name
-	releaseTrigger ReleaseTrigger
-	logger         logr.Logger
-	ctx            context.Context
-	mu             sync.Mutex
+	nameGenerator       NameGenerator
+	interfaceNames      map[string]*interfaceName // key: id, value: interfaceName
+	interfaceNamesInUse map[string]string         // key: string name of the interface, value: id
+	releaseTrigger      ReleaseTrigger
+	logger              logr.Logger
+	ctx                 context.Context
+	mu                  sync.Mutex
 }
 
 type interfaceName struct {
@@ -65,8 +69,9 @@ func WithReleaseTrigger(trigger ReleaseTrigger) Option {
 // Instantiates a new InterfaceNameChache.
 func NewInterfaceNameChache(ctx context.Context, generator NameGenerator, options ...Option) *InterfaceNameChache {
 	cache := &InterfaceNameChache{
-		nameGenerator:  generator,
-		interfaceNames: map[string]*interfaceName{},
+		nameGenerator:       generator,
+		interfaceNames:      map[string]*interfaceName{},
+		interfaceNamesInUse: map[string]string{},
 		releaseTrigger: func() <-chan struct{} {
 			channel := make(chan struct{}, 1)
 			go func() {
@@ -89,6 +94,46 @@ func NewInterfaceNameChache(ctx context.Context, generator NameGenerator, option
 	return cache
 }
 
+// CheckAndReserve -
+// Checks if preferred interface name is already taken. If it is associated with a different id,
+// then it can not be reserved. If free, reserves the name and stores it in the cache. If there's
+// already a cached name for the id, it will keep the old cached one.
+//
+// Returns preferredName or the name from cache, otherwise an empty string.
+func (inc *InterfaceNameChache) CheckAndReserve(id string, preferredName string, namePrefix string, maxLength int) string {
+	inc.mu.Lock()
+	defer inc.mu.Unlock()
+
+	logger := inc.logger.WithValues("func", "CheckAndReserve", "preferred interface", preferredName, "ID", id)
+	cachedInterfaceName, exists := inc.interfaceNames[id]
+	if exists {
+		if cachedInterfaceName.cancelRelease != nil {
+			logger.Info("Cancel pending release", "interface", cachedInterfaceName.name)
+			cachedInterfaceName.cancelRelease()
+			cachedInterfaceName.cancelRelease = nil
+		}
+		logger.V(1).Info("Return interface name from cache", "interface", cachedInterfaceName.name)
+		return cachedInterfaceName.name
+	}
+
+	if userId, ok := inc.interfaceNamesInUse[preferredName]; ok {
+		logger.Info("Preferred interface name already in use", "user ID", userId)
+		return ""
+	}
+
+	// try to reserve the preferred interface name
+	// Note: cache and name generator should be in sync, so no EEXIST error should be returned
+	if err := inc.nameGenerator.Reserve(preferredName, namePrefix, maxLength); err != nil && !os.IsExist(err) {
+		return ""
+	}
+
+	inc.interfaceNames[id] = &interfaceName{name: preferredName}
+	inc.interfaceNamesInUse[preferredName] = id
+	logger.Info("Reserved preferred interface name")
+
+	return preferredName
+}
+
 // Generate -
 // Returns interface name from cache if it already exists.
 // Or generates a new one and stores it in the cache.
@@ -96,21 +141,22 @@ func (inc *InterfaceNameChache) Generate(id string, namePrefix string, maxLength
 	inc.mu.Lock()
 	defer inc.mu.Unlock()
 
-	logger := inc.logger.WithValues("func", "Generate")
+	logger := inc.logger.WithValues("func", "Generate", "ID", id)
 	cachedInterfaceName, exists := inc.interfaceNames[id]
 	if exists {
 		if cachedInterfaceName.cancelRelease != nil {
-			logger.Info("Cancel pending release", "ID", id, "interface", cachedInterfaceName.name)
+			logger.Info("Cancel pending release", "interface", cachedInterfaceName.name)
 			cachedInterfaceName.cancelRelease()
 			cachedInterfaceName.cancelRelease = nil
 		}
-		logger.V(1).Info("Return interface name from cache", "ID", id, "interface", cachedInterfaceName.name)
+		logger.V(1).Info("Return interface name from cache", "interface", cachedInterfaceName.name)
 		return cachedInterfaceName.name
 	}
 
 	name := inc.nameGenerator.Generate(namePrefix, maxLength)
 	inc.interfaceNames[id] = &interfaceName{name: name}
-	logger.Info("New interface name", "ID", id, "interface", name)
+	inc.interfaceNamesInUse[name] = id
+	logger.Info("New interface name", "interface", name)
 
 	return name
 }
@@ -123,14 +169,14 @@ func (inc *InterfaceNameChache) Release(id string) {
 	inc.mu.Lock()
 	defer inc.mu.Unlock()
 
-	logger := inc.logger.WithValues("func", "Release")
+	logger := inc.logger.WithValues("func", "Release", "ID", id)
 	cachedInterfaceName, exists := inc.interfaceNames[id]
 	if !exists {
-		logger.Info("No interface name in cache", "ID", id)
+		logger.Info("No interface name in cache")
 		return
 	}
 	if cachedInterfaceName.cancelRelease != nil {
-		logger.Info("Release already scheduled", "ID", id)
+		logger.Info("Release already scheduled")
 		return
 	}
 	cancelCtx, cancelRelease := context.WithCancel(inc.ctx)
@@ -144,14 +190,14 @@ func (inc *InterfaceNameChache) Release(id string) {
 	default:
 		// start delayed release
 		go func() {
-			logger.Info("Schedule release of interface name", "ID", id, "interface", name)
+			logger.Info("Schedule release of interface name", "interface", name)
 			inc.pendingRelease(cancelCtx, id, name)
 		}()
 	}
 }
 
 func (inc *InterfaceNameChache) pendingRelease(ctx context.Context, id string, name string) {
-	logger := inc.logger.WithValues("func", "pendingRelease")
+	logger := inc.logger.WithValues("func", "pendingRelease", "ID", id, "interface", name)
 	select {
 	case <-inc.releaseTrigger():
 		// ID not re-added before delayed deletion is triggered
@@ -160,21 +206,22 @@ func (inc *InterfaceNameChache) pendingRelease(ctx context.Context, id string, n
 		inc.mu.Unlock()
 	case <-ctx.Done():
 		// cancel to keep interface name associated with ID in cache
-		logger.Info("Release cancelled", "ID", id, "interface", name)
+		logger.Info("Release cancelled")
 		return
 	}
 }
 
 // must be called with lock held
 func (inc *InterfaceNameChache) release(ctx context.Context, id string, name string) {
-	logger := inc.logger.WithValues("func", "release")
+	logger := inc.logger.WithValues("func", "release", "ID", id, "interface", name)
 	_, exists := inc.interfaceNames[id]
 	if !exists {
-		logger.Info("No interface name in cache", "id", id, "interface", name)
+		logger.Info("No interface name in cache")
 		return
 	}
 
-	logger.Info("Remove interface name", "ID", id, "interface", name)
+	logger.Info("Remove interface name")
 	delete(inc.interfaceNames, id)
+	delete(inc.interfaceNamesInUse, name)
 	inc.nameGenerator.Release(name)
 }

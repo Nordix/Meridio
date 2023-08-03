@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
+	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
@@ -148,8 +149,9 @@ func (c *Conduit) Connect(ctx context.Context) error {
 		},
 		MechanismPreferences: []*networkservice.Mechanism{
 			{
-				Cls:  cls.LOCAL,
-				Type: kernelmech.MECHANISM,
+				Cls:        cls.LOCAL,
+				Type:       kernelmech.MECHANISM,
+				Parameters: map[string]string{},
 			},
 		},
 	}
@@ -203,6 +205,19 @@ func (c *Conduit) Connect(ctx context.Context) error {
 			request.Connection = conn
 			request.Connection.Path.Index = 0
 			request.Connection.Id = id
+			if conn.Mechanism != nil && conn.Mechanism.GetParameters() != nil {
+				if val, ok := conn.Mechanism.GetParameters()[common.InterfaceNameKey]; ok {
+					// Recovered interface name could be taken by some other connection by now.
+					// But we shall try to use it to avoid possible issues due to interface name updates.
+					// (For example even with NSM 1.10 the Policy Based routing tables ended up empty if
+					// the interface name was updated after TAPA crash.)
+					// Remove the interface name from the connection to force our custom interfaceNameClient
+					// to process the NSM request when sent. Also, pass the recovered interface name as the
+					// preferred value via MechanismPreferences to interfaceNameClient.
+					request.MechanismPreferences[0].Parameters[common.InterfaceNameKey] = val
+					delete(conn.Mechanism.GetParameters(), common.InterfaceNameKey)
+				}
+			}
 			break
 		}
 	}
