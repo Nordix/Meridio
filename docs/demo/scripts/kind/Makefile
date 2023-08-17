@@ -54,13 +54,15 @@ endef
 export KIND_CONFIG_NO_NODE
 
 define KIND_CONFIG
-version="kindest/node:v1.27.0@sha256:c6b22e613523b1af67d4bc8a0c38a4c3ea3a2b8fbc5b367ae36345c9cb844518" ; \
-if [ $(KUBERNETES_VERSION) = "v1.26" ]; then \
-    version="kindest/node:v1.26.3@sha256:61b92f38dff6ccc29969e7aa154d34e38b89443af1a2c14e6cfbd2df6419c66f" ; \
+version="kindest/node:v1.28.0@sha256:b7a4cad12c197af3ba43202d3efe03246b3f0793f162afb40a33c923952d5b31" ; \
+if [ $(KUBERNETES_VERSION) = "v1.27" ]; then \
+    version="kindest/node:v1.27.3@sha256:3966ac761ae0136263ffdb6cfd4db23ef8a83cba8a463690e98317add2c9ba72" ; \
+elif [ $(KUBERNETES_VERSION) = "v1.26" ]; then \
+    version="kindest/node:v1.26.6@sha256:6e2d8b28a5b601defe327b98bd1c2d1930b49e5d8c512e1895099e4504007adb" ; \
 elif [ $(KUBERNETES_VERSION) = "v1.25" ]; then \
-    version="kindest/node:v1.25.8@sha256:00d3f5314cc35327706776e95b2f8e504198ce59ac545d0200a89e69fce10b7f" ; \
+    version="kindest/node:v1.25.11@sha256:227fa11ce74ea76a0474eeefb84cb75d8dad1b08638371ecf0e86259b35be0c8" ; \
 elif [ $(KUBERNETES_VERSION) = "v1.24" ]; then \
-    version="kindest/node:v1.24.12@sha256:1e12918b8bc3d4253bc08f640a231bb0d3b2c5a9b28aa3f2ca1aee93e1e8db16" ; \
+    version="kindest/node:v1.24.15@sha256:7db4f8bea3e14b82d12e044e25e34bd53754b7f2b0e9d56df21774e6f66a70ab" ; \
 elif [ $(KUBERNETES_VERSION) = "v1.23" ]; then \
     version="kindest/node:v1.23.17@sha256:e5fd1d9cd7a9a50939f9c005684df5a6d145e8d695e78463637b79464292e66c" ; \
 elif [ $(KUBERNETES_VERSION) = "v1.22" ]; then \
@@ -187,7 +189,7 @@ temp-dir:
 
 .PHONY: kind
 kind:
-	$(call go-get-tool,$(KIND),sigs.k8s.io/kind@v0.18.0)
+	$(call go-get-tool,$(KIND),sigs.k8s.io/kind@v0.20.0)
 
 # go-get-tool will 'go get' any package $2 and install it to $1.
 define go-get-tool
