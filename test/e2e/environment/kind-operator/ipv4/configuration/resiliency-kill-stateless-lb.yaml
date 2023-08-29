@@ -1,0 +1,32 @@
+---
+apiVersion: litmuschaos.io/v1alpha1
+kind: ChaosEngine
+metadata:
+  name: container-kill-stateless-lb
+  namespace: litmus
+spec:
+  engineState: 'active'
+  annotationCheck: 'false'
+  appinfo:
+    appns: 'red'
+    applabel: 'app=stateless-lb-frontend-attractor-a-1'
+    appkind: 'statefulset'
+  chaosServiceAccount: ltimus-engine
+  jobCleanUpPolicy: delete # default: retain
+  experiments:
+    - name: container-kill
+      spec:
+        components:
+          env:
+            - name: CHAOS_INTERVAL
+              value: '60'
+            - name: TOTAL_CHAOS_DURATION
+              value: '5'
+            - name: CONTAINER_RUNTIME
+              value: 'containerd'
+            - name: SOCKET_PATH
+              value: '/run/containerd/containerd.sock'
+            - name: PODS_AFFECTED_PERC
+              value: '0' # In percentage, 0 correspond to 1 pod
+            - name: TARGET_CONTAINER
+              value: 'stateless-lb'

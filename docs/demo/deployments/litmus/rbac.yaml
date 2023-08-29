@@ -1,0 +1,49 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ltimus-engine
+  namespace: litmus
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: litmus-cluster-role
+rules:
+  - apiGroups: [""]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["batch"]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["apps"]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["events.k8s.io"]
+    resources: ["*"]
+    verbs: ["*"]
+  - apiGroups: ["litmuschaos.io"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: litmus-cluster-role-binding
+subjects:
+- kind: ServiceAccount
+  name: ltimus-engine
+  namespace: litmus
+roleRef:
+  kind: ClusterRole
+  name: litmus-cluster-role
+  apiGroup: rbac.authorization.k8s.io

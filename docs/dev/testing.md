@@ -97,6 +97,12 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 | new_attractor_nsm_vlan_revert () error | Executed just after running the `new-attractor-nsm-vlan` test |
 | conduit_destination_port_nats () error | Executed just before running the `conduit-destination-port-nats` test |
 | conduit_destination_port_nats_revert () error | Executed just after running the `conduit-destination-port-nats` test |
+| kill_ipam () error | / |
+| kill_nsp () error | / |
+| kill_operator () error | / |
+| kill_proxy () error | / |
+| kill_stateless_lb () error | / |
+| kill_frontend () error | / |
 
 ### List of tests
 
@@ -123,6 +129,12 @@ A bash script file must be passed as parameter of the e2e tests. The script is r
 | flow-byte-matches | Flow | Add `tcp-destination-port-2` to destination ports of `flow-a-z-tcp` and add a byte-match to allow only `tcp-destination-port-2` |
 | new-attractor-nsm-vlan | Attractor | Configure a new attractor with new vips `vip-2-v4` and `vip-2-v6`, gateways, conduit `conduit-a-3`, stream `stream-a-III` and flow with tcp and `tcp-destination-port-0` as destination port |
 | conduit-destination-port-nats | Conduit | Configure `flow-a-z-tcp` with `tcp-destination-port-nat-0` as destination port and `conduit-a-1` with a port nat with `tcp-destination-port-nat-0` as port and `tcp-destination-port-0` as target-port |
+| kill-ipam | Resiliency | Kills IPAM of `trench-a` |
+| kill-ipam | Resiliency | Kills NSP of `trench-a` |
+| kill-operator | Resiliency | Kills operator |
+| kill-frontend | Resiliency | Kills frontend container of 1 of the `attractor-a-1` stateless-lb-frontend deployment |
+| kill-stateless-lb | Resiliency | Kills stateless-lb container of 1 of the `attractor-a-1` stateless-lb-frontend deployment |
+| kill-stateless-lb | Resiliency | Kills 1 pod of the `conduit-a-1` proxy daemonset |
 
 <!-- 
 TODO: 

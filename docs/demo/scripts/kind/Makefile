@@ -15,12 +15,13 @@ help: ## Display this help.
 # Variables
 ############################################################################
 
-STEPS ?= clean kind-create kind-gateways install-metrics-server install-spire wait wait-spire install-nsm wait wait-nsm
+STEPS ?= clean kind-create kind-gateways install-metrics-server install-litmus install-litmus-experiments install-spire wait wait-spire install-nsm wait wait-nsm install-optl-prometheus-grafana
 
 KUBERNETES_VERSION ?= "v1.25"
 KUBERNETES_IP_FAMILY ?= "dualstack"
 KUBERNETES_WORKERS ?= 2
 
+NAMESPACE ?= "red"
 NSM_VERSION ?= "v1.6.0"
 
 # Tools
@@ -174,6 +175,20 @@ wait-nsm: ## Wait for NSM to be ready
 install-metrics-server: ## Install metrics-server
 	kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml ; \
 	kubectl patch deployment metrics-server -n kube-system -p '{"spec":{"template":{"spec":{"containers":[{"name":"metrics-server","args":["--cert-dir=/tmp", "--secure-port=4443", "--kubelet-insecure-tls", "--metric-resolution=15s", "--kubelet-preferred-address-types=InternalIP"]}]}}}}'
+
+#############################################################################
+##@ Litmus
+#############################################################################
+
+.PHONY: install-litmus
+install-litmus: ## Install litmus
+	kubectl create ns litmus ; \
+	kubectl apply -f https://litmuschaos.github.io/litmus/litmus-operator-v3.0.0-beta10.yaml
+
+.PHONY: install-litmus-experiments
+install-litmus-experiments: ## Install litmus experiments
+	kubectl apply -f ../../deployments/litmus/rbac.yaml ; \
+	kubectl apply -f https://hub.litmuschaos.io/api/chaos/3.0.0-beta10?file=charts/generic/container-kill/experiment.yaml -n litmus
 
 #############################################################################
 # Tools
