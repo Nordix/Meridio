@@ -42,6 +42,8 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
+const rulePriorityVIP int = 100
+
 // FrontEndService -
 func NewFrontEndService(ctx context.Context, c *feConfig.Config) *FrontEndService {
 	logger := log.FromContextOrGlobal(ctx).WithValues("class", "FrontEndService")
@@ -545,7 +547,7 @@ func (fes *FrontEndService) writeConfigBase(conf *string) {
 	*conf += "}\n"
 	*conf += "\n"
 
-	// Filter matching default IPv4, IPv6 routes
+	// Filter matches default IPv4, IPv6 routes
 	*conf += "filter default_rt {\n"
 	*conf += "\tif ( net ~ [ 0.0.0.0/0 ] ) then accept;\n"
 	*conf += "\tif ( net ~ [ 0::/0 ] ) then accept;\n"
@@ -553,13 +555,26 @@ func (fes *FrontEndService) writeConfigBase(conf *string) {
 	*conf += "}\n"
 	*conf += "\n"
 
-	// filter telling what BGP nFE can send to BGP GW peers
+	// Filter matches default IPv4, IPv6 routes and routes originating from BGP protocol.
+	// Intended usage is to control which routes are accepted by BGP import (i.e.
+	// from BGP peers), and which routes the kernel protocol is allowed to export
+	// into OS routing table.
+	// At the end these routes will be used for cluster breakout.
+	*conf += "filter cluster_breakout {\n"
+	*conf += "\tif ( net ~ [ 0.0.0.0/0 ] ) then accept;\n"
+	*conf += "\tif ( net ~ [ 0::/0 ] ) then accept;\n"
+	*conf += "\tif source = RTS_BGP then accept;\n"
+	*conf += "\telse reject;\n"
+	*conf += "}\n"
+	*conf += "\n"
+
+	// Filter tells what local BGP can send to external BGP peers
 	// hint: only the VIP addresses
 	//
 	// Note: Since VIPs are configured as static routes in BIRD, there's
 	// no point maintaining complex v4/v6 filters. Such filters would require
 	// updates upon changes related to VIP addresses anyways...
-	*conf += "filter cluster_e_static {\n"
+	*conf += "filter cluster_access {\n"
 	*conf += "\tif ( net ~ [ 0.0.0.0/0 ] ) then reject;\n"
 	*conf += "\tif ( net ~ [ 0::/0 ] ) then reject;\n"
 	*conf += "\tif source = RTS_STATIC && dest != RTD_BLACKHOLE then accept;\n"
@@ -599,10 +614,11 @@ func (fes *FrontEndService) writeConfigBase(conf *string) {
 }
 
 // writeConfigGW -
-// Create BGP proto part of the BIRD config for each gateway to connect with them
+// Creates BGP proto for BIRD config for each gateway configured to use BGP protocol.
+// Creates Static proto for BIRD config for each gateway configured to use Static.
 //
-// BGP is restricted to the external interface.
-// Only VIP related routes are announced to peer, and only default routes are accepted.
+// BGP is restricted to the external interface. Only VIP related routes are announced
+// to BGP peer, and both default and non-default routes are accepted from peer.
 //
 // Note: When VRRP IPs are configured, BGP sessions won't import any routes from external
 // peers, as external routes are going to be taken care of by static default routes (VRRP IPs
@@ -655,9 +671,9 @@ func (fes *FrontEndService) writeConfigGW(conf *string) {
 					if len(fes.vrrps) > 0 {
 						ipv += "\t\timport none;\n"
 					} else {
-						ipv += "\t\timport filter default_rt;\n"
+						ipv += "\t\timport filter cluster_breakout;\n"
 					}
-					ipv += "\t\texport filter cluster_e_static;\n"
+					ipv += "\t\texport filter cluster_access;\n"
 					ipv += "\t};\n"
 
 					// BGP authentication
@@ -725,7 +741,9 @@ func (fes *FrontEndService) writeConfigGW(conf *string) {
 						}
 						bfd = " bfd"
 					}
-					// default route via the gateway through the external interface
+					// Represented by a Static BIRD proto instance with a default route pointing to the gateway.
+					// The filter controls pushing the default route to the BIRD routing table (master4/6).
+					// (default route via the gateway through the external interface)
 					ro := fmt.Sprintf("\troute %v via %v%%'%v'%v;\n", allNet, nbr, fes.extInterface, bfd)
 					ipv := fmt.Sprintf("\t%v {\n", family)
 					if len(fes.vrrps) > 0 {
@@ -758,14 +776,15 @@ func (fes *FrontEndService) writeConfigGW(conf *string) {
 // writeConfigKernel -
 // Create kernel proto part of the BIRD config
 //
-// Kernel proto is used to sync default routes learnt from BGP peer into
-// local network stack (to the specified routing table).
-// Note: No need to sync learnt default routes to stack, in case there are
-// no VIPs configured for the particular IP family.
+// Kernel proto is used to push both routes learnt from external BGP peers,
+// and default routes available via Static(+BFD) gateway configs into
+// local network stack of OS (into the kernel routing table configured).
+// (Note: No need to sync learnt "outbond" routes to stack, in case
+// no VIPs are configured for the particular IP family.)
 func (fes *FrontEndService) writeConfigKernel(conf *string, hasVIP4, hasVIP6 bool) {
 	eFilter := "none"
 	if hasVIP4 {
-		eFilter = "filter default_rt"
+		eFilter = "filter cluster_breakout"
 	}
 
 	*conf += "protocol kernel {\n"
@@ -777,22 +796,14 @@ func (fes *FrontEndService) writeConfigKernel(conf *string, hasVIP4, hasVIP6 boo
 	if fes.ecmp {
 		*conf += "\tmerge paths on;\n"
 	}
-	if fes.dropIfNoPeer {
-		// Setting the metric for the default blackhole route must be supported,
-		// which requires the kernel proto's metric to be set to zero.
-		//
-		// "Metric 0 has a special meaning of undefined metric, in which either OS default is used,
-		// or per-route metric can be set using krt_metric attribute. Default: 32. "
-		*conf += "\tmetric 0;\n"
-	}
 	*conf += "}\n"
 	*conf += "\n"
 
+	eFilter = "none"
 	if hasVIP6 {
-		eFilter = "filter default_rt"
-	} else {
-		eFilter = "none"
+		eFilter = "filter cluster_breakout"
 	}
+
 	*conf += "protocol kernel {\n"
 	*conf += "\tipv6 {\n"
 	*conf += "\t\timport none;\n"
@@ -801,14 +812,6 @@ func (fes *FrontEndService) writeConfigKernel(conf *string, hasVIP4, hasVIP6 boo
 	*conf += "\tkernel table " + strconv.FormatInt(int64(fes.kernelTableId), 10) + ";\n"
 	if fes.ecmp {
 		*conf += "\tmerge paths on;\n"
-	}
-	if fes.dropIfNoPeer {
-		// Setting the metric for the default blackhole route must be supported,
-		// which requires the kernel proto's metric to be set to zero.
-		//
-		// "Metric 0 has a special meaning of undefined metric, in which either OS default is used,
-		// or per-route metric can be set using krt_metric attribute. Default: 32. "
-		*conf += "\tmetric 0;\n"
 	}
 	*conf += "}\n"
 	*conf += "\n"
@@ -862,40 +865,73 @@ func (fes *FrontEndService) writeConfigVips(conf *string) (hasVIP4, hasVIP6 bool
 }
 
 // writeConfigDropIfNoPeer -
-// Create static default blackhole routes, that will be synced to the routing table
-// used by VIP src routing rules.
+// Create static default blackhole routes, that will be pushed to an OS kernel
+// routing table used by VIP src routing rules.
 //
-// The aim is to drop packets from VIP src addresses when no external gateways are
-// available, when configured accordingly. (So that the POD's default route installed
-// for the prrimary network couldn't interfere.)
+// A secondary pair of BIRD kernel protocols are in place to push drop routes to a
+// separate OS kernel routing table. The aim is to prevent misrouting of outbound
+// VIP traffic due to POD default routes, in case no cluster breakout route has matched.
+// For example none of the gateways are up, or BGP peers announced routes only for certain
+// subnets.
+//
 // XXX: Default route of the primary network could still interfere e.g. when a VIP is
 // removed; there can be a transient period of time when FE still gets outbound packets
-// with the very VIP as src addr.
+// with the very VIP as src addr. (Could be avoided e.g. by marking packets entering via
+// NSM intefaces and prohibiting their forwarding to the primary network.)
 //
-// Notes:
-// - These routes are configured with the highest (linux) metric (-> lowest prio)
-// - BIRD 2.0.7 has a strange behaviour that differs between IPv4 and IPv6:
-//   - IPv4: - seemingly all the default routes are installed to the OS kernel routing
-//     table including e.g. default blackhole routes with lower preference
-//   - BIRD fails to remove all the BGP related routes when there's a BIRD
-//     managed blackhole route for the same destination as well
-//   - IPv6: default route with the highest preference gets installed to OS kernel routing table
+// (The reason for not using a common routing table is that a common table lead
+// to problems irrespective of the fact whether metric in kernel proto was set to zero
+// or not. If set to non-zero, there's  a transient period between removing old default
+// routes and inserting new drop route. While setting the metric to zero causes BGP
+// route withdrawal problems for IPv4, while in case of IPv6 the blackhole route is
+// not added to OS kernel if there's another default routes with lower metric available.)
 func (fes *FrontEndService) writeConfigDropIfNoPeer(conf *string, hasVIP4 bool, hasVIP6 bool) {
 	if hasVIP4 {
-		*conf += "protocol static BH4 {\n"
-		*conf += "\tipv4 { preference 0; };\n"
+		*conf += "ipv4 table drop4;\n"
+		*conf += "\n"
+	}
+	if hasVIP6 {
+		*conf += "ipv6 table drop6;\n"
+		*conf += "\n"
+	}
+	if hasVIP4 {
+		*conf += "protocol kernel {\n"
+		*conf += "\tipv4 {\n"
+		*conf += "\t\ttable drop4;\n"
+		*conf += "\t\timport none;\n"
+		*conf += "\t\texport all;\n"
+		*conf += "\t};\n"
+		*conf += "\tkernel table " + strconv.FormatInt(int64(fes.kernelTableId+1), 10) + ";\n"
+		*conf += "}\n"
+		*conf += "\n"
+	}
+	if hasVIP6 {
+		*conf += "protocol kernel {\n"
+		*conf += "\tipv6 {\n"
+		*conf += "\t\ttable drop6;\n"
+		*conf += "\t\timport none;\n"
+		*conf += "\t\texport all;\n"
+		*conf += "\t};\n"
+		*conf += "\tkernel table " + strconv.FormatInt(int64(fes.kernelTableId+1), 10) + ";\n"
+		*conf += "}\n"
+		*conf += "\n"
+	}
+	if hasVIP4 {
+		*conf += "protocol static DROP4 {\n"
+		*conf += "\tipv4 { table drop4; preference 0; };\n"
 		*conf += "\troute 0.0.0.0/0 blackhole {\n"
 		*conf += "\t\tkrt_metric=4294967295;\n"
+		*conf += "\t\tigp_metric=4294967295;\n"
 		*conf += "\t};\n"
 		*conf += "}\n"
 		*conf += "\n"
 	}
-
 	if hasVIP6 {
-		*conf += "protocol static BH6 {\n"
-		*conf += "\tipv6 { preference 0; };\n"
+		*conf += "protocol static DROP6 {\n"
+		*conf += "\tipv6 { table drop6; preference 0; };\n"
 		*conf += "\troute 0::/0 blackhole {\n"
 		*conf += "\t\tkrt_metric=4294967295;\n"
+		*conf += "\t\tigp_metric=4294967295;\n"
 		*conf += "\t};\n"
 		*conf += "}\n"
 		*conf += "\n"
@@ -1131,26 +1167,47 @@ func (fes *FrontEndService) setVIPRules(vipsAdded, vipsRemoved []string) error {
 
 		for _, vip := range vipsRemoved {
 			rule := netlink.NewRule()
-			rule.Priority = 100
+			rule.Priority = rulePriorityVIP
 			rule.Table = fes.kernelTableId
 			rule.Src = utils.StrToIPNet(vip)
 
 			logger.Info("Remove VIP rule", "rule", rule)
 			if err := handler.RuleDel(rule); err != nil {
+				// keep error printout even in case of ENOENT error, lack of rule could have caused traffic issues before
 				logger.Error(err, "Remove VIP rule")
-				//TODO: return with error unless error refers to ENOENT/ESRCH
+			}
+
+			rule.Priority = rulePriorityVIP + 1
+			rule.Table = fes.kernelTableId + 1
+			logger.Info("Remove VIP rule", "rule", rule)
+			if err := handler.RuleDel(rule); err != nil {
+				// keep error printout even in case of ENOENT error, lack of rule could have caused traffic issues before
+				logger.Error(err, "Remove VIP rule")
 			}
 		}
 
 		for _, vip := range vipsAdded {
 			rule := netlink.NewRule()
-			rule.Priority = 100
+			rule.Priority = rulePriorityVIP
 			rule.Table = fes.kernelTableId
 			rule.Src = utils.StrToIPNet(vip)
 
 			logger.Info("Add VIP rule", "rule", rule)
 			if err := handler.RuleAdd(rule); err != nil {
-				if errors.Is(err, os.ErrNotExist) {
+				if !errors.Is(err, os.ErrExist) {
+					logger.Error(err, "Add VIP rule")
+					return err
+				}
+			}
+
+			// Add a second rule with lower priority in order to catch patckets that haven't matched.
+			// Should prevent misrouting.
+			// Note: IP Rules could be of type blackhole, but the go package does not support this.
+			rule.Priority = rulePriorityVIP + 1
+			rule.Table = fes.kernelTableId + 1
+			logger.Info("Add VIP rule", "rule", rule)
+			if err := handler.RuleAdd(rule); err != nil {
+				if !errors.Is(err, os.ErrExist) {
 					logger.Error(err, "Add VIP rule")
 					return err
 				}
