@@ -15,7 +15,7 @@ Alternatively, the external interface can be provided using Multus in which case
 When started, the frontend installs src routing rules for each configured VIP address, then configures and spins off a [BIRD](https://bird.network.cz/) routing program instance providing for external connectivity. The bird routing suite is restricted to the external interface. The frontend uses [birdc](https://bird.network.cz/?get_doc&v=20&f=bird-4.html) for both monitoring and changing BIRD configuration.
 
 BGP protocol with optional BFD supervision and Static+BFD setup are supported at the moment. Since they lack inherent neighbor discovery mechanism, the external gateway IP addresses must be configured.
-In case of BGP a next-hop route for each VIP address gets announced by the protocol to its external peer advertising the frontend IP as next-hop, thus attracting external traffic to the frontend. While from the external BGP peer a default next-hop route is expected that will be utilized by the VIP src routing to steer egress traffic.
+In case of BGP a next-hop route for each VIP address gets announced by the protocol to its external peer advertising the frontend IP as next-hop, thus attracting external traffic to the frontend. While from the external BGP peer at least one next-hop route is expected to be utilized by the VIP src routing to steer egress traffic. The external BGP peer can decide to announce a default route or a set of network routes.
 
 Both ingress and egress traffic traverse a frontend POD (not necessarily the same).
 
@@ -44,9 +44,9 @@ NFE_REMOTE_AS | string | Local BGP AS number | 4248829953
 NFE_BGP_LOCAL_PORT | string | Local BGP server port | 10179
 NFE_BGP_REMOTE_PORT | string | Remote BGP server port | 10179
 NFE_BGP_HOLD_TIME | string | Seconds to wait for a Keepalive message from peer before considering the connection stale | 3
-NFE_TABLE_ID | int | OS Kernel routing table ID BIRD syncs the routes with | 4096
+NFE_TABLE_ID | int | Start ID of the two consecutive OS Kernel routing tables BIRD syncs the routes with | 4096
 NFE_ECMP | bool | Enable ECMP towards next-hops of avaialble gateways | false
-NFE_DROP_IF_NO_PEER | bool | Install default blackhole route with high metric into routing table TableID | false
+NFE_DROP_IF_NO_PEER | bool | Install default blackhole route with high metric into routing table TableID | true
 NFE_LOG_BIRD | bool | Add important bird log snippets to our log | false
 NFE_NAMESPACE | string | Namespace the pod is running on | default
 NFE_NSP_SERVICE | string | IP (or domain) and port of the NSP Service | nsp-service-trench-a:7778

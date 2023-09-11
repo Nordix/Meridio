@@ -29,9 +29,9 @@ type Config struct {
 	BGPLocalPort          string        `default:"10179" desc:"Local BGP server port" envconfig:"BGP_LOCAL_PORT"`
 	BGPRemotePort         string        `default:"10179" desc:"Remote BGP server port" envconfig:"BGP_REMOTE_PORT"`
 	BGPHoldTime           string        `default:"3" desc:"Seconds to wait for a Keepalive message from peer before considering the connection stale" envconfig:"BGP_HOLD_TIME"`
-	TableID               int           `default:"4096" desc:"OS Kernel routing table ID BIRD syncs the routes with" envconfig:"TABLE_ID"`
+	TableID               int           `default:"4096" desc:"Start ID of the two consecutive OS Kernel routing tables BIRD syncs the routes with" envconfig:"TABLE_ID"`
 	ECMP                  bool          `default:"false" desc:"Enable ECMP towards next-hops of avaialble gateways" envconfig:"ECMP"`
-	DropIfNoPeer          bool          `default:"false" desc:"Install default blackhole route with high metric into routing table TableID" split_words:"true"`
+	DropIfNoPeer          bool          `default:"true" desc:"Install default blackhole route with high metric into routing table TableID" split_words:"true"`
 	LogBird               bool          `default:"false" desc:"Add important bird log snippets to our log" split_words:"true"`
 	Namespace             string        `default:"default" desc:"Namespace the pod is running on" split_words:"true"`
 	NSPService            string        `default:"nsp-service-trench-a:7778" desc:"IP (or domain) and port of the NSP Service" split_words:"true"`

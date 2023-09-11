@@ -172,8 +172,8 @@ NBR-gateway1 BGP        ---        up     16:03:22.388  Established
     State:          UP
     Table:          master4
     Preference:     100
-    Input filter:   default_rt
-    Output filter:  cluster_e_static
+    Input filter:   cluster_breakout
+    Output filter:  cluster_access
     Routes:         1 imported, 2 exported, 1 preferred
     Route change stats:     received   rejected   filtered    ignored   accepted
       Import updates:              1          0          0          0          1
@@ -234,8 +234,8 @@ NBR-gateway2 BGP        ---        up     16:03:25.264  Established
     State:          UP
     Table:          master6
     Preference:     100
-    Input filter:   default_rt
-    Output filter:  cluster_e_static
+    Input filter:   cluster_breakout
+    Output filter:  cluster_access
     Routes:         1 imported, 1 exported, 1 preferred
     Route change stats:     received   rejected   filtered    ignored   accepted
       Import updates:              1          0          0          0          1
@@ -255,8 +255,8 @@ NBR-gateway3 BGP        ---        start  17:17:33.913  Idle          Received: 
     State:          DOWN
     Table:          master4
     Preference:     100
-    Input filter:   default_rt
-    Output filter:  cluster_e_static
+    Input filter:   cluster_breakout
+    Output filter:  cluster_access
   Channel ipv6
     State:          DOWN
     Table:          master6
@@ -303,8 +303,8 @@ NBR-gateway4 BGP        ---        up     16:03:25.204  Established
     State:          UP
     Table:          master6
     Preference:     100
-    Input filter:   default_rt
-    Output filter:  cluster_e_static
+    Input filter:   cluster_breakout
+    Output filter:  cluster_access
     Routes:         1 imported, 1 exported, 0 preferred
     Route change stats:     received   rejected   filtered    ignored   accepted
       Import updates:              1          0          0          0          1
@@ -346,8 +346,8 @@ NBR-gateway1 BGP        ---        up     16:03:22.388  Established
     State:          UP
     Table:          master4
     Preference:     100
-    Input filter:   default_rt
-    Output filter:  cluster_e_static
+    Input filter:   cluster_breakout
+    Output filter:  cluster_access
     Routes:         1 imported, 2 exported, 1 preferred
     Route change stats:     received   rejected   filtered    ignored   accepted
       Import updates:              1          0          0          0          1
@@ -408,8 +408,8 @@ NBR-gateway2 BGP        ---        up     17:53:39.604  Established
     State:          UP
     Table:          master6
     Preference:     100
-    Input filter:   default_rt
-    Output filter:  cluster_e_static
+    Input filter:   cluster_breakout
+    Output filter:  cluster_access
     Routes:         1 imported, 1 exported, 1 preferred
     Route change stats:     received   rejected   filtered    ignored   accepted
       Import updates:              1          0          0          0          1
@@ -444,8 +444,8 @@ NBR-gateway3 BGP        ---        up     17:18:30.468  Established
     State:          UP
     Table:          master4
     Preference:     100
-    Input filter:   default_rt
-    Output filter:  cluster_e_static
+    Input filter:   cluster_breakout
+    Output filter:  cluster_access
     Routes:         1 imported, 2 exported, 0 preferred
     Route change stats:     received   rejected   filtered    ignored   accepted
       Import updates:              1          0          0          0          1
@@ -506,8 +506,8 @@ NBR-gateway4 BGP        ---        up     17:53:40.211  Established
     State:          UP
     Table:          master6
     Preference:     100
-    Input filter:   default_rt
-    Output filter:  cluster_e_static
+    Input filter:   cluster_breakout
+    Output filter:  cluster_access
     Routes:         1 imported, 1 exported, 0 preferred
     Route change stats:     received   rejected   filtered    ignored   accepted
       Import updates:              1          0          0          0          1
