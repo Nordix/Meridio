@@ -37,14 +37,16 @@ func GetIPFamily(cr *meridiov1.Trench) string {
 const ipv4SysCtl = "sysctl -w net.ipv4.conf.all.forwarding=1 ; sysctl -w net.ipv4.fib_multipath_hash_policy=1 ; sysctl -w net.ipv4.conf.all.rp_filter=0 ; sysctl -w net.ipv4.conf.default.rp_filter=0"
 const ipv6SysCtl = "sysctl -w net.ipv6.conf.all.forwarding=1 ; sysctl -w net.ipv6.fib_multipath_hash_policy=1"
 const localPortRangeSysCtl = "sysctl -w net.ipv4.ip_local_port_range='49152 65535'" // ephemeral port range to make BIRD use IANA approved src ports for BFD
+const ipv4FwmarkReflect = "sysctl -w net.ipv4.fwmark_reflect=1"
+const ipv6FwmarkReflect = "sysctl -w net.ipv6.fwmark_reflect=1"
 
 func GetLoadBalancerSysCtl(cr *meridiov1.Trench) string {
 	if cr.Spec.IPFamily == string(meridiov1.Dualstack) {
-		return fmt.Sprintf("%s ; %s ; %s", ipv4SysCtl, ipv6SysCtl, localPortRangeSysCtl)
+		return fmt.Sprintf("%s ; %s ; %s ; %s ; %s", ipv4SysCtl, ipv6SysCtl, localPortRangeSysCtl, ipv4FwmarkReflect, ipv6FwmarkReflect)
 	} else if cr.Spec.IPFamily == string(meridiov1.IPv4) {
-		return fmt.Sprintf("%s ; %s", ipv4SysCtl, localPortRangeSysCtl)
+		return fmt.Sprintf("%s ; %s; %s", ipv4SysCtl, localPortRangeSysCtl, ipv4FwmarkReflect)
 	} else if cr.Spec.IPFamily == string(meridiov1.IPv6) {
-		return fmt.Sprintf("%s ; %s", ipv6SysCtl, localPortRangeSysCtl)
+		return fmt.Sprintf("%s ; %s ; %s", ipv6SysCtl, localPortRangeSysCtl, ipv6FwmarkReflect)
 	}
 	return ""
 }

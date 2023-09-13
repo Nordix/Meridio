@@ -73,6 +73,8 @@ Sysctl: net.ipv4.fib_multipath_hash_policy=1 | To use Layer 4 hash policy for EC
 Sysctl: net.ipv6.fib_multipath_hash_policy=1 | To use Layer 4 hash policy for ECMP on IPv6
 Sysctl: net.ipv4.conf.all.rp_filter=0 | Allow packets to have a source IPv4 address which does not correspond to any routing destination address.
 Sysctl: net.ipv4.conf.default.rp_filter=0 | Allow packets to have a source IPv6 address which does not correspond to any routing destination address.
+Sysctl: net.ipv4.fwmark_reflect=1 | Allow LB generated outbound ICMP Frag Needed reply to use VIP as source address.
+Sysctl: net.ipv6.fwmark_reflect=1 | Allow LB generated outbound ICMPv6 Packet Too Big reply to use VIP as source address.
 NET_ADMIN | The load balancer configures IP rules and IP routes to steer packets (processed by [nfqueue-loadbalancer program](https://github.com/Nordix/nfqueue-loadbalancer)) to targets. The user space load balancer program relies on [libnetfilter_queue](https://netfilter.org/projects/libnetfilter_queue).
 IPC_LOCK | The user space load balancer program uses shared memory.
 IPC_OWNER | The user space load balancer program uses shared memory.
