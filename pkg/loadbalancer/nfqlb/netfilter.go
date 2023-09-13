@@ -24,6 +24,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/google/nftables"
+	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/kernel"
@@ -141,6 +142,10 @@ func (na *netfilterAdaptor) configure() error {
 	}
 
 	if err := na.configureLocalChainAndRules(); err != nil {
+		return err
+	}
+
+	if err := na.configurePMTUDChainAndRules(); err != nil {
 		return err
 	}
 
@@ -296,7 +301,7 @@ func (na *netfilterAdaptor) configureChainAndRules() error {
 				Offset:       24,
 				Len:          16,
 			},
-			// [ lookup reg 1 set flow-a-daddrs-v6 ]
+			// [ lookup reg 1 set vips6 ]
 			&expr.Lookup{
 				SourceRegister: 1,
 				SetName:        na.ipv6DestinationSet.Name,
@@ -312,6 +317,326 @@ func (na *netfilterAdaptor) configureChainAndRules() error {
 				Num:   na.nftqueueNum,
 				Total: na.nftqueueTotal,
 				Flag:  na.nftqueueFlag,
+			},
+		},
+	}
+	na.ipv6Rule = conn.AddRule(ipv6Rule)
+
+	return conn.Flush()
+}
+
+// configurePMTUDChainAndRules -
+// Adds nftables rules to replace src address of locally generated ICMP Frag Needed
+// and ICMPv6 Packet Too Big replies triggered by any incoming packet with VIP dst
+// (previously successfully marked by nfqlb). Basically adds stateless SNAT rules.
+//
+// Rules complement PMTU discovery for external clients (when incoming packet doesn't
+// fit MTU of out iface facing cluster internals in LB and fragmentation is prohibited).
+//
+// Replacing src address of the generated ICMP reply with the VIP found in the
+// offending orignal packet ensures that reply can reach the originator.
+//
+// Notes:
+//   - If src of ICMP reply is already a VIP address then leave it unchanged.
+//   - Avoid mangling locally generated ICMPv4/v6 replies destined to VIP addresses.
+//     (Those shall be handled by nfqlb.)
+//   - Checking non-zero fwmark makes sure that offending packet got processed by nfqlb.
+//     Thus, checks if original packet was destined to a VIP address (provides early skip
+//     for packets not relevant, therefore no need to walk through most of the matches
+//     in vain and do an additional transport lookup verifying if orig dst was VIP).
+//     REQUIRES enabling fwmark_reflect sysctl for both IPv4 and IPv6!
+//     (Note: Sysctls also allows for an early successful route lookup to generate the reply.)
+//   - Additional safety check verifies that encapsulated destination address is a VIP address.
+//   - Resetting packet mark at the end makes sure policy based routes related to Targets
+//     do not interfere.
+func (na *netfilterAdaptor) configurePMTUDChainAndRules() error {
+	conn := &nftables.Conn{}
+
+	na.chain = conn.AddChain(&nftables.Chain{
+		Name:     "snat-local",
+		Table:    na.table,
+		Type:     nftables.ChainTypeRoute,
+		Hooknum:  nftables.ChainHookOutput,
+		Priority: nftables.ChainPriorityRaw,
+	})
+
+	if rules, _ := conn.GetRules(na.table, na.chain); len(rules) != 0 {
+		na.logger.V(1).Info("nft chain not empty", "name", chainName, "rules", rules)
+		conn.FlushChain(na.chain)
+	}
+
+	// nft add rule inet meridio-nfqlb icmp-test meta l4proto icmp \
+	// icmp type destination-unreachable icmp code frag-needed \
+	// mark != 0 ip daddr != @ipv4-vips ip saddr != @ipv4-vips \
+	// counter ip saddr set @th,192,32 meta mark set 0
+	ipv4Rule := &nftables.Rule{
+		Table: na.table,
+		Chain: na.chain,
+		Exprs: []expr.Any{
+			// [ meta load nfproto => reg 1 ]
+			&expr.Meta{
+				Key:      expr.MetaKeyNFPROTO,
+				Register: 1,
+			},
+			// [ cmp eq reg 1 0x00000002 ]
+			&expr.Cmp{
+				Op:       expr.CmpOpEq,
+				Register: 1,
+				Data:     []byte{unix.AF_INET},
+			},
+			// [ meta load l4proto => reg 1 ]
+			&expr.Meta{
+				Key:      expr.MetaKeyL4PROTO,
+				Register: 1,
+			},
+			// [ cmp eq reg 1 0x00000001 ]
+			&expr.Cmp{
+				Op:       expr.CmpOpEq,
+				Register: 1,
+				Data:     []byte{unix.IPPROTO_ICMP},
+			},
+			// [ meta load mark => reg 1 ]
+			&expr.Meta{
+				Key:      expr.MetaKeyMARK,
+				Register: 1,
+			},
+			// [ cmp neq reg 1 0x00000000 ]
+			&expr.Cmp{
+				Op:       expr.CmpOpNeq,
+				Register: 1,
+				Data:     []byte{0x0},
+			},
+			// dst address: [ payload load 4b @ network header + 16 => reg 1 ]
+			&expr.Payload{
+				DestRegister: 1,
+				Base:         expr.PayloadBaseNetworkHeader,
+				Offset:       16,
+				Len:          4,
+			},
+			// [ invert lookup reg 1 set vips ]
+			&expr.Lookup{
+				SourceRegister: 1,
+				SetName:        na.ipv4DestinationSet.Name,
+				SetID:          na.ipv4DestinationSet.ID,
+				Invert:         true,
+			},
+			// src address: [ payload load 4b @ network header + 12 => reg 1 ]
+			&expr.Payload{
+				DestRegister: 1,
+				Base:         expr.PayloadBaseNetworkHeader,
+				Offset:       12,
+				Len:          4,
+			},
+			// [ invert lookup reg 1 set vips ]
+			&expr.Lookup{
+				SourceRegister: 1,
+				SetName:        na.ipv4DestinationSet.Name,
+				SetID:          na.ipv4DestinationSet.ID,
+				Invert:         true,
+			},
+			// ICMP Type: [ payload load 1b @ transport header + 0 => reg 1 ]
+			&expr.Payload{
+				DestRegister: 1,
+				Base:         expr.PayloadBaseTransportHeader,
+				Offset:       0,
+				Len:          1,
+			},
+			// Dest Unreachable: [ cmp eq reg 1 0x00000003 ]
+			&expr.Cmp{
+				Op:       expr.CmpOpEq,
+				Register: 1,
+				Data:     []byte{0x3},
+			},
+			// ICMP Code: [ payload load 1b @ transport header + 1 => reg 1 ]
+			&expr.Payload{
+				DestRegister: 1,
+				Base:         expr.PayloadBaseTransportHeader,
+				Offset:       1,
+				Len:          1,
+			},
+			// Fragmentation Needed: [ cmp eq reg 1 0x00000004 ]
+			&expr.Cmp{
+				Op:       expr.CmpOpEq,
+				Register: 1,
+				Data:     []byte{0x4},
+			},
+			// encapsulated dst address: [ payload load 4b @ transport header + 24 => reg 1 ]
+			// note: this check cannot be added via nft command line tool due to datatype mismatch error
+			&expr.Payload{
+				DestRegister: 1,
+				Base:         expr.PayloadBaseTransportHeader,
+				Offset:       24,
+				Len:          4,
+			},
+			// [ lookup reg 1 set vips ]
+			&expr.Lookup{
+				SourceRegister: 1,
+				SetName:        na.ipv4DestinationSet.Name,
+				SetID:          na.ipv4DestinationSet.ID,
+			},
+			// [ counter pkts 0 bytes 0 ]
+			&expr.Counter{
+				Bytes:   0,
+				Packets: 0,
+			},
+			// encapsulated dst address: [ payload load 4b @ transport header + 24 => reg 1 ]
+			&expr.Payload{
+				DestRegister: 1,
+				Base:         expr.PayloadBaseTransportHeader,
+				Offset:       24,
+				Len:          4,
+			},
+			// src address: [ payload write reg 1 => 4b @ network header + 24 csum_type 1 csum_off 10 csum_flags 0x1 ]
+			&expr.Payload{
+				OperationType:  expr.PayloadWrite,
+				SourceRegister: 1,
+				Base:           expr.PayloadBaseNetworkHeader,
+				Offset:         12,
+				Len:            4,
+				CsumType:       expr.CsumTypeInet,
+				CsumOffset:     10,
+				CsumFlags:      unix.NFT_PAYLOAD_L4CSUM_PSEUDOHDR,
+			},
+			// [ 0x0 => reg 1 ]
+			&expr.Immediate{
+				Register: 1,
+				Data:     binaryutil.NativeEndian.PutUint32(0),
+			},
+			// [ meta set mark with reg 1 ]
+			&expr.Meta{
+				Key:            expr.MetaKeyMARK,
+				SourceRegister: true,
+				Register:       1,
+			},
+		},
+	}
+	na.ipv4Rule = conn.AddRule(ipv4Rule)
+
+	// nft add rule inet meridio-nfqlb icmp-test meta l4proto icmpv6 \
+	// icmpv6 type packet-too-big mark != 0 ip6 daddr != @ipv6-vips ip6 saddr != @ipv6-vips \
+	// counter ip6 saddr set @th,256,128 meta mark set 0
+	ipv6Rule := &nftables.Rule{
+		Table: na.table,
+		Chain: na.chain,
+		Exprs: []expr.Any{
+			// [ meta load nfproto => reg 1 ]
+			&expr.Meta{
+				Key:      expr.MetaKeyNFPROTO,
+				Register: 1,
+			},
+			// [ cmp eq reg 1 0x0000000a ]
+			&expr.Cmp{
+				Op:       expr.CmpOpEq,
+				Register: 1,
+				Data:     []byte{unix.AF_INET6},
+			},
+			// [ meta load l4proto => reg 1 ]
+			&expr.Meta{
+				Key:      expr.MetaKeyL4PROTO,
+				Register: 1,
+			},
+			// [ cmp eq reg 1 0x0000003a ]
+			&expr.Cmp{
+				Op:       expr.CmpOpEq,
+				Register: 1,
+				Data:     []byte{unix.IPPROTO_ICMPV6},
+			},
+			// [ meta load mark => reg 1 ]
+			&expr.Meta{
+				Key:      expr.MetaKeyMARK,
+				Register: 1,
+			},
+			// [ cmp neq reg 1 0x00000000 ]
+			&expr.Cmp{
+				Op:       expr.CmpOpNeq,
+				Register: 1,
+				Data:     []byte{0x0},
+			},
+			// dst address: [ payload load 16b @ network header + 24 => reg 1 ]
+			&expr.Payload{
+				DestRegister: 1,
+				Base:         expr.PayloadBaseNetworkHeader,
+				Offset:       24,
+				Len:          16,
+			},
+			// [ invert lookup reg 1 set vips6 ]
+			&expr.Lookup{
+				SourceRegister: 1,
+				SetName:        na.ipv6DestinationSet.Name,
+				SetID:          na.ipv6DestinationSet.ID,
+				Invert:         true,
+			},
+			// src address: [ payload load 16b @ network header + 8 => reg 1 ]
+			&expr.Payload{
+				DestRegister: 1,
+				Base:         expr.PayloadBaseNetworkHeader,
+				Offset:       8,
+				Len:          16,
+			},
+			// [ invert lookup reg 1 set vips6 ]
+			&expr.Lookup{
+				SourceRegister: 1,
+				SetName:        na.ipv6DestinationSet.Name,
+				SetID:          na.ipv6DestinationSet.ID,
+				Invert:         true,
+			},
+			// ICMPv6 Type: [ payload load 1b @ transport header + 0 => reg 1 ]
+			&expr.Payload{
+				DestRegister: 1,
+				Base:         expr.PayloadBaseTransportHeader,
+				Offset:       0,
+				Len:          1,
+			},
+			// Packet Too Big: [ cmp eq reg 1 0x00000002 ]
+			&expr.Cmp{
+				Op:       expr.CmpOpEq,
+				Register: 1,
+				Data:     []byte{0x2},
+			},
+			// encapsulated dst address: [ payload load 16b @ transport header + 32 => reg 1 ]
+			// note: this check cannot be added via nft command line tool due to datatype mismatch error
+			&expr.Payload{
+				DestRegister: 1,
+				Base:         expr.PayloadBaseTransportHeader,
+				Offset:       32,
+				Len:          16,
+			},
+			// [ lookup reg 1 set vips ]
+			&expr.Lookup{
+				SourceRegister: 1,
+				SetName:        na.ipv6DestinationSet.Name,
+				SetID:          na.ipv6DestinationSet.ID,
+			},
+			&expr.Counter{
+				Bytes:   0,
+				Packets: 0,
+			},
+			// encapsulated dst address: [ payload load 16b @ transport header + 32 => reg 1 ]
+			&expr.Payload{
+				DestRegister: 1,
+				Base:         expr.PayloadBaseTransportHeader,
+				Offset:       32,
+				Len:          16,
+			},
+			// src address: [ payload write reg 1 => 16b @ network header + 8 csum_type 0 ]
+			&expr.Payload{
+				OperationType:  expr.PayloadWrite,
+				SourceRegister: 1,
+				Base:           expr.PayloadBaseNetworkHeader,
+				Offset:         8,
+				Len:            16,
+				CsumType:       expr.CsumTypeNone,
+			},
+			// [ 0x0 => reg 1 ]
+			&expr.Immediate{
+				Register: 1,
+				Data:     binaryutil.NativeEndian.PutUint32(0),
+			},
+			// [ meta set mark with reg 1 ]
+			&expr.Meta{
+				Key:            expr.MetaKeyMARK,
+				SourceRegister: true,
+				Register:       1,
 			},
 		},
 	}
@@ -442,7 +767,7 @@ func (na *netfilterAdaptor) configureLocalChainAndRules() error {
 				Offset:       24,
 				Len:          16,
 			},
-			// [ lookup reg 1 set flow-a-daddrs-v6 ]
+			// [ lookup reg 1 set vips6 ]
 			&expr.Lookup{
 				SourceRegister: 1,
 				SetName:        na.ipv6DestinationSet.Name,
