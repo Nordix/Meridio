@@ -31,9 +31,9 @@ do
     docker rm $container_name || true
 
     if [ "$__default_route" == "yes" ]; then
-        docker run -t -d --network="kind" --name="$container_name" --privileged localhost:80/cloud-native/meridio/kind-host:bgp-test
+        docker run -t -d --network="kind" --name="$container_name" --privileged registry.nordix.org/cloud-native/meridio/kind-host:latest
     else
-        docker run -t -d --network="kind" --name="$container_name" --privileged localhost:80/cloud-native/meridio/kind-host:bgp-test \
+        docker run -t -d --network="kind" --name="$container_name" --privileged registry.nordix.org/cloud-native/meridio/kind-host:latest \
             /bin/sh -c "sleep 5 ; /usr/sbin/bird -d -c /etc/bird/bird-gw-no-default.conf"
     fi
     
