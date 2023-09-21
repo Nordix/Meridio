@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/nordix/meridio v0.8.0
-	google.golang.org/grpc v1.58.0
+	google.golang.org/grpc v1.58.2
 )
 
 require (

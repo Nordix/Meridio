@@ -18,7 +18,7 @@
     "editable": true,
     "fiscalYearStartMonth": 0,
     "graphTooltip": 0,
-    "id": 27,
+    "id": 28,
     "links": [],
     "liveNow": false,
     "panels": [
@@ -46,6 +46,7 @@
                             "tooltip": false,
                             "viz": false
                         },
+                        "insertNulls": false,
                         "lineInterpolation": "linear",
                         "lineWidth": 1,
                         "pointSize": 5,
@@ -104,11 +105,15 @@
                         "type": "prometheus",
                         "uid": "prometheus"
                     },
+                    "disableTextWrap": false,
                     "editorMode": "builder",
-                    "expr": "sum by(Flow, Stream, Conduit, Trench) (rate(meridio_conduit_stream_flow_matches_packets_total{service!=\"ot-collector-headless\"}[$__rate_interval]))",
+                    "expr": "sum by(Flow, Stream, Conduit, Trench) (rate(meridio_conduit_stream_flow_matches_total[$__rate_interval]))",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
                     "legendFormat": "{{Flow}}.{{Stream}}.{{Conduit}}.{{Trench}}",
                     "range": true,
-                    "refId": "A"
+                    "refId": "A",
+                    "useBackend": false
                 }
             ],
             "title": "Flow Match (packet per second)",
@@ -167,21 +172,25 @@
                 },
                 "showHeader": true
             },
-            "pluginVersion": "9.5.2",
+            "pluginVersion": "10.1.4",
             "targets": [
                 {
                     "datasource": {
                         "type": "prometheus",
                         "uid": "prometheus"
                     },
+                    "disableTextWrap": false,
                     "editorMode": "builder",
                     "exemplar": false,
-                    "expr": "meridio_conduit_stream_flow_matches_packets_total{service!=\"ot-collector-headless\"}",
+                    "expr": "meridio_conduit_stream_flow_matches_total",
                     "format": "table",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
                     "instant": true,
                     "legendFormat": "__auto",
                     "range": false,
-                    "refId": "A"
+                    "refId": "A",
+                    "useBackend": false
                 }
             ],
             "title": "Flow List",
@@ -200,6 +209,7 @@
                             "instance": true,
                             "job": true,
                             "namespace": true,
+                            "otel_scope_name": true,
                             "pod": true,
                             "service": true
                         },
@@ -243,6 +253,6 @@
     "timezone": "",
     "title": "Meridio",
     "uid": "f0339d9f-4744-441c-972b-f8b294fb7ff8",
-    "version": 5,
+    "version": 2,
     "weekStart": ""
 }
