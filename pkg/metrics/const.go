@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package metric
+package metrics
 
 const (
 	MERIDIO_CONDUIT_STREAM_FLOW_MATCHES = "meridio.conduit.stream.flow.matches"

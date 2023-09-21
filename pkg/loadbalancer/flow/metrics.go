@@ -18,13 +18,10 @@ package flow
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/loadbalancer/nfqlb"
-	meridioMetric "github.com/nordix/meridio/pkg/metric"
-	"github.com/nordix/meridio/pkg/retry"
+	meridioMetrics "github.com/nordix/meridio/pkg/metrics"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -32,59 +29,39 @@ import (
 
 // CollectMetrics collects the metrics for the flows. This function will continue
 // to run until the context is cancel.
-func CollectMetrics(ctx context.Context, options ...option) error {
+func CollectMetrics(options ...option) error {
 	config := newConfig()
 	for _, opt := range options {
 		opt(config)
 	}
 
-	counter, err := registerCounter(config.meter)
+	_, err := config.meter.Int64ObservableCounter(
+		meridioMetrics.MERIDIO_CONDUIT_STREAM_FLOW_MATCHES,
+		metric.WithUnit("packets"), // TODO: what unit must be set?
+		metric.WithDescription("Counts number of packets that have matched a flow."),
+		metric.WithInt64Callback(func(ctx context.Context, observer metric.Int64Observer) error {
+			flowStats, err := config.getFlowStatsFunc()
+			if err != nil {
+				return err
+			}
+			for _, fs := range flowStats {
+				observer.Observe(
+					int64(fs.GetMatchesCount()),
+					metric.WithAttributes(attribute.String("Hostname", config.hostname)),
+					metric.WithAttributes(attribute.String("Trench", config.trenchName)),
+					metric.WithAttributes(attribute.String("Conduit", config.conduitName)),
+					metric.WithAttributes(attribute.String("Stream", fs.GetFlow().GetStream().GetName())),
+					metric.WithAttributes(attribute.String("Flow", fs.GetFlow().GetName())),
+				)
+			}
+			return nil
+		}),
+	)
 	if err != nil {
 		return err
 	}
 
-	// Used to save the previous data recorded got from getFlowStatsFunc.
-	// It is required to do the difference with the newer value.
-	flowStatsMap := map[string]int{}
-
-	_ = retry.Do(func() error {
-		flowStats, err := config.getFlowStatsFunc()
-		if err != nil {
-			return err
-		}
-		flowStatsMapNew := map[string]int{}
-		for _, fs := range flowStats {
-			previous, exists := flowStatsMap[flowStatName(fs)]
-			if !exists {
-				previous = 0
-			}
-			// A counter instrument requires the difference between the previous and newer metric value.
-			diff := int64(fs.GetMatchesCount() - previous)
-			counter.Add(
-				ctx,
-				diff,
-				metric.WithAttributes(attribute.String("Hostname", config.hostname)),
-				metric.WithAttributes(attribute.String("Trench", config.trenchName)),
-				metric.WithAttributes(attribute.String("Conduit", config.conduitName)),
-				metric.WithAttributes(attribute.String("Stream", fs.GetFlow().GetStream().GetName())),
-				metric.WithAttributes(attribute.String("Flow", fs.GetFlow().GetName())),
-			)
-			flowStatsMapNew[flowStatName(fs)] = fs.GetMatchesCount()
-		}
-		flowStatsMap = flowStatsMapNew
-		return nil
-	}, retry.WithContext(ctx),
-		retry.WithDelay(config.interval),
-		retry.WithErrorIngnored())
 	return nil
-}
-
-func registerCounter(meter metric.Meter) (metric.Int64Counter, error) {
-	return meter.Int64Counter(
-		meridioMetric.MERIDIO_CONDUIT_STREAM_FLOW_MATCHES,
-		metric.WithUnit("packets"), // TODO: what unit must be set?
-		metric.WithDescription("Counts number of packets that have matched a flow."),
-	)
 }
 
 type GetFlowStats func() ([]FlowStat, error)
@@ -103,27 +80,21 @@ func nfqlbGetFlowStats() ([]FlowStat, error) {
 	return list, err
 }
 
-func flowStatName(fs FlowStat) string {
-	return fmt.Sprintf("%s.%s", fs.GetFlow().GetName(), fs.GetFlow().GetStream().GetName())
-}
-
 type config struct {
 	getFlowStatsFunc GetFlowStats
 	meter            metric.Meter
 	hostname         string
 	trenchName       string
 	conduitName      string
-	interval         time.Duration
 }
 
 type option func(*config)
 
 func newConfig() *config {
-	meter := otel.GetMeterProvider().Meter(meridioMetric.METER_NAME)
+	meter := otel.GetMeterProvider().Meter(meridioMetrics.METER_NAME)
 	return &config{
 		meter:            meter,
 		getFlowStatsFunc: nfqlbGetFlowStats,
-		interval:         10 * time.Second,
 	}
 }
 
@@ -159,12 +130,5 @@ func WithTrenchName(trenchName string) option {
 func WithConduitName(conduitName string) option {
 	return func(c *config) {
 		c.conduitName = conduitName
-	}
-}
-
-// WithInterval specifies interval between the metrics collection.
-func WithInterval(interval time.Duration) option {
-	return func(c *config) {
-		c.interval = interval
 	}
 }
