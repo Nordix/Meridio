@@ -6,11 +6,13 @@ metadata:
   name: stateless-lb-frontend
   labels:
     app: stateless-lb-frontend
+    app-type: stateless-lb-frontend
 spec:
   progressDeadlineSeconds: 600
   selector:
     matchLabels:
       app: stateless-lb-frontend
+      app-type: stateless-lb-frontend
   replicas: 2
   revisionHistoryLimit: 10
   strategy:
@@ -22,6 +24,7 @@ spec:
     metadata:
       labels:
         app: stateless-lb-frontend
+        app-type: stateless-lb-frontend
         "spiffe.io/spiffe-id": "true"
     spec:
       affinity:
@@ -49,6 +52,9 @@ spec:
         - name: stateless-lb
           image: {{ .Values.registry }}/{{ .Values.repository }}/{{ .Values.statelessLB.image }}:{{ .Values.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
+          ports:
+          - name: metrics
+            containerPort: 2223
           startupProbe:  # will be filled by operator if not specified
             exec:
               command:
@@ -107,6 +113,8 @@ spec:
               value: "10m"
             - name: NSM_LOG_LEVEL
               value:  # to be filled by operator
+            - name: NSM_METRICS_ENABLED
+              value: "true"
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

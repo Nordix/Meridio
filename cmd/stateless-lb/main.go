@@ -51,7 +51,7 @@ import (
 	"github.com/nordix/meridio/pkg/loadbalancer/stream"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/log"
-	"github.com/nordix/meridio/pkg/metric"
+	"github.com/nordix/meridio/pkg/metrics"
 	"github.com/nordix/meridio/pkg/nat"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
@@ -247,15 +247,10 @@ func main() {
 	fns := NewFrontendNetworkService(ctx, targetRegistryClient, ep, NewServiceControlDispatcher(sns))
 	go fns.Start()
 
-	if config.OTCollectorEnabled {
-		_, err = metric.Init(
-			ctx,
-			metric.WithGRPCKeepaliveTime(config.GRPCKeepaliveTime),
-			metric.WithOTCollectorService(config.OTCollectorService),
-			metric.WithOTCollectorInterval(config.OTCollectorInterval),
-		)
+	if config.MetricsEnabled {
+		_, err = metrics.Init(ctx)
 		if err != nil {
-			log.Fatal(logger, "Unable to init metric collector", "error", err)
+			log.Fatal(logger, "Unable to init metrics collector", "error", err)
 		}
 
 		hostname, err := os.Hostname()
@@ -263,16 +258,23 @@ func main() {
 			log.Fatal(logger, "Unable to get hostname", "error", err)
 		}
 
+		err = flow.CollectMetrics(
+			flow.WithHostname(hostname),
+			flow.WithTrenchName(config.TrenchName),
+			flow.WithConduitName(config.ConduitName),
+		)
+		if err != nil {
+			log.Fatal(logger, "Unable to start flow metrics collector", "error", err)
+		}
+
+		metricsServer := metrics.Server{
+			IP:   "",
+			Port: config.MetricsPort,
+		}
 		go func() {
-			err = flow.CollectMetrics(
-				ctx,
-				flow.WithHostname(hostname),
-				flow.WithTrenchName(config.TrenchName),
-				flow.WithConduitName(config.ConduitName),
-				flow.WithInterval(config.OTCollectorInterval/2),
-			)
+			err := metricsServer.Start(ctx)
 			if err != nil {
-				log.Fatal(logger, "Unable to start flow metric collector", "error", err)
+				log.Fatal(logger, "Unable to start metrics server", "error", err)
 			}
 		}()
 	}
