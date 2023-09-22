@@ -72,6 +72,9 @@ func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	if rpcTimeout := common.GetGRPCProbeRPCTimeout(); rpcTimeout != "" {
 		operatorEnv["NSM_GRPC_PROBE_RPC_TIMEOUT"] = rpcTimeout
 	}
+	if mtu := common.GetConduitMTU(); mtu != "" {
+		operatorEnv["NSM_MTU"] = mtu
+	}
 	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }
 

@@ -57,6 +57,8 @@ spec:
                 fieldPath: metadata.namespace
           - name: GRPC_PROBE_RPC_TIMEOUT
             value: "1s"
+          - name: CONDUIT_MTU
+            value: "1500"
         securityContext:
           allowPrivilegeEscalation: false
         livenessProbe:
