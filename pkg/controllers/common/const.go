@@ -19,6 +19,7 @@ package common
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -36,6 +37,7 @@ const (
 	NspServiceAccountEnv    = "NSP_SERVICE_ACCOUNT"
 	FeServiceAccountEnv     = "FE_SERVICE_ACCOUNT"
 	GRPCHealthRPCTimeoutEnv = "GRPC_PROBE_RPC_TIMEOUT" // RPC timeout of grpc_health_probes run from code
+	ConduitMTU              = "CONDUIT_MTU"            // Control default Conduit MTU
 
 	Registry        = "registry.nordix.org"
 	Organization    = "cloud-native/meridio"
@@ -157,6 +159,15 @@ func GetNSMRegistryService() string {
 
 func GetLogLevel() string {
 	return os.Getenv(LogLevelEnv)
+}
+
+func GetConduitMTU() string {
+	mtu := os.Getenv(ConduitMTU)
+	// not doing any other sanity checks
+	if _, err := strconv.ParseUint(mtu, 10, 32); err != nil {
+		return ""
+	}
+	return mtu
 }
 
 func GetImagePullSecrets() []corev1.LocalObjectReference {
