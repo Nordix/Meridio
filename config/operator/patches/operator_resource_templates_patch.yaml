@@ -10,7 +10,7 @@ spec:
       - name: operator
         volumeMounts:
         - name: resource-templates
-          mountPath: "/template/resource"
+          mountPath: "/home/meridio/template/resource"
           readOnly: true
       volumes:
       - name: resource-templates
