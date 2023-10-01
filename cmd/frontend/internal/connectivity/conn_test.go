@@ -34,7 +34,6 @@ func TestStatusNoConfig(t *testing.T) {
 	cs.SetNoConfig(syscall.AF_INET)
 	cs.SetNoConfig(syscall.AF_INET6)
 
-	t.Logf("cs: %v\n", cs.String())
 	assert.Equal(connectivity.NoConfig, cs.Status())
 	assert.False(cs.AnyGatewayDown())
 	assert.True(cs.NoConnectivity())

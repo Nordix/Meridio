@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -226,6 +226,28 @@ func (b *RoutingService) ShowBfdSessions(ctx context.Context, lp, name string) (
 	}
 	if name != "" {
 		args = append(args, `'`+name+`'`)
+	}
+	return b.CliCmd(ctx, lp, args...)
+}
+
+// ShowRouteCount -
+// Retrieves number of routes from default BIRD routing tables (master4, master6)
+// Note: using filters significantly increases CPU usage
+func (b *RoutingService) ShowRouteCount(ctx context.Context, lp string) (string, error) {
+	args := []string{
+		"show",
+		"route",
+		"count",
+	}
+	return b.CliCmd(ctx, lp, args...)
+}
+
+// ShowMemory -
+// Retrieves memory usage information
+func (b *RoutingService) ShowMemory(ctx context.Context, lp string) (string, error) {
+	args := []string{
+		"show",
+		"memory",
 	}
 	return b.CliCmd(ctx, lp, args...)
 }
