@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -254,6 +254,7 @@ func (fes *FrontEndService) SetNewConfig(ctx context.Context, c interface{}) err
 // attract traffic through other available links if any. More like
 // VIPs must be added to BIRD only if the frontend is considered up.
 // (Note: IPv4/IPv6 backplane not separated).
+// - Log statistics related to routes managed by the routing suite.
 func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 	logger := fes.logger.WithValues("func", "Monitor")
 
@@ -271,6 +272,10 @@ func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 		refreshCancel context.CancelFunc
 		// denounce indicates that the FE shall be denounced in the NSP
 		denounce bool = true // Always denounce on container start
+		// cancelRoute is used to cancel an old route checking operation
+		cancelRoute context.CancelFunc
+		// routeStats holds routing suite route statistics
+		routeStats *RouteStats = NewRouteStats()
 	)
 
 	go func() {
@@ -397,13 +402,27 @@ func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 			fes.monitorMu.Unlock()
 			if logForced || !reflect.DeepEqual(lastStatusMap, status.StatusMap()) {
 				if status.AnyGatewayDown() {
-					logger.Error(fmt.Errorf("gateway down"), "connectivity", "status", status.Status(), "out", strings.Split(status.Log(), "\n"))
+					logger.Error(fmt.Errorf("gateway down"), "connectivity", "status", status.ToString(), "out", strings.Split(status.Log(), "\n"))
 				} else {
-					logger.Info("connectivity", "status", status.Status(), "out", strings.Split(status.Log(), "\n"))
+					logger.Info("connectivity", "status", status.ToString(), "out", strings.Split(status.Log(), "\n"))
 				}
 
 			}
 			lastStatusMap = status.StatusMap()
+
+			// Check number of routes
+			// Note: Do not block the connectivity monitoring loop! BIRD blocks
+			// on the operation while the routes are processed.
+			if cancelRoute != nil {
+				cancelRoute()
+			}
+			go func() {
+				ctx, cancel := context.WithCancel(logr.NewContext(ctx, logger))
+				cancelRoute = cancel
+				defer cancelRoute()
+
+				fes.checkRoutes(ctx, routeStats, lp)
+			}()
 		} // for {
 	}()
 }

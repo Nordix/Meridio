@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ limitations under the License.
 package connectivity
 
 import (
-	"fmt"
+	"strings"
 	"syscall"
 )
 
@@ -30,6 +30,15 @@ const (
 	Up           = IPv4Up | IPv6Up             // FE has IPv4 and IPv6 external connectivity
 	NoConfig     = NoIPv4Config | NoIPv6Config // No Gateways configured at all
 )
+
+// note: Up and NoConfig are ignored because they are composed of other flags
+var statusToString = map[uint64]string{
+	IPv4Up:       "IPv4 UP",
+	IPv6Up:       "IPv6 UP",
+	NoIPv4Config: "No IPv4 Gateway Configured",
+	NoIPv6Config: "No IPv6 Gateway Configured",
+	AnyGWDown:    "Gateway Down",
+}
 
 func NewConnectivityStatus() *ConnectivityStatus {
 	return &ConnectivityStatus{
@@ -105,10 +114,19 @@ func (cs *ConnectivityStatus) Status() uint64 {
 	return cs.status
 }
 
-func (cs *ConnectivityStatus) StatusMap() map[string]bool {
-	return cs.statusMap
+// StatusToString -
+// Returns a string representation of the connectivity status
+func (cs *ConnectivityStatus) ToString() string {
+	currentStatus := cs.status
+	list := make([]string, 0)
+	for k, v := range statusToString {
+		if k&currentStatus != 0 {
+			list = append(list, v)
+		}
+	}
+	return strings.Join(list, ", ")
 }
 
-func (cs *ConnectivityStatus) String() string {
-	return fmt.Sprintf("%v, %v, \n%v", cs.status, cs.statusMap, cs.log)
+func (cs *ConnectivityStatus) StatusMap() map[string]bool {
+	return cs.statusMap
 }
