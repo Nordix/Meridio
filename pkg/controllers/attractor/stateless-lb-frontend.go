@@ -93,22 +93,13 @@ func (l *LoadBalancer) getNscEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 
 func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	operatorEnv := map[string]string{
-		"NFE_CONFIG_MAP_NAME": common.ConfigMapName(l.trench),
-		"NFE_NSP_SERVICE":     common.NSPServiceWithPort(l.trench),
-		"NFE_TRENCH_NAME":     l.trench.ObjectMeta.Name,
-		"NFE_ATTRACTOR_NAME":  l.attractor.ObjectMeta.Name,
-		"NFE_NAMESPACE":       l.attractor.ObjectMeta.Namespace,
-		"NFE_EXTERNAL_INTERFACE": func() string {
-			externalInterface := l.attractor.Spec.Interface.Name
-			// if set use the interface provided by the Network Attachment
-			if l.attractor.Spec.Interface.Type == meridiov1.NAD &&
-				len(l.attractor.Spec.Interface.NetworkAttachments) == 1 &&
-				l.attractor.Spec.Interface.NetworkAttachments[0].InterfaceRequest != "" {
-				externalInterface = l.attractor.Spec.Interface.NetworkAttachments[0].InterfaceRequest
-			}
-			return externalInterface
-		}(),
-		"NFE_LOG_LEVEL": common.GetLogLevel(),
+		"NFE_CONFIG_MAP_NAME":    common.ConfigMapName(l.trench),
+		"NFE_NSP_SERVICE":        common.NSPServiceWithPort(l.trench),
+		"NFE_TRENCH_NAME":        l.trench.ObjectMeta.Name,
+		"NFE_ATTRACTOR_NAME":     l.attractor.ObjectMeta.Name,
+		"NFE_NAMESPACE":          l.attractor.ObjectMeta.Namespace,
+		"NFE_EXTERNAL_INTERFACE": l.attractor.Spec.Interface.Name,
+		"NFE_LOG_LEVEL":          common.GetLogLevel(),
 	}
 	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }
@@ -117,10 +108,6 @@ func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 // Currently a single Network Attachment is supported, but the code can be easily extended
 // to support multiple.
 func (l *LoadBalancer) insertNetworkAnnotation(dep *appsv1.Deployment) error {
-	if len(l.attractor.Spec.Interface.NetworkAttachments) != 1 {
-		return fmt.Errorf("required one network attachment")
-	}
-
 	if dep.Spec.Template.ObjectMeta.Annotations == nil {
 		dep.Spec.Template.ObjectMeta.Annotations = make(map[string]string)
 	}
