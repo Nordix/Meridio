@@ -52,11 +52,11 @@ func NewNspStatefulSet(e *common.Executor, t *meridiov1.Trench) (*NspStatefulSet
 }
 
 func (i *NspStatefulSet) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
-	operatorEnv := map[string]string{
-		"NSP_PORT":            fmt.Sprint(common.NspTargetPort),
-		"NSP_CONFIG_MAP_NAME": common.ConfigMapName(i.trench),
-		"NSP_NAMESPACE":       i.trench.ObjectMeta.Namespace,
-		"NSP_LOG_LEVEL":       common.GetLogLevel(),
+	operatorEnv := []corev1.EnvVar{
+		{Name: "NSP_PORT", Value: fmt.Sprint(common.NspTargetPort)},
+		{Name: "NSP_CONFIG_MAP_NAME", Value: common.ConfigMapName(i.trench)},
+		{Name: "NSP_NAMESPACE", Value: i.trench.ObjectMeta.Namespace},
+		{Name: "NSP_LOG_LEVEL", Value: common.GetLogLevel()},
 	}
 	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }

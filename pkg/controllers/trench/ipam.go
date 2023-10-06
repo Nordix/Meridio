@@ -53,22 +53,22 @@ func NewIPAM(e *common.Executor, t *meridiov1.Trench) (*IpamStatefulSet, error) 
 }
 
 func (i *IpamStatefulSet) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
-	operatorEnv := map[string]string{
-		"IPAM_PORT":                       strconv.Itoa(common.IpamPort),
-		"IPAM_NAMESPACE":                  i.trench.ObjectMeta.Namespace,
-		"IPAM_TRENCH_NAME":                i.trench.ObjectMeta.GetName(),
-		"IPAM_NSP_SERVICE":                common.NSPServiceWithPort(i.trench),
-		"IPAM_PREFIX_IPV4":                common.SubnetPoolIpv4,
-		"IPAM_PREFIX_IPV6":                common.SubnetPoolIpv6,
-		"IPAM_CONDUIT_PREFIX_LENGTH_IPV4": common.ConduitPrefixLengthIpv4,
-		"IPAM_CONDUIT_PREFIX_LENGTH_IPV6": common.ConduitPrefixLengthIpv6,
-		"IPAM_NODE_PREFIX_LENGTH_IPV4":    common.NodePrefixLengthIpv4,
-		"IPAM_NODE_PREFIX_LENGTH_IPV6":    common.NodePrefixLengthIpv6,
-		"IPAM_IP_FAMILY":                  common.GetIPFamily(i.trench),
-		"IPAM_LOG_LEVEL":                  common.GetLogLevel(),
+	operatorEnv := []corev1.EnvVar{
+		{Name: "IPAM_PORT", Value: strconv.Itoa(common.IpamPort)},
+		{Name: "IPAM_NAMESPACE", Value: i.trench.ObjectMeta.Namespace},
+		{Name: "IPAM_TRENCH_NAME", Value: i.trench.ObjectMeta.GetName()},
+		{Name: "IPAM_NSP_SERVICE", Value: common.NSPServiceWithPort(i.trench)},
+		{Name: "IPAM_PREFIX_IPV4", Value: common.SubnetPoolIpv4},
+		{Name: "IPAM_PREFIX_IPV6", Value: common.SubnetPoolIpv6},
+		{Name: "IPAM_CONDUIT_PREFIX_LENGTH_IPV4", Value: common.ConduitPrefixLengthIpv4},
+		{Name: "IPAM_CONDUIT_PREFIX_LENGTH_IPV6", Value: common.ConduitPrefixLengthIpv6},
+		{Name: "IPAM_NODE_PREFIX_LENGTH_IPV4", Value: common.NodePrefixLengthIpv4},
+		{Name: "IPAM_NODE_PREFIX_LENGTH_IPV6", Value: common.NodePrefixLengthIpv6},
+		{Name: "IPAM_IP_FAMILY", Value: common.GetIPFamily(i.trench)},
+		{Name: "IPAM_LOG_LEVEL", Value: common.GetLogLevel()},
 	}
 	if rpcTimeout := common.GetGRPCProbeRPCTimeout(); rpcTimeout != "" {
-		operatorEnv["IPAM_GRPC_PROBE_RPC_TIMEOUT"] = rpcTimeout
+		operatorEnv = append(operatorEnv, corev1.EnvVar{Name: "IPAM_GRPC_PROBE_RPC_TIMEOUT", Value: rpcTimeout})
 	}
 	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }

@@ -54,15 +54,15 @@ func NewNSE(e *common.Executor, attr *meridiov1.Attractor, t *meridiov1.Trench) 
 }
 
 func (i *NseDeployment) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
-	operatorEnv := map[string]string{
-		"NSM_SERVICES": fmt.Sprintf("%s { vlan: %d; via: %s }",
+	operatorEnv := []corev1.EnvVar{
+		{Name: "NSM_SERVICES", Value: fmt.Sprintf("%s { vlan: %d; via: %s }",
 			common.VlanNtwkSvcName(i.attractor, i.trench),
 			*i.attractor.Spec.Interface.NSMVlan.VlanID,
-			i.attractor.Spec.Interface.NSMVlan.BaseInterface),
-		"NSM_CONNECT_TO":  common.GetNSMRegistryService(),
-		"NSM_CIDR_PREFIX": fmt.Sprintf("%v,%v", i.attractor.Spec.Interface.PrefixIPv4, i.attractor.Spec.Interface.PrefixIPv6),
-		"NSM_LOG_LEVEL":   common.GetLogLevel(),
-		"NSM_LISTEN_ON":   fmt.Sprintf("tcp://:%v", common.VlanNsePort),
+			i.attractor.Spec.Interface.NSMVlan.BaseInterface)},
+		{Name: "NSM_CONNECT_TO", Value: common.GetNSMRegistryService()},
+		{Name: "NSM_CIDR_PREFIX", Value: fmt.Sprintf("%v,%v", i.attractor.Spec.Interface.PrefixIPv4, i.attractor.Spec.Interface.PrefixIPv6)},
+		{Name: "NSM_LOG_LEVEL", Value: common.GetLogLevel()},
+		{Name: "NSM_LISTEN_ON", Value: fmt.Sprintf("tcp://:%v", common.VlanNsePort)},
 	}
 	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }
