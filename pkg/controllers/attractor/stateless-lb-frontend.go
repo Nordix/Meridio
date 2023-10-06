@@ -67,38 +67,38 @@ func NewLoadBalancer(e *common.Executor, attr *meridiov1.Attractor, t *meridiov1
 }
 
 func (l *LoadBalancer) getLbEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
-	operatorEnv := map[string]string{
-		"NSM_SERVICE_NAME": common.LoadBalancerNsName(l.attractor.Spec.Composites[0],
+	operatorEnv := []corev1.EnvVar{
+		{Name: "NSM_SERVICE_NAME", Value: common.LoadBalancerNsName(l.attractor.Spec.Composites[0],
 			l.trench.ObjectMeta.Name,
-			l.attractor.ObjectMeta.Namespace),
-		"NSM_CONDUIT_NAME": l.attractor.Spec.Composites[0],
-		"NSM_TRENCH_NAME":  l.trench.ObjectMeta.Name,
-		"NSM_NSP_SERVICE":  common.NSPServiceWithPort(l.trench),
-		"NSM_LOG_LEVEL":    common.GetLogLevel(),
+			l.attractor.ObjectMeta.Namespace)},
+		{Name: "NSM_CONDUIT_NAME", Value: l.attractor.Spec.Composites[0]},
+		{Name: "NSM_TRENCH_NAME", Value: l.trench.ObjectMeta.Name},
+		{Name: "NSM_NSP_SERVICE", Value: common.NSPServiceWithPort(l.trench)},
+		{Name: "NSM_LOG_LEVEL", Value: common.GetLogLevel()},
 	}
 	if rpcTimeout := common.GetGRPCProbeRPCTimeout(); rpcTimeout != "" {
-		operatorEnv["NSM_GRPC_PROBE_RPC_TIMEOUT"] = rpcTimeout
+		operatorEnv = append(operatorEnv, corev1.EnvVar{Name: "NSM_GRPC_PROBE_RPC_TIMEOUT", Value: rpcTimeout})
 	}
 	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }
 
 func (l *LoadBalancer) getNscEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
-	operatorEnv := map[string]string{
-		"NSM_NETWORK_SERVICES":     fmt.Sprintf("kernel://%s/%s", common.VlanNtwkSvcName(l.attractor, l.trench), l.attractor.Spec.Interface.Name),
-		"NSM_LOG_LEVEL":            common.GetLogLevel(),
-		"NSM_LIVENESSCHECKENABLED": "false",
+	operatorEnv := []corev1.EnvVar{
+		{Name: "NSM_NETWORK_SERVICES", Value: fmt.Sprintf("kernel://%s/%s", common.VlanNtwkSvcName(l.attractor, l.trench), l.attractor.Spec.Interface.Name)},
+		{Name: "NSM_LOG_LEVEL", Value: common.GetLogLevel()},
+		{Name: "NSM_LIVENESSCHECKENABLED", Value: "false"},
 	}
 	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }
 
 func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
-	operatorEnv := map[string]string{
-		"NFE_CONFIG_MAP_NAME": common.ConfigMapName(l.trench),
-		"NFE_NSP_SERVICE":     common.NSPServiceWithPort(l.trench),
-		"NFE_TRENCH_NAME":     l.trench.ObjectMeta.Name,
-		"NFE_ATTRACTOR_NAME":  l.attractor.ObjectMeta.Name,
-		"NFE_NAMESPACE":       l.attractor.ObjectMeta.Namespace,
-		"NFE_EXTERNAL_INTERFACE": func() string {
+	operatorEnv := []corev1.EnvVar{
+		{Name: "NFE_CONFIG_MAP_NAME", Value: common.ConfigMapName(l.trench)},
+		{Name: "NFE_NSP_SERVICE", Value: common.NSPServiceWithPort(l.trench)},
+		{Name: "NFE_TRENCH_NAME", Value: l.trench.ObjectMeta.Name},
+		{Name: "NFE_ATTRACTOR_NAME", Value: l.attractor.ObjectMeta.Name},
+		{Name: "NFE_NAMESPACE", Value: l.attractor.ObjectMeta.Namespace},
+		{Name: "NFE_EXTERNAL_INTERFACE", Value: func() string {
 			externalInterface := l.attractor.Spec.Interface.Name
 			// if set use the interface provided by the Network Attachment
 			if l.attractor.Spec.Interface.Type == meridiov1.NAD &&
@@ -107,8 +107,8 @@ func (l *LoadBalancer) getFeEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 				externalInterface = l.attractor.Spec.Interface.NetworkAttachments[0].InterfaceRequest
 			}
 			return externalInterface
-		}(),
-		"NFE_LOG_LEVEL": common.GetLogLevel(),
+		}()},
+		{Name: "NFE_LOG_LEVEL", Value: common.GetLogLevel()},
 	}
 	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }

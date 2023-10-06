@@ -27,7 +27,7 @@ import (
 func TestCompileEnvironmentVariables(t *testing.T) {
 	type args struct {
 		allEnv      []corev1.EnvVar
-		operatorEnv map[string]string
+		operatorEnv []corev1.EnvVar
 	}
 	tests := []struct {
 		name string
@@ -38,8 +38,8 @@ func TestCompileEnvironmentVariables(t *testing.T) {
 			name: "Add non existing env variable",
 			args: args{
 				allEnv: []corev1.EnvVar{},
-				operatorEnv: map[string]string{
-					"TEST": "A",
+				operatorEnv: []corev1.EnvVar{
+					{Name: "TEST", Value: "A"},
 				},
 			},
 			want: []corev1.EnvVar{
@@ -58,8 +58,8 @@ func TestCompileEnvironmentVariables(t *testing.T) {
 						Value: "",
 					},
 				},
-				operatorEnv: map[string]string{
-					"TEST": "A",
+				operatorEnv: []corev1.EnvVar{
+					{Name: "TEST", Value: "A"},
 				},
 			},
 			want: []corev1.EnvVar{
@@ -78,8 +78,8 @@ func TestCompileEnvironmentVariables(t *testing.T) {
 						Value: "B",
 					},
 				},
-				operatorEnv: map[string]string{
-					"TEST": "A",
+				operatorEnv: []corev1.EnvVar{
+					{Name: "TEST", Value: "A"},
 				},
 			},
 			want: []corev1.EnvVar{
@@ -106,8 +106,8 @@ func TestCompileEnvironmentVariables(t *testing.T) {
 						Value: "2",
 					},
 				},
-				operatorEnv: map[string]string{
-					"TEST": "A",
+				operatorEnv: []corev1.EnvVar{
+					{Name: "TEST", Value: "A"},
 				},
 			},
 			want: []corev1.EnvVar{

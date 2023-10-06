@@ -235,26 +235,31 @@ func GetPodDisruptionBudgetModel(f string) (*policyv1.PodDisruptionBudget, error
 	return rb, nil
 }
 
-func CompileEnvironmentVariables(allEnv []corev1.EnvVar, operatorEnv map[string]string) []corev1.EnvVar {
+func CompileEnvironmentVariables(allEnv []corev1.EnvVar, operatorEnv []corev1.EnvVar) []corev1.EnvVar {
+	operatorEnvMap := map[string]string{}
+	for _, env := range operatorEnv {
+		operatorEnvMap[env.Name] = env.Value
+	}
 	res := []corev1.EnvVar{}
 	for _, env := range allEnv {
-		value, isOperatorEnv := operatorEnv[env.Name]
+		value, isOperatorEnv := operatorEnvMap[env.Name]
 		if isOperatorEnv {
 			if env.Value == "" { // set only if no value already set
 				env.Value = value
 			}
-			delete(operatorEnv, env.Name)
+			delete(operatorEnvMap, env.Name)
 			res = append(res, env)
 			continue
 		}
 		res = append(res, env)
 	}
 	// Add missing operator env variables
-	for name, value := range operatorEnv {
-		res = append(res, corev1.EnvVar{
-			Name:  name,
-			Value: value,
-		})
+	for _, env := range operatorEnv {
+		_, isOperatorEnv := operatorEnvMap[env.Name]
+		if !isOperatorEnv {
+			continue
+		}
+		res = append(res, env)
 	}
 	return res
 }
