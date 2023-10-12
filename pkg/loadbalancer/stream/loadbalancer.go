@@ -29,6 +29,7 @@ import (
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/loadbalancer/flow"
+	targetMetrics "github.com/nordix/meridio/pkg/loadbalancer/target"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
@@ -54,6 +55,7 @@ type LoadBalancer struct {
 	defrag                     *Defrag
 	pendingCh                  chan struct{} // trigger pending Targets processing
 	logger                     logr.Logger
+	targetHitsMetrics          *targetMetrics.HitsMetrics
 }
 
 func New(
@@ -64,6 +66,7 @@ func New(
 	netUtils networking.Utils,
 	lbFactory types.NFQueueLoadBalancerFactory,
 	identifierOffset int,
+	targetHitsMetrics *targetMetrics.HitsMetrics,
 ) (types.Stream, error) {
 	n := int(stream.GetMaxTargets())
 	m := int(stream.GetMaxTargets()) * 100
@@ -86,6 +89,7 @@ func New(
 		pendingTargets:             make(map[int]types.Target),
 		pendingCh:                  make(chan struct{}, 10),
 		logger:                     logger,
+		targetHitsMetrics:          targetHitsMetrics,
 	}
 	// first enable kernel's IP defrag except for the interfaces facing targets
 	// (defrag is needed by Flows to match rules with L4 information)
@@ -170,7 +174,7 @@ func (lb *LoadBalancer) AddTarget(target types.Target) error {
 	if err != nil {
 		lb.addPendingTarget(target)
 		returnErr := err
-		err = target.Delete()
+		err = target.Delete(lb.IdentifierOffset)
 		if err != nil {
 			return fmt.Errorf("%w; %v", err, returnErr)
 		}
@@ -180,7 +184,7 @@ func (lb *LoadBalancer) AddTarget(target types.Target) error {
 	if err != nil {
 		lb.addPendingTarget(target)
 		returnErr := err
-		err = target.Delete()
+		err = target.Delete(lb.IdentifierOffset)
 		if err != nil {
 			return fmt.Errorf("%w; %v", err, returnErr)
 		}
@@ -204,7 +208,7 @@ func (lb *LoadBalancer) RemoveTarget(identifier int) error {
 	if err != nil {
 		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 	}
-	err = target.Delete()
+	err = target.Delete(lb.IdentifierOffset)
 	if err != nil {
 		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 	}
@@ -343,7 +347,7 @@ func (lb *LoadBalancer) setTargets(targets []*nspAPI.Target) error {
 	var errFinal error
 	newTargetsMap := make(map[int]types.Target)
 	for _, target := range targets {
-		t, err := NewTarget(target, lb.netUtils)
+		t, err := NewTarget(target, lb.netUtils, lb.targetHitsMetrics)
 		if err != nil {
 			continue
 		}

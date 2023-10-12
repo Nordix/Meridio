@@ -21,5 +21,5 @@ type Target interface {
 	GetIdentifier() int
 	Configure(identifierOffset int) error
 	Verify() bool
-	Delete() error
+	Delete(identifierOffset int) error
 }

@@ -49,6 +49,7 @@ import (
 	"github.com/nordix/meridio/pkg/loadbalancer/flow"
 	"github.com/nordix/meridio/pkg/loadbalancer/nfqlb"
 	"github.com/nordix/meridio/pkg/loadbalancer/stream"
+	"github.com/nordix/meridio/pkg/loadbalancer/target"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/metrics"
@@ -167,6 +168,16 @@ func main() {
 		},
 	}
 
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Fatal(logger, "Unable to get hostname", "error", err)
+	}
+
+	targetHitsMetrics, err := target.NewTargetHitsMetrics(hostname)
+	if err != nil {
+		log.Fatal(logger, "Unable to init lb target metrics", "error", err)
+	}
+
 	lbFactory := nfqlb.NewLbFactory(nfqlb.WithNFQueue(config.Nfqueue))
 	nfa, err := nfqlb.NewNetfilterAdaptor(nfqlb.WithNFQueue(config.Nfqueue), nfqlb.WithNFQueueFanout(config.NfqueueFanout))
 	if err != nil {
@@ -185,6 +196,7 @@ func main() {
 		lbFactory, // to spawn nfqlb instance for each Stream created
 		nfa,       // netfilter kernel configuration to steer VIP traffic to nfqlb process
 		config.IdentifierOffsetStart,
+		targetHitsMetrics,
 	)
 
 	interfaceMonitorEndpoint := interfacemonitor.NewServer(interfaceMonitor, sns, netUtils)
@@ -253,11 +265,6 @@ func main() {
 			log.Fatal(logger, "Unable to init metrics collector", "error", err)
 		}
 
-		hostname, err := os.Hostname()
-		if err != nil {
-			log.Fatal(logger, "Unable to get hostname", "error", err)
-		}
-
 		err = flow.CollectMetrics(
 			flow.WithHostname(hostname),
 			flow.WithTrenchName(config.TrenchName),
@@ -266,6 +273,8 @@ func main() {
 		if err != nil {
 			log.Fatal(logger, "Unable to start flow metrics collector", "error", err)
 		}
+
+		targetHitsMetrics.Collect()
 
 		metricsServer := metrics.Server{
 			IP:   "",
@@ -302,6 +311,7 @@ type SimpleNetworkService struct {
 	lbFactory                   types.NFQueueLoadBalancerFactory
 	nfa                         types.NFAdaptor
 	natHandler                  *nat.NatHandler
+	targetHitsMetrics           *target.HitsMetrics
 }
 
 /* // Request checks if allowed to serve the request
@@ -338,6 +348,7 @@ func newSimpleNetworkService(
 	lbFactory types.NFQueueLoadBalancerFactory,
 	nfa types.NFAdaptor,
 	identifierOffsetStart int,
+	targetHitsMetrics *target.HitsMetrics,
 ) *SimpleNetworkService {
 	identifierOffsetGenerator := NewIdentifierOffsetGenerator(identifierOffsetStart)
 	logger := log.FromContextOrGlobal(ctx).WithValues("class", "SimpleNetworkService")
@@ -361,6 +372,7 @@ func newSimpleNetworkService(
 		lbFactory:                   lbFactory,
 		nfa:                         nfa,
 		natHandler:                  nh,
+		targetHitsMetrics:           targetHitsMetrics,
 	}
 	logger.Info("Created", "object", simpleNetworkService)
 	return simpleNetworkService
@@ -570,6 +582,7 @@ func (sns *SimpleNetworkService) addStream(strm *nspAPI.Stream) error {
 		sns.netUtils,
 		sns.lbFactory,
 		identifierOffset,
+		sns.targetHitsMetrics,
 	)
 	if err != nil {
 		return err
