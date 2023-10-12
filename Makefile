@@ -169,7 +169,7 @@ grype: ## Run grype scanner on images.
 .PHONY: grype-scan
 grype-scan: output-dir
 	docker run --rm $(SECURITY_SCAN_VOLUME) \
-	--name Grype anchore/grype:v0.59.1 \
+	--name Grype anchore/grype:v0.70.0 \
 	$(REGISTRY)/$(IMAGE):$(VERSION) -o json --add-cpes-if-none > $(OUTPUT_DIR)/grype_$(IMAGE)_$(VERSION).json
 
 # https://github.com/aquasecurity/trivy
@@ -180,7 +180,7 @@ trivy: ## Run trivy scanner on images.
 .PHONY: trivy-scan
 trivy-scan: output-dir
 	docker run --rm $(SECURITY_SCAN_VOLUME) \
-	aquasec/trivy:0.38.3 image \
+	aquasec/trivy:0.45.1 image \
 	-f json $(REGISTRY)/$(IMAGE):$(VERSION) > $(OUTPUT_DIR)/trivy_$(IMAGE)_$(VERSION).json
 
 # https://github.com/sonatype-nexus-community/nancy
@@ -298,7 +298,7 @@ ginkgo:
 
 .PHONY: nancy-tool
 nancy-tool:
-	$(call go-get-tool,$(NANCY),github.com/sonatype-nexus-community/nancy@v1.0.42)
+	$(call go-get-tool,$(NANCY),github.com/sonatype-nexus-community/nancy@v1.0.45)
 
 .PHONY: controller-gen
 controller-gen:
