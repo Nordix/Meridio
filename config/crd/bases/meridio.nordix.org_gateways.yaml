@@ -114,14 +114,20 @@ spec:
                     format: int32
                     type: integer
                   local-port:
+                    default: 179
                     description: BGP listening port of the Attractor FrontEnds.
+                    maximum: 65535
+                    minimum: 1
                     type: integer
                   remote-asn:
                     description: The ASN number of the Gateway Router
                     format: int32
                     type: integer
                   remote-port:
+                    default: 179
                     description: BGP listening port of the Gateway Router.
+                    maximum: 65535
+                    minimum: 1
                     type: integer
                 type: object
               protocol:

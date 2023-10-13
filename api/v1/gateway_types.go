@@ -65,9 +65,17 @@ type BgpSpec struct {
 	// +optional
 	HoldTime string `json:"hold-time,omitempty"`
 
+	// +kubebuilder:default=179
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+
 	// BGP listening port of the Gateway Router.
 	// +optional
 	RemotePort *uint16 `json:"remote-port,omitempty"`
+
+	// +kubebuilder:default=179
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
 
 	// BGP listening port of the Attractor FrontEnds.
 	// +optional
