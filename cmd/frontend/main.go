@@ -28,6 +28,8 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kelseyhightower/envconfig"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/keepalive"
@@ -38,7 +40,9 @@ import (
 	"github.com/nordix/meridio/cmd/frontend/internal/frontend"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/health/connection"
+	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/log"
+	"github.com/nordix/meridio/pkg/metrics"
 	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/security/credentials"
 )
@@ -154,6 +158,37 @@ func main() {
 
 	// start watching events of interest via NSP
 	go watchConfig(ctx, cancel, c, fe)
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Fatal(logger, "Unable to get hostname", "error", err)
+	}
+	interfaceMetrics := linuxKernel.NewInterfaceMetrics([]metric.ObserveOption{
+		metric.WithAttributes(attribute.String("Hostname", hostname)),
+		metric.WithAttributes(attribute.String("Trench", config.TrenchName)),
+		metric.WithAttributes(attribute.String("Attractor", config.AttractorName)),
+	})
+	interfaceMetrics.Register(config.ExternalInterface)
+
+	if config.MetricsEnabled {
+		_, err = metrics.Init(ctx)
+		if err != nil {
+			log.Fatal(logger, "Unable to init metrics collector", "error", err)
+		}
+
+		interfaceMetrics.Collect()
+
+		metricsServer := metrics.Server{
+			IP:   "",
+			Port: config.MetricsPort,
+		}
+		go func() {
+			err := metricsServer.Start(ctx)
+			if err != nil {
+				log.Fatal(logger, "Unable to start metrics server", "error", err)
+			}
+		}()
+	}
 
 	<-ctx.Done()
 	logger.Info("FE shutting down")

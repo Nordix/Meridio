@@ -57,10 +57,13 @@ import (
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
+	nsmmetrics "github.com/nordix/meridio/pkg/nsm/metrics"
 	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/keepalive"
@@ -177,6 +180,11 @@ func main() {
 	if err != nil {
 		log.Fatal(logger, "Unable to init lb target metrics", "error", err)
 	}
+	interfaceMetrics := linuxKernel.NewInterfaceMetrics([]metric.ObserveOption{
+		metric.WithAttributes(attribute.String("Hostname", hostname)),
+		metric.WithAttributes(attribute.String("Trench", config.TrenchName)),
+		metric.WithAttributes(attribute.String("Conduit", config.ConduitName)),
+	})
 
 	lbFactory := nfqlb.NewLbFactory(nfqlb.WithNFQueue(config.Nfqueue))
 	nfa, err := nfqlb.NewNetfilterAdaptor(nfqlb.WithNFQueue(config.Nfqueue), nfqlb.WithNFQueueFanout(config.NfqueueFanout))
@@ -210,6 +218,7 @@ func main() {
 			noop.MECHANISM:       null.NewServer(),
 		}),
 		interfaceMonitorEndpoint,
+		nsmmetrics.NewServer(interfaceMetrics),
 		sendfd.NewServer(),
 	}
 
@@ -275,6 +284,7 @@ func main() {
 		}
 
 		targetHitsMetrics.Collect()
+		interfaceMetrics.Collect()
 
 		metricsServer := metrics.Server{
 			IP:   "",
