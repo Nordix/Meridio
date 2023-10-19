@@ -16,17 +16,6 @@ Counts number of `METRIC_TYPE` for a network interface.
    * Attactor (optional)
    * Interface Name
 
-### meridio.conduit.stream.status (Planned)
-
-Stream status in the conduit instance.
-
-* Type: Gauge (Health Metric)
-* Attributes:
-   * Pod Name
-   * Trench
-   * Conduit
-   * Stream
-
 ### meridio.conduit.stream.flow.matches
 
 Counts number of packets that have matched a flow.
@@ -39,9 +28,21 @@ Counts number of packets that have matched a flow.
    * Stream
    * Flow
 
-### meridio.conduit.stream.target.packet.hits (Planned)
+### meridio.conduit.stream.target.hits.packets
 
 Counts number of packets that have hit a target.
+
+* Type: Counter
+* Attributes:
+   * Pod Name
+   * Trench
+   * Conduit
+   * Stream
+   * Target (identifier + IPs)
+
+### meridio.conduit.stream.target.hits.bytes
+
+Counts number of bytes that have hit a target.
 
 * Type: Counter
 * Attributes:

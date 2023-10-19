@@ -17,7 +17,9 @@ limitations under the License.
 package metrics
 
 const (
-	MERIDIO_CONDUIT_STREAM_FLOW_MATCHES = "meridio.conduit.stream.flow.matches"
+	MERIDIO_CONDUIT_STREAM_FLOW_MATCHES        = "meridio.conduit.stream.flow.matches"
+	MERIDIO_CONDUIT_STREAM_TARGET_HITS_PACKETS = "meridio.conduit.stream.target.hits.packets"
+	MERIDIO_CONDUIT_STREAM_TARGET_HITS_BYTES   = "meridio.conduit.stream.target.hits.bytes"
 
 	METER_NAME = "Meridio"
 )
