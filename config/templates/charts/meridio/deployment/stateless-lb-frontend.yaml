@@ -184,6 +184,9 @@ spec:
         - name: frontend
           image: {{ .Values.registry }}/{{ .Values.repository }}/{{ .Values.frontEnd.image }}:{{ .Values.version }}
           imagePullPolicy:  # Kubernetes default according to image tag
+          ports:
+          - name: metrics
+            containerPort: 2224
           startupProbe:  # will be filled by operator if not specified
             exec:
               command:
@@ -244,6 +247,8 @@ spec:
               value:  # to be filled by operator
             - name: NFE_LOG_LEVEL
               value:  # to be filled by operator
+            - name: NFE_METRICS_ENABLED
+              value: "true"
           securityContext:
             runAsNonRoot: true
             readOnlyRootFilesystem: true
