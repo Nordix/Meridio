@@ -23,22 +23,25 @@ import (
 	"strconv"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	targetMetrics "github.com/nordix/meridio/pkg/loadbalancer/target"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/networking"
 )
 
 type target struct {
-	fwMarks    []networking.FWMarkRoute
-	nspTarget  *nspAPI.Target
-	netUtils   networking.Utils
-	identifier int
+	fwMarks           []networking.FWMarkRoute
+	nspTarget         *nspAPI.Target
+	netUtils          networking.Utils
+	identifier        int
+	targetHitsMetrics *targetMetrics.HitsMetrics
 }
 
-func NewTarget(nspTarget *nspAPI.Target, netUtils networking.Utils) (types.Target, error) {
+func NewTarget(nspTarget *nspAPI.Target, netUtils networking.Utils, targetHitsMetrics *targetMetrics.HitsMetrics) (types.Target, error) {
 	target := &target{
-		fwMarks:   []networking.FWMarkRoute{},
-		nspTarget: nspTarget,
-		netUtils:  netUtils,
+		fwMarks:           []networking.FWMarkRoute{},
+		nspTarget:         nspTarget,
+		netUtils:          netUtils,
+		targetHitsMetrics: targetHitsMetrics,
 	}
 	if nspTarget.GetStatus() != nspAPI.Target_ENABLED {
 		return nil, errors.New("the target is not enabled")
@@ -76,19 +79,20 @@ func (t *target) Configure(identifierOffset int) error {
 	if t.fwMarks == nil {
 		t.fwMarks = []networking.FWMarkRoute{}
 	}
+	offsetId := t.identifier + identifierOffset
 	for _, ip := range t.GetIps() {
 		var fwMark networking.FWMarkRoute
-		offsetId := t.identifier + identifierOffset
 		fwMark, err := t.netUtils.NewFWMarkRoute(ip, offsetId, offsetId)
 		if err != nil {
 			return err
 		}
 		t.fwMarks = append(t.fwMarks, fwMark)
 	}
+	_ = t.targetHitsMetrics.Register(offsetId, t.nspTarget)
 	return nil
 }
 
-func (t *target) Delete() error {
+func (t *target) Delete(identifierOffset int) error {
 	if t.fwMarks == nil {
 		t.fwMarks = []networking.FWMarkRoute{}
 		return nil
@@ -101,8 +105,11 @@ func (t *target) Delete() error {
 		}
 	}
 	t.fwMarks = []networking.FWMarkRoute{}
+	offsetId := t.identifier + identifierOffset
+	_ = t.targetHitsMetrics.Unregister(offsetId)
 	return errFinal
 }
+
 func (t *target) MarshalJSON() ([]byte, error) {
 	ts := struct {
 		Identifier int      `json:"identifier"`
@@ -113,4 +120,3 @@ func (t *target) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(&ts)
 }
-

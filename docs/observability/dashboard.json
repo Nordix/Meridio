@@ -18,10 +18,424 @@
     "editable": true,
     "fiscalYearStartMonth": 0,
     "graphTooltip": 0,
-    "id": 28,
+    "id": 29,
     "links": [],
     "liveNow": false,
     "panels": [
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "custom": {
+                        "align": "auto",
+                        "cellOptions": {
+                            "type": "auto"
+                        },
+                        "filterable": false,
+                        "inspect": false,
+                        "minWidth": 150
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 20,
+                "w": 12,
+                "x": 0,
+                "y": 0
+            },
+            "id": 3,
+            "options": {
+                "cellHeight": "sm",
+                "footer": {
+                    "countRows": false,
+                    "fields": "",
+                    "reducer": [
+                        "sum"
+                    ],
+                    "show": false
+                },
+                "showHeader": true
+            },
+            "pluginVersion": "10.1.5",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "exemplar": false,
+                    "expr": "meridio_conduit_stream_target_hits_packets_total",
+                    "format": "table",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "instant": true,
+                    "legendFormat": "__auto",
+                    "range": false,
+                    "refId": "packets",
+                    "useBackend": false
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "exemplar": false,
+                    "expr": "meridio_conduit_stream_target_hits_bytes_total",
+                    "format": "table",
+                    "fullMetaSearch": false,
+                    "hide": false,
+                    "includeNullMetadata": true,
+                    "instant": true,
+                    "legendFormat": "__auto",
+                    "range": false,
+                    "refId": "bytes",
+                    "useBackend": false
+                }
+            ],
+            "title": "Target Hits",
+            "transformations": [
+                {
+                    "id": "merge",
+                    "options": {}
+                },
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {
+                            "Time": true,
+                            "Value": false,
+                            "__name__": true,
+                            "container": true,
+                            "endpoint": true,
+                            "instance": true,
+                            "job": true,
+                            "namespace": true,
+                            "otel_scope_name": true,
+                            "pod": true
+                        },
+                        "indexByName": {
+                            "Conduit": 1,
+                            "Hostname": 3,
+                            "IPs": 5,
+                            "Identifier": 4,
+                            "Stream": 2,
+                            "Time": 6,
+                            "Trench": 0,
+                            "Value": 15,
+                            "__name__": 7,
+                            "container": 8,
+                            "endpoint": 9,
+                            "instance": 10,
+                            "job": 11,
+                            "namespace": 12,
+                            "otel_scope_name": 13,
+                            "pod": 14
+                        },
+                        "renameByName": {
+                            "Value #packets": ""
+                        }
+                    }
+                },
+                {
+                    "id": "groupBy",
+                    "options": {
+                        "fields": {
+                            "Conduit": {
+                                "aggregations": [],
+                                "operation": "groupby"
+                            },
+                            "Hostname": {
+                                "aggregations": [],
+                                "operation": "groupby"
+                            },
+                            "IPs": {
+                                "aggregations": [],
+                                "operation": "groupby"
+                            },
+                            "Identifier": {
+                                "aggregations": [],
+                                "operation": "groupby"
+                            },
+                            "Stream": {
+                                "aggregations": [],
+                                "operation": "groupby"
+                            },
+                            "Trench": {
+                                "aggregations": [],
+                                "operation": "groupby"
+                            },
+                            "Value #bytes": {
+                                "aggregations": [
+                                    "lastNotNull"
+                                ],
+                                "operation": "aggregate"
+                            },
+                            "Value #packets": {
+                                "aggregations": [
+                                    "lastNotNull"
+                                ],
+                                "operation": "aggregate"
+                            }
+                        }
+                    }
+                },
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {},
+                        "indexByName": {},
+                        "renameByName": {
+                            "Identifier": "",
+                            "Value #bytes (lastNotNull)": "Bytes",
+                            "Value #packets (lastNotNull)": "Packets"
+                        }
+                    }
+                }
+            ],
+            "type": "table"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "custom": {
+                        "align": "auto",
+                        "cellOptions": {
+                            "type": "auto"
+                        },
+                        "inspect": false
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 12,
+                "w": 12,
+                "x": 12,
+                "y": 0
+            },
+            "id": 2,
+            "options": {
+                "cellHeight": "sm",
+                "footer": {
+                    "countRows": false,
+                    "fields": "",
+                    "reducer": [
+                        "sum"
+                    ],
+                    "show": false
+                },
+                "showHeader": true
+            },
+            "pluginVersion": "10.1.5",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "exemplar": false,
+                    "expr": "meridio_conduit_stream_flow_matches_total",
+                    "format": "table",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "instant": true,
+                    "legendFormat": "__auto",
+                    "range": false,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "Flow List",
+            "transformations": [
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {
+                            "Flow": false,
+                            "Hostname": false,
+                            "Time": true,
+                            "__name__": true,
+                            "container": true,
+                            "endpoint": true,
+                            "exported_job": true,
+                            "instance": true,
+                            "job": true,
+                            "namespace": true,
+                            "otel_scope_name": true,
+                            "pod": true,
+                            "service": true
+                        },
+                        "indexByName": {
+                            "Conduit": 2,
+                            "Flow": 4,
+                            "Hostname": 5,
+                            "Stream": 3,
+                            "Time": 0,
+                            "Trench": 1,
+                            "Value": 15,
+                            "__name__": 6,
+                            "container": 7,
+                            "endpoint": 8,
+                            "exported_job": 9,
+                            "instance": 10,
+                            "job": 11,
+                            "namespace": 12,
+                            "pod": 13,
+                            "service": 14
+                        },
+                        "renameByName": {
+                            "Value": "Packets"
+                        }
+                    }
+                }
+            ],
+            "type": "table"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        },
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 12
+            },
+            "id": 1,
+            "options": {
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "expr": "sum by(Flow, Stream, Conduit, Trench) (rate(meridio_conduit_stream_flow_matches_total[$__rate_interval]))",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "legendFormat": "{{Flow}}.{{Stream}}.{{Conduit}}.{{Trench}}",
+                    "range": true,
+                    "refId": "A",
+                    "useBackend": false
+                }
+            ],
+            "title": "Flow Match (packet per second)",
+            "type": "timeseries"
+        },
         {
             "datasource": {
                 "type": "prometheus",
@@ -84,9 +498,9 @@
                 "h": 8,
                 "w": 12,
                 "x": 0,
-                "y": 0
+                "y": 20
             },
-            "id": 1,
+            "id": 5,
             "options": {
                 "legend": {
                     "calcs": [],
@@ -99,6 +513,7 @@
                     "sort": "none"
                 }
             },
+            "pluginVersion": "10.1.5",
             "targets": [
                 {
                     "datasource": {
@@ -107,16 +522,21 @@
                     },
                     "disableTextWrap": false,
                     "editorMode": "builder",
-                    "expr": "sum by(Flow, Stream, Conduit, Trench) (rate(meridio_conduit_stream_flow_matches_total[$__rate_interval]))",
+                    "exemplar": false,
+                    "expr": "sum by(Trench, Conduit, Stream) (rate(meridio_conduit_stream_target_hits_packets_total[$__rate_interval]))",
+                    "format": "time_series",
                     "fullMetaSearch": false,
-                    "includeNullMetadata": true,
-                    "legendFormat": "{{Flow}}.{{Stream}}.{{Conduit}}.{{Trench}}",
+                    "hide": false,
+                    "includeNullMetadata": false,
+                    "instant": false,
+                    "legendFormat": "{{Stream}}.{{Conduit}}.{{Trench}}",
                     "range": true,
-                    "refId": "A",
+                    "refId": "packets",
                     "useBackend": false
                 }
             ],
-            "title": "Flow Match (packet per second)",
+            "title": "Stream (packets per second)",
+            "transformations": [],
             "type": "timeseries"
         },
         {
@@ -127,14 +547,38 @@
             "fieldConfig": {
                 "defaults": {
                     "color": {
-                        "mode": "thresholds"
+                        "mode": "palette-classic"
                     },
                     "custom": {
-                        "align": "auto",
-                        "cellOptions": {
-                            "type": "auto"
+                        "axisCenteredZero": false,
+                        "axisColorMode": "text",
+                        "axisLabel": "",
+                        "axisPlacement": "auto",
+                        "barAlignment": 0,
+                        "drawStyle": "line",
+                        "fillOpacity": 0,
+                        "gradientMode": "none",
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
                         },
-                        "inspect": false
+                        "insertNulls": false,
+                        "lineInterpolation": "linear",
+                        "lineWidth": 1,
+                        "pointSize": 5,
+                        "scaleDistribution": {
+                            "type": "linear"
+                        },
+                        "showPoints": "auto",
+                        "spanNulls": false,
+                        "stacking": {
+                            "group": "A",
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "off"
+                        }
                     },
                     "mappings": [],
                     "thresholds": {
@@ -154,25 +598,25 @@
                 "overrides": []
             },
             "gridPos": {
-                "h": 12,
+                "h": 8,
                 "w": 12,
                 "x": 12,
-                "y": 0
+                "y": 20
             },
-            "id": 2,
+            "id": 6,
             "options": {
-                "cellHeight": "sm",
-                "footer": {
-                    "countRows": false,
-                    "fields": "",
-                    "reducer": [
-                        "sum"
-                    ],
-                    "show": false
+                "legend": {
+                    "calcs": [],
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
                 },
-                "showHeader": true
+                "tooltip": {
+                    "mode": "single",
+                    "sort": "none"
+                }
             },
-            "pluginVersion": "10.1.4",
+            "pluginVersion": "10.1.5",
             "targets": [
                 {
                     "datasource": {
@@ -182,60 +626,21 @@
                     "disableTextWrap": false,
                     "editorMode": "builder",
                     "exemplar": false,
-                    "expr": "meridio_conduit_stream_flow_matches_total",
-                    "format": "table",
+                    "expr": "sum by(Trench, Conduit, Stream) (rate(meridio_conduit_stream_target_hits_bytes_total[$__rate_interval]))",
+                    "format": "time_series",
                     "fullMetaSearch": false,
-                    "includeNullMetadata": true,
-                    "instant": true,
-                    "legendFormat": "__auto",
-                    "range": false,
-                    "refId": "A",
+                    "hide": false,
+                    "includeNullMetadata": false,
+                    "instant": false,
+                    "legendFormat": "{{Stream}}.{{Conduit}}.{{Trench}}",
+                    "range": true,
+                    "refId": "packets",
                     "useBackend": false
                 }
             ],
-            "title": "Flow List",
-            "transformations": [
-                {
-                    "id": "organize",
-                    "options": {
-                        "excludeByName": {
-                            "Flow": false,
-                            "Hostname": false,
-                            "Time": true,
-                            "__name__": true,
-                            "container": true,
-                            "endpoint": true,
-                            "exported_job": true,
-                            "instance": true,
-                            "job": true,
-                            "namespace": true,
-                            "otel_scope_name": true,
-                            "pod": true,
-                            "service": true
-                        },
-                        "indexByName": {
-                            "Conduit": 2,
-                            "Flow": 4,
-                            "Hostname": 5,
-                            "Stream": 3,
-                            "Time": 0,
-                            "Trench": 1,
-                            "Value": 15,
-                            "__name__": 6,
-                            "container": 7,
-                            "endpoint": 8,
-                            "exported_job": 9,
-                            "instance": 10,
-                            "job": 11,
-                            "namespace": 12,
-                            "pod": 13,
-                            "service": 14
-                        },
-                        "renameByName": {}
-                    }
-                }
-            ],
-            "type": "table"
+            "title": "Stream (bytes per second)",
+            "transformations": [],
+            "type": "timeseries"
         }
     ],
     "refresh": "5s",
@@ -243,7 +648,19 @@
     "style": "dark",
     "tags": [],
     "templating": {
-        "list": []
+        "list": [
+            {
+                "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                },
+                "filters": [],
+                "hide": 0,
+                "name": "Filters",
+                "skipUrlSync": false,
+                "type": "adhoc"
+            }
+        ]
     },
     "time": {
         "from": "now-15m",
