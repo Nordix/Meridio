@@ -2,7 +2,7 @@
 
 ## Metric List
 
-### meridio.interface.`METRIC_TYPE` (Planned)
+### meridio.interface.`METRIC_TYPE`
 
 `METRIC_TYPE`: rx_packets, tx_packets, rx_bytes, tx_bytes, rx_errors, tx_errors, rx_dropped, tx_dropped
 

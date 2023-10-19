@@ -18,6 +18,14 @@ package metrics
 
 const (
 	MERIDIO_CONDUIT_STREAM_FLOW_MATCHES = "meridio.conduit.stream.flow.matches"
+	MERIDIO_INTERFACE_RX_PACKETS        = "meridio.interface.rx_packets"
+	MERIDIO_INTERFACE_TX_PACKET         = "meridio.interface.tx_packets"
+	MERIDIO_INTERFACE_RX_BYTES          = "meridio.interface.rx_bytes"
+	MERIDIO_INTERFACE_TX_BYTES          = "meridio.interface.tx_bytes"
+	MERIDIO_INTERFACE_RX_ERRORS         = "meridio.interface.rx_errors"
+	MERIDIO_INTERFACE_TX_ERRORS         = "meridio.interface.tx_errors"
+	MERIDIO_INTERFACE_RX_DROPPED        = "meridio.interface.rx_dropped"
+	MERIDIO_INTERFACE_TX_DROPPED        = "meridio.interface.tx_dropped"
 
 	METER_NAME = "Meridio"
 )

@@ -44,4 +44,6 @@ type Config struct {
 	DelayConnectivity     time.Duration `default:"1s" desc:"Delay between checks with connectivity"`
 	DelayNoConnectivity   time.Duration `default:"3s" desc:"Delay between checks without connectivity"`
 	MaxSessionErrors      int           `default:"5" desc:"Max session errors when checking Bird until denounce"`
+	MetricsEnabled        bool          `default:"false" desc:"Enable the metrics collection" split_words:"true"`
+	MetricsPort           int           `default:"2224" desc:"Specify the port used to expose the metrics" split_words:"true"`
 }

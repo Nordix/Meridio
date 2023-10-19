@@ -56,10 +56,13 @@ import (
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
+	nsmmetrics "github.com/nordix/meridio/pkg/nsm/metrics"
 	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/security/credentials"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/keepalive"
@@ -167,6 +170,17 @@ func main() {
 		},
 	}
 
+	hostname, err := os.Hostname()
+	if err != nil {
+		log.Fatal(logger, "Unable to get hostname", "error", err)
+	}
+
+	interfaceMetrics := linuxKernel.NewInterfaceMetrics([]metric.ObserveOption{
+		metric.WithAttributes(attribute.String("Hostname", hostname)),
+		metric.WithAttributes(attribute.String("Trench", config.TrenchName)),
+		metric.WithAttributes(attribute.String("Conduit", config.ConduitName)),
+	})
+
 	lbFactory := nfqlb.NewLbFactory(nfqlb.WithNFQueue(config.Nfqueue))
 	nfa, err := nfqlb.NewNetfilterAdaptor(nfqlb.WithNFQueue(config.Nfqueue), nfqlb.WithNFQueueFanout(config.NfqueueFanout))
 	if err != nil {
@@ -198,6 +212,7 @@ func main() {
 			noop.MECHANISM:       null.NewServer(),
 		}),
 		interfaceMonitorEndpoint,
+		nsmmetrics.NewServer(interfaceMetrics),
 		sendfd.NewServer(),
 	}
 
@@ -256,13 +271,6 @@ func main() {
 				return
 			}
 
-			hostname, err := os.Hostname()
-			if err != nil {
-				logger.Error(err, "Unable to get hostname")
-				cancel()
-				return
-			}
-
 			err = flow.CollectMetrics(
 				flow.WithHostname(hostname),
 				flow.WithTrenchName(config.TrenchName),
@@ -270,6 +278,13 @@ func main() {
 			)
 			if err != nil {
 				logger.Error(err, "Unable to start flow metrics collector")
+				cancel()
+				return
+			}
+
+			err = interfaceMetrics.Collect()
+			if err != nil {
+				logger.Error(err, "Unable to start interface metrics collector")
 				cancel()
 				return
 			}
