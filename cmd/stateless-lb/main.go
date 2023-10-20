@@ -231,6 +231,7 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*3))
 		defer cancel()
 		ep.Delete(ctx) // let endpoint unregister with NSM to inform proxies in time
+		logger.Info("LB endpoint deleted")
 	}()
 
 	probe.CreateAndRunGRPCHealthProbe(
@@ -241,11 +242,21 @@ func main() {
 		probe.WithRPCTimeout(config.GRPCProbeRPCTimeout.String()),
 	)
 
-	ctx = lbFactory.Start(ctx) // start nfqlb process in background
+	go func() { // start nfqlb process
+		if err := lbFactory.Start(ctx); err != nil {
+			logger.Error(err, "Process nfqlb terminated")
+		}
+		cancel()
+	}()
 	sns.Start()
-	// monitor availibilty of frontends; if no feasible FE don't advertise NSE to proxies
+	// monitor availibilty of frontends (advertise NSE to proxies only if there's feasible FE)
 	fns := NewFrontendNetworkService(ctx, targetRegistryClient, ep, NewServiceControlDispatcher(sns))
-	go fns.Start()
+	go func() {
+		if err := fns.Start(); err != nil {
+			logger.Error(err, "FrontendNetworkService terminated")
+		}
+		cancel()
+	}()
 
 	if config.MetricsEnabled {
 		func() {

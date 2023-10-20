@@ -50,7 +50,7 @@ func NewLbFactory(options ...Option) *nfqlbFactory {
 // Start -
 // Starts nfqlb process in 'flowlb' mode supporting multiple shared mem lbs at once
 // https://github.com/Nordix/nfqueue-loadbalancer/blob/98ae93f9137ecc383c61a8bb1a850319bcdfbbb6/src/nfqlb/cmdFlowLb.c#L176
-// (Returned context gets cancelled when nfqlb process stops for whatever reason)
+// Blocks until nfqlb process is running.
 //
 // Note:
 // nfqlb process is supposed to run while the load-balancer container
@@ -60,40 +60,37 @@ func NewLbFactory(options ...Option) *nfqlbFactory {
 // Consider using the fragment tracking feature of nfqlb (requires a tun dev),
 // instead of relying on linux kernel's defragmentation hook for packets coming
 // from outside the cluster.
-func (nf *nfqlbFactory) Start(ctx context.Context) context.Context {
+func (nf *nfqlbFactory) Start(ctx context.Context) error {
 	logger := log.FromContextOrGlobal(ctx).WithValues("class", "nfqlbFactory")
-	ctx, cancel := context.WithCancel(ctx)
-	go func() {
-		logger.Info("Starting nfqlb process")
-		defer cancel()
-		cmd := exec.CommandContext(
-			ctx,
-			nfqlbCmd,
-			"flowlb",
-			// "--lbshm=",
-			// "--mtu=",
-			// "--tun=",
-			// "--reassembler=",
-			"--promiscuous_ping", // accept ICMP Echo (ping) by default
-			// "--notargets_fwmark=",
-			// "--nolb_fwmark=",
-			fmt.Sprintf("--queue=%s", nf.nfqueue),
-			fmt.Sprintf("--qlength=%d", qlength),
-			// "--ft_shm=",
-			// "--ft_size=",
-			// "--ft_buckets=",
-			// "--ft_frag=",
-			// "--ft_ttl=",
-		)
+	logger.Info("Starting nfqlb process")
 
-		logger.V(1).Info("execute", "cmd", cmd.String())
-		stdoutStderr, err := cmd.CombinedOutput()
-		if err != nil {
-			logger.Error(err, "nfqlb terminated", "output", stdoutStderr)
-		}
-	}()
+	cmd := exec.CommandContext(
+		ctx,
+		nfqlbCmd,
+		"flowlb",
+		// "--lbshm=",
+		// "--mtu=",
+		// "--tun=",
+		// "--reassembler=",
+		"--promiscuous_ping", // accept ICMP Echo (ping) by default
+		// "--notargets_fwmark=",
+		// "--nolb_fwmark=",
+		fmt.Sprintf("--queue=%s", nf.nfqueue),
+		fmt.Sprintf("--qlength=%d", qlength),
+		// "--ft_shm=",
+		// "--ft_size=",
+		// "--ft_buckets=",
+		// "--ft_frag=",
+		// "--ft_ttl=",
+	)
 
-	return ctx
+	logger.V(1).Info("execute", "cmd", cmd.String())
+	stdoutStderr, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%w, out: %s", err, stdoutStderr)
+	}
+
+	return nil
 }
 
 // New -

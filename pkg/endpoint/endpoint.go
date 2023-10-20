@@ -115,8 +115,9 @@ func (e *Endpoint) startWithoutRegister(ctx context.Context, additionalFunctiona
 }
 
 func (e *Endpoint) errorHandler(errCh <-chan error) {
-	err := <-errCh
-	e.logger.Error(err, "endpoint server errorHandler")
+	if err, ok := <-errCh; ok {
+		e.logger.Error(err, "endpoint server errorHandler")
+	}
 }
 
 func (e *Endpoint) getSource(ctx context.Context) (*workloadapi.X509Source, error) {
