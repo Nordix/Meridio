@@ -26,7 +26,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	registryauthorize "github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/spiffejwt"
@@ -85,7 +84,6 @@ func (apiClient *APIClient) setNetworkServiceEndpointRegistryClient() {
 		registryclient.WithDialOptions(clientOptions...),
 		registryclient.WithNSEAdditionalFunctionality(
 			expirationtime.NewNetworkServiceEndpointRegistryClient(time.Minute), // keep legacy nse lifetime (changed by https://github.com/networkservicemesh/sdk/pull/1404)
-			clientinfo.NewNetworkServiceEndpointRegistryClient(),
 			sendfd.NewNetworkServiceEndpointRegistryClient(),
 		),
 		registryclient.WithAuthorizeNSRegistryClient(registryauthorize.NewNetworkServiceRegistryClient()),
