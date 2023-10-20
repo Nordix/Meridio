@@ -32,7 +32,7 @@ type NFQueueLoadBalancer interface {
 }
 
 type NFQueueLoadBalancerFactory interface {
-	Start(ctx context.Context) context.Context
+	Start(ctx context.Context) error
 	New(name string, m int, n int) (NFQueueLoadBalancer, error)
 }
 

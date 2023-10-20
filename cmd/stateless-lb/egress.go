@@ -56,7 +56,7 @@ type FrontendNetworkService struct {
 }
 
 // Start -
-func (fns *FrontendNetworkService) Start() {
+func (fns *FrontendNetworkService) Start() error {
 	err := retry.Do(func() error {
 		var err error
 		fns.targetRegistryStream, err = fns.targetRegistryClient.Watch(fns.ctx, &nspAPI.Target{
@@ -71,9 +71,7 @@ func (fns *FrontendNetworkService) Start() {
 	}, retry.WithContext(fns.ctx),
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
-	if err != nil {
-		log.Fatal(fns.logger, "Start", "error", err)
-	}
+	return err
 }
 
 func (fns *FrontendNetworkService) recv() error {
