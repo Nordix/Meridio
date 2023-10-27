@@ -28,21 +28,11 @@ Counts number of packets that have matched a flow.
    * Stream
    * Flow
 
-### meridio.conduit.stream.target.hits.packets
+### meridio.conduit.stream.target.hits.`METRIC_TYPE`
 
-Counts number of packets that have hit a target.
+`METRIC_TYPE`: packets, bytes
 
-* Type: Counter
-* Attributes:
-   * Pod Name
-   * Trench
-   * Conduit
-   * Stream
-   * Target (identifier + IPs)
-
-### meridio.conduit.stream.target.hits.bytes
-
-Counts number of bytes that have hit a target.
+Counts number of `METRIC_TYPE` that have hit a target.
 
 * Type: Counter
 * Attributes:
@@ -50,7 +40,8 @@ Counts number of bytes that have hit a target.
    * Trench
    * Conduit
    * Stream
-   * Target (identifier + IPs)
+   * Identifier
+   * IPs
 
 ### meridio.conduit.stream.target.latency (Planned)
 

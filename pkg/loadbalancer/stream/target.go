@@ -33,15 +33,17 @@ type target struct {
 	nspTarget         *nspAPI.Target
 	netUtils          networking.Utils
 	identifier        int
+	identifierOffset  int
 	targetHitsMetrics *targetMetrics.HitsMetrics
 }
 
-func NewTarget(nspTarget *nspAPI.Target, netUtils networking.Utils, targetHitsMetrics *targetMetrics.HitsMetrics) (types.Target, error) {
+func NewTarget(nspTarget *nspAPI.Target, netUtils networking.Utils, targetHitsMetrics *targetMetrics.HitsMetrics, identifierOffset int) (types.Target, error) {
 	target := &target{
 		fwMarks:           []networking.FWMarkRoute{},
 		nspTarget:         nspTarget,
 		netUtils:          netUtils,
 		targetHitsMetrics: targetHitsMetrics,
+		identifierOffset:  identifierOffset,
 	}
 	if nspTarget.GetStatus() != nspAPI.Target_ENABLED {
 		return nil, errors.New("the target is not enabled")
@@ -75,11 +77,11 @@ func (t *target) Verify() bool {
 	return true
 }
 
-func (t *target) Configure(identifierOffset int) error {
+func (t *target) Configure() error {
 	if t.fwMarks == nil {
 		t.fwMarks = []networking.FWMarkRoute{}
 	}
-	offsetId := t.identifier + identifierOffset
+	offsetId := t.identifier + t.identifierOffset
 	for _, ip := range t.GetIps() {
 		var fwMark networking.FWMarkRoute
 		fwMark, err := t.netUtils.NewFWMarkRoute(ip, offsetId, offsetId)
@@ -92,7 +94,7 @@ func (t *target) Configure(identifierOffset int) error {
 	return nil
 }
 
-func (t *target) Delete(identifierOffset int) error {
+func (t *target) Delete() error {
 	if t.fwMarks == nil {
 		t.fwMarks = []networking.FWMarkRoute{}
 		return nil
@@ -105,7 +107,7 @@ func (t *target) Delete(identifierOffset int) error {
 		}
 	}
 	t.fwMarks = []networking.FWMarkRoute{}
-	offsetId := t.identifier + identifierOffset
+	offsetId := t.identifier + t.identifierOffset
 	_ = t.targetHitsMetrics.Unregister(offsetId)
 	return errFinal
 }

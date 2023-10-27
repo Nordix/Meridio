@@ -170,11 +170,11 @@ func (lb *LoadBalancer) AddTarget(target types.Target) error {
 	if exists {
 		return errors.New("the target is already registered")
 	}
-	err := target.Configure(lb.IdentifierOffset) // TODO: avoid multiple identical ip rule entries (e.g. after container crash)
+	err := target.Configure() // TODO: avoid multiple identical ip rule entries (e.g. after container crash)
 	if err != nil {
 		lb.addPendingTarget(target)
 		returnErr := err
-		err = target.Delete(lb.IdentifierOffset)
+		err = target.Delete()
 		if err != nil {
 			return fmt.Errorf("%w; %v", err, returnErr)
 		}
@@ -184,7 +184,7 @@ func (lb *LoadBalancer) AddTarget(target types.Target) error {
 	if err != nil {
 		lb.addPendingTarget(target)
 		returnErr := err
-		err = target.Delete(lb.IdentifierOffset)
+		err = target.Delete()
 		if err != nil {
 			return fmt.Errorf("%w; %v", err, returnErr)
 		}
@@ -208,7 +208,7 @@ func (lb *LoadBalancer) RemoveTarget(identifier int) error {
 	if err != nil {
 		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 	}
-	err = target.Delete(lb.IdentifierOffset)
+	err = target.Delete()
 	if err != nil {
 		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
 	}
@@ -347,7 +347,7 @@ func (lb *LoadBalancer) setTargets(targets []*nspAPI.Target) error {
 	var errFinal error
 	newTargetsMap := make(map[int]types.Target)
 	for _, target := range targets {
-		t, err := NewTarget(target, lb.netUtils, lb.targetHitsMetrics)
+		t, err := NewTarget(target, lb.netUtils, lb.targetHitsMetrics, lb.IdentifierOffset)
 		if err != nil {
 			continue
 		}
