@@ -19,7 +19,7 @@ package types
 type Target interface {
 	GetIps() []string
 	GetIdentifier() int
-	Configure(identifierOffset int) error
+	Configure() error
 	Verify() bool
-	Delete(identifierOffset int) error
+	Delete() error
 }

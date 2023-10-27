@@ -19,6 +19,7 @@ package target
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"sync"
 
 	"github.com/google/nftables"
@@ -33,23 +34,27 @@ import (
 const (
 	tableName = "meridio-metrics"
 	chainName = "target-hits"
+	setName   = "fwmark-verdict"
 )
 
 type HitsMetrics struct {
-	hostname string
-	meter    metric.Meter
-	targets  map[int]*nspAPI.Target
-	table    *nftables.Table
-	chain    *nftables.Chain
-	mu       sync.Mutex
+	hostname      string
+	meter         metric.Meter
+	targets       map[int]*nspAPI.Target
+	fwmarkChains  map[int]*nftables.Chain
+	table         *nftables.Table
+	chain         *nftables.Chain
+	fwmarkVerdict *nftables.Set
+	mu            sync.Mutex
 }
 
 func NewTargetHitsMetrics(hostname string) (*HitsMetrics, error) {
 	meter := otel.GetMeterProvider().Meter(meridioMetrics.METER_NAME)
 	hm := &HitsMetrics{
-		hostname: hostname,
-		meter:    meter,
-		targets:  map[int]*nspAPI.Target{},
+		hostname:     hostname,
+		meter:        meter,
+		targets:      map[int]*nspAPI.Target{},
+		fwmarkChains: map[int]*nftables.Chain{},
 	}
 
 	err := hm.init()
@@ -60,21 +65,82 @@ func NewTargetHitsMetrics(hostname string) (*HitsMetrics, error) {
 	return hm, nil
 }
 
-// init creates the nftables table and chain.
-func (hm *HitsMetrics) init() error {
+func (hm *HitsMetrics) Delete() error {
 	conn := &nftables.Conn{}
 
+	conn.DelTable(&nftables.Table{
+		Family: nftables.TableFamilyINet,
+		Name:   tableName,
+	})
+
+	return conn.Flush()
+}
+
+// init creates the nftables table and chain.
+func (hm *HitsMetrics) init() error {
+	_ = hm.Delete()
+
+	conn := &nftables.Conn{}
+
+	// nft add table inet meridio-metrics
 	hm.table = conn.AddTable(&nftables.Table{
 		Family: nftables.TableFamilyINet,
 		Name:   tableName,
 	})
 
+	// nft 'add chain inet meridio-metrics target-hits { type filter hook postrouting priority filter ; }'
 	hm.chain = conn.AddChain(&nftables.Chain{
 		Name:     chainName,
 		Table:    hm.table,
 		Type:     nftables.ChainTypeFilter,
 		Hooknum:  nftables.ChainHookPostrouting,
-		Priority: nftables.ChainPriorityRef(-500),
+		Priority: nftables.ChainPriorityRef(*nftables.ChainPriorityFilter),
+	})
+
+	err := conn.Flush()
+	if err != nil {
+		return fmt.Errorf("target metrics, failed to flush (add table and chain): %w", err)
+	}
+
+	// nft add map inet meridio-metrics fwmark-verdict { type mark : verdict\; }
+	hm.fwmarkVerdict = &nftables.Set{
+		Table:    hm.table,
+		Name:     setName,
+		IsMap:    true,
+		KeyType:  nftables.TypeMark,
+		DataType: nftables.TypeVerdict,
+	}
+	err = conn.AddSet(hm.fwmarkVerdict, nil)
+	if err != nil {
+		return fmt.Errorf("target metrics, failed to AddSet: %w", err) // shouldn't happen since elements is nil
+	}
+
+	// nft --debug all add rule inet meridio-metrics target-hits mark != 0x0 mark vmap @fwmark-verdict
+	// [ meta load mark => reg 1 ]
+	// [ cmp neq reg 1 0x00000000 ]
+	// [ meta load mark => reg 1 ]
+	// [ lookup reg 1 set fwmark-verdict dreg 0 ]
+	_ = conn.AddRule(&nftables.Rule{
+		Table: hm.table,
+		Chain: hm.chain,
+		Exprs: []expr.Any{
+			&expr.Meta{
+				Key:      expr.MetaKeyMARK,
+				Register: 1,
+			},
+			&expr.Cmp{
+				Op:       expr.CmpOpNeq,
+				Register: 1,
+				Data:     []byte{0x0},
+			},
+			&expr.Lookup{
+				SourceRegister: 1,
+				SetID:          hm.fwmarkVerdict.ID,
+				SetName:        hm.fwmarkVerdict.Name,
+				IsDestRegSet:   true,
+				DestRegister:   0,
+			},
+		},
 	})
 
 	return conn.Flush()
@@ -85,44 +151,48 @@ func (hm *HitsMetrics) Register(id int, target *nspAPI.Target) error {
 	hm.mu.Lock()
 	defer hm.mu.Unlock()
 
-	targetMetrics, err := hm.getMetrics()
-	if err != nil {
-		return err
-	}
-
-	hm.targets[id] = target
-
-	_, exists := targetMetrics[id]
+	_, exists := hm.fwmarkChains[id]
 	if exists {
 		return nil
 	}
 
+	hm.targets[id] = target
+
 	conn := &nftables.Conn{}
 
-	// nft --debug all add rule inet meridio-metrics target-hits meta mark 0x13dc counter
-	// [ meta load mark => reg 1 ]
-	// [ cmp eq reg 1 0x000013dc ]
+	// nft add chain inet meridio-metrics fwmark-100
+	fwmarkChain := conn.AddChain(&nftables.Chain{
+		Name:  fmt.Sprintf("fwmark-%d", id),
+		Table: hm.table,
+	})
+
+	// nft --debug all add rule inet meridio-metrics fwmark-100 counter
 	// [ counter pkts 0 bytes 0 ]
 	_ = conn.AddRule(&nftables.Rule{
 		Table: hm.table,
-		Chain: hm.chain,
-		// Handle: ,
+		Chain: fwmarkChain,
 		Exprs: []expr.Any{
-			&expr.Meta{
-				Key:      expr.MetaKeyMARK,
-				Register: 1,
-			},
-			&expr.Cmp{
-				Op:       expr.CmpOpEq,
-				Register: 1,
-				Data:     encodeID(id),
-			},
 			&expr.Counter{
 				Bytes:   0,
 				Packets: 0,
 			},
 		},
 	})
+
+	hm.fwmarkChains[id] = fwmarkChain
+
+	err := conn.SetAddElements(hm.fwmarkVerdict, []nftables.SetElement{
+		{
+			Key: encodeID(id),
+			VerdictData: &expr.Verdict{
+				Kind:  expr.VerdictJump,
+				Chain: fwmarkChain.Name,
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("target metrics, failed to SetAddElements: %w", err)
+	}
 
 	return conn.Flush()
 }
@@ -132,24 +202,30 @@ func (hm *HitsMetrics) Unregister(id int) error {
 	hm.mu.Lock()
 	defer hm.mu.Unlock()
 
-	delete(hm.targets, id)
-
-	targetMetrics, err := hm.getRules()
-	if err != nil {
-		return err
-	}
-
-	rule, exists := targetMetrics[id]
+	fwmarkChain, exists := hm.fwmarkChains[id]
 	if !exists {
 		return nil
 	}
 
+	delete(hm.targets, id)
+	delete(hm.fwmarkChains, id)
+
 	conn := &nftables.Conn{}
 
-	err = conn.DelRule(rule)
+	err := conn.SetDeleteElements(hm.fwmarkVerdict, []nftables.SetElement{
+		{
+			Key: encodeID(id),
+			VerdictData: &expr.Verdict{
+				Kind:  expr.VerdictJump,
+				Chain: fwmarkChain.Name,
+			},
+		},
+	})
 	if err != nil {
-		return err
+		return fmt.Errorf("target metrics, failed to SetDeleteElements: %w", err)
 	}
+
+	conn.DelChain(fwmarkChain)
 
 	return conn.Flush()
 }
@@ -163,7 +239,7 @@ func (hm *HitsMetrics) Collect() error {
 		metric.WithInt64Callback(func(ctx context.Context, observer metric.Int64Observer) error {
 			targetMetrics, err := hm.getMetrics()
 			if err != nil {
-				return err
+				return fmt.Errorf("target metrics, failed to getMetrics: %w", err)
 			}
 			for targetID, metrics := range targetMetrics {
 				// Find the registred target for the collected counter
@@ -198,7 +274,7 @@ func (hm *HitsMetrics) Collect() error {
 		}),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("target metrics, failed to Int64ObservableCounter: %w", err)
 	}
 
 	_, err = hm.meter.Int64ObservableCounter(
@@ -208,7 +284,7 @@ func (hm *HitsMetrics) Collect() error {
 		metric.WithInt64Callback(func(ctx context.Context, observer metric.Int64Observer) error {
 			targetMetrics, err := hm.getMetrics()
 			if err != nil {
-				return err
+				return fmt.Errorf("target metrics, failed to getMetrics: %w", err)
 			}
 			for targetID, metrics := range targetMetrics {
 				// Find the registred target for the collected counter
@@ -243,7 +319,7 @@ func (hm *HitsMetrics) Collect() error {
 		}),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("target metrics, failed to Int64ObservableCounter: %w", err)
 	}
 
 	return nil
@@ -253,15 +329,16 @@ func (hm *HitsMetrics) Collect() error {
 // the metrics/counter as value
 func (hm *HitsMetrics) getMetrics() (map[int]*expr.Counter, error) {
 	counters := map[int]*expr.Counter{}
+	conn := &nftables.Conn{}
 
-	rules, err := hm.getRules()
-	if err != nil {
-		return nil, err
-	}
+	for id, chain := range hm.fwmarkChains {
+		rules, err := conn.GetRules(hm.table, chain)
+		if err != nil || len(rules) < 1 || len(rules[0].Exprs) < 1 {
+			continue
+		}
 
-	for id, rule := range rules {
-		counterExpr := rule.Exprs[2].(*expr.Counter)
-		if counterExpr == nil {
+		counterExpr, ok := rules[0].Exprs[0].(*expr.Counter)
+		if !ok {
 			continue
 		}
 
@@ -271,34 +348,8 @@ func (hm *HitsMetrics) getMetrics() (map[int]*expr.Counter, error) {
 	return counters, nil
 }
 
-func (hm *HitsMetrics) getRules() (map[int]*nftables.Rule, error) {
-	conn := &nftables.Conn{}
-
-	rules, err := conn.GetRules(hm.table, hm.chain)
-	if err != nil {
-		return nil, err
-	}
-
-	rulesMap := map[int]*nftables.Rule{}
-
-	for _, rule := range rules {
-		cmpExpr := rule.Exprs[1].(*expr.Cmp)
-		if cmpExpr == nil {
-			continue
-		}
-
-		rulesMap[decodeID(cmpExpr.Data)] = rule
-	}
-
-	return rulesMap, nil
-}
-
 func encodeID(value int) []byte {
 	bs := make([]byte, 4)
 	binary.NativeEndian.PutUint32(bs, uint32(value))
 	return bs
-}
-
-func decodeID(value []byte) int {
-	return int(binary.NativeEndian.Uint32(value))
 }
