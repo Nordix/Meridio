@@ -17,6 +17,8 @@ limitations under the License.
 package kernel
 
 import (
+	"fmt"
+
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/vishvananda/netlink"
 )
@@ -28,18 +30,23 @@ type Bridge struct {
 }
 
 func (b *Bridge) create() error {
+	mac, err := networking.GenerateMacAddress()
+	if err != nil {
+		return fmt.Errorf("failed to generate mac address (bridge): %w", err)
+	}
 	bridge := &netlink.Bridge{
 		LinkAttrs: netlink.LinkAttrs{
-			Name: b.name,
+			Name:         b.name,
+			HardwareAddr: mac,
 		},
 	}
-	err := netlink.LinkAdd(bridge)
+	err = netlink.LinkAdd(bridge)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to LinkAdd (bridge): %w", err)
 	}
 	err = netlink.LinkSetUp(bridge)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to LinkSetUp (bridge): %w", err)
 	}
 	b.index = bridge.Index
 	return nil
