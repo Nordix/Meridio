@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,58 +16,57 @@ limitations under the License.
 
 package probe
 
-import "fmt"
+import "time"
 
-// Option is an option pattern for GrpcHealthProbe
 type Option func(o *probeOptions)
 
-// WithCommand sets grpc health probe command name
-func WithCommand(cmd string) Option {
-	return func(o *probeOptions) {
-		o.cmd = cmd
-	}
-}
-
-// WithAddress sets address for grpc health probe
+// WithAddress sets address for probe
 func WithAddress(addr string) Option {
 	return func(o *probeOptions) {
-		o.addr = fmt.Sprintf("-addr=%v", addr)
+		o.addr = addr
 	}
 }
 
-// WithService sets service for grpc health probe
+// WithService sets service for probe
 func WithService(service string) Option {
 	return func(o *probeOptions) {
-		o.service = fmt.Sprintf("-service=%v", service)
+		o.service = service
 	}
 }
 
-// WithSpiffe sets spiffe option for grpc health probe
+// WithSpiffe sets spiffe option for probe
 func WithSpiffe() Option {
 	return func(o *probeOptions) {
-		o.spiffe = "-spiffe"
+		o.spiffe = true
 	}
 }
 
-// WithRPCTimeout RPC timeout for grpc health probe
-func WithRPCTimeout(rpcTimeout string) Option {
+// WithRPCTimeout sets RPC timeout for probe
+func WithRPCTimeout(rpcTimeout time.Duration) Option {
 	return func(o *probeOptions) {
-		o.rpcTimeout = fmt.Sprintf("-rpc-timeout=%v", rpcTimeout)
+		o.rpcTimeout = rpcTimeout
 	}
 }
 
-// WithConnectTimeout connect timeout for grpc health probe
-func WithConnectTimeout(connTimeout string) Option {
+// WithConnectTimeout sests connect timeout probe
+func WithConnectTimeout(connTimeout time.Duration) Option {
 	return func(o *probeOptions) {
-		o.connTimeout = fmt.Sprintf("-connect-timeout=%v", connTimeout)
+		o.connTimeout = connTimeout
+	}
+}
+
+// WithUserAgent sests user agent
+func WithUserAgent(userAgent string) Option {
+	return func(o *probeOptions) {
+		o.userAgent = userAgent
 	}
 }
 
 type probeOptions struct {
-	cmd         string
+	userAgent   string
 	addr        string
 	service     string
-	connTimeout string
-	rpcTimeout  string
-	spiffe      string
+	connTimeout time.Duration
+	rpcTimeout  time.Duration
+	spiffe      bool
 }

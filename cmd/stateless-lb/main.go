@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -259,7 +259,7 @@ func main() {
 		health.NSMEndpointSvc,
 		probe.WithAddress(ep.GetUrl()),
 		probe.WithSpiffe(),
-		probe.WithRPCTimeout(config.GRPCProbeRPCTimeout.String()),
+		probe.WithRPCTimeout(config.GRPCProbeRPCTimeout),
 	)
 
 	go func() { // start nfqlb process
