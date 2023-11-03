@@ -58,6 +58,9 @@ func (i *NspStatefulSet) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 		{Name: "NSP_NAMESPACE", Value: i.trench.ObjectMeta.Namespace},
 		{Name: "NSP_LOG_LEVEL", Value: common.GetLogLevel()},
 	}
+	if rpcTimeout := common.GetGRPCProbeRPCTimeout(); rpcTimeout != "" {
+		operatorEnv = append(operatorEnv, corev1.EnvVar{Name: "NSP_GRPC_PROBE_RPC_TIMEOUT", Value: rpcTimeout})
+	}
 	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }
 

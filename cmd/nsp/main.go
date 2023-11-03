@@ -32,6 +32,7 @@ import (
 	"github.com/nordix/meridio/pkg/configuration/monitor"
 	"github.com/nordix/meridio/pkg/configuration/registry"
 	"github.com/nordix/meridio/pkg/health"
+	"github.com/nordix/meridio/pkg/health/probe"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/nsp"
 
@@ -95,6 +96,9 @@ func main() {
 
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
+	if err := health.RegisterReadinesSubservices(ctx, health.NSPReadinessServices...); err != nil {
+		logger.Error(err, "RegisterReadinesSubservices")
+	}
 
 	// configuration
 	configurationEventChan := make(chan *registry.ConfigurationEvent, 10)
@@ -135,6 +139,15 @@ func main() {
 	if err != nil {
 		log.Fatal(logger, "NSP Service: failed to listen", "error", err)
 	}
+
+	// internal probe checking health of IPAM server
+	probe.CreateAndRunGRPCHealthProbe(
+		ctx,
+		health.NSPSvc,
+		probe.WithAddress(fmt.Sprintf(":%s", config.Port)),
+		probe.WithSpiffe(),
+		probe.WithRPCTimeout(config.GRPCProbeRPCTimeout),
+	)
 
 	if err := startServer(ctx, server, listener); err != nil {
 		logger.Error(err, "NSP Service: failed to serve")

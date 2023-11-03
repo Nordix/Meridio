@@ -67,9 +67,7 @@ nsp:
   serviceName: nsp-service
   probe:
     readiness:
-      service: ""
-      addr: :7778
-      spiffe: true
+      service: "Readiness"
 
 ipFamily: ipv4  # ipv4 / ipv6 / dualstack
 

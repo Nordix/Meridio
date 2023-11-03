@@ -44,11 +44,10 @@ spec:
             exec:
               command:
                 - /bin/grpc_health_probe
-                - -spiffe
-                - -addr=:7778
-                - -service=
+                - -addr=unix:///tmp/health.sock
+                - -service=Readiness
                 - -connect-timeout=400ms
-                - -rpc-timeout=1s
+                - -rpc-timeout=400ms
             failureThreshold: 5
             initialDelaySeconds: 0
             periodSeconds: 10

@@ -35,9 +35,11 @@ const (
 	TargetRegistryCliSvc string = "TargetRegistryCli"
 	StreamSvc            string = "Stream"
 	FlowSvc              string = "Flow"
+	NSPSvc               string = "NSP"
 )
 
 var LBReadinessServices []string = []string{NSPCliSvc, NSMEndpointSvc, EgressSvc, StreamSvc, FlowSvc}
 var FEReadinessServices []string = []string{NSPCliSvc, TargetRegistryCliSvc, EgressSvc}
 var ProxyReadinessServices []string = []string{IPAMCliSvc, NSPCliSvc, NSMEndpointSvc, EgressSvc}
 var IPAMReadinessServices []string = []string{NSPCliSvc, IPAMSvc}
+var NSPReadinessServices []string = []string{NSPSvc}
