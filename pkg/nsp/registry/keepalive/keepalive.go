@@ -142,7 +142,7 @@ func (ka *KeepAlive) add(target *nspAPI.Target) {
 
 func (ka *KeepAlive) remove(ctx context.Context, target *nspAPI.Target) error {
 	delete(ka.targets, sqlite.GetTargetID(target))
-	log.Logger.Info("Unegister", "target", target)
+	log.Logger.Info("Unregister", "target", target)
 	if ka.TargetRegistry == nil {
 		return nil
 	}

@@ -63,7 +63,9 @@ An overview of the communications between all components is available [here](res
 
 The health check is provided by the [GRPC Health Checking Protocol](https://github.com/grpc/grpc/blob/master/doc/health-checking.md). The status returned can be `UNKNOWN`, `SERVING`, `NOT_SERVING` or `SERVICE_UNKNOWN`.
 
-TODO
+Service | Description
+--- | ---
+NSP | Monitor status of the server
 
 ## Privileges
 
