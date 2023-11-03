@@ -36,7 +36,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/noop"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	nsmlog "github.com/networkservicemesh/sdk/pkg/tools/log"
@@ -192,7 +191,6 @@ func main() {
 	// Note: naming the interface is left to NSM (refer to getNameFromConnection())
 	// However NSM does not seem to ensure uniqueness either. Might need to revisit...
 	responderEndpoint := []networkservice.NetworkServiceServer{
-		recvfd.NewServer(),
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 			kernelmech.MECHANISM: kernel.NewServer(),
 			noop.MECHANISM:       null.NewServer(),

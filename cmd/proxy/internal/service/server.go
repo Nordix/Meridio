@@ -26,7 +26,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/recvfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	endpointOld "github.com/nordix/meridio/pkg/endpoint"
@@ -50,7 +49,6 @@ func StartNSE(ctx context.Context,
 	additionalFunctionality := []networkservice.NetworkServiceServer{
 		// Note: naming the interface is left to NSM (refer to getNameFromConnection())
 		// However NSM does not seem to ensure uniqueness either. Might need to revisit...
-		recvfd.NewServer(),
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
 			kernelmech.MECHANISM: kernel.NewServer(),
 			noop.MECHANISM:       null.NewServer(),
