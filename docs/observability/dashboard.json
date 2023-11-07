@@ -1225,6 +1225,223 @@
             "title": "Interface Metrics",
             "transformations": [],
             "type": "timeseries"
+        },
+        {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "custom": {
+                        "align": "auto",
+                        "cellOptions": {
+                            "type": "auto"
+                        },
+                        "inspect": false
+                    },
+                    "mappings": [],
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 80
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 15,
+                "w": 24,
+                "x": 0,
+                "y": 48
+            },
+            "id": 8,
+            "options": {
+                "cellHeight": "sm",
+                "footer": {
+                    "countRows": false,
+                    "fields": "",
+                    "reducer": [
+                        "sum"
+                    ],
+                    "show": false
+                },
+                "showHeader": true
+            },
+            "pluginVersion": "10.1.5",
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "exemplar": false,
+                    "expr": "meridio_attracted_gateway_routes_exported_total",
+                    "format": "table",
+                    "fullMetaSearch": false,
+                    "includeNullMetadata": true,
+                    "instant": true,
+                    "legendFormat": "__auto",
+                    "range": false,
+                    "refId": "Exported",
+                    "useBackend": false
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "exemplar": false,
+                    "expr": "meridio_attracted_gateway_routes_imported_total",
+                    "format": "table",
+                    "fullMetaSearch": false,
+                    "hide": false,
+                    "includeNullMetadata": true,
+                    "instant": true,
+                    "legendFormat": "__auto",
+                    "range": false,
+                    "refId": "Imported",
+                    "useBackend": false
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "disableTextWrap": false,
+                    "editorMode": "builder",
+                    "exemplar": false,
+                    "expr": "meridio_attracted_gateway_routes_preferred_total",
+                    "format": "table",
+                    "fullMetaSearch": false,
+                    "hide": false,
+                    "includeNullMetadata": true,
+                    "instant": true,
+                    "legendFormat": "__auto",
+                    "range": false,
+                    "refId": "Preferred",
+                    "useBackend": false
+                }
+            ],
+            "title": "Gateways",
+            "transformations": [
+                {
+                    "id": "merge",
+                    "options": {}
+                },
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {
+                            "Time": true,
+                            "__name__": true,
+                            "container": true,
+                            "endpoint": true,
+                            "instance": true,
+                            "job": true,
+                            "namespace": true,
+                            "otel_scope_name": true,
+                            "pod": true
+                        },
+                        "indexByName": {
+                            "Attractor": 1,
+                            "Gateway": 2,
+                            "Hostname": 3,
+                            "IP": 4,
+                            "Protocol": 5,
+                            "Time": 7,
+                            "Trench": 0,
+                            "Value": 6,
+                            "__name__": 8,
+                            "container": 9,
+                            "endpoint": 10,
+                            "instance": 11,
+                            "job": 12,
+                            "namespace": 13,
+                            "otel_scope_name": 14,
+                            "pod": 15
+                        },
+                        "renameByName": {}
+                    }
+                },
+                {
+                    "id": "groupBy",
+                    "options": {
+                        "fields": {
+                            "Attractor": {
+                                "aggregations": [],
+                                "operation": "groupby"
+                            },
+                            "Gateway": {
+                                "aggregations": [],
+                                "operation": "groupby"
+                            },
+                            "Hostname": {
+                                "aggregations": [],
+                                "operation": "groupby"
+                            },
+                            "IP": {
+                                "aggregations": [],
+                                "operation": "groupby"
+                            },
+                            "Protocol": {
+                                "aggregations": [],
+                                "operation": "groupby"
+                            },
+                            "Trench": {
+                                "aggregations": [],
+                                "operation": "groupby"
+                            },
+                            "Value #Exported": {
+                                "aggregations": [
+                                    "lastNotNull"
+                                ],
+                                "operation": "aggregate"
+                            },
+                            "Value #Imported": {
+                                "aggregations": [
+                                    "lastNotNull"
+                                ],
+                                "operation": "aggregate"
+                            },
+                            "Value #Preferred": {
+                                "aggregations": [
+                                    "lastNotNull"
+                                ],
+                                "operation": "aggregate"
+                            }
+                        }
+                    }
+                },
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {},
+                        "indexByName": {},
+                        "renameByName": {
+                            "Value #Exported (lastNotNull)": "Exported",
+                            "Value #Imported (lastNotNull)": "Imported",
+                            "Value #Preferred (lastNotNull)": "Preferred"
+                        }
+                    }
+                }
+            ],
+            "type": "table"
         }
     ],
     "refresh": "5s",
@@ -1254,6 +1471,6 @@
     "timezone": "",
     "title": "Meridio",
     "uid": "f0339d9f-4744-441c-972b-f8b294fb7ff8",
-    "version": 3,
+    "version": 2,
     "weekStart": ""
 }

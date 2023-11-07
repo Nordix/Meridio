@@ -45,7 +45,7 @@ import (
 const rulePriorityVIP int = 100
 
 // FrontEndService -
-func NewFrontEndService(ctx context.Context, c *feConfig.Config) *FrontEndService {
+func NewFrontEndService(ctx context.Context, c *feConfig.Config, gatewayMetrics *GatewayMetrics) *FrontEndService {
 	logger := log.FromContextOrGlobal(ctx).WithValues("class", "FrontEndService")
 	targetRegistryClient := nspAPI.NewTargetRegistryClient(c.NSPConn)
 
@@ -87,12 +87,15 @@ func NewFrontEndService(ctx context.Context, c *feConfig.Config) *FrontEndServic
 		authCh:               authCh,
 		logger:               logger,
 		config:               c,
+		gatewayMetrics:       gatewayMetrics,
 	}
 
 	if len(frontEndService.vrrps) > 0 {
 		// When using static default routes there's no need for blackhole routes...
 		frontEndService.dropIfNoPeer = false
 	}
+
+	gatewayMetrics.RoutingService = frontEndService.routingService
 
 	logger.Info("Created", "object", frontEndService)
 	return frontEndService
@@ -133,6 +136,11 @@ type FrontEndService struct {
 	authCh               chan struct{}                         // used by secretDatabase to signal updates to FE Service
 	logger               logr.Logger
 	config               *feConfig.Config
+	gatewayMetrics       *GatewayMetrics
+}
+
+func (fes *FrontEndService) GetRoutingService() *bird.RoutingService {
+	return fes.routingService
 }
 
 // CleanUp -
@@ -232,6 +240,7 @@ func (fes *FrontEndService) SetNewConfig(ctx context.Context, c interface{}) err
 				logger.V(2).Info("Gateway configuration changed")
 				fes.checkAuthentication(ctx)
 			}
+			fes.gatewayMetrics.Set(c.Gateways)
 			configChange = configChange || gwConfigChange
 		}
 	default:
