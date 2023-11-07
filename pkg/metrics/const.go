@@ -28,6 +28,9 @@ const (
 	MERIDIO_INTERFACE_TX_ERRORS                = "meridio.interface.tx_errors"
 	MERIDIO_INTERFACE_RX_DROPPED               = "meridio.interface.rx_dropped"
 	MERIDIO_INTERFACE_TX_DROPPED               = "meridio.interface.tx_dropped"
+	MERIDIO_ATTRACTOR_GATEWAY_ROUTES_IMPORTED  = "meridio.attracted.gateway.routes.imported"
+	MERIDIO_ATTRACTOR_GATEWAY_ROUTES_EXPORTED  = "meridio.attracted.gateway.routes.exported"
+	MERIDIO_ATTRACTOR_GATEWAY_ROUTES_PREFERRED = "meridio.attracted.gateway.routes.preferred"
 
 	METER_NAME = "Meridio"
 )

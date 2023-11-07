@@ -54,14 +54,17 @@ Reports the latency with a target.
    * Conduit
    * IP
 
-### meridio.attractor.gateway.status (Planned)
+### meridio.attracted.gateway.routes.`METRIC_TYPE`
 
-Gateway status in the attractor instance.
+`METRIC_TYPE`: imported, exported, preferred
 
-* Type: Gauge (Health Metric)
+Number of `METRIC_TYPE` routes for a gateway in the attractor instance.
+
+* Type: Counter
 * Attributes:
    * Pod Name
    * Trench
-   * Conduit
    * Attactor
    * Gateway
+   * IP
+   * Protocol

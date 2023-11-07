@@ -131,12 +131,18 @@ func main() {
 		logger.Error(err, "NSP connection state monitor")
 	}
 
+	gatewayMetrics := frontend.NewGatewayMetrics([]metric.ObserveOption{
+		metric.WithAttributes(attribute.String("Hostname", hostname)),
+		metric.WithAttributes(attribute.String("Trench", config.TrenchName)),
+		metric.WithAttributes(attribute.String("Attractor", config.AttractorName)),
+	})
+
 	// create and start frontend service
 	c := &feConfig.Config{
 		Config:  config,
 		NSPConn: conn,
 	}
-	fe := frontend.NewFrontEndService(ctx, c)
+	fe := frontend.NewFrontEndService(ctx, c, gatewayMetrics)
 	defer fe.CleanUp()
 
 	if err := fe.Init(); err != nil {
@@ -182,6 +188,13 @@ func main() {
 			err = interfaceMetrics.Collect()
 			if err != nil {
 				logger.Error(err, "Unable to start interface metrics collector")
+				cancel()
+				return
+			}
+
+			err = gatewayMetrics.Collect()
+			if err != nil {
+				logger.Error(err, "Unable to start gateway metrics collector")
 				cancel()
 				return
 			}
