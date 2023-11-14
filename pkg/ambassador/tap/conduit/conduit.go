@@ -59,8 +59,6 @@ type Conduit struct {
 	Configuration           Configuration
 	StreamManager           StreamManager
 	NetUtils                networking.Utils
-	// RetryDelay corresponds to the time between each Request call attempt
-	RetryDelay              time.Duration
 	StreamFactory           StreamFactory
 	connection              *networkservice.Connection
 	mu                      sync.Mutex
@@ -91,7 +89,6 @@ func New(conduit *ambassadorAPI.Conduit,
 		NetworkServiceClient:    networkServiceClient,
 		MonitorConnectionClient: monitorConnectionClient,
 		NetUtils:                netUtils,
-		RetryDelay:              1 * time.Second,
 		connection:              nil,
 		localIPs:                []string{},
 		vips:                    []string{},
@@ -352,31 +349,27 @@ func (c *Conduit) SetVIPs(ctx context.Context, vips []string) error {
 		}
 		c.connection.Context.IpContext.Policies = append(c.connection.Context.IpContext.Policies, newPolicyRoute)
 	}
+
 	// update the NSM connection
-	_ = retry.Do(func() error {
-		ctx, cancel := context.WithTimeout(ctx, 20*time.Second) // todo: configurable timeout
-		defer cancel()
-		request := &networkservice.NetworkServiceRequest{
-			Connection: &networkservice.Connection{
-				Id:             c.connection.GetId(),
-				NetworkService: c.connection.GetNetworkService(),
-				Mechanism:      c.connection.GetMechanism(),
-				Labels:         c.connection.GetLabels(),
-				Payload:        c.connection.GetPayload(),
-				Context: &networkservice.ConnectionContext{
-					IpContext: c.connection.GetContext().GetIpContext(),
-				},
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id:             c.connection.GetId(),
+			NetworkService: c.connection.GetNetworkService(),
+			Mechanism:      c.connection.GetMechanism(),
+			Labels:         c.connection.GetLabels(),
+			Payload:        c.connection.GetPayload(),
+			Context: &networkservice.ConnectionContext{
+				IpContext: c.connection.GetContext().GetIpContext(),
 			},
-		}
-		connection, err := c.NetworkServiceClient.Request(ctx, request)
-		if err != nil {
-			c.logger.Error(err, "Updating VIPs")
-			return err
-		}
-		c.connection = connection
-		return nil
-	}, retry.WithContext(ctx),
-		retry.WithDelay(c.RetryDelay))
+		},
+	}
+	connection, err := c.NetworkServiceClient.Request(ctx, request)
+	if err != nil {
+		c.logger.Error(err, "Updating VIPs")
+		return err
+	}
+	c.connection = connection
+
 	c.logger.Info("VIPs updated", "vips", vips)
 	c.vips = vips
 	c.localIPs = getLocalIPs(c.connection.GetContext().GetIpContext().GetSrcIpAddrs(), vips, c.getGateways())
