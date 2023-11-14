@@ -38,10 +38,12 @@ type configurationImpl struct {
 	SetVips                    vipSetter
 	Conduit                    *nspAPI.Conduit
 	ConfigurationManagerClient nspAPI.ConfigurationManagerClient
-	cancel                     context.CancelFunc
-	mu                         sync.Mutex
-	vipChan                    chan []string
-	streamChan                 chan []*nspAPI.Stream
+	// RetryDelay corresponds to the time between each Request call attempt
+	RetryDelay time.Duration
+	cancel     context.CancelFunc
+	mu         sync.Mutex
+	vipChan    chan []string
+	streamChan chan []*nspAPI.Stream
 }
 
 func newConfigurationImpl(setVips vipSetter,
@@ -51,6 +53,7 @@ func newConfigurationImpl(setVips vipSetter,
 		SetVips:                    setVips,
 		Conduit:                    conduit,
 		ConfigurationManagerClient: configurationManagerClient,
+		RetryDelay:                 1 * time.Second,
 	}
 	return c
 }
@@ -78,10 +81,16 @@ func (c *configurationImpl) vipHandler(ctx context.Context) {
 	for {
 		select {
 		case vips := <-c.vipChan:
-			err := c.SetVips(ctx, vips)
-			if err != nil {
-				log.Logger.Error(err, "set vips")
-			}
+			_ = retry.Do(func() error {
+				setVIPsCtx, cancel := context.WithTimeout(ctx, 20*time.Second) // todo: configurable timeout
+				defer cancel()
+				err := c.SetVips(setVIPsCtx, vips)
+				if err != nil {
+					log.Logger.Error(err, "set vips")
+				}
+				return err
+			}, retry.WithContext(ctx),
+				retry.WithDelay(c.RetryDelay))
 		case <-ctx.Done():
 			return
 		}
