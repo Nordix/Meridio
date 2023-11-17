@@ -60,7 +60,7 @@ spec:
               command:
                 - /bin/grpc_health_probe
                 - -addr=unix:///tmp/health.sock
-                - -service=
+                - -service=Liveness
                 - -connect-timeout=400ms
                 - -rpc-timeout=400ms
             failureThreshold: 5
