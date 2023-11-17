@@ -48,6 +48,7 @@ const rulePriorityVIP int = 100
 func NewFrontEndService(ctx context.Context, c *feConfig.Config) *FrontEndService {
 	logger := log.FromContextOrGlobal(ctx).WithValues("class", "FrontEndService")
 	targetRegistryClient := nspAPI.NewTargetRegistryClient(c.NSPConn)
+	logger.V(1).Info("Created Target Registry Client")
 
 	birdConfFile := c.BirdConfigPath + "/bird-fe-meridio.conf"
 	authCh := make(chan struct{}, 10)

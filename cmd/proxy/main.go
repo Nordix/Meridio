@@ -104,8 +104,11 @@ func main() {
 
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
-	if err := health.RegisterReadinesSubservices(ctx, health.ProxyReadinessServices...); err != nil {
-		logger.Error(err, "RegisterReadinesSubservices")
+	if err := health.RegisterReadinessSubservices(ctx, health.ProxyReadinessServices...); err != nil {
+		logger.Error(err, "RegisterReadinessSubservices")
+	}
+	if err := health.RegisterLivenessSubservices(ctx, health.ProxyLivenessServices...); err != nil {
+		logger.Error(err, "RegisterLivenessSubservices")
 	}
 
 	// context enabling graceful termiantion on signals

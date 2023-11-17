@@ -81,7 +81,6 @@ The health check is provided by the [GRPC Health Checking Protocol](https://gith
 Service | Description
 --- | ---
 NSPCli | Monitor status of the connection to the NSP service
-TargetRegistryCli | Monitor status of the connection to the NSP Target Registry service
 Egress | Monitor the gateways connectivity
 
 ## Privileges

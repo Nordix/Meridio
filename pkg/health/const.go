@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,19 +27,22 @@ const (
 )
 
 const (
-	IPAMSvc              string = "IPAM"
-	IPAMCliSvc           string = "IPAMCli"
-	NSPCliSvc            string = "NSPCli"
-	EgressSvc            string = "Egress"
-	NSMEndpointSvc       string = "NSMEndpoint"
-	TargetRegistryCliSvc string = "TargetRegistryCli"
-	StreamSvc            string = "Stream"
-	FlowSvc              string = "Flow"
-	NSPSvc               string = "NSP"
+	IPAMSvc        string = "IPAM"
+	IPAMCliSvc     string = "IPAMCli"
+	NSPCliSvc      string = "NSPCli"
+	EgressSvc      string = "Egress"
+	NSMEndpointSvc string = "NSMEndpoint"
+	StreamSvc      string = "Stream"
+	FlowSvc        string = "Flow"
+	NSPSvc         string = "NSP"
 )
 
 var LBReadinessServices []string = []string{NSPCliSvc, NSMEndpointSvc, EgressSvc, StreamSvc, FlowSvc}
-var FEReadinessServices []string = []string{NSPCliSvc, TargetRegistryCliSvc, EgressSvc}
+var LBLivenessServices []string = []string{NSMEndpointSvc}
+var FEReadinessServices []string = []string{NSPCliSvc, EgressSvc}
 var ProxyReadinessServices []string = []string{IPAMCliSvc, NSPCliSvc, NSMEndpointSvc, EgressSvc}
-var IPAMReadinessServices []string = []string{NSPCliSvc, IPAMSvc}
-var NSPReadinessServices []string = []string{NSPSvc}
+var ProxyLivenessServices []string = []string{NSMEndpointSvc}
+var IPAMReadinessServices []string = []string{NSPCliSvc}
+var IPAMLivenessServices []string = []string{IPAMSvc}
+var NSPReadinessServices []string = []string{}
+var NSPLivenessServices []string = []string{NSPSvc}
