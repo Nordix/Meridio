@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -96,8 +96,11 @@ func main() {
 
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
-	if err := health.RegisterReadinesSubservices(ctx, health.NSPReadinessServices...); err != nil {
-		logger.Error(err, "RegisterReadinesSubservices")
+	if err := health.RegisterReadinessSubservices(ctx, health.NSPReadinessServices...); err != nil {
+		logger.Error(err, "RegisterReadinessSubservices")
+	}
+	if err := health.RegisterLivenessSubservices(ctx, health.NSPLivenessServices...); err != nil {
+		logger.Error(err, "RegisterLivenessSubservices")
 	}
 
 	// configuration

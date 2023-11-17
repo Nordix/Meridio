@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -49,11 +49,21 @@ func CreateChecker(ctx context.Context, options ...Option) context.Context {
 	return WithHealthServer(ctx, healthChecker)
 }
 
-// RegisterReadinesSubservices -
+// RegisterReadinessSubservices -
 // Wraps Checker.RegisterServices() by fetching the health server (i.e. Checker) from context
-func RegisterReadinesSubservices(ctx context.Context, services ...string) error {
+func RegisterReadinessSubservices(ctx context.Context, services ...string) error {
 	if h := HealthServer(ctx); h != nil {
 		h.RegisterServices(Readiness, services...)
+		return nil
+	}
+	return errors.New("no health server in context")
+}
+
+// RegisterLivenessSubservices -
+// Wraps Checker.RegisterServices() by fetching the health server (i.e. Checker) from context
+func RegisterLivenessSubservices(ctx context.Context, services ...string) error {
+	if h := HealthServer(ctx); h != nil {
+		h.RegisterServices(Liveness, services...)
 		return nil
 	}
 	return errors.New("no health server in context")

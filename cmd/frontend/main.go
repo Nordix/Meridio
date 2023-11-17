@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -96,7 +96,7 @@ func main() {
 
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
-	if err := health.RegisterReadinesSubservices(ctx, health.FEReadinessServices...); err != nil {
+	if err := health.RegisterReadinessSubservices(ctx, health.FEReadinessServices...); err != nil {
 		logger.Error(err, "RegisterReadinesSubservices")
 	}
 
@@ -138,7 +138,6 @@ func main() {
 	}
 	fe := frontend.NewFrontEndService(ctx, c)
 	defer fe.CleanUp()
-	health.SetServingStatus(ctx, health.TargetRegistryCliSvc, true) // NewFrontEndService() creates Target Registry Client
 
 	if err := fe.Init(); err != nil {
 		cancel()

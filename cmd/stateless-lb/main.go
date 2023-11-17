@@ -126,8 +126,13 @@ func main() {
 
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
-	if err := health.RegisterReadinesSubservices(ctx, health.LBReadinessServices...); err != nil {
-		logger.Error(err, "RegisterReadinesSubservices")
+	if err := health.RegisterReadinessSubservices(ctx, health.LBReadinessServices...); err != nil {
+		logger.Error(err, "RegisterReadinessSubservices")
+	}
+	// note: NSM endpoint service is hosted from early on by its server, thus it can be probed
+	// irrespective of its registration status at NSM
+	if err := health.RegisterLivenessSubservices(ctx, health.LBLivenessServices...); err != nil {
+		logger.Error(err, "RegisterLivenessSubservices")
 	}
 
 	logger.Info("Dial NSP", "NSPService", config.NSPService)

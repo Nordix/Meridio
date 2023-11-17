@@ -75,8 +75,13 @@ func (c *Checker) RegisterServices(probeSvc string, services ...string) {
 		subServices = make(serviceSet)
 		c.probeToSubServices[probeSvc] = subServices
 	}
-	c.HealthServerStatusModifier.SetServingStatus(probeSvc, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 
+	// The initial serving status of a probe service is determined by
+	// summing the states of subservices. If all are SERVING the probe
+	// service is set to SERVING as well. (The prerequisite is that all
+	// subservices are known to the health server. If a subservice does
+	// not exist, it gets registered by setting its status to NOT_SERVING.)
+	initialProbeServingStatus := grpc_health_v1.HealthCheckResponse_SERVING
 	for _, s := range services {
 		subServices[s] = serviceMember // add subservices
 
@@ -87,8 +92,18 @@ func (c *Checker) RegisterServices(probeSvc string, services ...string) {
 			c.subServiceToProbes[s] = probeServices
 		}
 		probeServices[probeSvc] = serviceMember
-		c.HealthServerStatusModifier.SetServingStatus(s, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+
+		resp, err := c.HealthServer.Check(context.TODO(), &grpc_health_v1.HealthCheckRequest{Service: s})
+		if err != nil {
+			// subservice not known by health server, register it by setting its status to NOT_SERVING
+			c.HealthServerStatusModifier.SetServingStatus(s, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+		}
+		if err != nil || (resp != nil && resp.Status != grpc_health_v1.HealthCheckResponse_SERVING) {
+			// subservice not known or its status is not SERVING, thus initial probe status cannot be SERVING
+			initialProbeServingStatus = grpc_health_v1.HealthCheckResponse_NOT_SERVING
+		}
 	}
+	c.HealthServerStatusModifier.SetServingStatus(probeSvc, initialProbeServingStatus)
 }
 
 // Check -
