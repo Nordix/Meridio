@@ -66,10 +66,15 @@ The health check is provided by the [GRPC Health Checking Protocol](https://gith
 
 Service | Description
 --- | ---
-IPAMCli | Monitor status of the connection to the IPAM service
-NSPCli | Monitor status of the connection to the NSP service
-NSMEndpoint | Monitor status of the NSE
-Egress | Check if at least 1 stateless-lb-frontend is connected
+Liveness | A unique service to be used by liveness probe to return status, can aggregate other lesser services
+Readiness | A unique service to be used by readiness probe to return status, can aggregate other lesser services
+
+Service | Probe | Description
+--- | --- | ---
+IPAMCli | Readiness | Monitor status of the connection to the IPAM service
+NSPCli | Readiness | Monitor status of the connection to the NSP service
+NSMEndpoint | Readiness,Liveness | Monitor status of the NSE
+Egress | Readiness | Check if at least 1 stateless-lb-frontend is connected
 
 ## Privileges
 

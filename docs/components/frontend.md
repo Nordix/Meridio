@@ -80,8 +80,12 @@ The health check is provided by the [GRPC Health Checking Protocol](https://gith
 
 Service | Description
 --- | ---
-NSPCli | Monitor status of the connection to the NSP service
-Egress | Monitor the gateways connectivity
+Readiness | A unique service to be used by readiness probe to return status, can aggregate other lesser services
+
+Service | Probe | Description
+--- | --- | ---
+NSPCli | Readiness | Monitor status of the connection to the NSP service
+Egress | Readiness | Monitor the gateways connectivity
 
 ## Privileges
 
