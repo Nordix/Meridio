@@ -32,10 +32,11 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
+var startupServices []string = []string{"service-0"}
 var readinessServices []string = []string{"service-1", "service-2", "service-3", "service-4"}
 var livenessServices []string = []string{"service-1", "service-5"}
 
-func healthClient(ctx context.Context, address url.URL) error {
+func healthClient(ctx context.Context, address *url.URL) error {
 	hp, err := probe.NewHealthProbe(ctx, probe.WithAddress(address.String()))
 	if err != nil {
 		return fmt.Errorf("failed to create health client, %v", err)
@@ -69,7 +70,7 @@ func TestCreateChecker(t *testing.T) {
 	require.NotNil(t, hs)
 
 	// use health client to secure health server is serving by the time cancel is called
-	err = healthClient(ctx, *serverAddr)
+	err = healthClient(ctx, serverAddr)
 	require.NoError(t, err)
 
 	cancel()
@@ -113,7 +114,7 @@ func TestSetServingStatus(t *testing.T) {
 	require.Equal(t, resp.Status, grpc_health_v1.HealthCheckResponse_SERVING)
 
 	// use health client to secure health server is serving by the time cancel is called
-	err = healthClient(ctx, *serverAddr)
+	err = healthClient(ctx, serverAddr)
 	require.NoError(t, err)
 
 	cancel()
@@ -167,7 +168,7 @@ func TestRegisterReadinessSubservices_NewSubservices(t *testing.T) {
 	require.Equal(t, resp.Status, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 
 	// use health client to secure health server is serving by the time cancel is called
-	err = healthClient(ctx, *serverAddr)
+	err = healthClient(ctx, serverAddr)
 	require.NoError(t, err)
 
 	cancel()
@@ -217,7 +218,7 @@ func TestRegisterReadinessSubservices_ExistingServingSubservices(t *testing.T) {
 	require.Equal(t, resp.Status, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 
 	// use health client to secure health server is serving by the time cancel is called
-	err = healthClient(ctx, *serverAddr)
+	err = healthClient(ctx, serverAddr)
 	require.NoError(t, err)
 
 	cancel()
@@ -276,7 +277,7 @@ func TestRegisterReadinessSubservices_ExistingNotServingSubservices(t *testing.T
 	require.Equal(t, resp.Status, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 
 	// use health client to secure health server is serving by the time cancel is called
-	err = healthClient(ctx, *serverAddr)
+	err = healthClient(ctx, serverAddr)
 	require.NoError(t, err)
 
 	cancel()
@@ -330,7 +331,7 @@ func TestRegisterLivenessSubservices_NewSubservices(t *testing.T) {
 	require.Equal(t, resp.Status, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 
 	// use health client to secure health server is serving by the time cancel is called
-	err = healthClient(ctx, *serverAddr)
+	err = healthClient(ctx, serverAddr)
 	require.NoError(t, err)
 
 	cancel()
@@ -340,7 +341,6 @@ func TestRegisterLivenessSubservices_NewSubservices(t *testing.T) {
 func TestRegisterLivenessSubservices_EmptySubservices(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	emptyLivenessServices := []string{}
 	dir, err := os.MkdirTemp(os.TempDir(), t.Name())
 	require.NoError(t, err)
 	defer func() {
@@ -356,7 +356,7 @@ func TestRegisterLivenessSubservices_EmptySubservices(t *testing.T) {
 	require.NotNil(t, hs)
 
 	// register subservices for Liveness probe
-	err = health.RegisterLivenessSubservices(ctx, emptyLivenessServices...)
+	err = health.RegisterLivenessSubservices(ctx)
 	require.NoError(t, err)
 
 	var resp *grpc_health_v1.HealthCheckResponse
@@ -372,7 +372,7 @@ func TestRegisterLivenessSubservices_EmptySubservices(t *testing.T) {
 	require.Equal(t, resp.Status, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 
 	// use health client to secure health server is serving by the time cancel is called
-	err = healthClient(ctx, *serverAddr)
+	err = healthClient(ctx, serverAddr)
 	require.NoError(t, err)
 
 	cancel()
@@ -383,8 +383,6 @@ func TestRegisterLivenessSubservices_ExistingSharedSubservices(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	var sharedServices []string = []string{"service-1", "service-2", "service-3"}
-	readinessServices := sharedServices
-	livenessServices := sharedServices
 	var resp *grpc_health_v1.HealthCheckResponse
 	dir, err := os.MkdirTemp(os.TempDir(), t.Name())
 	require.NoError(t, err)
@@ -405,13 +403,13 @@ func TestRegisterLivenessSubservices_ExistingSharedSubservices(t *testing.T) {
 		health.SetServingStatus(ctx, service, true)
 	}
 
-	// register readiness subservices for Liveness probe
-	err = health.RegisterReadinessSubservices(ctx, readinessServices...)
+	// register readiness subservices for Readiness probe
+	err = health.RegisterReadinessSubservices(ctx, sharedServices...)
 	require.NoError(t, err)
 	_, _ = hs.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: health.Readiness})
 
 	// register liveness subservices for Liveness probe
-	err = health.RegisterLivenessSubservices(ctx, livenessServices...)
+	err = health.RegisterLivenessSubservices(ctx, sharedServices...)
 	require.NoError(t, err)
 
 	// initial liveness probe status must be SERVING because the subservices are SERVING
@@ -424,8 +422,76 @@ func TestRegisterLivenessSubservices_ExistingSharedSubservices(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, resp.Status, grpc_health_v1.HealthCheckResponse_SERVING)
 
+	// set status of 1 subservice to NOT_SERVING
+	for _, service := range sharedServices {
+		health.SetServingStatus(ctx, service, false)
+		break
+	}
+
+	// probe services must be NOT_SERVING due to the above status change
+	resp, err = hs.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: health.Liveness})
+	require.NoError(t, err)
+	require.Equal(t, resp.Status, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+	resp, err = hs.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: health.Readiness})
+	require.NoError(t, err)
+	require.Equal(t, resp.Status, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+
 	// use health client to secure health server is serving by the time cancel is called
-	err = healthClient(ctx, *serverAddr)
+	err = healthClient(ctx, serverAddr)
+	require.NoError(t, err)
+
+	cancel()
+	<-ctx.Done()
+}
+
+func TestRegisterStartupSubservices_NewSubservices(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	dir, err := os.MkdirTemp(os.TempDir(), t.Name())
+	require.NoError(t, err)
+	defer func() {
+		_ = os.RemoveAll(dir)
+	}()
+
+	socket := path.Join(dir, "folder", "test.sock")
+	ctx, cancel := context.WithCancel(context.Background())
+	serverAddr := &url.URL{Scheme: "unix", Path: socket}
+	ctx = health.CreateChecker(ctx, health.WithURL(serverAddr))
+
+	hs := health.HealthServer(ctx)
+	require.NotNil(t, hs)
+
+	// register subservices for Startup probe
+	err = health.RegisterStartupSubservices(ctx, startupServices...)
+	require.NoError(t, err)
+
+	var resp *grpc_health_v1.HealthCheckResponse
+	// initial probe status must be NOT_SERVING because its subservices
+	resp, err = hs.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: health.Startup})
+	require.NoError(t, err)
+	require.Equal(t, resp.Status, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+
+	// change status of subservices to SERVING
+	for _, service := range startupServices {
+		health.SetServingStatus(ctx, service, true)
+	}
+	// probe service status must be SERVING
+	resp, err = hs.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: health.Startup})
+	require.NoError(t, err)
+	require.Equal(t, resp.Status, grpc_health_v1.HealthCheckResponse_SERVING)
+
+	// set status of 1 subservice to NOT_SERVING
+	for _, service := range startupServices {
+		health.SetServingStatus(ctx, service, false)
+		break
+	}
+	// probe service must be NOT_SERVING due to the above status change
+	resp, err = hs.Check(ctx, &grpc_health_v1.HealthCheckRequest{Service: health.Startup})
+	require.NoError(t, err)
+	require.Equal(t, resp.Status, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+
+	// use health client to secure health server is serving by the time cancel is called
+	err = healthClient(ctx, serverAddr)
 	require.NoError(t, err)
 
 	cancel()

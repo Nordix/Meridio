@@ -23,19 +23,20 @@ import (
 
 // Config for the TAPA
 type Config struct {
-	Name             string        `default:"nsc" desc:"Name of the target"`
-	Node             string        `default:"" desc:"Node name the target is running on" split_words:"true"`
-	Namespace        string        `default:"default" desc:"Namespace the trenches to connect to are running on" split_words:"true"`
-	Socket           string        `default:"/ambassador.sock" desc:"Path of the socket file of the TAPA" split_words:"true"`
-	NSMSocket        url.URL       `default:"unix:///var/lib/networkservicemesh/nsm.io.sock" desc:"Path of the socket file of NSM" envconfig:"nsm_socket"`
-	NSPServiceName   string        `default:"nsp-service" desc:"Domain name of the NSP Service" envconfig:"nsp_service_name"`
-	NSPServicePort   int           `default:"7778" desc:"port of the NSP Service" envconfig:"nsp_service_port"`
-	Timeout          time.Duration `default:"15s" desc:"timeout of NSM request/close, NSP register/unregister..." split_words:"true"`
-	DialTimeout      time.Duration `default:"5s" desc:"timeout to dial NSMgr" split_words:"true"`
-	MaxTokenLifetime time.Duration `default:"24h" desc:"maximum lifetime of tokens" split_words:"true"`
-	LogLevel         string        `default:"DEBUG" desc:"Log level" split_words:"true"`
-	NSPEntryTimeout  time.Duration `default:"30s" desc:"Timeout of the entries" envconfig:"nsp_entry_timeout"`
-	GRPCMaxBackoff   time.Duration `default:"5s" desc:"Upper bound on gRPC connection backoff delay" envconfig:"grpc_max_backoff"`
+	Name                string        `default:"nsc" desc:"Name of the target"`
+	Node                string        `default:"" desc:"Node name the target is running on" split_words:"true"`
+	Namespace           string        `default:"default" desc:"Namespace the trenches to connect to are running on" split_words:"true"`
+	Socket              string        `default:"/ambassador.sock" desc:"Path of the socket file of the TAPA" split_words:"true"`
+	NSMSocket           url.URL       `default:"unix:///var/lib/networkservicemesh/nsm.io.sock" desc:"Path of the socket file of NSM" envconfig:"nsm_socket"`
+	NSPServiceName      string        `default:"nsp-service" desc:"Domain name of the NSP Service" envconfig:"nsp_service_name"`
+	NSPServicePort      int           `default:"7778" desc:"port of the NSP Service" envconfig:"nsp_service_port"`
+	Timeout             time.Duration `default:"15s" desc:"timeout of NSM request/close, NSP register/unregister..." split_words:"true"`
+	DialTimeout         time.Duration `default:"5s" desc:"timeout to dial NSMgr" split_words:"true"`
+	MaxTokenLifetime    time.Duration `default:"24h" desc:"maximum lifetime of tokens" split_words:"true"`
+	LogLevel            string        `default:"DEBUG" desc:"Log level" split_words:"true"`
+	NSPEntryTimeout     time.Duration `default:"30s" desc:"Timeout of the entries" envconfig:"nsp_entry_timeout"`
+	GRPCMaxBackoff      time.Duration `default:"5s" desc:"Upper bound on gRPC connection backoff delay" envconfig:"grpc_max_backoff"`
+	GRPCProbeRPCTimeout time.Duration `default:"1s" desc:"RPC timeout of internal gRPC health probe" envconfig:"grpc_probe_rpc_timeout"`
 }
 
 // IsValid checks if the configuration is valid

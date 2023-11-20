@@ -34,19 +34,17 @@ nsp:
 
 readinessProbe:
   exec:
-    command: ["/bin/grpc_health_probe", "-addr=unix://{{ .Values.default.ambassadorSock }}", "-connect-timeout=100ms", "-rpc-timeout=150ms"]
+    command: ["/bin/grpc_health_probe", "-addr=unix:///tmp/health.sock", "-service=Readiness",  "-connect-timeout=100ms", "-rpc-timeout=150ms"]
   initialDelaySeconds: 0
 
 livenessProbe:
   exec:
-    command: ["/bin/grpc_health_probe", "-addr=unix:///tmp/health.sock", "-connect-timeout=100ms", "-rpc-timeout=150ms"]
-  initialDelaySeconds: 3
-  timeoutSeconds: 3
-  failureThreshold: 3
+    command: ["/bin/grpc_health_probe", "-addr=unix:///tmp/health.sock", "-service=Liveness", "-connect-timeout=100ms", "-rpc-timeout=150ms"]
+  initialDelaySeconds: 2
 
 startupProbe:
   exec:
-    command: ["/bin/grpc_health_probe", "-addr=unix:///tmp/health.sock", "-connect-timeout=100ms", "-rpc-timeout=150ms"]
+    command: ["/bin/grpc_health_probe", "-addr=unix:///tmp/health.sock", "-service=Startup", "-connect-timeout=100ms", "-rpc-timeout=150ms"]
   initialDelaySeconds: 0
   periodSeconds: 2
   timeoutSeconds: 2

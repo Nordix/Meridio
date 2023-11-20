@@ -151,7 +151,7 @@ func CreateAndRunGRPCHealthProbe(ctx context.Context, healthService string, opti
 		log.Logger.Error(err, "Failed to create background gRPC Health Probe")
 		return
 	}
-	log.Logger.V(1).Info("Created background probe", "probe", ghp)
+	log.Logger.V(1).Info("Created background probe", "probe", ghp, "health service", healthService)
 
 	runf := func(ctx context.Context) error {
 		cancelCtx, cancel := context.WithTimeout(ctx, 4*time.Second) // probe timeout
