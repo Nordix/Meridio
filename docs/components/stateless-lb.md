@@ -55,11 +55,16 @@ The health check is provided by the [GRPC Health Checking Protocol](https://gith
 
 Service | Description
 --- | ---
-NSPCli | Monitor status of the connection to the NSP service
-NSMEndpoint | Monitor status of the NSE
-Egress | Monitor the frontend availability
-Stream | Check if at least 1 stream is serving
-Flow | Check if at least 1 flow is serving
+Liveness | A unique service to be used by liveness probe to return status, can aggregate other lesser services
+Readiness | A unique service to be used by readiness probe to return status, can aggregate other lesser services
+
+Service | Probe | Description
+--- | --- | ---
+NSPCli | Readiness | Monitor status of the connection to the NSP service
+NSMEndpoint | Readiness,Liveness | Monitor status of the NSE
+Egress | Readiness | Monitor the frontend availability
+Stream | Readiness | Check if at least 1 stream is serving
+Flow | Readiness | Check if at least 1 flow is serving
 
 ## Privileges
 

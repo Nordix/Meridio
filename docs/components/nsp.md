@@ -65,7 +65,12 @@ The health check is provided by the [GRPC Health Checking Protocol](https://gith
 
 Service | Description
 --- | ---
-NSP | Monitor status of the server
+Liveness | A unique service to be used by liveness probe to return status, can aggregate other lesser services
+Readiness | A unique service to be used by readiness probe to return status, can aggregate other lesser services
+
+Service | Probe | Description
+--- | --- | ---
+NSP | Liveness | Monitor status of the server
 
 ## Privileges
 

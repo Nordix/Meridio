@@ -74,8 +74,13 @@ The health check is provided by the [GRPC Health Checking Protocol](https://gith
 
 Service | Description
 --- | ---
-NSPCli | Monitor status of the connection to the NSP service
-IPAM | Monitor status of the server
+Liveness | A unique service to be used by liveness probe to return status, can aggregate other lesser services
+Readiness | A unique service to be used by readiness probe to return status, can aggregate other lesser services
+
+Service | Probe | Description
+--- | --- | ---
+NSPCli | Readiness | Monitor status of the connection to the NSP service
+IPAM | Liveness | Monitor status of the server
 
 ## Privileges
 
