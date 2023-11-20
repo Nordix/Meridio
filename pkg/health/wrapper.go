@@ -69,6 +69,16 @@ func RegisterLivenessSubservices(ctx context.Context, services ...string) error 
 	return errors.New("no health server in context")
 }
 
+// RegisterStartupSubservices -
+// Wraps Checker.RegisterServices() by fetching the health server (i.e. Checker) from context
+func RegisterStartupSubservices(ctx context.Context, services ...string) error {
+	if h := HealthServer(ctx); h != nil {
+		h.RegisterServices(Startup, services...)
+		return nil
+	}
+	return errors.New("no health server in context")
+}
+
 // SetServingStatus -
 // Wraps Checker.SetServingStatus() by fetching the health server (i.e. Checker) from context
 func SetServingStatus(ctx context.Context, service string, serving bool) {

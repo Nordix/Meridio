@@ -96,7 +96,7 @@ func main() {
 
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
-	if err := health.RegisterReadinessSubservices(ctx, health.NSPReadinessServices...); err != nil {
+	if err := health.RegisterReadinessSubservices(ctx); err != nil {
 		logger.Error(err, "RegisterReadinessSubservices")
 	}
 	if err := health.RegisterLivenessSubservices(ctx, health.NSPLivenessServices...); err != nil {

@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -43,6 +44,7 @@ import (
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap"
 	"github.com/nordix/meridio/pkg/health"
+	"github.com/nordix/meridio/pkg/health/probe"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/nsm"
@@ -115,6 +117,16 @@ func main() {
 
 	// create and start health server
 	sigCtx = health.CreateChecker(sigCtx)
+	// add health server services Startup, Readiness and Liveness representing probes
+	if err := health.RegisterStartupSubservices(sigCtx); err != nil {
+		logger.Error(err, "RegisterStartupSubservices")
+	}
+	if err := health.RegisterReadinessSubservices(sigCtx); err != nil {
+		logger.Error(err, "RegisterReadinessSubservices")
+	}
+	if err := health.RegisterLivenessSubservices(sigCtx, health.TAPALivenessServices...); err != nil {
+		logger.Error(err, "RegisterLivenessSubservices")
+	}
 
 	apiClientConfig := &nsm.Config{
 		Name:             config.Name,
@@ -196,6 +208,14 @@ func main() {
 			logger.Error(err, "Ambassador: failed to serve")
 		}
 	}()
+
+	// internal probe checking health of Ambassador service
+	probe.CreateAndRunGRPCHealthProbe(
+		sigCtx,
+		health.AmbassadorSvc,
+		probe.WithAddress((&url.URL{Scheme: "unix", Path: config.Socket}).String()),
+		probe.WithRPCTimeout(config.GRPCProbeRPCTimeout),
+	)
 
 	<-sigCtx.Done()
 }

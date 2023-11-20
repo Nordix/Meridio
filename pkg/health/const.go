@@ -35,6 +35,7 @@ const (
 	StreamSvc      string = "Stream"
 	FlowSvc        string = "Flow"
 	NSPSvc         string = "NSP"
+	AmbassadorSvc  string = "Ambassador"
 )
 
 var LBReadinessServices []string = []string{NSPCliSvc, NSMEndpointSvc, EgressSvc, StreamSvc, FlowSvc}
@@ -44,5 +45,5 @@ var ProxyReadinessServices []string = []string{IPAMCliSvc, NSPCliSvc, NSMEndpoin
 var ProxyLivenessServices []string = []string{NSMEndpointSvc}
 var IPAMReadinessServices []string = []string{NSPCliSvc}
 var IPAMLivenessServices []string = []string{IPAMSvc}
-var NSPReadinessServices []string = []string{}
 var NSPLivenessServices []string = []string{NSPSvc}
+var TAPALivenessServices []string = []string{AmbassadorSvc}

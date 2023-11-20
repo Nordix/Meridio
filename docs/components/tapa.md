@@ -56,6 +56,9 @@ MERIDIO_TIMEOUT | time.Duration | timeout of NSM request/close, NSP register/unr
 MERIDIO_DIAL_TIMEOUT | time.Duration | timeout to dial NSMgr | 5s
 MERIDIO_MAX_TOKEN_LIFETIME | time.Duration | maximum lifetime of tokens | 24h
 MERIDIO_LOG_LEVEL | string | Log level | DEBUG
+MERIDIO_NSP_ETRY_TIMEOUT | time.Duration | Timeout of the entries registered in NSP | 30s
+MERIDO_GRPC_MAX_BACKOFF | time.Duration | Upper bound on gRPC connection backoff delay | 5s
+MERIDIO_GRPC_PROBE_RPC_TIMEOUT | time.Duration | RPC timeout of internal gRPC health probes if any | 1s
 
 ## Command Line 
 
@@ -81,7 +84,15 @@ An overview of the communications between all components is available [here](res
 
 The health check is provided by the [GRPC Health Checking Protocol](https://github.com/grpc/grpc/blob/master/doc/health-checking.md). The status returned can be `UNKNOWN`, `SERVING`, `NOT_SERVING` or `SERVICE_UNKNOWN`.
 
-TODO
+Service | Description
+--- | ---
+Liveness | A unique service to be used by liveness probe to return status, can aggregate other lesser services
+Startup | A unique service to be used by startup probe to return status, can aggregate other lesser services
+Readiness | A unique service to be used by readiness probe to return status, can aggregate other lesser services
+
+Service | Probe | Description
+--- | --- | ---
+AmbassadorSvc | Liveness | Monitor status of the Ambassador server
 
 ## Privileges
 
