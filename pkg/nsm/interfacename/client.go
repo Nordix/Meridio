@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -43,7 +43,11 @@ func NewClient(prefix string, generator NameGenerator) networkservice.NetworkSer
 // It implements NetworkServiceClient for the interfacename package
 func (inc *interfaceNameClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	inc.SetInterfaceName(request)
-	return next.Client(ctx).Request(ctx, request, opts...)
+	conn, err := next.Client(ctx).Request(ctx, request, opts...)
+	if err != nil {
+		inc.UnsetInterfaceName(request)
+	}
+	return conn, err
 }
 
 // Close it does nothing except calling the next Close in the chain
