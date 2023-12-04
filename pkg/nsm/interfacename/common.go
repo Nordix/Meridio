@@ -38,15 +38,40 @@ func (ins *interfaceNameSetter) SetInterfaceName(request *networkservice.Network
 	ins.setInterfaceNameMechanism(request)
 }
 
-func (ins *interfaceNameSetter) UnsetInterfaceName(conn *networkservice.Connection) {
-	mechanism := conn.GetMechanism()
-	if mechanism.GetParameters() == nil {
-		return
+func (ins *interfaceNameSetter) UnsetInterfaceName(obj interface{}) {
+	releaseFunc := func(mechanism *networkservice.Mechanism, id string) {
+		_, exists := mechanism.GetParameters()[common.InterfaceNameKey]
+		if exists {
+			ins.nameCache.Release(id)
+		}
 	}
-	// TODO: is this check necessary?
-	_, exists := mechanism.GetParameters()[common.InterfaceNameKey]
-	if exists {
-		ins.nameCache.Release(conn.GetId())
+
+	switch obj := obj.(type) {
+	case *networkservice.Connection: // to be used when closing established connection via NSM Close()
+		conn := obj
+		if conn == nil || conn.GetMechanism() == nil || conn.GetMechanism().GetParameters() == nil {
+			return
+		}
+		releaseFunc(conn.GetMechanism(), conn.GetId())
+	case *networkservice.NetworkServiceRequest: // to be used when NSM Request() fails
+		// Release interface name when a connection couldn't be established so that it
+		// won't be leaked (e.g. when client user gives up).
+		// But do not return the interface name in case of failed refresh/update attempts
+		// on established connections. That should be taken care of by NSM Close().
+		request := obj
+		if request == nil || request.GetMechanismPreferences() == nil || request.GetConnection() == nil {
+			return
+		}
+		if request.GetConnection().GetMechanism() != nil {
+			// established connection (I hope non-nil Mechanism is equvivalent to that)
+			return
+		}
+		for _, mechanism := range request.GetMechanismPreferences() {
+			if mechanism.GetParameters() == nil {
+				continue
+			}
+			releaseFunc(mechanism, request.GetConnection().GetId())
+		}
 	}
 }
 
@@ -73,7 +98,7 @@ func (ins *interfaceNameSetter) setInterfaceNameMechanism(request *networkservic
 			// TAPA can clear the interface name from the connection to indicate connection
 			// was restored via connection monitor, thus cache update might be necessary.
 			// In such cases, TAPA passes the removed interface name in Mechanism Preferences.
-			// So, check if Mechanism Preferences cotain a suggested interface name (matching the prefix).
+			// So, check if Mechanism Preferences contain a suggested interface name (matching the prefix).
 			// Then check if the name could be used (not in use by some other connection, or
 			// there's no other name associated with the connection ID according to the cache).
 			// If Mechanism Preferences does not contain a feasible interface name, we should
@@ -111,7 +136,7 @@ func (ins *interfaceNameSetter) setInterfaceNameMechanismPreferences(request *ne
 		return
 	}
 	for _, mechanism := range request.GetMechanismPreferences() {
-		if mechanism.Parameters == nil {
+		if mechanism.GetParameters() == nil {
 			mechanism.Parameters = map[string]string{}
 		}
 		// Overwrite if the name does not match the expected format (prefix mismatch).
@@ -127,7 +152,8 @@ func (ins *interfaceNameSetter) setInterfaceNameMechanismPreferences(request *ne
 		// We should either forbid passing "valid" preferred interface names or do sg about the cache.
 		if val, ok := mechanism.Parameters[common.InterfaceNameKey]; !ok ||
 			val == "" || (ins.prefix != "" && !strings.HasPrefix(val, ins.prefix)) {
-			// TODO: If the request gets cancelled before the connection is established, the inteface name will not be released
+			// Note: If the request gets cancelled before the connection is established or simply the request
+			// fails, the inteface name has to be released.
 			// Note: In case of multiple MechanismPreferences only one can get accepted as the interface name
 			// of the connection. Luckily cache allows only 1 name per connection ID. So we shall not end up with
 			// leaked names.
