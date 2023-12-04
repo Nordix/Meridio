@@ -198,12 +198,12 @@ func (lb *LoadBalancer) AddTarget(target types.Target) error {
 
 // RemoveTarget -
 func (lb *LoadBalancer) RemoveTarget(identifier int) error {
+	lb.removeFromPendingTargetByIdentifier(identifier)
 	target := lb.getTarget(identifier)
 	if target == nil {
 		return errors.New("the target is not existing")
 	}
 	var errFinal error
-	lb.removeFromPendingTarget(target)
 	err := lb.nfqlb.Deactivate(target.GetIdentifier())
 	if err != nil {
 		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
@@ -353,6 +353,27 @@ func (lb *LoadBalancer) setTargets(targets []*nspAPI.Target) error {
 		}
 		newTargetsMap[t.GetIdentifier()] = t
 	}
+
+	for identifier, pendingTarget := range lb.pendingTargets { // pending targets to remove
+		// Remove pending targets not part of the configuration anymore.
+		// (Otherwise, a succesfull AddTarget was needed as the prerequisite
+		// for a removal. Meaning, a "shadow" Target disrupting load-balancing
+		// would be around until a setTargets call could remove it finally.)
+		newTarget, exists := newTargetsMap[identifier]
+		if !exists {
+			if err := lb.RemoveTarget(identifier); err != nil {
+				errFinal = fmt.Errorf("%w; %v", errFinal, err)
+			}
+			continue
+		}
+		pendingTargetIPSet := sets.New(pendingTarget.GetIps()...)
+		newTargetIPSet := sets.New(newTarget.GetIps()...)
+		if !pendingTargetIPSet.Equal(newTargetIPSet) {
+			if err := lb.RemoveTarget(identifier); err != nil {
+				errFinal = fmt.Errorf("%w; %v", errFinal, err)
+			}
+		}
+	}
 	for identifier, target := range lb.targets { // targets to remove
 		newTarget, exists := newTargetsMap[identifier]
 		if !exists {
@@ -468,6 +489,15 @@ func (lb *LoadBalancer) removeFromPendingTarget(target types.Target) {
 	}
 	lb.logger.Info("remove pending target", "target", target)
 	delete(lb.pendingTargets, target.GetIdentifier())
+}
+
+func (lb *LoadBalancer) removeFromPendingTargetByIdentifier(identifier int) {
+	target, exists := lb.pendingTargets[identifier]
+	if !exists {
+		return
+	}
+	lb.logger.Info("remove pending target by identifier", "target", target)
+	delete(lb.pendingTargets, identifier)
 }
 
 func (lb *LoadBalancer) isStreamRunning() bool {
