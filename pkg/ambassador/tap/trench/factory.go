@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ limitations under the License.
 package trench
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -74,7 +75,7 @@ func newConduitFactoryImpl(
 }
 
 func (cfi *conduitFactoryImpl) New(cndt *ambassadorAPI.Conduit) (types.Conduit, error) {
-	return conduit.New(cndt,
+	c, err := conduit.New(cndt,
 		cfi.TargetName,
 		cfi.Namespace,
 		cfi.NodeName,
@@ -85,4 +86,8 @@ func (cfi *conduitFactoryImpl) New(cndt *ambassadorAPI.Conduit) (types.Conduit, 
 		cfi.StreamRegistry,
 		cfi.NetUtils,
 		cfi.NSPEntryTimeout)
+	if err != nil {
+		err = fmt.Errorf("conduit factory failed to create conduit: %w", err)
+	}
+	return c, err
 }

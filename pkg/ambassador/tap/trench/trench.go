@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -77,6 +77,9 @@ func New(trench *ambassadorAPI.Trench,
 	grpcMaxBackoff time.Duration,
 	netUtils networking.Utils) (*Trench, error) {
 
+	logger := log.Logger.WithValues("class", "Trench", "trench", trench.GetName())
+	logger.Info("Create trench")
+
 	t := &Trench{
 		TargetName:           targetName,
 		Namespace:            namespace,
@@ -86,7 +89,7 @@ func New(trench *ambassadorAPI.Trench,
 		StreamRegistry:       streamRegistry,
 		NetUtils:             netUtils,
 		conduits:             []*conduitConnect{},
-		logger:               log.Logger.WithValues("class", "Trench", "instance", trench.Name),
+		logger:               logger,
 	}
 
 	var err error
@@ -107,12 +110,12 @@ func New(trench *ambassadorAPI.Trench,
 		t.StreamRegistry,
 		t.NetUtils,
 		nspEntryTimeout)
-	t.logger.Info("Created", "object", t)
+	t.logger.Info("Created trench", "object", t)
 	return t, nil
 }
 
 func (t *Trench) Delete(ctx context.Context) error {
-	t.logger.Info("Delete")
+	t.logger.Info("Delete trench")
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	var errFinal error
@@ -121,27 +124,27 @@ func (t *Trench) Delete(ctx context.Context) error {
 	streamsCtx, streamsCancel := context.WithTimeout(ctx, 10*time.Second)
 	err = t.closeStreams(streamsCtx)
 	if err != nil {
-		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+		errFinal = fmt.Errorf("failure during close streams: %w", err) // todo
 	}
-	t.logger.V(1).Info("Streams closed", "err", err)
+	t.logger.Info("Streams closed", "error", err)
 	streamsCancel()
 
 	// disconnect conduits
 	conduitsCtx, conduitsCancel := context.WithTimeout(ctx, 10*time.Second)
 	err = t.disconnectConduits(conduitsCtx)
 	if err != nil {
-		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+		errFinal = fmt.Errorf("%w; failure during disconnect conduits: %w", errFinal, err) // todo
 	}
 	t.conduits = []*conduitConnect{}
-	t.logger.V(1).Info("Conduits disconnected", "err", err)
+	t.logger.Info("Conduits disconnected", "error", err)
 	conduitsCancel()
 
 	// disconnect trench related services (connection to NSP)
 	err = t.nspConn.Close()
 	if err != nil {
-		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+		errFinal = fmt.Errorf("%w; failure during nsp connection close: %w", errFinal, err) // todo
 	}
-	t.logger.V(1).Info("NSP connection closed", "err", err)
+	t.logger.Info("NSP connection closed", "error", err)
 	t.ConfigurationManagerClient = nil
 	t.TargetRegistryClient = nil
 	t.nspConn = nil
@@ -159,7 +162,7 @@ func (t *Trench) AddConduit(ctx context.Context, cndt *ambassadorAPI.Conduit) (t
 	t.logger.Info("Add conduit", "conduit", cndt)
 	c, err := t.ConduitFactory.New(cndt)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("conduit create failed: %w", err)
 	}
 	cc := newConduitConnect(c, t.ConfigurationManagerClient)
 	go cc.connect()
@@ -226,7 +229,7 @@ func (t *Trench) connectNSPService(ctx context.Context,
 	if grpcBackoffCfg.MaxDelay != grpcMaxBackoff {
 		grpcBackoffCfg.MaxDelay = grpcMaxBackoff
 	}
-	return grpc.Dial(service,
+	cc, err := grpc.Dial(service,
 		grpc.WithTransportCredentials(
 			credentials.GetClient(ctx),
 		),
@@ -241,6 +244,10 @@ func (t *Trench) connectNSPService(ctx context.Context,
 			Time: grpcKeepaliveTime,
 		}),
 	)
+	if err != nil {
+		return nil, fmt.Errorf("NSP service dial failed: %w", err)
+	}
+	return cc, nil
 }
 
 func (t *Trench) closeStreams(ctx context.Context) error {
@@ -260,7 +267,8 @@ func (t *Trench) closeStreams(ctx context.Context) error {
 				err := conduit.conduit.RemoveStream(ctx, stream) // todo: retry
 				if err != nil {
 					mu.Lock()
-					errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+					errFinal = fmt.Errorf("%w; %w", errFinal, fmt.Errorf("failure during removing stream %v from conduit %v: %w",
+						stream.GetName(), conduit.conduit.GetConduit().Name, err)) // todo
 					mu.Unlock()
 				}
 			}(s)
@@ -281,7 +289,8 @@ func (t *Trench) disconnectConduits(ctx context.Context) error {
 			err := conduit.disconnect(ctx) // todo: retry
 			if err != nil {
 				mu.Lock()
-				errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+				errFinal = fmt.Errorf("%w; %w", errFinal, fmt.Errorf("failure during disconnect conduit %v: %w",
+					conduit.conduit.GetConduit().Name, err)) // todo
 				mu.Unlock()
 			}
 		}(c)
