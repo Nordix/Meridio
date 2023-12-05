@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -54,6 +54,8 @@ type Stream struct {
 func New(stream *ambassadorAPI.Stream,
 	targetRegistryClient nspAPI.TargetRegistryClient,
 	conduit Conduit) (*Stream, error) {
+	logger := log.Logger.WithValues("class", "Stream", "stream", stream)
+	logger.Info("Create stream")
 	// todo: check if stream valid
 	s := &Stream{
 		Stream:         stream,
@@ -61,7 +63,7 @@ func New(stream *ambassadorAPI.Stream,
 		Conduit:        conduit,
 		identifier:     -1,
 		targetStatus:   nspAPI.Target_DISABLED,
-		logger:         log.Logger.WithValues("class", "Stream"),
+		logger:         logger,
 	}
 	return s, nil
 }
@@ -79,25 +81,36 @@ func (s *Stream) Open(ctx context.Context, nspStream *nspAPI.Stream) error {
 	if s.targetStatus == nspAPI.Target_ENABLED && s.isIdentifierInRange(1, int(nspStream.GetMaxTargets())) {
 		return s.refresh(ctx, nspStream)
 	}
-	s.logger.Info("Attempt to open stream", "stream", s.Stream)
+	s.logger.Info("Attempt to open stream")
 	err := s.open(ctx, nspStream)
 	if err != nil {
 		return err
 	}
-	s.logger.Info("Stream opened", "identifier", s.identifier, "stream", s.Stream)
+	s.logger.Info("Stream opened", "identifier", s.identifier, "target", s.getTarget())
 	return nil
 }
 
 // Close the stream in the conduit by unregistering target from the NSP service.
 func (s *Stream) Close(ctx context.Context) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.logger.Info("Close stream", "stream", s.Stream)
-	err := s.TargetRegistry.Unregister(ctx, s.getTarget())
-	s.targetStatus = nspAPI.Target_DISABLED
-	s.identifier = -1
+	defer func() {
+		s.mu.Unlock()
+		s.targetStatus = nspAPI.Target_DISABLED
+		s.identifier = -1
+	}()
+	if s.identifier < 0 {
+		// Avoid spamming TargetRegistry with Unregister request that makes no sense.
+		// Meaning what would be the point of unregistering using non-existent identifier?
+		// Note: Currently Close() is called on every setStream configuration event
+		// if the stream is not part of the configuration (either removed from it
+		// before or was never added).
+		return nil
+	}
+	s.logger.Info("Close stream")
+	target := s.getTarget()
+	err := s.TargetRegistry.Unregister(ctx, target)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to unregister target %v: %w", target, err)
 	}
 	return nil
 }
@@ -150,7 +163,7 @@ func (s *Stream) getIdentifiersInUse(ctx context.Context) ([]string, error) {
 		Stream: s.Stream.ToNSP(),
 	})
 	if err != nil {
-		return identifiers, err
+		return identifiers, fmt.Errorf("failed to get targets for identifiers: %w", err)
 	}
 	for _, target := range targets {
 		if sameIps(target.GetIps(), s.ips) {
@@ -173,6 +186,9 @@ func (s *Stream) getTarget() *nspAPI.Target {
 }
 
 func (s *Stream) open(ctx context.Context, nspStream *nspAPI.Stream) error {
+	if s.targetStatus != nspAPI.Target_DISABLED {
+		return nil
+	}
 	// Get identifiers in use (it includes the enabled and disabled entries)
 	identifiersInUse, err := s.getIdentifiersInUse(ctx)
 	if err != nil {
@@ -184,32 +200,30 @@ func (s *Stream) open(ctx context.Context, nspStream *nspAPI.Stream) error {
 	if len(identifiersInUse) >= int(nspStream.GetMaxTargets()) {
 		return errors.New("no identifier available to register the target")
 	}
-	if s.targetStatus != nspAPI.Target_DISABLED {
-		return nil
-	}
 	if s.identifier <= 0 {
 		s.setIdentifier(identifiersInUse, int(nspStream.GetMaxTargets()))
 	}
 	// register the target as disabled status
 	err = s.TargetRegistry.Register(ctx, s.getTarget())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to disable status of target %v: %w", s.getTarget(), err)
 	}
 	for {
 		if ctx.Err() != nil {
-			return ctx.Err()
+			return fmt.Errorf("context error during open: %w", ctx.Err())
 		}
 		// Get again the identifiers to check if there is any collisions
 		identifiersInUse, err := s.getIdentifiersInUse(ctx)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot do collision check for target %v: %w", s.getTarget(), err)
 		}
 		// Check if any identifier is available to be registered with
 		if len(identifiersInUse) >= int(nspStream.GetMaxTargets()) {
+			// All identifiers are taken including ours, unregister the target.
 			err = errors.New("no identifier available to register the target")
 			errUnregister := s.TargetRegistry.Unregister(ctx, s.getTarget())
 			if errUnregister != nil {
-				return fmt.Errorf("%w ; %v", errUnregister, err)
+				return fmt.Errorf("%w ; %w", errUnregister, err)
 			}
 			return err
 		}
@@ -219,26 +233,35 @@ func (s *Stream) open(ctx context.Context, nspStream *nspAPI.Stream) error {
 		if !collision {
 			break
 		}
+		// Unregister target with identifier collision (release the offending identifier)
+		collidingTarget := s.getTarget()
+		if err := s.TargetRegistry.Unregister(ctx, collidingTarget); err != nil {
+			s.logger.Info("Did not manage to unregister colliding target", "error", err, "target", collidingTarget)
+		}
 		// Update the target with a new available identifier
+		// (Remember, there was a collision yet the number of other identifiers
+		// in use did not reach the maxTargets limit. There must be at least one
+		// available based on the last fetched list of identifiers.)
 		s.setIdentifier(identifiersInUse, int(nspStream.GetMaxTargets()))
 		err = s.TargetRegistry.Register(ctx, s.getTarget())
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to update identifier of target %v: %w", s.getTarget(), err)
 		}
 	}
 	s.targetStatus = nspAPI.Target_ENABLED
 	// Update the target as enabled status
 	err = s.TargetRegistry.Register(ctx, s.getTarget())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to enable status of target %v: %w", s.getTarget(), err)
 	}
 	return nil
 }
 
 func (s *Stream) refresh(ctx context.Context, nspStream *nspAPI.Stream) error {
-	err := s.TargetRegistry.Register(ctx, s.getTarget())
+	target := s.getTarget()
+	err := s.TargetRegistry.Register(ctx, target)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to refresh target %v: %w", target, err)
 	}
 	targets, err := s.TargetRegistry.GetTargets(ctx, &nspAPI.Target{
 		Status: nspAPI.Target_ANY,
@@ -246,7 +269,7 @@ func (s *Stream) refresh(ctx context.Context, nspStream *nspAPI.Stream) error {
 		Stream: s.Stream.ToNSP(),
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("refresh cannot be verified by registry: %w", err)
 	}
 	ips := s.getTarget().GetIps()
 	for _, target := range targets {
@@ -268,9 +291,14 @@ func (s *Stream) refresh(ctx context.Context, nspStream *nspAPI.Stream) error {
 	// a target as enabled, the target has to be registered to DISABLED, and then
 	// updated to ENABLED). The target then has to call open function.
 	s.targetStatus = nspAPI.Target_DISABLED
-	return s.open(ctx, nspStream)
+	if err := s.open(ctx, nspStream); err != nil {
+		return fmt.Errorf("refresh failed to re-open stream: %w", err)
+	}
+	s.logger.Info("Stream re-opened during refresh", "identifier", s.identifier, "target", s.getTarget())
+	return nil
 }
 
+// note: fails on {"1", "2", "3"}, {"1", "2", "2"}
 func sameIps(ipsA []string, ipsB []string) bool {
 	if len(ipsA) != len(ipsB) {
 		return false

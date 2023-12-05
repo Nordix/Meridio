@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -73,7 +73,7 @@ func Test_AddConduit_RemoveConduit(t *testing.T) {
 	conduitFactory := mocks.NewMockConduitFactory(ctrl)
 	conduitA := typesMocks.NewMockConduit(ctrl)
 	conduitFactory.EXPECT().New(gomock.Any()).Return(conduitA, nil)
-	conduitA.EXPECT().GetConduit().Return(c)
+	conduitA.EXPECT().GetConduit().Return(c).Times(2)
 	conduitA.EXPECT().Equals(gomock.Any()).Return(true)
 
 	conduitA.EXPECT().Connect(gomock.Any()).DoAndReturn(func(_ context.Context) error {

@@ -234,6 +234,15 @@ func Test_Open_Concurrent(t *testing.T) {
 		assert.Equal(t, identifier, identifierSelected)
 		return nil
 	}).After(secondRegister)
+	tr.EXPECT().Unregister(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, target *nspAPI.Target) error {
+		assert.NotNil(t, target)
+		assert.Equal(t, target.Ips, ips)
+		assert.Equal(t, target.Status, nspAPI.Target_DISABLED)
+		identifier, exists := target.Context[types.IdentifierKey]
+		assert.True(t, exists)
+		assert.Equal(t, identifier, concurrentIdentifier)
+		return nil
+	})
 
 	strm, err := stream.New(s, nil, cndt)
 	assert.Nil(t, err)

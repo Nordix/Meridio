@@ -19,13 +19,17 @@ package trench
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/retry"
+	grpcCodes "google.golang.org/grpc/codes"
+	grpcStatus "google.golang.org/grpc/status"
 )
 
 const (
@@ -44,16 +48,20 @@ type configurationImpl struct {
 	mu         sync.Mutex
 	vipChan    chan []string
 	streamChan chan []*nspAPI.Stream
+	logger     logr.Logger
 }
 
 func newConfigurationImpl(setVips vipSetter,
 	conduit *nspAPI.Conduit,
 	configurationManagerClient nspAPI.ConfigurationManagerClient) *configurationImpl {
+	logger := log.Logger.WithValues("class", "trench.configurationImpl", "conduit", conduit)
+	logger.V(1).Info("Create configuration implementation to set VIPs")
 	c := &configurationImpl{
 		SetVips:                    setVips,
 		Conduit:                    conduit,
 		ConfigurationManagerClient: configurationManagerClient,
 		RetryDelay:                 1 * time.Second,
+		logger:                     logger,
 	}
 	return c
 }
@@ -61,6 +69,7 @@ func newConfigurationImpl(setVips vipSetter,
 func (c *configurationImpl) Watch() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.logger.V(1).Info("Watch configuration")
 	var ctx context.Context
 	ctx, c.cancel = context.WithCancel(context.TODO())
 	c.vipChan = make(chan []string, channelBufferSize)
@@ -72,6 +81,7 @@ func (c *configurationImpl) Watch() {
 func (c *configurationImpl) Stop() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.logger.V(1).Info("Stop configuration watcher")
 	if c.cancel != nil {
 		c.cancel()
 	}
@@ -109,7 +119,7 @@ func (c *configurationImpl) watchVIPs(ctx context.Context) {
 		}
 		watchClient, err := c.ConfigurationManagerClient.WatchFlow(ctx, toWatch)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create flow watch: %w", err)
 		}
 		for {
 			response, err := watchClient.Recv()
@@ -117,7 +127,7 @@ func (c *configurationImpl) watchVIPs(ctx context.Context) {
 				break
 			}
 			if err != nil {
-				return err
+				return fmt.Errorf("flow watch receive error: %w", err)
 			}
 			// flush previous context in channel
 			select {
@@ -131,7 +141,12 @@ func (c *configurationImpl) watchVIPs(ctx context.Context) {
 		retry.WithDelay(2000*time.Millisecond),
 		retry.WithErrorIngnored())
 	if err != nil {
-		log.Logger.Error(err, "watchVIPs") // todo
+		s, _ := grpcStatus.FromError(err)
+		if s.Code() == grpcCodes.Canceled {
+			c.logger.Info("watchVIPs context cancelled")
+		} else {
+			log.Logger.Error(err, "watchVIPs") // todo
+		}
 	}
 }
 

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
@@ -55,6 +56,7 @@ type streamManager struct {
 	ConduitStreams map[string]*nspAPI.Stream
 	mu             sync.Mutex
 	status         status
+	logger         logr.Logger
 }
 
 func NewStreamManager(configurationManagerClient nspAPI.ConfigurationManagerClient,
@@ -74,13 +76,14 @@ func NewStreamManager(configurationManagerClient nspAPI.ConfigurationManagerClie
 		ConduitStreams:             map[string]*nspAPI.Stream{},
 		RetryDelay:                 1 * time.Second,
 		status:                     stopped,
+		logger:                     log.Logger.WithValues("class", "streamManager"),
 	}
 	return sm
 }
 
 // AddStream adds the stream to the stream manager, registers it to the
 // stream registry, creates a new stream based on StreamFactory, and open it, if
-// the stream manager is running and if the stream exists in the configuration.
+// the stream manager is running and if the stream exists in the configuration (NSP).
 func (sm *streamManager) AddStream(strm *ambassadorAPI.Stream) error {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
@@ -90,8 +93,9 @@ func (sm *streamManager) AddStream(strm *ambassadorAPI.Stream) error {
 	}
 	s, err := sm.StreamFactory.New(strm)
 	if err != nil {
-		return err
+		return fmt.Errorf("stream factory create failed: %w", err)
 	}
+	// TODO: streamRetry with initial ambassadorAPI status OPEN seems weird
 	sr := &streamRetry{
 		Stream:          s,
 		StreamRegistry:  sm.StreamRegistry,
@@ -107,6 +111,7 @@ func (sm *streamManager) AddStream(strm *ambassadorAPI.Stream) error {
 	}
 	nspStream := sm.getNSPStream(sr)
 	if nspStream == nil {
+		// Not in configuration (NSP), wait for SetStreams()
 		sr.setStatus(ambassadorAPI.StreamStatus_UNDEFINED)
 		return nil
 	}
@@ -167,7 +172,7 @@ func (sm *streamManager) SetStreams(streams []*nspAPI.Stream) {
 			err := sr.Close(ctx)
 			sr.setStatus(ambassadorAPI.StreamStatus_UNDEFINED)
 			if err != nil {
-				log.Logger.Error(err, "closing non available stream", "stream", sr.Stream.GetStream())
+				sm.logger.Error(err, "closing non available stream", "stream", sr.Stream.GetStream())
 			}
 		}
 	}
@@ -212,7 +217,7 @@ func (sm *streamManager) Stop(ctx context.Context) error {
 			s.setStatus(ambassadorAPI.StreamStatus_UNDEFINED)
 			if err != nil {
 				mu.Lock()
-				errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+				errFinal = fmt.Errorf("%w; stream manager stream close failure: %w", errFinal, err) // todo
 				mu.Unlock()
 			}
 		}(stream)
@@ -233,9 +238,9 @@ type streamRetry struct {
 	cancelOpen      context.CancelFunc
 }
 
-// Open continually tries to open the stream. The function
-// finishes when the stream is successfully opened or when the
-// close function is called.
+// Open continuously tries to open the stream. When opened it continuously
+// tries to refresh it to keep it open.
+// Calling cancelOpen() stops the open/refresh goroutine.
 func (sr *streamRetry) Open(nspStream *nspAPI.Stream) {
 	// Set cancelOpen, so the close function could cancel this Open function.
 	sr.ctxMu.Lock()
@@ -255,10 +260,14 @@ func (sr *streamRetry) Open(nspStream *nspAPI.Stream) {
 				defer cancel()
 				err := sr.Stream.Open(openCtx, nspStream)
 				if err != nil {
-					log.Logger.Error(err, "opening stream", "stream", sr.Stream.GetStream())
-					// opened unsuccessfully, set status to UNDEFINED (might be due to lack of identifier, no connection to NSP)
+					if ctx.Err() != context.Canceled { // if cancelOpen got called by Close() no need to complain
+						log.Logger.Error(err, "error opening stream", "stream", nspStream)
+						// TODO: check if it really makes sense to keep retrying with high frequency
+						// in case of error wraps "no identifier available to register the target"?
+					}
+					// opened unsuccessfully, set status to UNAVAILABLE (might be due to lack of identifier, no connection to NSP)
 					sr.setStatus(ambassadorAPI.StreamStatus_UNAVAILABLE)
-					return err
+					return fmt.Errorf("failed to open stream: %w", err) // (make wrapcheck happy)
 				}
 				sr.setStatus(ambassadorAPI.StreamStatus_OPEN)
 				return nil
@@ -284,10 +293,16 @@ func (sr *streamRetry) Close(ctx context.Context) error {
 		sr.cancelOpen = nil
 		sr.ctxMu.Unlock()
 	}()
-	return sr.Stream.Close(ctx)
+	if err := sr.Stream.Close(ctx); err != nil {
+		return fmt.Errorf("stream retry failed to close stream: %w", err)
+	}
+	return nil
 }
 
 func (sr *streamRetry) setStatus(status ambassadorAPI.StreamStatus_Status) {
+	if status != sr.currentStatus {
+		log.Logger.Info("ambassadorAPI stream status changed", "status", status, "stream", sr.Stream.GetStream())
+	}
 	sr.currentStatus = status
 	if sr.StreamRegistry == nil {
 		return

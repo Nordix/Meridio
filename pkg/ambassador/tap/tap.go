@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -86,25 +86,26 @@ func (tap *Tap) Open(ctx context.Context, s *ambassadorAPI.Stream) (*emptypb.Emp
 	if err != nil {
 		return &emptypb.Empty{}, err
 	}
+	tap.logger.Info("Open", "stream", s)
 	// set the trench if tap.currentTrench in nil, get if s.conduit.trench == currentTrench
 	// return an error if s.conduit.trench != currentTrench
 	trench, err := tap.setTrench(s.GetConduit().GetTrench())
 	if err != nil {
-		return &emptypb.Empty{}, err
+		return &emptypb.Empty{}, fmt.Errorf("open failed to set trench: %w", err)
 	}
 	// add/get conduit (get if already existing)
 	// will be connected when the trench will be ready
 	conduit, err := trench.AddConduit(context.TODO(), s.GetConduit())
 	if err != nil {
-		return &emptypb.Empty{}, err
+		return &emptypb.Empty{}, fmt.Errorf("open failed to add conduit: %w", err)
 	}
 	// add/get a stream (get if already existing)
 	// will be opened when the conduit will be ready
 	err = conduit.AddStream(context.TODO(), s)
 	if err != nil {
-		return &emptypb.Empty{}, err
+		return &emptypb.Empty{}, fmt.Errorf("open failed to add stream: %w", err)
 	}
-	return &emptypb.Empty{}, err
+	return &emptypb.Empty{}, nil
 }
 
 func (tap *Tap) Close(ctx context.Context, s *ambassadorAPI.Stream) (*emptypb.Empty, error) {
@@ -112,6 +113,7 @@ func (tap *Tap) Close(ctx context.Context, s *ambassadorAPI.Stream) (*emptypb.Em
 	if err != nil {
 		return &emptypb.Empty{}, err
 	}
+	tap.logger.Info("Close", "stream", s)
 	go func() {
 		tap.mu.Lock()
 		defer tap.mu.Unlock()
@@ -140,7 +142,7 @@ func (tap *Tap) Close(ctx context.Context, s *ambassadorAPI.Stream) (*emptypb.Em
 		if len(tap.currentTrench.GetConduits()) > 0 {
 			return
 		}
-		// delete the conduit if it doesn't contain any more conduit
+		// delete the trench if it doesn't contain any more conduit
 		err = tap.currentTrench.Delete(context)
 		if err != nil {
 			tap.logger.Error(err, "deleting trench")
@@ -152,11 +154,14 @@ func (tap *Tap) Close(ctx context.Context, s *ambassadorAPI.Stream) (*emptypb.Em
 }
 
 func (tap *Tap) Watch(filter *ambassadorAPI.Stream, watcher ambassadorAPI.Tap_WatchServer) error {
+	logger := tap.logger.WithValues("filter", filter, "watcher", watcher)
+	logger.V(1).Info("Watch")
 	targetWatcher, err := tap.StreamRegistry.Watch(context.TODO(), filter)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create stream registry watch: %w", err)
 	}
 	tap.watcher(watcher, targetWatcher.ResultChan())
+	logger.V(1).Info("Watch stopped")
 	targetWatcher.Stop()
 	return nil
 }
@@ -181,7 +186,7 @@ func (tap *Tap) setTrench(t *ambassadorAPI.Trench) (types.Trench, error) {
 		tap.GRPCMaxBackoff,
 		tap.NetUtils)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create trench: %w", err)
 	}
 	tap.currentTrench = res
 	return res, nil
@@ -191,7 +196,11 @@ func (tap *Tap) Delete(ctx context.Context) error {
 	if tap.currentTrench == nil {
 		return nil
 	}
-	return tap.currentTrench.Delete(ctx)
+	tap.logger.Info("Delete", "currentTrench", tap.currentTrench)
+	if err := tap.currentTrench.Delete(ctx); err != nil {
+		return fmt.Errorf("failed to delete trench: %w", err)
+	}
+	return nil
 }
 
 func (tap *Tap) watcher(watcher ambassadorAPI.Tap_WatchServer, ch <-chan []*ambassadorAPI.StreamStatus) {

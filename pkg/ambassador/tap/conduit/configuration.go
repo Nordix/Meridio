@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,13 +19,17 @@ package conduit
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/retry"
+	grpcCodes "google.golang.org/grpc/codes"
+	grpcStatus "google.golang.org/grpc/status"
 )
 
 const (
@@ -44,15 +48,19 @@ type configurationImpl struct {
 	cancel                     context.CancelFunc
 	mu                         sync.Mutex
 	streamChan                 chan []*nspAPI.Stream
+	logger                     logr.Logger
 }
 
 func newConfigurationImpl(setStreams func([]*nspAPI.Stream),
 	conduit *nspAPI.Conduit,
 	configurationManagerClient nspAPI.ConfigurationManagerClient) *configurationImpl {
+	logger := log.Logger.WithValues("class", "conduit.configurationImpl", "conduit", conduit)
+	logger.V(1).Info("Create configuration implementation to set streams")
 	c := &configurationImpl{
 		SetStreams:                 setStreams,
 		Conduit:                    conduit,
 		ConfigurationManagerClient: configurationManagerClient,
+		logger:                     logger,
 	}
 	return c
 }
@@ -60,6 +68,7 @@ func newConfigurationImpl(setStreams func([]*nspAPI.Stream),
 func (c *configurationImpl) Watch() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.logger.V(1).Info("Watch configuration")
 	var ctx context.Context
 	ctx, c.cancel = context.WithCancel(context.TODO())
 	c.streamChan = make(chan []*nspAPI.Stream, channelBufferSize)
@@ -70,6 +79,7 @@ func (c *configurationImpl) Watch() {
 func (c *configurationImpl) Stop() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.logger.V(1).Info("Stop configuration watcher")
 	if c.cancel != nil {
 		c.cancel()
 	}
@@ -93,7 +103,7 @@ func (c *configurationImpl) watchStreams(ctx context.Context) {
 		}
 		watchStreamClient, err := c.ConfigurationManagerClient.WatchStream(ctx, vipsToWatch)
 		if err != nil {
-			return err
+			return fmt.Errorf("configuration manager stream watch create failed: %w", err)
 		}
 		for {
 			streamResponse, err := watchStreamClient.Recv()
@@ -101,7 +111,7 @@ func (c *configurationImpl) watchStreams(ctx context.Context) {
 				break
 			}
 			if err != nil {
-				return err
+				return fmt.Errorf("configuration manager stream watch receive error: %w", err)
 			}
 			fixStreamsMaxTargets(streamResponse.GetStreams())
 			// flush previous context in channel
@@ -116,7 +126,12 @@ func (c *configurationImpl) watchStreams(ctx context.Context) {
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
 	if err != nil {
-		log.Logger.Error(err, "watchStreams") // todo
+		s, _ := grpcStatus.FromError(err)
+		if s.Code() == grpcCodes.Canceled {
+			c.logger.Info("watchStreams context cancelled")
+		} else {
+			log.Logger.Error(err, "watchStreams") // todo
+		}
 	}
 }
 

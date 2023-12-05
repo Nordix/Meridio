@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package conduit_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -323,7 +324,7 @@ func Test_Manager_Close_While_Opening(t *testing.T) {
 	streamA.EXPECT().Open(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, nspStream *nspAPI.Stream) error {
 		wg.Done()
 		<-ctx.Done()
-		return ctx.Err()
+		return fmt.Errorf("streamA Open DoAndReturn: %w", ctx.Err())
 	}).AnyTimes()
 	// Check Close (Stream) has been called
 	streamA.EXPECT().Close(gomock.Any()).Return(nil)

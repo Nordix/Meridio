@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2022 Nordix Foundation
+Copyright (c) 2022-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -47,13 +47,17 @@ func Monitor(ctx context.Context, healthService string, cc interface{}) error {
 			for {
 				s := m.GetState()
 				health.SetServingStatus(ctx, m.healthService, s == connectivity.Ready)
-				log.Logger.V(2).Info("Connection", "service", m.healthService, "state", s)
+				log.Logger.V(2).Info("Connection", "service", m.healthService, "state", s, "target", m.Target())
 
 				// Note: gRPC will NOT establish underlying transport connection except for the
 				// initial "dial" or unless the user tries to send sg and there's no backing connection.
 				// Therefore trigger transport connect if gRPC connection state is Idle for 3 seconds,
 				// to avoid the health service from getting stuck in NOT_SERVING if the user "remains silent"
 				// for too long.
+				// The gRPC connection status might transition to IDLE from READY due to IDLE_TIMEOUT or
+				// receiving GOAWAY while there are no pending RPCs, and from CONNECTING due to IDLE_TIMEOUT.
+				// So, even with the below forced connect, we might still report service unavailability because
+				// of the protocol.
 				waitCtx := ctx
 				if s == connectivity.Idle {
 					// TODO: configurable timeout

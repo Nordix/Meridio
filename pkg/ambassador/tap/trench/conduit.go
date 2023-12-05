@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,9 +18,11 @@ package trench
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
+	"github.com/go-logr/logr"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
 	"github.com/nordix/meridio/pkg/log"
@@ -34,14 +36,18 @@ type conduitConnect struct {
 	conduit       types.Conduit
 	cancelOpen    context.CancelFunc
 	ctxMu         sync.Mutex
+	logger        logr.Logger
 }
 
 func newConduitConnect(conduit types.Conduit, configurationManagerClient nspAPI.ConfigurationManagerClient) *conduitConnect {
+	logger := log.Logger.WithValues("class", "conduitConnect", "conduit", conduit.GetConduit())
+	logger.V(1).Info("Create conduit connect")
 	cc := &conduitConnect{
 		conduit:       conduit,
 		configuration: newConfigurationImpl(conduit.SetVIPs, conduit.GetConduit().ToNSP(), configurationManagerClient),
 		Timeout:       10 * time.Second,
 		RetryDelay:    2 * time.Second,
+		logger:        logger,
 	}
 	return cc
 }
@@ -51,6 +57,7 @@ func (cc *conduitConnect) connect() {
 	if cc.cancelOpen != nil {
 		return
 	}
+	cc.logger.V(1).Info("connect")
 	ctx, cancelOpen := context.WithCancel(context.TODO())
 	cc.cancelOpen = cancelOpen
 	cc.ctxMu.Unlock()
@@ -60,7 +67,7 @@ func (cc *conduitConnect) connect() {
 		defer cancel()
 		if err != nil {
 			log.Logger.Error(err, "connecting conduit", "conduit", cc.conduit.GetConduit())
-			return err
+			return fmt.Errorf("conduitConnect connect error: %w", err) // please wrapcheck (currently won't show anywhere)
 		}
 		return nil
 	}, retry.WithContext(ctx),
@@ -76,10 +83,15 @@ func (cc *conduitConnect) connect() {
 func (cc *conduitConnect) disconnect(ctx context.Context) error {
 	cc.ctxMu.Lock()
 	defer cc.ctxMu.Unlock()
+	cc.logger.V(1).Info("disconnect")
 	if cc.cancelOpen != nil {
 		cc.cancelOpen() // cancel open
 	}
 	cc.cancelOpen = nil
 	cc.configuration.Stop()
-	return cc.conduit.Disconnect(ctx)
+
+	if err := cc.conduit.Disconnect(ctx); err != nil {
+		return fmt.Errorf("conduitConnect disconnect error: %w", err)
+	}
+	return nil
 }
