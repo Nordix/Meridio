@@ -18,6 +18,7 @@ package mtu
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -42,9 +43,20 @@ func (m *mtuServer) Request(ctx context.Context, request *networkservice.Network
 		request.GetConnection().Context = &networkservice.ConnectionContext{}
 	}
 	request.GetConnection().GetContext().MTU = m.mtu
-	return next.Server(ctx).Request(ctx, request)
+
+	connection, err := next.Server(ctx).Request(ctx, request)
+	if err != nil {
+		return connection, fmt.Errorf("failed to request (%s) connection to NSM (mtuServer): %w", request.String(), err)
+	}
+
+	return connection, err
 }
 
 func (m *mtuServer) Close(ctx context.Context, conn *networkservice.Connection) (*emptypb.Empty, error) {
-	return next.Server(ctx).Close(ctx, conn)
+	empty, err := next.Server(ctx).Close(ctx, conn)
+	if err != nil {
+		return empty, fmt.Errorf("failed to close (%s) connection from NSM (mtuServer): %w", conn.String(), err)
+	}
+
+	return empty, nil
 }

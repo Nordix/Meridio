@@ -75,11 +75,21 @@ func (e *Executor) LogError(err error, msg string) {
 }
 
 func (e *Executor) GetObject(selector client.ObjectKey, obj client.Object) error {
-	return e.client.Get(e.ctx, selector, obj)
+	err := e.client.Get(e.ctx, selector, obj)
+	if err != nil {
+		return fmt.Errorf("failed to get objects: %w", err)
+	}
+
+	return nil
 }
 
 func (e *Executor) ListObject(obj client.ObjectList, opts ...client.ListOption) error {
-	return e.client.List(e.ctx, obj, opts...)
+	err := e.client.List(e.ctx, obj, opts...)
+	if err != nil {
+		return fmt.Errorf("failed to list objects: %w", err)
+	}
+
+	return nil
 }
 
 func (e *Executor) RunActions() error {
@@ -87,7 +97,7 @@ func (e *Executor) RunActions() error {
 		action, name, err := action.Run(e)
 		if err != nil {
 			e.log.Error(err, "execute action", "action", action, "object", name, "result", "failure")
-			return err
+			return fmt.Errorf("failed to run action for obj (%s): %w", name, err)
 		}
 		e.log.Info("execute action", "action", action, "object", name, "result", "success")
 	}
@@ -146,7 +156,7 @@ func (e *Executor) create(obj client.Object) error {
 	}
 	// conflicts will happen when there are frequent actions
 	if err = e.client.Create(e.ctx, obj); err != nil && !errors.IsAlreadyExists(err) {
-		return err
+		return fmt.Errorf("failed to create obj (%s): %w", obj.GetName(), err)
 	}
 	return nil
 }
@@ -154,7 +164,7 @@ func (e *Executor) create(obj client.Object) error {
 func (e *Executor) update(obj client.Object) error {
 	// conflicts will happen when there are frequent actions
 	if err := e.client.Update(e.ctx, obj); err != nil && !errors.IsConflict(err) {
-		return err
+		return fmt.Errorf("failed to update obj (%s): %w", obj.GetName(), err)
 	}
 	return nil
 }
@@ -166,7 +176,7 @@ func (e *Executor) updateStatus(obj client.Object) error {
 		if errors.IsConflict(err) {
 			return nil
 		}
-		return err
+		return fmt.Errorf("failed to update obj status (%s): %w", obj.GetName(), err)
 	}
 	return nil
 }

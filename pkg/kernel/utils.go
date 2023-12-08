@@ -18,6 +18,7 @@ package kernel
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/vishvananda/netlink"
@@ -69,31 +70,25 @@ func (ku *KernelUtils) GetInterfaceMonitor(ctx context.Context) networking.Inter
 	return nil
 }
 
-// func (ku *KernelUtils) IfaceByName(name string) (networking.Iface, error) {
-
-// }
-
 func (ku *KernelUtils) GetIndexFromName(name string) (int, error) {
 	return GetIndexFromName(name)
 }
 
-func (ku *KernelUtils) AddVIP(vip string) error {
-	return AddVIP(vip)
-}
-
-func (ku *KernelUtils) DeleteVIP(vip string) error {
-	return DeleteVIP(vip)
-}
-
 func getLink(intf networking.Iface) (netlink.Link, error) {
-	return netlink.LinkByIndex(intf.GetIndex())
+	link, err := netlink.LinkByIndex(intf.GetIndex())
+	if err != nil {
+		return link, fmt.Errorf("failed getting link by index (%d): %w", intf.GetIndex(), err)
+	}
+
+	return link, nil
 }
 
 // GetIndexFromName - Get the index of an interface from its name
 func GetIndexFromName(name string) (int, error) {
 	intf, err := netlink.LinkByName(name)
 	if err != nil {
-		return -1, err
+		return -1, fmt.Errorf("failed getting link by name (%s): %w", name, err)
 	}
+
 	return intf.Attrs().Index, nil
 }

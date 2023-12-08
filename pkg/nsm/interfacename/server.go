@@ -18,6 +18,7 @@ package interfacename
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -44,7 +45,12 @@ func NewServer(prefix string, generator NameGenerator) networkservice.NetworkSer
 // It implements NetworkServiceServer for the interfacename package
 func (ine *interfaceNameServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	ine.SetInterfaceName(request)
-	return next.Server(ctx).Request(ctx, request)
+	connection, err := next.Server(ctx).Request(ctx, request)
+	if err != nil {
+		return connection, fmt.Errorf("failed to request (%s) connection to NSM (interfaceNameServer): %w", request.String(), err)
+	}
+
+	return connection, nil
 }
 
 // Close it does nothing except calling the next Close in the chain
@@ -52,5 +58,10 @@ func (ine *interfaceNameServer) Request(ctx context.Context, request *networkser
 // It implements NetworkServiceServer for the interfacename package
 func (ine *interfaceNameServer) Close(ctx context.Context, conn *networkservice.Connection) (*emptypb.Empty, error) {
 	ine.UnsetInterfaceName(conn)
-	return next.Server(ctx).Close(ctx, conn)
+	empty, err := next.Server(ctx).Close(ctx, conn)
+	if err != nil {
+		return empty, fmt.Errorf("failed to close (%s) connection from NSM (interfaceNameServer): %w", conn.String(), err)
+	}
+
+	return empty, nil
 }

@@ -19,6 +19,7 @@ package sqlite
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
@@ -41,7 +42,7 @@ func New(datastore string) (*TargetRegistrySQLite, error) {
 		FullSaveAssociations: true,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open db session: %w", err)
 	}
 	targetRegistrySQLite := &TargetRegistrySQLite{
 		DB:       db,
@@ -57,7 +58,7 @@ func New(datastore string) (*TargetRegistrySQLite, error) {
 func (trsql *TargetRegistrySQLite) Close() error {
 	sqlDB, err := trsql.DB.DB()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to close db connection: %w", err)
 	}
 	sqlDB.Close()
 	return nil
@@ -173,18 +174,21 @@ func (trsql *TargetRegistrySQLite) getAll() ([]*nspAPI.Target, error) {
 func (trsql *TargetRegistrySQLite) init() error {
 	err := trsql.DB.AutoMigrate(&Target{})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to AutoMigrate target: %w", err)
 	}
 	err = trsql.DB.AutoMigrate(&Stream{})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to AutoMigrate stream: %w", err)
 	}
 	err = trsql.DB.AutoMigrate(&Conduit{})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to AutoMigrate conduit: %w", err)
 	}
 	err = trsql.DB.AutoMigrate(&Trench{})
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to AutoMigrate trench: %w", err)
+	}
+	return nil
 }
 
 // Due the way the data are stored, 2 objects (Stream, Conduit, Trench) with the same name but with different parent

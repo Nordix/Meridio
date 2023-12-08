@@ -66,7 +66,7 @@ func (r *ConduitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			}
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to get conduit (%s) in conduit controller: %w", req.Name, err)
 	}
 	// clear conduit status
 	currentConduit := conduit.DeepCopy()
@@ -82,7 +82,7 @@ func (r *ConduitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if trench != nil {
 		err = executor.SetOwnerReference(conduit, trench)
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("failed to set owner reference (%s) in conduit controller: %w", req.Name, err)
 		}
 		// create/update stateless-lb-frontend & nse-vlan deployment
 		executor.SetOwner(conduit)
@@ -101,17 +101,25 @@ func (r *ConduitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	getConduitActions(executor, conduit, currentConduit)
 	err = executor.RunActions()
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to run actions (%s) in conduit controller: %w", req.Name, err)
+	}
 
-	return ctrl.Result{}, err
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ConduitReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	err := ctrl.NewControllerManagedBy(mgr).
 		For(&meridiov1.Conduit{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&appsv1.DaemonSet{}).
 		Complete(r)
+	if err != nil {
+		return fmt.Errorf("failed to build conduit controller: %w", err)
+	}
+
+	return nil
 }
 
 func getConduitActions(executor *common.Executor, new, old *meridiov1.Conduit) {

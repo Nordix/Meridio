@@ -45,12 +45,12 @@ func AllocateWithBlocklist(ctx context.Context, parent types.Prefix, name string
 	}
 	_, currentCandidate, err := net.ParseCIDR(fmt.Sprintf("%s/%d", parentIPNet.IP.String(), length))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to ParseCIDR (%s) while allocating prefix (name: %s ; length: %d ; parent: %s): %w", parentIPNet.IP.String(), name, length, parent.GetName(), err)
 	}
 	firstCandidate := currentCandidate
 	childs, err := store.GetChilds(ctx, parent)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get childs from store while allocating prefix (name: %s ; length: %d ; parent: %s): %w", name, length, parent.GetName(), err)
 	}
 	childList := prefixSliceToStringSlice(childs)
 	var currentCandidatePrefix types.Prefix
@@ -72,11 +72,11 @@ func AllocateWithBlocklist(ctx context.Context, parent types.Prefix, name string
 		currentCandidatePrefix = New(name, currentCandidate.String(), parent)
 		err = store.Add(ctx, currentCandidatePrefix)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to add (%s) to store while allocating prefix (name: %s ; length: %d ; parent: %s): %w", currentCandidatePrefix, name, length, parent.GetName(), err)
 		}
 		childs, err = store.GetChilds(ctx, parent)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get childs from store while allocating prefix (name: %s ; length: %d ; parent: %s): %w", name, length, parent.GetName(), err)
 		}
 		childList = prefixSliceToStringSlice(childs)
 		collisions := PrefixCollideWith(currentCandidatePrefix, childs)
@@ -85,7 +85,7 @@ func AllocateWithBlocklist(ctx context.Context, parent types.Prefix, name string
 		}
 		err = store.Delete(ctx, currentCandidatePrefix)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to delete (%s) from store while allocating prefix (name: %s ; length: %d ; parent: %s): %w", currentCandidatePrefix, name, length, parent.GetName(), err)
 		}
 	}
 	return currentCandidatePrefix, nil

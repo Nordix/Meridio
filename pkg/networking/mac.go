@@ -17,6 +17,7 @@ package networking
 
 import (
 	"crypto/rand"
+	"fmt"
 	"net"
 )
 
@@ -25,7 +26,7 @@ func GenerateMacAddress() (net.HardwareAddr, error) {
 	buf := make([]byte, 6)
 	_, err := rand.Read(buf)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to generate random set of bytes while generating a mac address: %w", err)
 	}
 
 	buf[0] = (buf[0] | 2) & 0xfe // Set local bit, ensure unicast addres

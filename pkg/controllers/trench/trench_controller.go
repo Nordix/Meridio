@@ -18,6 +18,7 @@ package trench
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 
@@ -67,7 +68,7 @@ func (r *TrenchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if apierrors.IsNotFound(err) {
 			return reconcile.Result{}, nil
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to get trench (%s) in trench controller: %w", req.Name, err)
 	}
 
 	executor := common.NewExecutor(r.Scheme, r.Client, ctx, trench, r.Log)
@@ -82,12 +83,16 @@ func (r *TrenchReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	err = executor.RunActions()
-	return ctrl.Result{}, err
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to run actions (%s) in trench controller: %w", req.Name, err)
+	}
+
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *TrenchReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	err := ctrl.NewControllerManagedBy(mgr).
 		For(&meridiov1.Trench{}).
 		Owns(&corev1.Service{}).
 		Owns(&appsv1.StatefulSet{}).
@@ -120,4 +125,9 @@ func (r *TrenchReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			&handler.EnqueueRequestForOwner{OwnerType: &meridiov1.Trench{}, IsController: false},
 		). // Trenches are not the controllers of configmaps, so here uses Watches with IsController: false
 		Complete(r)
+	if err != nil {
+		return fmt.Errorf("failed to build trench controller: %w", err)
+	}
+
+	return nil
 }

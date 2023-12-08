@@ -63,7 +63,7 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 			}
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to get flow (%s) in flow controller: %w", req.Name, err)
 	}
 	// clear flow status
 	currentFlow := flow.DeepCopy()
@@ -78,7 +78,7 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	if trench != nil {
 		err = executor.SetOwnerReference(flow, trench)
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("failed to set owner reference (%s) in flow controller: %w", req.Name, err)
 		}
 	} else {
 		return ctrl.Result{}, fmt.Errorf("unable to get trench for stream %s", req.NamespacedName)
@@ -86,15 +86,23 @@ func (r *FlowReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	getFlowActions(executor, flow, currentFlow)
 	err = executor.RunActions()
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to run actions (%s) in flow controller: %w", req.Name, err)
+	}
 
-	return ctrl.Result{}, err
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *FlowReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	err := ctrl.NewControllerManagedBy(mgr).
 		For(&meridiov1.Flow{}).
 		Complete(r)
+	if err != nil {
+		return fmt.Errorf("failed to build flow controller: %w", err)
+	}
+
+	return nil
 }
 
 func getFlowActions(executor *common.Executor, new, old *meridiov1.Flow) []common.Action {

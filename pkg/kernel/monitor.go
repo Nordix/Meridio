@@ -17,6 +17,7 @@ limitations under the License.
 package kernel
 
 import (
+	"fmt"
 	"syscall"
 
 	"github.com/nordix/meridio/pkg/networking"
@@ -85,7 +86,7 @@ func (im *InterfaceMonitor) start() {
 func (im *InterfaceMonitor) eventSubscription() error {
 	err := netlink.LinkSubscribe(im.ch, im.done)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed subscribing to link events: %w", err)
 	}
 	return nil
 }

@@ -166,5 +166,11 @@ func startServer(ctx context.Context, server *grpc.Server, listener net.Listener
 		<-ctx.Done()
 		server.Stop()
 	}()
-	return server.Serve(listener)
+
+	err := server.Serve(listener)
+	if err != nil {
+		return fmt.Errorf("failed to start server: %w", err)
+	}
+
+	return nil
 }

@@ -19,6 +19,7 @@ package sqlite
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/nordix/meridio/pkg/ipam/prefix"
@@ -38,7 +39,7 @@ func New(datastore string) (*SQLiteIPAMStorage, error) {
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open db session: %w", err)
 	}
 	sqlis := &SQLiteIPAMStorage{
 		DB: db,
@@ -95,7 +96,10 @@ func (sqlis *SQLiteIPAMStorage) GetChilds(ctx context.Context, prefix types.Pref
 
 func (sqlis *SQLiteIPAMStorage) init() error {
 	err := sqlis.DB.AutoMigrate(&Prefix{})
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to automigrate: %w", err)
+	}
+	return nil
 }
 
 func (sqlis *SQLiteIPAMStorage) getChilds(prefix types.Prefix) ([]types.Prefix, error) {

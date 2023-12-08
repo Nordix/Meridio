@@ -17,6 +17,8 @@ limitations under the License.
 package trench
 
 import (
+	"fmt"
+
 	meridiov1 "github.com/nordix/meridio/api/v1"
 	common "github.com/nordix/meridio/pkg/controllers/common"
 	corev1 "k8s.io/api/core/v1"
@@ -83,7 +85,7 @@ func (i *NspService) getCurrentStatus() (*corev1.Service, error) {
 		if errors.IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("failed to get service object (%s): %w", selector.String(), err)
 	}
 	return currentStatus, nil
 }
@@ -103,7 +105,7 @@ func (i *NspService) getReconciledDesiredStatus(svc *corev1.Service) *corev1.Ser
 func (i *NspService) getModel() error {
 	model, err := common.GetServiceModel("deployment/nsp-service.yaml")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get service model in deployment/nsp-service.yaml: %w", err)
 	}
 	i.model = model
 	return nil

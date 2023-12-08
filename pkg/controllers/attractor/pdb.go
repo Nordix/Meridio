@@ -17,6 +17,8 @@ limitations under the License.
 package attractor
 
 import (
+	"fmt"
+
 	meridiov1 "github.com/nordix/meridio/api/v1"
 	common "github.com/nordix/meridio/pkg/controllers/common"
 	policyv1 "k8s.io/api/policy/v1"
@@ -66,7 +68,7 @@ func (i *LoadBalancerPDB) insertParameters(pdb *policyv1.PodDisruptionBudget) *p
 func (i *LoadBalancerPDB) getModel() error {
 	model, err := common.GetPodDisruptionBudgetModel("deployment/pdb.yaml")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get daemonset model in deployment/pdb.yaml: %w", err)
 	}
 	i.model = model
 	return nil
@@ -89,7 +91,7 @@ func (i *LoadBalancerPDB) getCurrentStatusV1() (*policyv1.PodDisruptionBudget, e
 		if errors.IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("failed to get pdb v1 object (%s): %w", selector.String(), err)
 	}
 	return currentStatus, nil
 }
@@ -102,7 +104,7 @@ func (i *LoadBalancerPDB) getCurrentStatusV1Beta1() (*policyv1beta1.PodDisruptio
 		if errors.IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("failed to get pdb v1alpha1 object (%s): %w", selector.String(), err)
 	}
 	return currentStatus, nil
 }

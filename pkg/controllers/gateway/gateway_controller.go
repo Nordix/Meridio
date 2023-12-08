@@ -61,7 +61,7 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to get gateway (%s) in gateway controller: %w", req.Name, err)
 	}
 	cgw := gw.DeepCopy()
 	gw.Status = meridiov1.GatewayStatus{}
@@ -74,7 +74,7 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if trench != nil {
 		err = executor.SetOwnerReference(gw, trench)
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("failed to set owner reference (%s) in gateway controller: %w", req.Name, err)
 		}
 	} else {
 		return ctrl.Result{}, fmt.Errorf("unable to get trench for gateway %s", req.NamespacedName)
@@ -82,7 +82,11 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	getActions(executor, gw, cgw)
 	err = executor.RunActions()
-	return ctrl.Result{}, err
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to run actions (%s) in gateway controller: %w", req.Name, err)
+	}
+
+	return ctrl.Result{}, nil
 }
 
 func getActions(executor *common.Executor, new, old *meridiov1.Gateway) []common.Action {
@@ -95,7 +99,12 @@ func getActions(executor *common.Executor, new, old *meridiov1.Gateway) []common
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *GatewayReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	err := ctrl.NewControllerManagedBy(mgr).
 		For(&meridiov1.Gateway{}).
 		Complete(r)
+	if err != nil {
+		return fmt.Errorf("failed to build gateway controller: %w", err)
+	}
+
+	return nil
 }

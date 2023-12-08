@@ -17,6 +17,7 @@ limitations under the License.
 package prefix
 
 import (
+	"fmt"
 	"net"
 )
 
@@ -41,7 +42,7 @@ func IsCIDR(cidr string) bool {
 func GetFamily(cidr string) (IPFamily, error) {
 	ip, _, err := net.ParseCIDR(cidr)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to ParseCIDR (%s): %w", cidr, err)
 	}
 	if ip.To4() == nil { // ipv6
 		return IPv6, nil

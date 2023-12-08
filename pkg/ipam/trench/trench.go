@@ -18,6 +18,7 @@ package trench
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/nordix/meridio/pkg/ipam/conduit"
 	"github.com/nordix/meridio/pkg/ipam/prefix"
@@ -38,13 +39,13 @@ type Trench struct {
 func New(ctx context.Context, prefix types.Prefix, store types.Storage, prefixLengths *types.PrefixLengths) (*Trench, error) {
 	p, err := store.Get(ctx, prefix.GetName(), nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get (%s) from store: %w", prefix.GetName(), err)
 	}
 	if p == nil {
 		p = prefix
 		err = store.Add(ctx, prefix)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to add (%s) to store: %w", prefix.GetName(), err)
 		}
 	}
 	t := &Trench{
@@ -60,7 +61,7 @@ func New(ctx context.Context, prefix types.Prefix, store types.Storage, prefixLe
 func (t *Trench) GetConduit(ctx context.Context, name string) (types.Conduit, error) {
 	prefix, err := t.Store.Get(ctx, name, t)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get conduit (%s) from store in trench prefix (%s): %w", name, t.GetName(), err)
 	}
 	if prefix == nil {
 		return nil, nil
@@ -80,7 +81,7 @@ func (t *Trench) AddConduit(ctx context.Context, name string) (types.Conduit, er
 	}
 	newPrefix, err := prefix.Allocate(ctx, t, name, t.PrefixLengths.ConduitLength, t.Store)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to add conduit (%s) in trench prefix (%s): %w", name, t.GetName(), err)
 	}
 	return conduit.New(newPrefix, t.Store, t.PrefixLengths), nil
 }
@@ -90,7 +91,11 @@ func (t *Trench) AddConduit(ctx context.Context, name string) (types.Conduit, er
 func (t *Trench) RemoveConduit(ctx context.Context, name string) error {
 	prefix, err := t.Store.Get(ctx, name, t)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get conduit (%s) from store while removing conduit in trench prefix (%s): %w", name, t.GetName(), err)
 	}
-	return t.Store.Delete(ctx, prefix)
+	err = t.Store.Delete(ctx, prefix)
+	if err != nil {
+		return fmt.Errorf("failed to delete (%s) from store in trench prefix (%s): %w", name, t.GetName(), err)
+	}
+	return nil
 }

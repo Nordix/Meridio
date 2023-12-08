@@ -17,6 +17,8 @@ limitations under the License.
 package reader
 
 import (
+	"fmt"
+
 	"gopkg.in/yaml.v2"
 )
 
@@ -73,41 +75,62 @@ func UnmarshalConfig(data map[string]string) (
 func UnmarshalTrench(c string) (*Trench, error) {
 	config := &Trench{}
 	err := yaml.UnmarshalStrict([]byte(c), &config)
-	return config, err
+	if err != nil {
+		return config, fmt.Errorf("failed to unmarshal trench (%s): %w", c, err)
+	}
+	return config, nil
 }
 
 func UnmarshalConduits(c string) ([]*Conduit, error) {
 	config := &ConduitList{}
 	err := yaml.UnmarshalStrict([]byte(c), &config)
-	return config.Conduits, err
+	if err != nil {
+		return config.Conduits, fmt.Errorf("failed to unmarshal conduits (%s): %w", c, err)
+	}
+	return config.Conduits, nil
 }
 
 func UnmarshalStreams(c string) ([]*Stream, error) {
 	config := &StreamList{}
 	err := yaml.UnmarshalStrict([]byte(c), &config)
-	return config.Streams, err
+	if err != nil {
+		return config.Streams, fmt.Errorf("failed to unmarshal streams (%s): %w", c, err)
+	}
+	return config.Streams, nil
 }
 
 func UnmarshalFlows(c string) ([]*Flow, error) {
 	config := &FlowList{}
 	err := yaml.UnmarshalStrict([]byte(c), &config)
-	return config.Flows, err
+	if err != nil {
+		return config.Flows, fmt.Errorf("failed to unmarshal flows (%s): %w", c, err)
+	}
+	return config.Flows, nil
 }
 
 func UnmarshalVips(c string) ([]*Vip, error) {
 	config := &VipList{}
 	err := yaml.UnmarshalStrict([]byte(c), &config)
-	return config.Vips, err
+	if err != nil {
+		return config.Vips, fmt.Errorf("failed to unmarshal vips (%s): %w", c, err)
+	}
+	return config.Vips, nil
 }
 
 func UnmarshalAttractors(c string) ([]*Attractor, error) {
 	config := &AttractorList{}
 	err := yaml.UnmarshalStrict([]byte(c), &config)
-	return config.Attractors, err
+	if err != nil {
+		return config.Attractors, fmt.Errorf("failed to unmarshal attractors (%s): %w", c, err)
+	}
+	return config.Attractors, nil
 }
 
 func UnmarshalGateways(c string) ([]*Gateway, error) {
 	config := &GatewayList{}
 	err := yaml.UnmarshalStrict([]byte(c), &config)
-	return config.Gateways, err
+	if err != nil {
+		return config.Gateways, fmt.Errorf("failed to unmarshal gateways (%s): %w", c, err)
+	}
+	return config.Gateways, nil
 }

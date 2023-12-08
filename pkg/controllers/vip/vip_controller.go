@@ -63,7 +63,7 @@ func (r *VipReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			}
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to get vip (%s) in vip controller: %w", req.Name, err)
 	}
 
 	// save the current vip status
@@ -80,7 +80,7 @@ func (r *VipReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if trench != nil {
 		err = executor.SetOwnerReference(vip, trench)
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("failed to set owner reference (%s) in vip controller: %w", req.Name, err)
 		}
 	} else {
 		return ctrl.Result{}, fmt.Errorf("unable to get trench for vip %s", req.NamespacedName)
@@ -88,8 +88,11 @@ func (r *VipReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	getVipActions(executor, vip, currentVip)
 	err = executor.RunActions()
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to run actions (%s) in vip controller: %w", req.Name, err)
+	}
 
-	return ctrl.Result{}, err
+	return ctrl.Result{}, nil
 }
 
 func getVipActions(executor *common.Executor, new, old *meridiov1.Vip) {
@@ -100,7 +103,12 @@ func getVipActions(executor *common.Executor, new, old *meridiov1.Vip) {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *VipReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	err := ctrl.NewControllerManagedBy(mgr).
 		For(&meridiov1.Vip{}).
 		Complete(r)
+	if err != nil {
+		return fmt.Errorf("failed to build vip controller: %w", err)
+	}
+
+	return nil
 }

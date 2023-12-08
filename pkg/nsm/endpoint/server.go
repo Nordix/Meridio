@@ -100,7 +100,12 @@ func (s *Server) Stop() error {
 	if s.cancel != nil {
 		s.cancel()
 	}
-	return os.Remove(s.tmpDir)
+	err := os.Remove(s.tmpDir)
+	if err != nil {
+		return fmt.Errorf("failed to remove %v: %w", s.tmpDir, err)
+	}
+
+	return nil
 }
 
 func (s *Server) GetUrl() string {
