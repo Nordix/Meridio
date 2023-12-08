@@ -63,11 +63,11 @@ func (dpn *DestinationPortNat) init() error {
 	ipv6Set := dpn.getIpv6Set()
 	err := conn.AddSet(ipv4Set, nil)
 	if err != nil {
-		return err // shouldn't happen since elements is nil
+		return fmt.Errorf("failed to add ipv4 nftables set: %w", err) // shouldn't happen since elements is nil
 	}
 	err = conn.AddSet(ipv6Set, nil)
 	if err != nil {
-		return err // shouldn't happen since elements is nil
+		return fmt.Errorf("failed to add ipv6 nftables set: %w", err) // shouldn't happen since elements is nil
 	}
 	l4Proto, err := parseL4Proto(dpn.PortNat.GetProtocol())
 	if err != nil {
@@ -81,7 +81,13 @@ func (dpn *DestinationPortNat) init() error {
 		chain, unix.AF_INET6, l4Proto, ipv6Set, uint(dpn.PortNat.GetPort()), uint(dpn.PortNat.GetTargetPort())))
 	_ = conn.AddRule(dpn.buildSrcRule(
 		chain, unix.AF_INET6, l4Proto, ipv6Set, uint(dpn.PortNat.GetPort()), uint(dpn.PortNat.GetTargetPort())))
-	return conn.Flush()
+
+	err = conn.Flush()
+	if err != nil {
+		return fmt.Errorf("failed to flush on destination port nat init: %w", err)
+	}
+
+	return nil
 }
 
 func (dpn *DestinationPortNat) SetVips(vips []*nspAPI.Vip) error {
@@ -173,7 +179,12 @@ func (dpn *DestinationPortNat) Delete() error {
 	conn.DelChain(dpn.getChain())
 	conn.DelSet(dpn.getIpv4Set())
 	conn.DelSet(dpn.getIpv6Set())
-	return conn.Flush()
+	err := conn.Flush()
+	if err != nil {
+		return fmt.Errorf("failed to flush on destination port nat deletion: %w", err)
+	}
+
+	return nil
 }
 
 func (dpn *DestinationPortNat) GetName() string {

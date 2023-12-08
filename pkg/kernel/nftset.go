@@ -80,7 +80,12 @@ func (nfs *NFSetIP) Delete() error {
 	nfs.logger.V(1).Info("Delete")
 	conn := &nftables.Conn{}
 	conn.DelSet(nfs.Set)
-	return conn.Flush()
+	err := conn.Flush()
+	if err != nil {
+		return fmt.Errorf("failed flusing while deleting NFSetIP (set: %s ; table: %s): %w", nfs.Set.Name, nfs.table.Name, err)
+	}
+
+	return nil
 }
 
 func (nfs *NFSetIP) configure() error {
@@ -104,10 +109,15 @@ func (nfs *NFSetIP) configure() error {
 	}
 	err = conn.AddSet(nfs.Set, []nftables.SetElement{})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed AddSet while configuring NFSetIP (set: %s ; table: %s): %w", nfs.Set.Name, nfs.table.Name, err)
 	}
 
-	return conn.Flush()
+	err = conn.Flush()
+	if err != nil {
+		return fmt.Errorf("failed flusing while configuring NFSetIP (set: %s ; table: %s): %w", nfs.Set.Name, nfs.table.Name, err)
+	}
+
+	return nil
 }
 
 func (nfs *NFSetIP) setIPs(ips []string) error {

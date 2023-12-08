@@ -89,34 +89,40 @@ func (b *Bridge) interfaceIsLinked(intf networking.Iface) bool {
 // LinkInterface set the bridge as master of another interface
 func (b *Bridge) LinkInterface(intf networking.Iface) error {
 	if b.interfaceIsLinked(intf) {
-		return nil // TODO
+		return nil
 	}
 	b.addTolinkedInterfaces(intf)
 	bridgeLink, err := b.getLink()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to getLink bridge while linking interface (%s): %w", b.GetName(), err)
 	}
 	interfaceLink, err := getLink(intf)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to getLink interface while linking interface (%s): %w", intf.GetName(), err)
 	}
 	err = netlink.LinkSetMaster(interfaceLink, bridgeLink)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to LinkSetMaster while linking interface (%s - %s): %w", b.GetName(), intf.GetName(), err)
 	}
 	return nil
 }
 
 func (b *Bridge) UnLinkInterface(intf networking.Iface) error {
 	if !b.interfaceIsLinked(intf) {
-		return nil // TODO
+		return nil
 	}
 	b.removeFromlinkedInterfaces(intf)
 	interfaceLink, err := getLink(intf)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to getLink interface while unlinking interface (%s): %w", intf.GetName(), err)
 	}
-	return netlink.LinkSetNoMaster(interfaceLink)
+
+	err = netlink.LinkSetNoMaster(interfaceLink)
+	if err != nil {
+		return fmt.Errorf("failed to LinkSetNoMaster interface while unlinking interface (%s): %w", intf.GetName(), err)
+	}
+
+	return nil
 }
 
 func NewBridge(name string) (*Bridge, error) {

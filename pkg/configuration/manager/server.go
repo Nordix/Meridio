@@ -17,6 +17,8 @@ limitations under the License.
 package manager
 
 import (
+	"fmt"
+
 	"github.com/go-logr/logr"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/log"
@@ -47,7 +49,7 @@ func (s *Server) WatchTrench(trench *nspAPI.Trench, watcher nspAPI.Configuration
 	ch := make(chan *nspAPI.Trench, channelBufferSize)
 	err := s.WatcherRegistry.RegisterWatcher(trench, ch)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to register trench watcher (%s): %w", trench.String(), err)
 	}
 	s.trenchWatcher(watcher, ch)
 	s.WatcherRegistry.UnregisterWatcher(ch)
@@ -58,7 +60,7 @@ func (s *Server) WatchConduit(conduit *nspAPI.Conduit, watcher nspAPI.Configurat
 	ch := make(chan []*nspAPI.Conduit, channelBufferSize)
 	err := s.WatcherRegistry.RegisterWatcher(conduit, ch)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to register conduit watcher (%s): %w", conduit.String(), err)
 	}
 	s.conduitWatcher(watcher, ch)
 	s.WatcherRegistry.UnregisterWatcher(ch)
@@ -69,7 +71,7 @@ func (s *Server) WatchStream(stream *nspAPI.Stream, watcher nspAPI.Configuration
 	ch := make(chan []*nspAPI.Stream, channelBufferSize)
 	err := s.WatcherRegistry.RegisterWatcher(stream, ch)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to register stream watcher (%s): %w", stream.String(), err)
 	}
 	s.streamWatcher(watcher, ch)
 	s.WatcherRegistry.UnregisterWatcher(ch)
@@ -80,7 +82,7 @@ func (s *Server) WatchFlow(flow *nspAPI.Flow, watcher nspAPI.ConfigurationManage
 	ch := make(chan []*nspAPI.Flow, channelBufferSize)
 	err := s.WatcherRegistry.RegisterWatcher(flow, ch)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to register flow watcher (%s): %w", flow.String(), err)
 	}
 	s.flowWatcher(watcher, ch)
 	s.WatcherRegistry.UnregisterWatcher(ch)
@@ -91,7 +93,7 @@ func (s *Server) WatchVip(vip *nspAPI.Vip, watcher nspAPI.ConfigurationManager_W
 	ch := make(chan []*nspAPI.Vip, channelBufferSize)
 	err := s.WatcherRegistry.RegisterWatcher(vip, ch)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to register vip watcher (%s): %w", vip.String(), err)
 	}
 	s.vipWatcher(watcher, ch)
 	s.WatcherRegistry.UnregisterWatcher(ch)
@@ -102,7 +104,7 @@ func (s *Server) WatchAttractor(attractor *nspAPI.Attractor, watcher nspAPI.Conf
 	ch := make(chan []*nspAPI.Attractor, channelBufferSize)
 	err := s.WatcherRegistry.RegisterWatcher(attractor, ch)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to register attractor watcher (%s): %w", attractor.String(), err)
 	}
 	s.attractorWatcher(watcher, ch)
 	s.WatcherRegistry.UnregisterWatcher(ch)
@@ -113,7 +115,7 @@ func (s *Server) WatchGateway(gateway *nspAPI.Gateway, watcher nspAPI.Configurat
 	ch := make(chan []*nspAPI.Gateway, channelBufferSize)
 	err := s.WatcherRegistry.RegisterWatcher(gateway, ch)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to register gateway watcher (%s): %w", gateway.String(), err)
 	}
 	s.gatewayWatcher(watcher, ch)
 	s.WatcherRegistry.UnregisterWatcher(ch)

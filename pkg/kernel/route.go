@@ -18,6 +18,7 @@ package kernel
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -43,7 +44,12 @@ func (sbr *SourceBasedRoute) create() error {
 		Mask: sbr.vip.Mask,
 	}
 	rule.Family = sbr.family()
-	return netlink.RuleAdd(rule)
+	err := netlink.RuleAdd(rule)
+	if err != nil {
+		return fmt.Errorf("failed to add rule (%s) for source base routing: %w", rule.String(), err)
+	}
+
+	return nil
 }
 
 func (sbr *SourceBasedRoute) updateRoute() error {
@@ -62,7 +68,12 @@ func (sbr *SourceBasedRoute) updateRoute() error {
 		Src:       src,
 		MultiPath: nexthops,
 	}
-	return netlink.RouteReplace(route)
+	err := netlink.RouteReplace(route)
+	if err != nil {
+		return fmt.Errorf("failed to update route (%s) for source base routing: %w", route.String(), err)
+	}
+
+	return nil
 }
 
 func (sbr *SourceBasedRoute) removeFromList(nexthop *netlink.Addr) {
@@ -80,7 +91,7 @@ func (sbr *SourceBasedRoute) AddNexthop(nexthop string) error {
 	defer sbr.mu.Unlock()
 	netlinkAddr, err := netlink.ParseAddr(nexthop)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed ParseAddr (%s) while adding nexthop: %w", nexthop, err)
 	}
 
 	// don't append if already exists
@@ -105,7 +116,7 @@ func (sbr *SourceBasedRoute) RemoveNexthop(nexthop string) error {
 	defer sbr.mu.Unlock()
 	netlinkAddr, err := netlink.ParseAddr(nexthop)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed ParseAddr (%s) while removing nexthop: %w", nexthop, err)
 	}
 	sbr.removeFromList(netlinkAddr)
 	err = sbr.updateRoute()
@@ -128,7 +139,7 @@ func (sbr *SourceBasedRoute) Delete() error {
 	rule.Family = sbr.family()
 	err := netlink.RuleDel(rule)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed RuleDel (%s) while deleting source base route: %w", rule.String(), err)
 	}
 	// Delete Route
 	src := net.IPv4(0, 0, 0, 0)
@@ -139,7 +150,12 @@ func (sbr *SourceBasedRoute) Delete() error {
 		Table: sbr.tableID,
 		Src:   src,
 	}
-	return netlink.RouteDel(route)
+	err = netlink.RouteDel(route)
+	if err != nil {
+		return fmt.Errorf("failed RouteDel (%s) while deleting source base route: %w", route.String(), err)
+	}
+
+	return nil
 }
 
 func (sbr *SourceBasedRoute) family() int {
@@ -168,7 +184,7 @@ func (sbr *SourceBasedRoute) verify() {
 func NewSourceBasedRoute(tableID int, vip string) (*SourceBasedRoute, error) {
 	netlinkAddr, err := netlink.ParseAddr(vip)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed ParseAddr (%s) while creating source base route: %w", vip, err)
 	}
 	sourceBasedRoute := &SourceBasedRoute{
 		tableID:  tableID,

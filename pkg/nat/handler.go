@@ -63,7 +63,12 @@ func (nh *NatHandler) initTable() error {
 		Name:   tableName,
 		Family: nftables.TableFamilyINet,
 	})
-	return conn.Flush()
+	err := conn.Flush()
+	if err != nil {
+		return fmt.Errorf("failed to flush while init nftables table for natting: %w", err)
+	}
+
+	return nil
 }
 
 func (nh *NatHandler) SetNats(portNats []*nspAPI.Conduit_PortNat) error {

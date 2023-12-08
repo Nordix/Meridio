@@ -57,7 +57,7 @@ func NewServer(
 	}
 	store, err := sqlite.New(datastore)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed creating new sqlite store (%s): %w", datastore, err)
 	}
 	logStore := &logger.Store{
 		Store: store,
@@ -66,10 +66,10 @@ func NewServer(
 	trenchWatchers := []trench.TrenchWatcher{}
 	for ipFamily, cidr := range cidrs {
 		name := getTrenchName(trenchName, ipFamily)
-		prefix := prefix.New(name, cidr, nil)
-		newTrench, err := trench.New(ctx, prefix, logStore, is.PrefixLengths[ipFamily])
+		p := prefix.New(name, cidr, nil)
+		newTrench, err := trench.New(ctx, p, logStore, is.PrefixLengths[ipFamily])
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed creating new trench prefix (%s): %w", p.GetName(), err)
 		}
 		is.Trenches[ipFamily] = newTrench
 		trenchWatchers = append(trenchWatchers, newTrench)
@@ -98,12 +98,12 @@ func (is *IpamServer) Allocate(ctx context.Context, child *ipamAPI.Child) (*ipam
 	var conduit types.Conduit
 	for {
 		if ctx.Err() != nil {
-			return nil, ctx.Err()
+			return nil, fmt.Errorf("failed allocating (%s), ctx error: %w", child.GetName(), ctx.Err())
 		}
 		var err error
 		conduit, err = trench.GetConduit(ctx, child.GetSubnet().GetConduit().GetName())
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed getting conduit (%s) while allocating (%s): %w", child.GetSubnet().GetConduit().GetName(), child.GetName(), err)
 		}
 		if conduit != nil {
 			break
@@ -111,15 +111,15 @@ func (is *IpamServer) Allocate(ctx context.Context, child *ipamAPI.Child) (*ipam
 	}
 	node, err := conduit.GetNode(ctx, child.GetSubnet().GetNode())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed getting node (%s) while allocating (%s): %w", child.GetSubnet().GetNode(), child.GetName(), err)
 	}
 	p, err := node.Allocate(ctx, child.GetName())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed allocating (%s): %w", child.GetName(), err)
 	}
 	ip, _, err := net.ParseCIDR(p.GetCidr())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed ParseCIDR (%s) while allocating (%s): %w", p.GetCidr(), child.GetName(), err)
 	}
 	ret := &ipamAPI.Prefix{
 		Address:      ip.String(),
@@ -145,19 +145,23 @@ func (is *IpamServer) Release(ctx context.Context, child *ipamAPI.Child) (*empty
 	}
 	conduit, err := trench.GetConduit(ctx, child.GetSubnet().GetConduit().GetName())
 	if err != nil {
-		return &emptypb.Empty{}, err
+		return &emptypb.Empty{}, fmt.Errorf("failed getting conduit (%s) while releasing (%s): %w", child.GetSubnet().GetNode(), child.GetName(), err)
 	}
 	if conduit == nil {
 		return &emptypb.Empty{}, nil
 	}
 	node, err := conduit.GetNode(ctx, child.GetSubnet().GetNode())
 	if err != nil {
-		return &emptypb.Empty{}, err
+		return &emptypb.Empty{}, fmt.Errorf("failed getting node (%s) while releasing (%s): %w", child.GetSubnet().GetNode(), child.GetName(), err)
 	}
 	if node == nil {
 		return &emptypb.Empty{}, nil
 	}
-	return &emptypb.Empty{}, node.Release(ctx, child.GetName())
+	err = node.Release(ctx, child.GetName())
+	if err != nil {
+		return &emptypb.Empty{}, fmt.Errorf("failed releasing (%s): %w", child.GetName(), err)
+	}
+	return &emptypb.Empty{}, nil
 }
 
 func getTrenchName(trenchName string, ipFamily ipamAPI.IPFamily) string {

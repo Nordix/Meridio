@@ -18,6 +18,7 @@ package interfacemonitor
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -46,7 +47,12 @@ func (ime *interfaceMonitorEndpoint) Request(ctx context.Context, request *netwo
 	if request != nil && request.GetConnection() != nil {
 		ime.ConnectionRequested(&connection{request.GetConnection()}, networking.NSE)
 	}
-	return next.Server(ctx).Request(ctx, request)
+	connection, err := next.Server(ctx).Request(ctx, request)
+	if err != nil {
+		return connection, fmt.Errorf("failed to request (%s) connection to NSM (interfaceMonitorEndpoint): %w", request.String(), err)
+	}
+
+	return connection, nil
 }
 
 // Close will call the InterfaceDeleted function in the interfaceMonitorSubscriber
@@ -54,5 +60,10 @@ func (ime *interfaceMonitorEndpoint) Close(ctx context.Context, conn *networkser
 	if conn != nil {
 		ime.ConnectionClosed(&connection{conn}, networking.NSE)
 	}
-	return next.Server(ctx).Close(ctx, conn)
+	empty, err := next.Server(ctx).Close(ctx, conn)
+	if err != nil {
+		return empty, fmt.Errorf("failed to close (%s) connection from NSM (interfaceMonitorEndpoint): %w", conn.String(), err)
+	}
+
+	return empty, nil
 }

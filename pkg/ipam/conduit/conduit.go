@@ -18,6 +18,7 @@ package conduit
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/nordix/meridio/pkg/ipam/node"
 	"github.com/nordix/meridio/pkg/ipam/prefix"
@@ -48,7 +49,7 @@ func New(prefix types.Prefix, store types.Storage, prefixLengths *types.PrefixLe
 func (c *Conduit) GetNode(ctx context.Context, name string) (types.Node, error) {
 	p, err := c.Store.Get(ctx, name, c)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get node (%s) from store in conduit prefix (%s): %w", name, c.GetName(), err)
 	}
 	var n types.Node
 	if p == nil {
@@ -67,15 +68,19 @@ func (c *Conduit) GetNode(ctx context.Context, name string) (types.Node, error) 
 func (c *Conduit) RemoveNode(ctx context.Context, name string) error {
 	prefix, err := c.Store.Get(ctx, name, c)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get node (%s) from store while removing node in conduit prefix (%s): %w", name, c.GetName(), err)
 	}
-	return c.Store.Delete(ctx, prefix)
+	err = c.Store.Delete(ctx, prefix)
+	if err != nil {
+		return fmt.Errorf("failed to delete (%s) from store in conduit prefix (%s): %w", name, c.GetName(), err)
+	}
+	return nil
 }
 
 func (c *Conduit) addNode(ctx context.Context, name string) (types.Node, error) {
 	newPrefix, err := prefix.Allocate(ctx, c, name, c.PrefixLengths.NodeLength, c.Store)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to add node (%s) in conduit prefix (%s): %w", name, c.GetName(), err)
 	}
 	return node.New(newPrefix, c.Store, c.PrefixLengths), nil
 }

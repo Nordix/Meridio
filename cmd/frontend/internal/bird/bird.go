@@ -168,7 +168,7 @@ func (b *RoutingService) monitorOutput(ctx context.Context, r io.Reader) error {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return err
+		return fmt.Errorf("failed on reading the output of bird process: %w", err)
 	}
 	return nil
 }

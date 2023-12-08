@@ -18,6 +18,7 @@ package expirationtime
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -46,13 +47,29 @@ func (c *defaultExpirationNSEClient) Register(ctx context.Context, nse *registry
 		expirationTime := timeClock.Now().Add(c.defaultLifetime).Local()
 		nse.ExpirationTime = timestamppb.New(expirationTime)
 	}
-	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
+
+	nse, err := next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
+	if err != nil {
+		return nse, fmt.Errorf("failed to register network service endpoint (%s) to NSM (defaultExpirationNSEClient): %w", nse.String(), err)
+	}
+
+	return nse, nil
 }
 
 func (c *defaultExpirationNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
+	findClient, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
+	if err != nil {
+		return findClient, fmt.Errorf("failed to fint network service endpoint (%s) in NSM (defaultExpirationNSEClient): %w", query.String(), err)
+	}
+
+	return findClient, nil
 }
 
 func (c *defaultExpirationNSEClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
+	empty, err := next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)
+	if err != nil {
+		return empty, fmt.Errorf("failed to unregister network service endpoint (%s) to NSM (defaultExpirationNSEClient): %w", nse.String(), err)
+	}
+
+	return empty, nil
 }

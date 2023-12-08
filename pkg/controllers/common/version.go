@@ -17,6 +17,7 @@ limitations under the License.
 package common
 
 import (
+	"fmt"
 	"reflect"
 
 	policyv1 "k8s.io/api/policy/v1"
@@ -33,7 +34,7 @@ func GetPodDisruptionBudgetVersion(client client.Client) (string, error) {
 	}
 	gvk, err := client.RESTMapper().RESTMapping(gk)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to identify a preferred resource mapping for %s: %w", gk.String(), err)
 	}
 	return gvk.GroupVersionKind.Version, nil
 }

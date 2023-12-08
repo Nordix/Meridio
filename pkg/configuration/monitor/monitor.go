@@ -18,6 +18,7 @@ package monitor
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
 	"github.com/nordix/meridio/pkg/configuration/reader"
@@ -53,19 +54,19 @@ func New(configMapName string, namespace string, ConfigurationRegistry Configura
 		func(namespace string) (watcher.WatchObject, error) {
 			clientCfg, err := rest.InClusterConfig()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to get InClusterConfig for configmap monitor (%s): %w", configMapName, err)
 			}
 
 			clientset, err := kubernetes.NewForConfig(clientCfg)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to create clientSet for configmap monitor (%s): %w", configMapName, err)
 			}
 
-			return clientset.CoreV1().ConfigMaps(namespace), err
+			return clientset.CoreV1().ConfigMaps(namespace), nil
 		},
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create object monitor for configmap monitor (%s): %w", configMapName, err)
 	}
 	configMapMonitor.ObjectMonitorInterface = monitor
 

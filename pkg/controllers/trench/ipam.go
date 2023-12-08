@@ -133,7 +133,7 @@ func (i *IpamStatefulSet) insertParameters(dep *appsv1.StatefulSet) *appsv1.Stat
 func (i *IpamStatefulSet) getModel() error {
 	model, err := common.GetStatefulSetModel("deployment/ipam.yaml")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get statefulset model in deployment/ipam.yaml: %w", err)
 	}
 	i.model = model
 	return nil
@@ -168,7 +168,7 @@ func (i *IpamStatefulSet) getCurrentStatus() (*appsv1.StatefulSet, error) {
 		if errors.IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("failed to get statefulset object (%s): %w", selector.String(), err)
 	}
 	return currentStatus, nil
 }

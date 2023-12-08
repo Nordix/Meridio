@@ -57,8 +57,6 @@ type Utils interface {
 	GetInterfaceMonitor(ctx context.Context) InterfaceMonitor
 
 	GetIndexFromName(name string) (int, error)
-	AddVIP(vip string) error
-	DeleteVIP(vip string) error
 }
 
 type Bridge interface {

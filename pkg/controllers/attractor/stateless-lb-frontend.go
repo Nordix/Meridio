@@ -46,7 +46,7 @@ type LoadBalancer struct {
 func (l *LoadBalancer) getModel() error {
 	model, err := common.GetDeploymentModel("deployment/stateless-lb-frontend.yaml")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get deployment model in deployment/stateless-lb-frontend.yaml: %w", err)
 	}
 	l.model = model
 	return nil
@@ -131,7 +131,7 @@ func (l *LoadBalancer) insertNetworkAnnotation(dep *appsv1.Deployment) error {
 		l.attractor.ObjectMeta.Namespace,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get network annotation: %w", err)
 	}
 
 	netAttachSelMap := common.MakeNetworkAttachmentSpecMap(netAttachSels) // convert to map to check for duplicates
@@ -163,7 +163,7 @@ func (l *LoadBalancer) insertNetworkAnnotation(dep *appsv1.Deployment) error {
 		netAttachSels = append(netAttachSels, attrNetAttachSels...)
 		enc, err := json.Marshal(netAttachSels)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to marshal network annotation (%v): %w", netAttachSels, err)
 		}
 		dep.Spec.Template.ObjectMeta.Annotations[common.NetworkAttachmentAnnot] = string(enc)
 	}
@@ -306,7 +306,7 @@ func (l *LoadBalancer) getCurrentStatus() (*appsv1.Deployment, error) {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("failed to get deployment object (%s): %w", l.getSelector().String(), err)
 	}
 	return currentState, nil
 }

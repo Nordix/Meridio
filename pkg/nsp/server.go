@@ -18,6 +18,7 @@ package nsp
 
 import (
 	"context"
+	"fmt"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/log"
@@ -40,17 +41,25 @@ func NewServer(targetRegistry types.TargetRegistry) nspAPI.TargetRegistryServer 
 }
 
 func (s *Server) Register(ctx context.Context, target *nspAPI.Target) (*emptypb.Empty, error) {
-	return &emptypb.Empty{}, s.TargetRegistry.Set(ctx, target)
+	err := s.TargetRegistry.Set(ctx, target)
+	if err != nil {
+		return &emptypb.Empty{}, fmt.Errorf("failed to set target (%s): %w", target.String(), err)
+	}
+	return &emptypb.Empty{}, nil
 }
 
 func (s *Server) Unregister(ctx context.Context, target *nspAPI.Target) (*emptypb.Empty, error) {
-	return &emptypb.Empty{}, s.TargetRegistry.Remove(ctx, target)
+	err := s.TargetRegistry.Remove(ctx, target)
+	if err != nil {
+		return &emptypb.Empty{}, fmt.Errorf("failed to remove target (%s): %w", target.String(), err)
+	}
+	return &emptypb.Empty{}, nil
 }
 
 func (s *Server) Watch(t *nspAPI.Target, watcher nspAPI.TargetRegistry_WatchServer) error {
 	targetWatcher, err := s.TargetRegistry.Watch(context.TODO(), t)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed getting target watcher (%s): %w", t.String(), err)
 	}
 	s.watcher(watcher, targetWatcher.ResultChan())
 	targetWatcher.Stop()

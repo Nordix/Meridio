@@ -49,7 +49,7 @@ func New(prefix types.Prefix, store types.Storage, prefixLengths *types.PrefixLe
 func (n *Node) Allocate(ctx context.Context, name string) (types.Prefix, error) {
 	p, err := n.Store.Get(ctx, name, n)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get (%s) from store while allocating in node prefix (%s): %w", name, n.GetName(), err)
 	}
 	if p == nil {
 		blocklist, err := n.getBlocklist()
@@ -58,7 +58,7 @@ func (n *Node) Allocate(ctx context.Context, name string) (types.Prefix, error) 
 		}
 		p, err = prefix.AllocateWithBlocklist(ctx, n, name, n.PrefixLengths.ChildLength, n.Store, blocklist)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to AllocateWithBlocklist (%s) while allocating in node prefix (%s): %w", name, n.GetName(), err)
 		}
 	}
 	return p, nil
@@ -69,15 +69,21 @@ func (n *Node) Allocate(ctx context.Context, name string) (types.Prefix, error) 
 func (n *Node) Release(ctx context.Context, name string) error {
 	prefix, err := n.Store.Get(ctx, name, n)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get (%s) from store while releasing in node prefix (%s): %w", name, n.GetName(), err)
 	}
-	return n.Store.Delete(ctx, prefix)
+
+	err = n.Store.Delete(ctx, prefix)
+	if err != nil {
+		return fmt.Errorf("failed to delete (%s) from store while releasing in node prefix (%s): %w", name, n.GetName(), err)
+	}
+
+	return nil
 }
 
 func (n *Node) getBlocklist() ([]string, error) {
 	_, ipNet, err := net.ParseCIDR(n.GetCidr())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to ParseCIDR (%s) while getting block list: %w", n.GetCidr(), err)
 	}
 	first := fmt.Sprintf("%s/%d", ipNet.IP.String(), n.PrefixLengths.ChildLength)
 	last := fmt.Sprintf("%s/%d", prefix.LastIP(ipNet), n.PrefixLengths.ChildLength)

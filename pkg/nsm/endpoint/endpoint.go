@@ -79,8 +79,13 @@ func (e *Endpoint) Register(ctx context.Context) error {
 	e.NSE.Url = e.Server.GetUrl()
 	e.NSE.ExpirationTime = nil
 	var err error
+	nse := e.NSE
 	e.NSE, err = e.NSERegistryClient.Register(ctx, e.NSE)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to register NSE (%s): %w", nse.String(), err)
+	}
+
+	return nil
 }
 
 func (e *Endpoint) Unregister(ctx context.Context) error {
@@ -88,5 +93,9 @@ func (e *Endpoint) Unregister(ctx context.Context) error {
 		Seconds: -1,
 	}
 	_, err := e.NSERegistryClient.Unregister(ctx, e.NSE)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to unregister NSE (%s): %w", e.NSE.String(), err)
+	}
+
+	return nil
 }

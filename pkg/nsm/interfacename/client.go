@@ -18,6 +18,7 @@ package interfacename
 
 import (
 	"context"
+	"fmt"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -43,11 +44,13 @@ func NewClient(prefix string, generator NameGenerator) networkservice.NetworkSer
 // It implements NetworkServiceClient for the interfacename package
 func (inc *interfaceNameClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	inc.SetInterfaceName(request)
-	conn, err := next.Client(ctx).Request(ctx, request, opts...)
+	connection, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
 		inc.UnsetInterfaceName(request)
+		return connection, fmt.Errorf("failed to request (%s) connection to NSM (interfaceNameClient): %w", request.String(), err)
 	}
-	return conn, err
+
+	return connection, nil
 }
 
 // Close it does nothing except calling the next Close in the chain
@@ -55,5 +58,10 @@ func (inc *interfaceNameClient) Request(ctx context.Context, request *networkser
 // It implements NetworkServiceClient for the interfacename package
 func (inc *interfaceNameClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	inc.UnsetInterfaceName(conn)
-	return next.Client(ctx).Close(ctx, conn, opts...)
+	empty, err := next.Client(ctx).Close(ctx, conn, opts...)
+	if err != nil {
+		return empty, fmt.Errorf("failed to close (%s) connection from NSM (interfaceNameClient): %w", conn.String(), err)
+	}
+
+	return empty, nil
 }

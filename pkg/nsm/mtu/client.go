@@ -18,6 +18,7 @@ package mtu
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -38,14 +39,25 @@ func NewMtuClient(mtu uint32) networkservice.NetworkServiceClient {
 	}
 }
 
-func (m *mtuClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
+func (m *mtuClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	if request.GetConnection().GetContext() == nil {
 		request.GetConnection().Context = &networkservice.ConnectionContext{}
 	}
 	request.GetConnection().GetContext().MTU = m.mtu
-	return next.Client(ctx).Request(ctx, request, opts...)
+
+	connection, err := next.Client(ctx).Request(ctx, request, opts...)
+	if err != nil {
+		return connection, fmt.Errorf("failed to request (%s) connection to NSM (mtuClient): %w", request.String(), err)
+	}
+
+	return connection, nil
 }
 
 func (m *mtuClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	return next.Client(ctx).Close(ctx, conn, opts...)
+	empty, err := next.Client(ctx).Close(ctx, conn, opts...)
+	if err != nil {
+		return empty, fmt.Errorf("failed to close (%s) connection from NSM (mtuClient): %w", conn.String(), err)
+	}
+
+	return empty, err
 }

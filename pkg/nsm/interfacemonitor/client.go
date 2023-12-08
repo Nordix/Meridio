@@ -18,6 +18,7 @@ package interfacemonitor
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/nordix/meridio/pkg/networking"
 	"google.golang.org/grpc"
@@ -47,10 +48,10 @@ func NewClient(interfaceMonitor networking.InterfaceMonitor, interfaceMonitorSub
 func (inc *interfaceMonitorClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	conn, err := next.Client(ctx).Request(ctx, request, opts...)
 	if err != nil {
-		return conn, err
+		return conn, fmt.Errorf("failed to request (%s) connection to NSM (interfaceMonitorClient): %w", request.String(), err)
 	}
 	inc.ConnectionRequested(&connection{conn}, networking.NSC)
-	return conn, err
+	return conn, nil
 }
 
 // Close will call the InterfaceDeleted function in the interfaceMonitorSubscriber
@@ -58,5 +59,10 @@ func (inc *interfaceMonitorClient) Close(ctx context.Context, conn *networkservi
 	if conn != nil {
 		inc.ConnectionClosed(&connection{conn}, networking.NSC)
 	}
-	return next.Client(ctx).Close(ctx, conn, opts...)
+	empty, err := next.Client(ctx).Close(ctx, conn, opts...)
+	if err != nil {
+		return empty, fmt.Errorf("failed to close (%s) connection from NSM (interfaceMonitorClient): %w", conn.String(), err)
+	}
+
+	return empty, nil
 }

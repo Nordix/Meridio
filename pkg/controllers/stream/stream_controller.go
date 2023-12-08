@@ -64,7 +64,7 @@ func (r *StreamReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			}
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to get stream (%s) in stream controller: %w", req.Name, err)
 	}
 	// save the status of current stream
 	currentStream := stream.DeepCopy()
@@ -79,7 +79,7 @@ func (r *StreamReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if trench != nil {
 		err = executor.SetOwnerReference(stream, trench)
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("failed to set owner reference (%s) in stream controller: %w", req.Name, err)
 		}
 	} else {
 		return ctrl.Result{}, fmt.Errorf("unable to get trench for stream %s", req.NamespacedName)
@@ -87,15 +87,23 @@ func (r *StreamReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	getStreamActions(executor, stream, currentStream)
 	err = executor.RunActions()
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to run actions (%s) in stream controller: %w", req.Name, err)
+	}
 
-	return ctrl.Result{}, err
+	return ctrl.Result{}, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *StreamReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
+	err := ctrl.NewControllerManagedBy(mgr).
 		For(&meridiov1.Stream{}).
 		Complete(r)
+	if err != nil {
+		return fmt.Errorf("failed to build stream controller: %w", err)
+	}
+
+	return nil
 }
 
 func getStreamActions(executor *common.Executor, new, old *meridiov1.Stream) []common.Action {

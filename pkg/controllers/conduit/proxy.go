@@ -143,7 +143,7 @@ func (i *Proxy) insertParameters(init *appsv1.DaemonSet) *appsv1.DaemonSet {
 func (i *Proxy) getModel() error {
 	model, err := common.GetDaemonsetModel("deployment/proxy.yaml")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get daemonset model in deployment/proxy.yaml: %w", err)
 	}
 	i.model = model
 	return nil
@@ -178,7 +178,7 @@ func (i *Proxy) getCurrentStatus() (*appsv1.DaemonSet, error) {
 		if errors.IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("failed to get daemonset object (%s): %w", selector.String(), err)
 	}
 	return currentStatus, nil
 }

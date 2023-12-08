@@ -18,6 +18,7 @@ package kernel
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"reflect"
 
@@ -35,7 +36,11 @@ type Interface struct {
 }
 
 func (intf *Interface) getLink() (netlink.Link, error) {
-	return netlink.LinkByIndex(intf.index)
+	link, err := netlink.LinkByIndex(intf.index)
+	if err != nil {
+		return link, fmt.Errorf("failed LinkByIndex (%d): %w", intf.index, err)
+	}
+	return link, nil
 }
 
 func (intf *Interface) GetIndex() int {
@@ -87,16 +92,16 @@ func (intf *Interface) SetInterfaceType(ifaceType networking.InterfaceType) {
 func (intf *Interface) AddLocalPrefix(prefix string) error {
 	addr, err := netlink.ParseAddr(prefix)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed ParseAddr while adding local prefix (%s): %w", prefix, err)
 	}
 	addr.Label = ""
 	i, err := intf.getLink()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed getLink (%s) while adding local prefix (%s): %w", intf.GetName(), prefix, err)
 	}
 	err = netlink.AddrAdd(i, addr)
 	if err != nil && errors.Is(err, os.ErrNotExist) {
-		return err
+		return fmt.Errorf("failed AddrAdd (%s) while adding local prefix (%s): %w", intf.GetName(), prefix, err)
 	}
 	return nil
 }
@@ -104,15 +109,15 @@ func (intf *Interface) AddLocalPrefix(prefix string) error {
 func (intf *Interface) RemoveLocalPrefix(prefix string) error {
 	addr, err := netlink.ParseAddr(prefix)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed ParseAddr while removing local prefix (%s): %w", prefix, err)
 	}
 	i, err := intf.getLink()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed getLink (%s) while removing local prefix (%s): %w", intf.GetName(), prefix, err)
 	}
 	err = netlink.AddrDel(i, addr)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed AddrDel (%s) while removing local prefix (%s): %w", intf.GetName(), prefix, err)
 	}
 	return nil
 }

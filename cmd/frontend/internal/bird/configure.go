@@ -57,7 +57,8 @@ func (r *routingConfig) Apply() error {
 	if err != nil {
 		return fmt.Errorf("write config to %v, err: %v", r.path, err)
 	}
-	return err
+
+	return nil
 }
 
 // String -

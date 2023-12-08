@@ -18,6 +18,7 @@ package trench
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"time"
 
@@ -46,7 +47,7 @@ func NewConduitWatcher(ctx context.Context, configurationManagerClient nspAPI.Co
 		watchConduitClient, err := configurationManagerClient.WatchConduit(ctx, toWatch)
 		if err != nil {
 			logger.Error(err, "WatchConduit")
-			return err
+			return fmt.Errorf("failed to WatchConduit: %w", err)
 		}
 		for {
 			conduitResponse, err := watchConduitClient.Recv()
@@ -55,7 +56,7 @@ func NewConduitWatcher(ctx context.Context, configurationManagerClient nspAPI.Co
 			}
 			if err != nil {
 				logger.Error(err, "watchConduitClient.Recv")
-				return err
+				return fmt.Errorf("failed to WatchConduit.Recv: %w", err)
 			}
 			for _, w := range trenchWatchers {
 				SetConduits(ctx, w, currentConduits, conduitResponse.GetConduits())

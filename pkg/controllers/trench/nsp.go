@@ -125,7 +125,7 @@ func (i *NspStatefulSet) insertParameters(init *appsv1.StatefulSet) *appsv1.Stat
 func (i *NspStatefulSet) getModel() error {
 	model, err := common.GetStatefulSetModel("deployment/nsp.yaml")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get statefulset model in deployment/nsp.yaml: %w", err)
 	}
 	i.model = model
 	return nil
@@ -160,7 +160,7 @@ func (i *NspStatefulSet) getCurrentStatus() (*appsv1.StatefulSet, error) {
 		if errors.IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("failed to get statefulset object (%s): %w", selector.String(), err)
 	}
 	return currentStatus, nil
 }

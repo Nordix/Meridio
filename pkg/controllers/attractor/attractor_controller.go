@@ -24,6 +24,7 @@ import (
 	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -58,7 +59,10 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	err := r.Get(ctx, req.NamespacedName, attr)
 	if err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, fmt.Errorf("failed to get attractor (%s) in attractor controller: %w", req.Name, err)
 	}
 	currentAttr := attr.DeepCopy()
 	attr.Status = meridiov1.AttractorStatus{}
@@ -73,7 +77,7 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		// update attractor
 		err := executor.SetOwnerReference(attr, trench)
 		if err != nil {
-			return ctrl.Result{}, err
+			return ctrl.Result{}, fmt.Errorf("failed to set owner reference (%s) in attractor controller: %w", req.Name, err)
 		}
 
 		// create/update stateless-lb-frontend & nse-vlan deployment
@@ -114,7 +118,11 @@ func (r *AttractorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	getAttractorActions(executor, attr, currentAttr)
 	err = executor.RunActions()
-	return ctrl.Result{}, err
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to run actions (%s) in attractor controller: %w", req.Name, err)
+	}
+
+	return ctrl.Result{}, nil
 }
 
 func getAttractorActions(e *common.Executor, new, old *meridiov1.Attractor) {
@@ -131,16 +139,21 @@ func (r *AttractorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	var err error
 	r.PdbVersion, err = common.GetPodDisruptionBudgetVersion(r.Client)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get pdb version while building attractor controller: %w", err)
 	}
 	var podDisruptionBudget client.Object
 	podDisruptionBudget = &policyv1.PodDisruptionBudget{}
 	if r.PdbVersion == policyv1beta1.SchemeGroupVersion.Version {
 		podDisruptionBudget = &policyv1beta1.PodDisruptionBudget{}
 	}
-	return ctrl.NewControllerManagedBy(mgr).
+	err = ctrl.NewControllerManagedBy(mgr).
 		For(&meridiov1.Attractor{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(podDisruptionBudget).
 		Complete(r)
+	if err != nil {
+		return fmt.Errorf("failed to build attractor controller: %w", err)
+	}
+
+	return nil
 }

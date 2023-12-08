@@ -38,7 +38,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	source, err := workloadapi.NewX509Source(ctx, workloadapi.WithClientOptions())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed get certificates for metrics server: %w", err)
 	}
 	defer source.Close()
 
@@ -62,7 +62,7 @@ func (s *Server) Start(ctx context.Context) error {
 	<-serverCtx.Done()
 
 	if listenAndServeTLSErr != nil {
-		return listenAndServeTLSErr
+		return fmt.Errorf("failed to ListenAndServeTLS on metrics server: %w", err)
 	}
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -70,7 +70,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	err = server.Shutdown(shutdownCtx)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to shutdown metrics server: %w", err)
 	}
 
 	return nil

@@ -55,7 +55,7 @@ func (om *ObjectMonitor) Start(ctx context.Context) {
 		om.watcher, err = om.object.Watch(ctx, metav1.SingleObject(objectMeta))
 		if err != nil {
 			om.logger.Error(err, "Unable to watch")
-			return err
+			return fmt.Errorf("failed to watch (%s): %w", objectMeta.String(), err)
 		}
 		om.watchEvent(ctx, om.watcher.ResultChan())
 		return nil

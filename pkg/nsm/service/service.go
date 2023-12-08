@@ -18,6 +18,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
@@ -39,10 +40,18 @@ func New(nsRegistryClient registry.NetworkServiceRegistryClient,
 func (s *Service) Register(ctx context.Context) error {
 	var err error
 	s.NS, err = s.NSRegistryClient.Register(ctx, s.NS)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to register network service to NSM: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Service) Unregister(ctx context.Context) error {
 	_, err := s.NSRegistryClient.Unregister(ctx, s.NS)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to unregister network service from NSM: %w", err)
+	}
+
+	return nil
 }

@@ -123,7 +123,7 @@ func (i *NseDeployment) insertParameters(dep *appsv1.Deployment) *appsv1.Deploym
 func (i *NseDeployment) getModel() error {
 	model, err := common.GetDeploymentModel("deployment/nse-vlan.yaml")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get deployment model in deployment/nse-vlan.yaml: %w", err)
 	}
 	i.model = model
 	return nil
@@ -159,7 +159,7 @@ func (i *NseDeployment) getCurrentStatus() (*appsv1.Deployment, error) {
 		if errors.IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("failed to get nse-vlan object (%s): %w", selector.String(), err)
 	}
 	return currentStatus, nil
 }

@@ -17,6 +17,8 @@ limitations under the License.
 package kernel
 
 import (
+	"fmt"
+
 	"github.com/vishvananda/netlink"
 
 	"github.com/nordix/meridio/pkg/log"
@@ -37,14 +39,19 @@ func (fwmr *FWMarkRoute) Delete() error {
 	rule.Family = fwmr.family()
 	err := netlink.RuleDel(rule)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed deleting rule (%s) while deleting fwmark route: %w", rule.String(), err)
 	}
 
 	route := &netlink.Route{
 		Gw:    fwmr.ip.IP,
 		Table: fwmr.tableID,
 	}
-	return netlink.RouteDel(route)
+	err = netlink.RouteDel(route)
+	if err != nil {
+		return fmt.Errorf("failed deleting route (%s) while deleting fwmark route: %w", route.String(), err)
+	}
+
+	return nil
 }
 
 func (fwmr *FWMarkRoute) Verify() bool {
@@ -65,7 +72,7 @@ func (fwmr *FWMarkRoute) configure() error {
 	rule.Family = fwmr.family()
 	err := netlink.RuleAdd(rule)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed adding rule (%s) while adding fwmark route: %w", rule.String(), err)
 	}
 
 	// Old ARP/NDP entry for that IP address could cause temporary issue.
@@ -75,7 +82,12 @@ func (fwmr *FWMarkRoute) configure() error {
 		Gw:    fwmr.ip.IP,
 		Table: fwmr.tableID,
 	}
-	return netlink.RouteAdd(fwmr.route)
+	err = netlink.RouteAdd(fwmr.route)
+	if err != nil {
+		return fmt.Errorf("failed adding route (%s) while adding fwmark route: %w", fwmr.route.String(), err)
+	}
+
+	return nil
 }
 
 func (fwmr *FWMarkRoute) family() int {
@@ -105,7 +117,7 @@ func (fwmr *FWMarkRoute) cleanNeighbor() {
 func NewFWMarkRoute(ip string, fwmark int, tableID int) (*FWMarkRoute, error) {
 	netlinkAddr, err := netlink.ParseAddr(ip)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed parsing addr (%s) while create fwmark route: %w", ip, err)
 	}
 	fwMarkRoute := &FWMarkRoute{
 		ip:      netlinkAddr,

@@ -17,6 +17,7 @@ limitations under the License.
 package trench
 
 import (
+	"fmt"
 	"net"
 	"sort"
 	"time"
@@ -59,7 +60,7 @@ func (c *ConfigMap) getCurrentStatus() (*corev1.ConfigMap, error) {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("failed to get configmap object (%s): %w", c.getSelector().String(), err)
 	}
 	return currentState, nil
 }
@@ -69,7 +70,10 @@ func (c *ConfigMap) listVipsByLabel() (*meridiov1.VipList, error) {
 
 	err := c.exec.ListObject(vipList, client.InNamespace(c.trench.ObjectMeta.Namespace), client.MatchingLabels{"trench": c.trench.ObjectMeta.Name})
 	if err != nil {
-		return nil, client.IgnoreNotFound(err)
+		if client.IgnoreNotFound(err) == nil {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to list vips of trench (%s): %w", c.trench.ObjectMeta.Name, err)
 	}
 	return vipList, nil
 }
@@ -79,7 +83,10 @@ func (c *ConfigMap) listGatewaysByLabel() (*meridiov1.GatewayList, error) {
 
 	err := c.exec.ListObject(list, client.InNamespace(c.trench.ObjectMeta.Namespace), client.MatchingLabels{"trench": c.trench.ObjectMeta.Name})
 	if err != nil {
-		return nil, client.IgnoreNotFound(err)
+		if client.IgnoreNotFound(err) == nil {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to list gateways of trench (%s): %w", c.trench.ObjectMeta.Name, err)
 	}
 	return list, nil
 }
@@ -89,7 +96,10 @@ func (c *ConfigMap) listAttractorsByLabel() (*meridiov1.AttractorList, error) {
 
 	err := c.exec.ListObject(lst, client.InNamespace(c.trench.ObjectMeta.Namespace), client.MatchingLabels{"trench": c.trench.ObjectMeta.Name})
 	if err != nil {
-		return nil, client.IgnoreNotFound(err)
+		if client.IgnoreNotFound(err) == nil {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to list attractors of trench (%s): %w", c.trench.ObjectMeta.Name, err)
 	}
 	return lst, nil
 }
@@ -99,7 +109,10 @@ func (c *ConfigMap) listConduitsByLabel() (*meridiov1.ConduitList, error) {
 
 	err := c.exec.ListObject(lst, client.InNamespace(c.trench.ObjectMeta.Namespace), client.MatchingLabels{"trench": c.trench.ObjectMeta.Name})
 	if err != nil {
-		return nil, client.IgnoreNotFound(err)
+		if client.IgnoreNotFound(err) == nil {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to list conduits of trench (%s): %w", c.trench.ObjectMeta.Name, err)
 	}
 	return lst, nil
 }
@@ -109,7 +122,10 @@ func (c *ConfigMap) listStreamsByLabel() (*meridiov1.StreamList, error) {
 
 	err := c.exec.ListObject(lst, client.InNamespace(c.trench.ObjectMeta.Namespace), client.MatchingLabels{"trench": c.trench.ObjectMeta.Name})
 	if err != nil {
-		return nil, client.IgnoreNotFound(err)
+		if client.IgnoreNotFound(err) == nil {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to list streams of trench (%s): %w", c.trench.ObjectMeta.Name, err)
 	}
 	return lst, nil
 }
@@ -119,7 +135,10 @@ func (c *ConfigMap) listFlowsByLabel() (*meridiov1.FlowList, error) {
 
 	err := c.exec.ListObject(lst, client.InNamespace(c.trench.ObjectMeta.Namespace), client.MatchingLabels{"trench": c.trench.ObjectMeta.Name})
 	if err != nil {
-		return nil, client.IgnoreNotFound(err)
+		if client.IgnoreNotFound(err) == nil {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to list flows of trench (%s): %w", c.trench.ObjectMeta.Name, err)
 	}
 	return lst, nil
 }
@@ -194,9 +213,14 @@ func (c *ConfigMap) getAllData() (map[string]string, error) {
 }
 
 func (c *ConfigMap) getTrenchData() ([]byte, error) {
-	return yaml.Marshal(&reader.Trench{
+	yamlConfig, err := yaml.Marshal(&reader.Trench{
 		Name: c.trench.ObjectMeta.Name,
 	})
+	if err != nil {
+		return yamlConfig, fmt.Errorf("failed to marshal trench config: %w", err)
+	}
+
+	return yamlConfig, nil
 }
 
 func (c *ConfigMap) getVipsData() ([]byte, error) {
@@ -220,7 +244,12 @@ func (c *ConfigMap) getVipsData() ([]byte, error) {
 		return config.Vips[i].Name < config.Vips[j].Name
 	})
 
-	return yaml.Marshal(config)
+	yamlConfig, err := yaml.Marshal(config)
+	if err != nil {
+		return yamlConfig, fmt.Errorf("failed to marshal vip config: %w", err)
+	}
+
+	return yamlConfig, nil
 }
 
 func (c *ConfigMap) getGatewaysData() ([]byte, error) {
@@ -275,7 +304,12 @@ func (c *ConfigMap) getGatewaysData() ([]byte, error) {
 		return config.Gateways[i].Name < config.Gateways[j].Name
 	})
 
-	return yaml.Marshal(config)
+	yamlConfig, err := yaml.Marshal(config)
+	if err != nil {
+		return yamlConfig, fmt.Errorf("failed to marshal gateway config: %w", err)
+	}
+
+	return yamlConfig, nil
 }
 
 // convert the BFD parameters to the same unit when writing it to configmap
@@ -311,7 +345,12 @@ func (c *ConfigMap) getAttractorsData() ([]byte, error) {
 		return lst.Attractors[i].Name < lst.Attractors[j].Name
 	})
 
-	return yaml.Marshal(lst)
+	yamlConfig, err := yaml.Marshal(lst)
+	if err != nil {
+		return yamlConfig, fmt.Errorf("failed to marshal attractor config: %w", err)
+	}
+
+	return yamlConfig, nil
 }
 
 func (c *ConfigMap) getConduitsData() ([]byte, error) {
@@ -333,7 +372,12 @@ func (c *ConfigMap) getConduitsData() ([]byte, error) {
 		return lst.Conduits[i].Name < lst.Conduits[j].Name
 	})
 
-	return yaml.Marshal(lst)
+	yamlConfig, err := yaml.Marshal(lst)
+	if err != nil {
+		return yamlConfig, fmt.Errorf("failed to marshal conduit config: %w", err)
+	}
+
+	return yamlConfig, nil
 }
 
 func getPortNatsData(portNatSpecs []meridiov1.PortNatSpec) []*reader.PortNat {
@@ -376,7 +420,12 @@ func (c *ConfigMap) getStreamsData() ([]byte, error) {
 		return lst.Streams[i].Name < lst.Streams[j].Name
 	})
 
-	return yaml.Marshal(lst)
+	yamlConfig, err := yaml.Marshal(lst)
+	if err != nil {
+		return yamlConfig, fmt.Errorf("failed to marshal stream config: %w", err)
+	}
+
+	return yamlConfig, nil
 }
 
 func (c *ConfigMap) getFlowsData() ([]byte, error) {
@@ -426,7 +475,12 @@ func (c *ConfigMap) getFlowsData() ([]byte, error) {
 		return lst.Flows[i].Name < lst.Flows[j].Name
 	})
 
-	return yaml.Marshal(lst)
+	yamlConfig, err := yaml.Marshal(lst)
+	if err != nil {
+		return yamlConfig, fmt.Errorf("failed to marshal flow config: %w", err)
+	}
+
+	return yamlConfig, nil
 }
 
 func parseHoldTime(ht string, unit time.Duration) uint {
