@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ type InterfaceType int
 type Iface interface {
 	GetIndex() int
 	GetName() string
+	GetNameNoLoad() string
 
 	GetLocalPrefixes() []string
 	SetLocalPrefixes(localPrefixes []string)
@@ -63,6 +64,7 @@ type Bridge interface {
 	Iface
 	LinkInterface(intf Iface) error
 	UnLinkInterface(intf Iface) error
+	InterfaceIsLinked(intf Iface) bool
 }
 
 type FWMarkRoute interface {

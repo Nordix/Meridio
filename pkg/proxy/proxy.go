@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -62,8 +62,16 @@ func (p *Proxy) InterfaceCreated(intf networking.Iface) {
 	if !p.isNSMInterface(intf) {
 		return
 	}
-	p.logger.Info("InterfaceCreated", "intf", intf, "nexthops", p.nexthops)
+	// TODO: Check why interface is not created with a name in the first place?
+	// TODO: If interface name was stored in the "database" calling intf.GetName(),
+	// then InterfaceDeleted() won't match due to relying on DeepEqual...
+	// TODO: Consider reworking the whole interface event handling part...
+	if !p.Bridge.InterfaceIsLinked(intf) { // avoid NSM connection refresh triggered spamming
+		p.logger.Info("InterfaceCreated", "name", intf.GetNameNoLoad(), "intf", intf, "nexthops", p.nexthops)
+	}
 	// Link the interface to the bridge
+	// TODO: Due to using DeepEqual to check if interface is already part of the bridge,
+	// the same interface might be appended multiple times to the linked interface list.
 	err := p.Bridge.LinkInterface(intf)
 	if err != nil {
 		p.logger.Error(err, "LinkInterface")
@@ -93,11 +101,14 @@ func (p *Proxy) InterfaceCreated(intf networking.Iface) {
 }
 
 // InterfaceDeleted -
+// Note: Not called on TAPA close because the interface normally
+// is not available to get the index. While kernel originated
+// interface delete events are ignored by default.
 func (p *Proxy) InterfaceDeleted(intf networking.Iface) {
 	if !p.isNSMInterface(intf) {
 		return
 	}
-	p.logger.Info("InterfaceDeleted", "intf", intf, "nexthops", p.nexthops)
+	p.logger.Info("InterfaceDeleted", "name", intf.GetNameNoLoad(), "intf", intf, "nexthops", p.nexthops)
 	// Unlink the interface from the bridge
 	err := p.Bridge.UnLinkInterface(intf)
 	if err != nil {
@@ -125,6 +136,20 @@ func (p *Proxy) InterfaceDeleted(intf networking.Iface) {
 }
 
 // SetIPContext
+// XXX: What should we do about new connection establishment requests that fail,
+// and thus allocated IP addresses might be leaked if the originating NSC gives up
+// for some reason? On the other hand, would there by any unwanted side-effects of
+// calling UnsetIPContext() from ipcontext Server/Client when Request to establish
+// a new connection fails? NSM retry clients like fullMeshClient clones the request
+// on each new try, thus won't cache any assigned IPs. However, NSM heal with reselect
+// seems weird, as it keeps Closing and re-requeting the connection including the old
+// IPs until it succeeds to reconnect or the "user" closes the connection. Thus, due
+// to heal (with reconnect) the IPs might get updated in the NSC case, if someone
+// happanned to allocat them between two reconnect attempts. This doesn't seem to be
+// a problem, as it should update the connection accordingly. Based on the above,
+// IMHO it would make sense releasing allocated IPs by ipcontext Server/Client upon
+// unsuccesful Requests where NSM connection was not established. In the server case
+// though, it's unlikely that the Request would fail at the proxy.
 func (p *Proxy) SetIPContext(ctx context.Context, conn *networkservice.Connection, interfaceType networking.InterfaceType) error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
@@ -157,12 +182,20 @@ func (p *Proxy) SetIPContext(ctx context.Context, conn *networkservice.Connectio
 	p.connectionToReleaseMutex.Lock()
 	cancel, exists := p.connectionToReleaseMap[id]
 	if exists {
+		p.logger.V(1).Info("Cancel IP release", "id", id)
 		cancel()
 	}
 	p.connectionToReleaseMutex.Unlock()
 
 	srcIPAddrs := []string{}
 	dstIpAddrs := []string{}
+	// note: If IPAM was not reachable then "user" might not receive the error Allocate
+	// returned without a custom context with (suitable) timeout.
+	// TODO: could be handy to be able and infer if Allocate() had to reserve an address
+	// TODO: NSM retry client like fullMeshClient
+	// TODO: If an allocate failed but some have succeeded before, then the allocated
+	// IPs might be leaked in case the NSM connection was not established and the user
+	// gave up (note: interfaceType == networking.NSC has been covered).
 	for _, subnet := range p.Subnets {
 		child := &ipamAPI.Child{
 			Name:   fmt.Sprintf("%s%s", id, srcChildNamePrefix),
@@ -170,7 +203,7 @@ func (p *Proxy) SetIPContext(ctx context.Context, conn *networkservice.Connectio
 		}
 		srcPrefix, err := p.IpamClient.Allocate(ctx, child)
 		if err != nil {
-			return err
+			return fmt.Errorf("proxy failed to allocate IP for child %v: %w", child, err)
 		}
 		srcIPAddrs = append(srcIPAddrs, srcPrefix.ToString())
 
@@ -180,40 +213,82 @@ func (p *Proxy) SetIPContext(ctx context.Context, conn *networkservice.Connectio
 		}
 		dstPrefix, err := p.IpamClient.Allocate(ctx, child)
 		if err != nil {
-			return err
+			return fmt.Errorf("proxy failed to allocate IP for child %v: %w", child, err)
 		}
 		dstIpAddrs = append(dstIpAddrs, dstPrefix.ToString())
 	}
 
 	if interfaceType == networking.NSE {
-		p.setNSEIpContext(conn.GetContext().GetIpContext(), srcIPAddrs, dstIpAddrs)
+		p.setNSEIpContext(id, conn.GetContext().GetIpContext(), srcIPAddrs, dstIpAddrs)
 	} else if interfaceType == networking.NSC {
-		conn.GetContext().GetIpContext().SrcIpAddrs = dstIpAddrs
-		conn.GetContext().GetIpContext().DstIpAddrs = srcIPAddrs
+		ipContext := conn.GetContext().GetIpContext()
+		oldSrcIpAddrs := ipContext.SrcIpAddrs
+		oldDstIpAddrs := ipContext.DstIpAddrs
+		ipContext.SrcIpAddrs = dstIpAddrs
+		ipContext.DstIpAddrs = srcIPAddrs
+		// TODO: how to log reconnect events during heal without logging? Now,
+		// it will be confusing to see all the "release IP" msgs if the LB NSE
+		// is gone, but NSM Find Client haven't reported it yet to close the
+		// related connection.
+		if len(oldSrcIpAddrs) == 0 && len(oldDstIpAddrs) == 0 {
+			// src and dst IP addresses were not filled in the request
+			// note: NSM retry clients like fullMeshClient clone the Request
+			// upon each retry after failed connection establishment, thus
+			// src/dst information are empty.
+			p.logger.V(1).Info("Set IP Context of initial connection request",
+				"id", id, "ipContext", ipContext, "interfaceType", "NSC")
+		}
 	}
 	return nil
 }
 
-func (p *Proxy) setNSEIpContext(ipContext *networkservice.IPContext, srcIPAddrs []string, dstIpAddrs []string) {
+func (p *Proxy) setNSEIpContext(id string, ipContext *networkservice.IPContext, srcIPAddrs []string, dstIpAddrs []string) {
 	if len(ipContext.SrcIpAddrs) == 0 && len(ipContext.DstIpAddrs) == 0 { // First request
 		ipContext.SrcIpAddrs = srcIPAddrs
 		ipContext.DstIpAddrs = dstIpAddrs
 		ipContext.ExtraPrefixes = p.Bridge.GetLocalPrefixes()
+		p.logger.V(1).Info("Set IP Context of initial connection request",
+			"id", id, "ipContext", ipContext, "interfaceType", "NSE")
 		return
 	}
-	// The request is an update
+	// The request is most probably an update
+	// But it might be a continuation of a pre-existing connection
+	// from a TAPA established with an old proxy instance. Could be worth
+	// verifying gateways (might change in theory e.g. when trench/conduit
+	// was removed and re-deployed).
 	if contains(ipContext.ExtraPrefixes, p.Bridge.GetLocalPrefixes()) &&
 		contains(ipContext.SrcIpAddrs, srcIPAddrs) &&
 		contains(ipContext.DstIpAddrs, dstIpAddrs) {
+		if !contains(ipContext.GetExtraPrefixes(), p.Bridge.GetLocalPrefixes()) {
+			// set the gateways
+			oldGateways := ipContext.GetExtraPrefixes()
+			ipContext.ExtraPrefixes = p.Bridge.GetLocalPrefixes()
+			p.updatePolicyRoutes(ipContext) // update policy routes
+			p.logger.Info("Updated IP Context of connection request", "id", id,
+				"ipContext", ipContext, "oldGateways", oldGateways,
+				"interfaceType", "NSE",
+			)
+		}
 		return
 	}
 	// remove old IPs, add new ones, and set the gateways
+	oldSrcIpAddrs := ipContext.SrcIpAddrs
+	oldDstIpAddrs := ipContext.DstIpAddrs
 	oldGateways := ipContext.GetExtraPrefixes()
 	ipContext.ExtraPrefixes = p.Bridge.GetLocalPrefixes()
 	ipContext.SrcIpAddrs = removeOldIPs(ipContext.SrcIpAddrs, oldGateways)
 	ipContext.DstIpAddrs = removeOldIPs(ipContext.DstIpAddrs, oldGateways)
 	ipContext.SrcIpAddrs = append(ipContext.SrcIpAddrs, srcIPAddrs...)
 	ipContext.DstIpAddrs = append(ipContext.DstIpAddrs, dstIpAddrs...)
+	p.updatePolicyRoutes(ipContext) // update policy routes
+	p.logger.Info("Updated IP Context of connection request", "id", id,
+		"ipContext", ipContext, "oldSrcIPs", oldSrcIpAddrs,
+		"oldDstIPs", oldDstIpAddrs, "oldGateways", oldGateways,
+		"interfaceType", "NSE",
+	)
+}
+
+func (p *Proxy) updatePolicyRoutes(ipContext *networkservice.IPContext) {
 	// Find IPv4 gateway and IPv6 Gateway
 	gatewayV4 := ""
 	gatewayV6 := ""
@@ -318,6 +393,7 @@ func (p *Proxy) ipReleaser(id string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	p.connectionToReleaseMap[id] = cancel // So SetIPContext can cancel in case it needs the IP for this connection
+	p.logger.V(1).Info("Attempt IP release", "id", id)
 	p.connectionToReleaseMutex.Unlock()
 	_ = retry.Do(func() error {
 		ctxRelease, cancelRelease := context.WithTimeout(ctx, 10*time.Second)
@@ -329,8 +405,10 @@ func (p *Proxy) ipReleaser(id string) {
 			}
 			_, err := p.IpamClient.Release(ctxRelease, child)
 			if err != nil {
-				p.logger.Error(err, "failed to release IP", "id", id, "subnet", subnet)
-				return err
+				if ctxRelease.Err() != context.Canceled {
+					p.logger.Error(err, "failed to release src IP", "id", id, "subnet", subnet)
+				}
+				return fmt.Errorf("proxy failed to release IP for child %v, %w", child, err)
 			}
 			child = &ipamAPI.Child{
 				Name:   fmt.Sprintf("%s%s", id, dstChildNamePrefix),
@@ -338,8 +416,10 @@ func (p *Proxy) ipReleaser(id string) {
 			}
 			_, err = p.IpamClient.Release(ctxRelease, child)
 			if err != nil {
-				p.logger.Error(err, "failed to release IP", "id", id, "subnet", subnet)
-				return err
+				if ctxRelease.Err() != context.Canceled {
+					p.logger.Error(err, "failed to release dst IP", "id", id, "subnet", subnet)
+				}
+				return fmt.Errorf("proxy failed to release IP for child %v, %w", child, err)
 			}
 			p.logger.Info("release IP", "id", id, "subnet", subnet)
 		}
@@ -354,7 +434,7 @@ func (p *Proxy) ipReleaser(id string) {
 func (p *Proxy) setBridgeIP(prefix string) error {
 	err := p.Bridge.AddLocalPrefix(prefix)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to set bridge IP %s, %w", prefix, err)
 	}
 	p.Bridge.SetLocalPrefixes(append(p.Bridge.GetLocalPrefixes(), prefix))
 	return nil
@@ -368,26 +448,29 @@ func (p *Proxy) setBridgeIPs() error {
 		}
 		prefix, err := p.IpamClient.Allocate(context.TODO(), child)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to allocate bridge IP for child %v: %w", child, err)
 		}
 		err = p.setBridgeIP(prefix.ToString())
 		if err != nil {
 			return err
 		}
+		p.logger.Info("Set bridge IP", "IP", prefix.ToString(), "child", child)
 	}
 	return nil
 }
 
 func (p *Proxy) SetVIPs(vips []string) {
+	logger := p.logger.WithValues("func", "SetVIPs")
 	currentVIPs := make(map[string]*virtualIP)
 	for _, vip := range p.vips {
 		currentVIPs[vip.prefix] = vip
 	}
 	for _, vip := range vips {
 		if _, ok := currentVIPs[vip]; !ok {
+			logger.Info("Add VIP", "vip", vip)
 			newVIP, err := newVirtualIP(vip, p.tableID, p.netUtils)
 			if err != nil {
-				p.logger.Error(err, "Adding SourceBaseRoute")
+				logger.Error(err, "Adding SourceBaseRoute", "vip", vip, "tableID", p.tableID)
 				continue
 			}
 			p.tableID++
@@ -395,7 +478,7 @@ func (p *Proxy) SetVIPs(vips []string) {
 			for _, nexthop := range p.nexthops {
 				err = newVIP.AddNexthop(nexthop)
 				if err != nil {
-					p.logger.Error(err, "Adding nexthop")
+					logger.Error(err, "Adding nexthop", "nexthop", nexthop)
 				}
 			}
 		}
@@ -405,11 +488,12 @@ func (p *Proxy) SetVIPs(vips []string) {
 	for index := 0; index < len(p.vips); index++ {
 		vip := p.vips[index]
 		if _, ok := currentVIPs[vip.prefix]; ok {
+			logger.Info("Delete VIP", "vip", vip.prefix)
 			p.vips = append(p.vips[:index], p.vips[index+1:]...)
 			index--
 			err := vip.Delete()
 			if err != nil {
-				p.logger.Error(err, "Deleting vip")
+				logger.Error(err, "Deleting vip", "vip", vip.prefix)
 			}
 		}
 	}
@@ -459,6 +543,12 @@ func NewProxy(conduit *nspAPI.Conduit, nodeName string, ipamClient ipamAPI.IpamC
 			IpFamily: ipamAPI.IPFamily_IPV6,
 		}
 	}
+	// TODO: Consider removing bridge interface or changing its state to DOWN on teardown:
+	// During upgrade tests when running with vpp-forwarders where hostPID=false, some
+	// TAPAs seemed to remain connected with some "old" proxy instance (according to the
+	// ARP entries on the TAPA side; ping worked!). If opting for changing the interface
+	// state DOWN, the bridge create function should be modified to make sure the state
+	// is UP in case the bridge exists.)
 	err = proxy.setBridgeIPs()
 	if err != nil {
 		logger.Error(err, "Setting the bridge IP")

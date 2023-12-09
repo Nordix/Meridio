@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -42,9 +42,22 @@ func NewClient(ipContextSetter ipContextSetter) networkservice.NetworkServiceCli
 func (icc *ipcontextClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	err := icc.ics.SetIPContext(ctx, request.Connection, networking.NSC)
 	if err != nil {
+		if request.Connection.GetMechanism() == nil {
+			// no established connection, do not risk leaking IPs in IPAM (e.g. in case client gives up)
+			_ = icc.ics.UnsetIPContext(context.Background(), request.Connection, networking.NSC)
+		}
 		return nil, err
 	}
-	return next.Client(ctx).Request(ctx, request, opts...)
+	conn, err := next.Client(ctx).Request(ctx, request, opts...)
+	if err != nil {
+		if request.Connection.GetMechanism() == nil {
+			// no established connection, do not risk leaking IPs in IPAM (e.g. in case client gives up)
+			_ = icc.ics.UnsetIPContext(context.Background(), request.Connection, networking.NSC)
+		}
+		return nil, err
+	}
+
+	return conn, nil
 }
 
 // Close

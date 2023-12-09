@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -47,17 +47,18 @@ func NewClient() networkservice.NetworkServiceClient {
 func (h *healthServiceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	id := request.Connection.Id
 	resp, err := next.Client(ctx).Request(ctx, request, opts...)
-
-	if err == nil {
-		logger := log.FromContextOrGlobal(ctx)
-		logger.V(2).Info("HealthServiceClient:Request", "id", id)
-		h.mu.Lock()
-		h.connIds[id] = struct{}{}
-		health.SetServingStatus(ctx, health.EgressSvc, true)
-		h.mu.Unlock()
+	if err != nil {
+		return nil, err
 	}
 
-	return resp, err
+	logger := log.FromContextOrGlobal(ctx)
+	logger.V(2).Info("HealthServiceClient:Request", "id", id)
+	h.mu.Lock()
+	h.connIds[id] = struct{}{}
+	health.SetServingStatus(ctx, health.EgressSvc, true)
+	h.mu.Unlock()
+
+	return resp, nil
 }
 
 // Close -

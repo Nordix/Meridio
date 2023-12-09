@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -77,8 +77,26 @@ func (im *interfaceMonitor) ConnectionRequested(conn *connection, interfaceType 
 }
 
 func (im *interfaceMonitor) ConnectionClosed(conn *connection, interfaceType networking.InterfaceType) {
-	index, err := im.netUtils.GetIndexFromName(conn.getInterfaceName())
+	name := conn.getInterfaceName()
+	if name == "" { // non-established connection have no interface name
+		return
+	}
+	index, err := im.netUtils.GetIndexFromName(name)
 	if err != nil {
+		// XXX: In case of interfaceType NSE, the interface is normally no
+		// longer available. Might be worth giving it a try with an invalid
+		// index, relying on the name of the inteface and other available info.
+		// Although the interface name is not passed on creation. Why not?
+		if interfaceType == networking.NSC || interfaceType == networking.NSE {
+			id := conn.GetId()
+			if interfaceType == networking.NSE && conn.GetPath() != nil &&
+				len(conn.GetPath().GetPathSegments()) >= 1 {
+				id = conn.GetPath().GetPathSegments()[0].GetId()
+			}
+			// log the ID of "nsc" path segment for visibility
+			im.logger.V(1).Info("no interface index on connection close",
+				"id", id, "interfaceType", interfaceType, "err", err)
+		}
 		return
 	}
 
@@ -105,6 +123,26 @@ func (im *interfaceMonitor) InterfaceCreated(intf networking.Iface) {
 }
 
 // InterfaceDeleted -
+//
+// XXX: There's no "cache" to lookup all the information required for creating
+// a networking.Interface items. But, pendingInterfaces relies on the interface
+// name as well to link kernel and NSM originated create events to gather all
+// the necessary info. Now, we have both the name and index in case of kernel
+// originated delete event. IMHO it's unlikely to match both index and name
+// while the subsriber was aware of an existing interface with the same two
+// parameters yet pertained to a different interface. Also, implementing a
+// "pending delete" feature would most probably rely on the exact same concept
+// pendingInterfaces uses, that is to match information from two sources based
+// on the interface name. So, question comes, why not simply use these two
+// parameters to fire an event and leave it to the subscriber to either ignore
+// it, or do a lookup solely based on interface index and name. Luckily, only
+// the proxy uses this. Where in case of NSE role, the interface removal will
+// automatically detach the interface from the bridge, and doesn't seem to be
+// anything else to reconfigure. So, even though interface deletion won't
+// be advertised for NSE (not even by connection close), things shall work.
+// Also, proxy relies on DeepEqual to compare interfaces received in events
+// against stored ones, thus without major changes in the proxy, there wouldn't
+// be any point firing an event with missing interface index information...
 func (im *interfaceMonitor) InterfaceDeleted(intf networking.Iface) {
 }
 
