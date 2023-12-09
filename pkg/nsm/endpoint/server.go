@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -113,8 +113,11 @@ func (s *Server) GetUrl() string {
 }
 
 func (s *Server) errorHandler(errCh <-chan error) {
-	err := <-errCh
-	log.Logger.Error(err, "ListenAndServe on NSE server")
+	if err, ok := <-errCh; ok {
+		log.Logger.Error(err, "NSE listener failure")
+		return
+	}
+	log.Logger.Info("NSE listener stopped")
 }
 
 func (s *Server) getSource(ctx context.Context) *workloadapi.X509Source {

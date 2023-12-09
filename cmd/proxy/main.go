@@ -27,6 +27,8 @@ import (
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	nsmlog "github.com/networkservicemesh/sdk/pkg/tools/log"
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
@@ -49,7 +51,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/status"
 )
 
 func printHelp() {
@@ -156,6 +160,37 @@ func main() {
 	// monitor status of IPAM connection and adjust probe status accordingly
 	if err := connection.Monitor(signalCtx, health.IPAMCliSvc, conn); err != nil {
 		logger.Error(err, "IPAM connection state monitor")
+		cancelSignalCtx()
+		return
+	}
+
+	// connect NSP
+	logger.Info("Dial NSP", "service", nsp.GetService(config.NSPServiceName, config.Trench, config.Namespace, config.NSPServicePort))
+	nspConn, err := grpc.DialContext(signalCtx,
+		nsp.GetService(config.NSPServiceName, config.Trench, config.Namespace, config.NSPServicePort),
+		grpc.WithTransportCredentials(
+			credentials.GetClient(ctx),
+		),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+		),
+		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff: grpcBackoffCfg,
+		}),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time: config.GRPCKeepaliveTime,
+		}),
+	)
+	if err != nil {
+		log.Fatal(logger, "Dialing NSP", "error", err)
+	}
+	defer nspConn.Close()
+
+	// monitor status of NSP connection and adjust probe status accordingly
+	if err := connection.Monitor(signalCtx, health.NSPCliSvc, nspConn); err != nil {
+		logger.Error(err, "NSP connection state monitor")
+		cancelSignalCtx()
+		return
 	}
 
 	ipamClient := ipamAPI.NewIpamClient(conn)
@@ -176,6 +211,17 @@ func main() {
 	}
 	nsmAPIClient := nsm.NewAPIClient(ctx, apiClientConfig)
 	defer nsmAPIClient.Delete()
+
+	// connect NSMgr and start NSM connection monitoring (used to log events of interest at the moment)
+	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(&nsmAPIClient.Config.ConnectTo), nsmAPIClient.GRPCDialOption...)
+	if err != nil {
+		logger.Error(err, "Dialing NSMgr")
+		cancelSignalCtx()
+		return
+	}
+	defer cc.Close()
+	monitorClient := networkservice.NewMonitorConnectionClient(cc)
+	go proxy.NSMConnectionMonitor(ctx, config.Name, monitorClient)
 
 	// create and start NSC that connects all remote NSE belonging to the right service
 	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, p, netUtils)
@@ -199,13 +245,20 @@ func main() {
 		MTU:              config.MTU,
 	}
 	interfaceMonitorServer := interfacemonitor.NewServer(interfaceMonitor, p, netUtils)
-	ep := service.StartNSE(ctx, endpointConfig, nsmAPIClient, p, interfaceMonitorServer)
+	ep, err := service.StartNSE(ctx, endpointConfig, nsmAPIClient, p, interfaceMonitorServer)
+	if err != nil {
+		logger.Error(err, "Creating NSE")
+		cancelSignalCtx()
+		return
+	}
 	defer func() {
 		deleteCtx, deleteClose := context.WithTimeout(ctx, 3*time.Second)
 		defer deleteClose()
 		if err := ep.Delete(deleteCtx); err != nil {
 			logger.Error(err, "Delete NSE")
+			return
 		}
+		log.Logger.V(1).Info("Deleted NSE")
 	}()
 	// internal probe checking health of NSE
 	probe.CreateAndRunGRPCHealthProbe(
@@ -216,49 +269,23 @@ func main() {
 		probe.WithRPCTimeout(config.GRPCProbeRPCTimeout),
 	)
 
-	// connect NSP and start watching config events of interest
-	configurationContext, configurationCancel := context.WithCancel(signalCtx)
-	defer configurationCancel()
-	logger.Info("Dial NSP", "service", nsp.GetService(config.NSPServiceName, config.Trench, config.Namespace, config.NSPServicePort))
-	nspConn, err := grpc.DialContext(signalCtx,
-		nsp.GetService(config.NSPServiceName, config.Trench, config.Namespace, config.NSPServicePort),
-		grpc.WithTransportCredentials(
-			credentials.GetClient(configurationContext),
-		),
-		grpc.WithDefaultCallOptions(
-			grpc.WaitForReady(true),
-		),
-		grpc.WithConnectParams(grpc.ConnectParams{
-			Backoff: grpcBackoffCfg,
-		}),
-		grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time: config.GRPCKeepaliveTime,
-		}),
-	)
-	if err != nil {
-		log.Fatal(logger, "Dialing NSP", "error", err)
-	}
-	defer nspConn.Close()
-
-	// monitor status of NSP connection and adjust probe status accordingly
-	if err := connection.Monitor(signalCtx, health.NSPCliSvc, nspConn); err != nil {
-		logger.Error(err, "NSP connection state monitor")
-	}
-
+	// Start watching config events of interest
 	configurationManagerClient := nspAPI.NewConfigurationManagerClient(nspConn)
 	if err != nil {
-		log.Fatal(logger, "WatchVip", "error", err)
+		logger.Error(err, "Failed to create configuration manager client")
+		cancelSignalCtx()
+		return
 	}
 
 	logger.V(1).Info("Watch configuration")
 	err = retry.Do(func() error {
-		vipWatcher, err := configurationManagerClient.WatchVip(configurationContext, &nspAPI.Vip{
+		vipWatcher, err := configurationManagerClient.WatchVip(signalCtx, &nspAPI.Vip{
 			Trench: &nspAPI.Trench{
 				Name: config.Trench,
 			},
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("configuration manager vip watcher client create failed: %w", err)
 		}
 		for {
 			vipResponse, err := vipWatcher.Recv()
@@ -266,7 +293,7 @@ func main() {
 				break
 			}
 			if err != nil {
-				return err
+				return fmt.Errorf("configuration manager vip watcher client receive error: %w", err)
 			}
 			p.SetVIPs(vipResponse.ToSlice())
 		}
@@ -274,8 +301,9 @@ func main() {
 	}, retry.WithContext(signalCtx),
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
-	if err != nil {
-		logger.Error(err, "WatchVip")
+	if err != nil && status.Code(err) != codes.Canceled {
+		logger.Error(err, "VIP watcher error")
 	}
-	logger.Info("Shutting done...")
+
+	logger.Info("Proxy shutting done")
 }

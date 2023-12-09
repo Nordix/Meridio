@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -52,6 +52,19 @@ func (intf *Interface) GetName() string {
 		i, err := intf.getLink()
 		if err == nil {
 			intf.Name = i.Attrs().Name
+		}
+	}
+	return intf.Name
+}
+
+// GetNameNoLoad -
+// Returns the name of the interface without changing the interface,
+// thus won't interfere with DeepEqual based comparison.
+func (intf *Interface) GetNameNoLoad() string {
+	if intf.Name == "" {
+		i, err := intf.getLink()
+		if err == nil {
+			return i.Attrs().Name
 		}
 	}
 	return intf.Name

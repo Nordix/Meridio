@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -38,6 +38,8 @@ import (
 	"github.com/nordix/meridio/pkg/nsm/mtu"
 	"github.com/nordix/meridio/pkg/proxy"
 	proxyHealth "github.com/nordix/meridio/pkg/proxy/health"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func GetNSC(ctx context.Context,
@@ -46,7 +48,7 @@ func GetNSC(ctx context.Context,
 	p *proxy.Proxy,
 	interfaceMonitorClient networkservice.NetworkServiceClient) client.NetworkServiceClient {
 
-	logger := log.FromContextOrGlobal(ctx)
+	logger := log.FromContextOrGlobal(ctx).WithValues("func", "GetNSC")
 	logger.Info("Create Full Mesh NSC")
 	clientConfig := &client.Config{
 		Name:           config.Name,
@@ -74,7 +76,8 @@ func GetNSC(ctx context.Context,
 }
 
 func StartNSC(fullMeshClient client.NetworkServiceClient, networkServiceName string) {
-	log.Logger.Info("Start Full Mesh NSC")
+	logger := log.Logger.WithValues("func", "StartNSC", "service", networkServiceName)
+	logger.Info("Start Full Mesh NSC")
 	err := fullMeshClient.Request(&networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			NetworkService: networkServiceName,
@@ -87,8 +90,8 @@ func StartNSC(fullMeshClient client.NetworkServiceClient, networkServiceName str
 			},
 		},
 	})
-	if err != nil {
-		log.Logger.Error(err, "fullMeshClient.Request")
+	if err != nil && status.Code(err) != codes.Canceled {
+		logger.Error(err, "Full Mesh Client Request failed")
 	}
-	log.Logger.Info("Full Mesh NSC stopped")
+	logger.Info("Full Mesh NSC stopped")
 }

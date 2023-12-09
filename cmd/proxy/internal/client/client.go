@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ const (
 	retryInterval = 10 * time.Second
 )
 
+// TODO: Consider removing SimpleNetworkServiceClient and replacing it with an nsm retry client in fullMeshClient.
 type SimpleNetworkServiceClient struct {
 	networkServiceClient networkservice.NetworkServiceClient
 	config               *Config
@@ -56,13 +57,13 @@ func (snsc *SimpleNetworkServiceClient) Request(request *networkservice.NetworkS
 	snsc.mu.Lock()
 	defer snsc.mu.Unlock()
 
+	logger := snsc.logger.WithValues("func", "Request")
 	resp, err := snsc.networkServiceClient.Request(snsc.requestCtx, request)
 	if err != nil {
-		return err
+		return fmt.Errorf("network service client failed to request connection: %w", err)
 	}
-	snsc.logger.V(1).Info("Got connection", "resp", resp)
+	logger.V(1).Info("Connected", "connection", resp)
 	snsc.connection = resp
-	snsc.printConnectionExpTime()
 
 	return nil
 }
@@ -83,29 +84,25 @@ func (snsc *SimpleNetworkServiceClient) Close() error {
 	defer snsc.mu.Unlock()
 
 	if snsc.connection != nil {
+		logger := snsc.logger.WithValues("func", "Close",
+			"name", snsc.connection.GetNetworkServiceEndpointName(),
+			"service", snsc.connection.GetNetworkService(),
+			"id", snsc.connection.GetId(),
+			"connection context", snsc.connection.GetContext(),
+		)
 		// close established network service connection
 		ctx := snsc.ctx
-
 		if ctx.Err() != nil {
-			snsc.logger.V(2).Info("Close with new context", "error", ctx.Err())
+			logger.V(2).Info("Close connection using new context", "error", ctx.Err())
 			ctx = context.Background()
 		}
-
 		// Note: nsm retry client keeps trying to close connection until either succeeds or the passed context is done
 		ctx, cancel := context.WithTimeout(ctx, snsc.config.RequestTimeout)
-
-		details := fmt.Sprintf("endpoint: %s, service: %s, id: %s",
-			snsc.connection.GetNetworkServiceEndpointName(), snsc.connection.GetNetworkService(), snsc.connection.GetId())
-		if snsc.connection.GetContext() != nil && snsc.connection.GetContext().GetIpContext() != nil {
-			details += fmt.Sprintf(" ips: %s", snsc.connection.GetContext().GetIpContext().String())
-		}
-
 		defer func() {
 			cancel()
-			snsc.logger.V(1).Info("Close concluded", "details", details)
+			logger.V(1).Info("Connection close concluded")
 		}()
-
-		snsc.logger.V(1).Info("Close connection", "details", details)
+		logger.V(1).Info("Close connection")
 		_, _ = snsc.networkServiceClient.Close(ctx, snsc.connection)
 	}
 
@@ -123,60 +120,6 @@ func (snsc *SimpleNetworkServiceClient) requestIsValid(request *networkservice.N
 		return false
 	}
 	return true
-}
-
-// printConnectionExpTime -
-// Prints expiration time of established connection for debugging purposes
-func (snsc *SimpleNetworkServiceClient) printConnectionExpTime() {
-	connection := snsc.connection
-
-	// expiration time based on the local path segment
-	ts := connection.GetCurrentPathSegment().GetExpires()
-	if err := ts.CheckValid(); err == nil {
-		expireTime := ts.AsTime()
-		scale := 1. / 3.
-		path := connection.GetPath()
-		if len(path.PathSegments) > 1 {
-			scale = 0.2 + 0.2*float64(path.Index)/float64(len(path.PathSegments))
-		}
-		duration := time.Duration(float64(time.Until(expireTime)) * scale)
-		snsc.logger.V(1).Info("Connection duration (local)", "duration", duration)
-	}
-
-	// expiration time based on NSM@8e96470 updatepath (considers all path segments)
-	{
-		var minTimeout *time.Duration
-		var expireTime time.Time
-		for _, segment := range connection.GetPath().GetPathSegments() {
-			ts := segment.GetExpires()
-			if err := ts.CheckValid(); err != nil {
-				break
-			}
-			expTime := ts.AsTime()
-			timeout := time.Until(expTime)
-
-			if minTimeout == nil || timeout < *minTimeout {
-				if minTimeout == nil {
-					minTimeout = new(time.Duration)
-				}
-
-				*minTimeout = timeout
-				expireTime = expTime
-			}
-		}
-		if minTimeout != nil {
-			snsc.logger.V(1).Info("Expiration", "minTimeout", minTimeout.String(), "expireTime", expireTime.UTC())
-		}
-		if minTimeout != nil && *minTimeout > 0 {
-			scale := 1. / 3.
-			path := connection.GetPath()
-			if len(path.PathSegments) > 1 {
-				scale = 0.2 + 0.2*float64(path.Index)/float64(len(path.PathSegments))
-			}
-			duration := time.Duration(float64(*minTimeout) * scale)
-			snsc.logger.V(1).Info("Connection duration (end-to-end)", "duration", duration)
-		}
-	}
 }
 
 // NewSimpleNetworkServiceClient -

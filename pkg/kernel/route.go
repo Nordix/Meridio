@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package kernel
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"net"
 	"sync"
 	"time"
@@ -76,6 +77,22 @@ func (sbr *SourceBasedRoute) updateRoute() error {
 	return nil
 }
 
+func (sbr *SourceBasedRoute) removeRoute() error {
+	// Delete Route
+	src := net.IPv4(0, 0, 0, 0)
+	if sbr.family() == netlink.FAMILY_V6 {
+		src = net.ParseIP("::")
+	}
+	route := &netlink.Route{
+		Table: sbr.tableID,
+		Src:   src,
+	}
+	if err := netlink.RouteDel(route); err != nil {
+		return fmt.Errorf("failed to remove route (%s) for source base routing: %w", route.String(), err)
+	}
+	return nil
+}
+
 func (sbr *SourceBasedRoute) removeFromList(nexthop *netlink.Addr) {
 	for index, current := range sbr.nexthops {
 		if nexthop.Equal(*current) {
@@ -97,7 +114,7 @@ func (sbr *SourceBasedRoute) AddNexthop(nexthop string) error {
 	// don't append if already exists
 	for _, nh := range sbr.nexthops {
 		if netlinkAddr.Equal(*nh) {
-			return nil
+			return fmt.Errorf("nexthop already exists (%s) while adding nexthop: %w", nexthop, fs.ErrExist)
 		}
 	}
 
@@ -119,7 +136,11 @@ func (sbr *SourceBasedRoute) RemoveNexthop(nexthop string) error {
 		return fmt.Errorf("failed ParseAddr (%s) while removing nexthop: %w", nexthop, err)
 	}
 	sbr.removeFromList(netlinkAddr)
-	err = sbr.updateRoute()
+	if len(sbr.nexthops) > 0 {
+		err = sbr.updateRoute()
+	} else {
+		err = sbr.removeRoute()
+	}
 	return err
 }
 
@@ -141,21 +162,7 @@ func (sbr *SourceBasedRoute) Delete() error {
 	if err != nil {
 		return fmt.Errorf("failed RuleDel (%s) while deleting source base route: %w", rule.String(), err)
 	}
-	// Delete Route
-	src := net.IPv4(0, 0, 0, 0)
-	if sbr.family() == netlink.FAMILY_V6 {
-		src = net.ParseIP("::")
-	}
-	route := &netlink.Route{
-		Table: sbr.tableID,
-		Src:   src,
-	}
-	err = netlink.RouteDel(route)
-	if err != nil {
-		return fmt.Errorf("failed RouteDel (%s) while deleting source base route: %w", route.String(), err)
-	}
-
-	return nil
+	return sbr.removeRoute()
 }
 
 func (sbr *SourceBasedRoute) family() int {

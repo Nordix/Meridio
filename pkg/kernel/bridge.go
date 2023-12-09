@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -77,7 +77,7 @@ func (b *Bridge) removeFromlinkedInterfaces(intf networking.Iface) {
 	}
 }
 
-func (b *Bridge) interfaceIsLinked(intf networking.Iface) bool {
+func (b *Bridge) InterfaceIsLinked(intf networking.Iface) bool {
 	for _, i := range b.linkedInterfaces {
 		if i.Equals(intf) {
 			return true
@@ -87,8 +87,11 @@ func (b *Bridge) interfaceIsLinked(intf networking.Iface) bool {
 }
 
 // LinkInterface set the bridge as master of another interface
+//
+// TODO: InterfaceIsLinked() relies on DeepEqual, thus the same
+// interface might be added multiple times to linkedInterfaces.
 func (b *Bridge) LinkInterface(intf networking.Iface) error {
-	if b.interfaceIsLinked(intf) {
+	if b.InterfaceIsLinked(intf) {
 		return nil
 	}
 	b.addTolinkedInterfaces(intf)
@@ -108,7 +111,7 @@ func (b *Bridge) LinkInterface(intf networking.Iface) error {
 }
 
 func (b *Bridge) UnLinkInterface(intf networking.Iface) error {
-	if !b.interfaceIsLinked(intf) {
+	if !b.InterfaceIsLinked(intf) {
 		return nil
 	}
 	b.removeFromlinkedInterfaces(intf)

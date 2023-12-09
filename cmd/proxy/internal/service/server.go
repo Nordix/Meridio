@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
@@ -42,9 +44,12 @@ func StartNSE(ctx context.Context,
 	config *endpointOld.Config,
 	nsmAPIClient *nsm.APIClient,
 	p *proxy.Proxy,
-	interfaceMonitorServer networkservice.NetworkServiceServer) *endpoint.Endpoint {
+	interfaceMonitorServer networkservice.NetworkServiceServer) (*endpoint.Endpoint, error) {
 
-	logger := log.FromContextOrGlobal(ctx)
+	logger := log.FromContextOrGlobal(ctx).WithValues("func", "StartNSE",
+		"name", config.Name,
+		"service", config.ServiceName,
+	)
 	logger.Info("Start NSE")
 	additionalFunctionality := []networkservice.NetworkServiceServer{
 		// Note: naming the interface is left to NSM (refer to getNameFromConnection())
@@ -77,12 +82,11 @@ func StartNSE(ctx context.Context,
 			},
 		},
 	}
-	logger.V(1).Info("Create NS", "ns", ns)
-
+	logger.V(1).Info("Register NS")
 	service := service.New(nsmAPIClient.NetworkServiceRegistryClient, ns)
 	err := service.Register(ctx)
 	if err != nil {
-		log.Fatal(logger, "Registering NS", "error", err)
+		return nil, fmt.Errorf("failed to register network service: %w", err)
 	}
 
 	nse := &registry.NetworkServiceEndpoint{
@@ -95,17 +99,21 @@ func StartNSE(ctx context.Context,
 		},
 	}
 	logger.V(1).Info("Create NSE", "nse", nse)
-
 	endpoint, err := endpoint.New(config.MaxTokenLifetime,
 		nsmAPIClient.NetworkServiceEndpointRegistryClient,
 		nse,
 		additionalFunctionality...)
 	if err != nil {
-		log.Fatal(logger, "Creating NSE", "error", err)
+		return nil, fmt.Errorf("failed to create NSE: %w", err)
 	}
 	err = endpoint.Register(ctx)
 	if err != nil {
-		log.Fatal(logger, "Registering NSE", "error", err)
+		deleteCtx, deleteClose := context.WithTimeout(ctx, 1*time.Second)
+		defer deleteClose()
+		_ = endpoint.Delete(deleteCtx)
+		return nil, fmt.Errorf("failed to register NSE: %w", err)
 	}
-	return endpoint
+
+	logger.V(1).Info("Started NSE", "endpoint", endpoint.NSE)
+	return endpoint, nil
 }
