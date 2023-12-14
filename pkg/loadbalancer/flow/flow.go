@@ -35,42 +35,53 @@ type Flow struct {
 // New creates a new flow
 func New(flow *nspAPI.Flow, lb types.NFQueueLoadBalancer) (types.Flow, error) {
 	if flow == nil {
-		return nil, fmt.Errorf("Flow:New: Create nil Flow")
+		return nil, fmt.Errorf("flow is nil")
 	}
-	logger := log.Logger.WithValues("class", "Flow", "instance", flow.Name)
-	logger.Info("Create")
 	if lb == nil {
-		return nil, fmt.Errorf("Flow(%s):New: No NFQueueLoadBalancer", flow.Name)
+		return nil, fmt.Errorf("missing nfqueue lb for flow (%s)", flow.Name)
 	}
+	logger := log.Logger.WithValues("class", "Flow",
+		"instance", flow.Name,
+		"nfqlb", lb.GetName(),
+	)
+	logger.Info("Create flow")
 	f := &Flow{
 		Flow:                flow,
 		nfqueueLoadBalancer: lb,
 		logger:              logger,
 	}
 	if err := f.nfqueueLoadBalancer.SetFlow(f.Flow); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to set new flow (%s): %w", f.Flow.Name, err)
 	}
 	return f, nil
 }
 
 // Update updates a flow
 func (f *Flow) Update(flow *nspAPI.Flow) error {
-	f.logger.V(2).Info("Update", "flow", flow)
 	if f.Flow.DeepEquals(flow) {
 		// Not changed
 		return nil
 	}
+	f.logger.V(2).Info("Update flow", "flow", flow)
 	if f.Flow.Name != flow.Name {
-		f.logger.Info("Attmpt to update name", "name", flow.Name)
-		return fmt.Errorf("Flow:Update Name is not allowed")
+		f.logger.V(1).Info("Attempted to update flow name", "name", f.Flow.Name, "to", flow.Name)
+		return fmt.Errorf("flow name update is not allowed (%s -> %s)", f.Flow.Name, flow.Name)
 	}
 
 	f.Flow = flow
-	return f.nfqueueLoadBalancer.SetFlow(f.Flow)
+	err := f.nfqueueLoadBalancer.SetFlow(f.Flow)
+	if err != nil {
+		return fmt.Errorf("failed to update flow (%s): %w", flow.Name, err)
+	}
+	return nil
 }
 
 // Delete deletes a flow
 func (f *Flow) Delete() error {
-	f.logger.Info("Delete")
-	return f.nfqueueLoadBalancer.DeleteFlow(f.Flow)
+	f.logger.Info("Delete flow")
+	err := f.nfqueueLoadBalancer.DeleteFlow(f.Flow)
+	if err != nil {
+		return fmt.Errorf("failed to delete flow (%s): %w", f.Flow.Name, err)
+	}
+	return nil
 }

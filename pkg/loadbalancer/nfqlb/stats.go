@@ -18,6 +18,7 @@ package nfqlb
 
 import (
 	"encoding/json"
+	"fmt"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 )
@@ -64,7 +65,7 @@ func GetFlowStats() ([]*FlowStats, error) {
 	nfqlbFss := []*nfqlbFlowStats{}
 	err = json.Unmarshal([]byte(jsonStatsStr), &nfqlbFss)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal flow stats (%v): %w", nfqlbFss, err)
 	}
 	for _, nfqlbFs := range nfqlbFss {
 		fs = append(fs, &FlowStats{

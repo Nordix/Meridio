@@ -38,6 +38,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
+	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	nsmlog "github.com/networkservicemesh/sdk/pkg/tools/log"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/endpoint"
@@ -57,15 +58,19 @@ import (
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
 	nsmmetrics "github.com/nordix/meridio/pkg/nsm/metrics"
+	nsmmonitor "github.com/nordix/meridio/pkg/nsm/monitor"
 	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/security/credentials"
+	"github.com/nordix/meridio/pkg/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/status"
 )
 
 func printHelp() {
@@ -213,6 +218,7 @@ func main() {
 	)
 
 	interfaceMonitorEndpoint := interfacemonitor.NewServer(interfaceMonitor, sns, netUtils)
+	interfaceMonitor.Subscribe(sns) // subscribe to pure netlink events to learn interface delete
 
 	// Note: naming the interface is left to NSM (refer to getNameFromConnection())
 	// However NSM does not seem to ensure uniqueness either. Might need to revisit...
@@ -235,6 +241,20 @@ func main() {
 	}
 	nsmAPIClient := nsm.NewAPIClient(context.Background(), apiClientConfig) // background context to allow endpoint unregistration on tear down
 	defer nsmAPIClient.Delete()
+
+	// connect NSMgr and start NSM connection monitoring (to log events of interest)
+	cc, err := grpc.DialContext(ctx,
+		grpcutils.URLToTarget(&nsmAPIClient.Config.ConnectTo),
+		nsmAPIClient.GRPCDialOption...,
+	)
+	if err != nil {
+		logger.Error(err, "Dialing NSMgr")
+		cancel()
+		return
+	}
+	defer cc.Close()
+	monitorClient := networkservice.NewMonitorConnectionClient(cc)
+	go nsmmonitor.ConnectionMonitor(ctx, config.Name, monitorClient)
 
 	endpointConfig := &endpoint.Config{
 		Name:             config.Name,
@@ -267,19 +287,23 @@ func main() {
 		probe.WithRPCTimeout(config.GRPCProbeRPCTimeout),
 	)
 
-	go func() { // start nfqlb process
-		if err := lbFactory.Start(ctx); err != nil {
-			logger.Error(err, "Process nfqlb terminated")
+	go func() {
+		logger.Info("Start nfqlb process")
+		if err := lbFactory.Start(ctx); err != nil && ctx.Err() != context.Canceled {
+			logger.Error(err, "Failure running nfqlb process")
 		}
+		logger.Info("Process nfqlb terminated")
 		cancel()
 	}()
 	sns.Start()
 	// monitor availibilty of frontends (advertise NSE to proxies only if there's feasible FE)
 	fns := NewFrontendNetworkService(ctx, targetRegistryClient, ep, NewServiceControlDispatcher(sns))
 	go func() {
-		if err := fns.Start(); err != nil {
-			logger.Error(err, "FrontendNetworkService terminated")
+		logger.Info("Start frontend monitoring service")
+		if err := fns.Start(); err != nil && status.Code(err) != codes.Canceled {
+			logger.Error(err, "Frontend monitoring")
 		}
+		logger.Info("Frontend monitoring service terminated")
 		cancel()
 	}()
 
@@ -394,7 +418,9 @@ func newSimpleNetworkService(
 	targetHitsMetrics *target.HitsMetrics,
 ) *SimpleNetworkService {
 	identifierOffsetGenerator := NewIdentifierOffsetGenerator(identifierOffsetStart)
-	logger := log.FromContextOrGlobal(ctx).WithValues("class", "SimpleNetworkService")
+	logger := log.FromContextOrGlobal(ctx).WithValues("class", "SimpleNetworkService",
+		"conduit", conduit,
+	)
 	nh, err := nat.NewNatHandler()
 	if err != nil {
 		log.Fatal(logger, "Unable to init NAT", "error", err)
@@ -417,7 +443,7 @@ func newSimpleNetworkService(
 		natHandler:                  nh,
 		targetHitsMetrics:           targetHitsMetrics,
 	}
-	logger.Info("Created", "object", simpleNetworkService)
+	logger.Info("Created LB service", "conduit", conduit)
 	return simpleNetworkService
 }
 
@@ -426,11 +452,13 @@ func (sns *SimpleNetworkService) Start() {
 	go sns.watchVips(sns.ctx)
 	go sns.watchConduit(sns.ctx)
 	go func() {
+		sns.logger.Info("Watch LB service control channel")
+		defer sns.logger.Info("Stopped watching LB service control channel")
 		for {
 			select {
 			case allowService, ok := <-sns.serviceCtrCh:
 				if ok {
-					sns.logger.Info("serviceCtrCh", "allowService", allowService)
+					sns.logger.Info("LB service control event", "allowService", allowService)
 					sns.mu.Lock()
 
 					sns.simpleNetworkServiceBlocked = !allowService
@@ -483,7 +511,7 @@ func (sns *SimpleNetworkService) startStreamWatcher() {
 		}, retry.WithContext(ctx),
 			retry.WithDelay(500*time.Millisecond),
 			retry.WithErrorIngnored())
-		if err != nil {
+		if err != nil && status.Code(err) != codes.Canceled {
 			sns.logger.Error(err, "watchStreams")
 		}
 	}()
@@ -491,8 +519,14 @@ func (sns *SimpleNetworkService) startStreamWatcher() {
 
 // InterfaceCreated -
 func (sns *SimpleNetworkService) InterfaceCreated(intf networking.Iface) {
-	_ = intf.GetName() // fills the Name field if needed
-	sns.logger.Info("InterfaceCreated", "interface", intf)
+	if len(intf.GetLocalPrefixes()) < 1 {
+		// ignore pure netlink based monitor notification
+		return
+	}
+	_ = intf.GetName() // fills the Name field of the interface if necessary
+	if _, ok := sns.interfaces.Load(intf.GetIndex()); !ok {
+		sns.logger.Info("InterfaceCreated", "interface", intf) // TODO: the inteface might be already in the map because InterfaceDeleted (likely) won't get called
+	}
 	if sns.serviceBlocked() {
 		// if service blocked, do not process new interface events (which
 		// might appear until the block takes effect on NSC side)
@@ -509,7 +543,7 @@ func (sns *SimpleNetworkService) InterfaceCreated(intf networking.Iface) {
 		}
 		oldif := value.(networking.Iface)
 		if sameSubnet(intf, oldif) {
-			sns.logger.Info("Interface replaced", "old", oldif, "new", intf)
+			sns.logger.Info("Interface replaced during interface create event", "old", oldif, "new", intf)
 			sns.disableInterface(oldif)
 			// remove replaced interface from the list in order to avoid further
 			// unnecessary and confusing replace printouts and disable attempts
@@ -556,7 +590,7 @@ func (sns *SimpleNetworkService) watchStreams(ctx context.Context) error {
 	}
 	watchStream, err := sns.ConfigurationManagerClient.WatchStream(ctx, streamsToWatch)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create stream watcher (%s): %w", streamsToWatch.String(), err)
 	}
 	for {
 		streamResponse, err := watchStream.Recv()
@@ -564,7 +598,7 @@ func (sns *SimpleNetworkService) watchStreams(ctx context.Context) error {
 			break
 		}
 		if err != nil {
-			return err
+			return fmt.Errorf("stream watcher receive error (%s): %w", streamsToWatch.String(), err)
 		}
 		err = sns.updateStreams(streamResponse.Streams)
 		if err != nil {
@@ -589,7 +623,8 @@ func (sns *SimpleNetworkService) updateStreams(streams []*nspAPI.Stream) error {
 		if !exists { // todo: create a stream
 			err := sns.addStream(s)
 			if err != nil {
-				errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+				errFinal = utils.AppendErr(errFinal, fmt.Errorf("addStream failed during update (%s): %w",
+					s.GetName(), err)) // todo
 			}
 		} else { // todo: check if need an update
 			delete(remainingStreams, s.GetName())
@@ -599,7 +634,9 @@ func (sns *SimpleNetworkService) updateStreams(streams []*nspAPI.Stream) error {
 	for streamName := range remainingStreams {
 		err := sns.deleteStream(streamName)
 		if err != nil {
-			errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+			errFinal = utils.AppendErr(errFinal, fmt.Errorf("deleteStream failed during update (%s): %w",
+				streamName, err)) // todo
+
 		}
 	}
 	// adjust stream service serving status (needs at least 1 stream)
@@ -609,14 +646,16 @@ func (sns *SimpleNetworkService) updateStreams(streams []*nspAPI.Stream) error {
 
 func (sns *SimpleNetworkService) addStream(strm *nspAPI.Stream) error {
 	// verify if stream belongs to this conduit and trench
+	logger := sns.logger.WithValues("func", "addStream", "stream", strm.String())
 	_, exists := sns.streams[strm.GetName()]
 	if exists {
 		return errors.New("this stream already exists")
 	}
 	identifierOffset, err := sns.IdentifierOffsetGenerator.Generate(strm)
 	if exists {
-		return err
+		return fmt.Errorf("failed to generate identifier offset when adding stream (%s): %w", strm.String(), err)
 	}
+	logger.Info("Create LB stream")
 	s, err := stream.New(
 		strm,
 		sns.targetRegistryClient,
@@ -628,12 +667,14 @@ func (sns *SimpleNetworkService) addStream(strm *nspAPI.Stream) error {
 		sns.targetHitsMetrics,
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create stream (%s): %w", strm.String(), err)
 	}
 	go func() {
+		logger.Info("Start LB stream")
+		defer logger.Info("LB stream terminated")
 		err := s.Start(sns.ctx)
-		if err != nil {
-			sns.logger.Error(err, "stream start")
+		if err != nil && status.Code(err) != codes.Canceled {
+			logger.Error(err, "running LB stream")
 		}
 	}()
 	sns.nfqueueIndex = sns.nfqueueIndex + 1
@@ -650,7 +691,10 @@ func (sns *SimpleNetworkService) deleteStream(streamName string) error {
 	sns.IdentifierOffsetGenerator.Release(streamName)
 	err := stream.Delete()
 	delete(sns.streams, streamName)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to delete stream (%s): %w", streamName, err)
+	}
+	return nil
 }
 
 func (sns *SimpleNetworkService) serviceBlocked() bool {
@@ -664,11 +708,11 @@ func (sns *SimpleNetworkService) GetServiceControlChannel() interface{} {
 }
 
 func (sns *SimpleNetworkService) evictStreams() {
-	sns.logger.Info("Evict Streams")
-	for _, stream := range sns.streams {
+	sns.logger.Info("Evict streams")
+	for name, stream := range sns.streams {
 		err := stream.Delete()
 		if err != nil {
-			sns.logger.Error(err, "stream delete")
+			sns.logger.Error(err, "stream delete", "stream", name)
 		}
 	}
 	sns.streams = make(map[string]types.Stream)
@@ -679,7 +723,7 @@ func (sns *SimpleNetworkService) evictStreams() {
 // operation. Meaning old interfaces not yet removed by NSM must not get associated
 // with routes inserted for Targets after the block is lifted.
 func (sns *SimpleNetworkService) disableInterfaces() {
-	sns.logger.Info("Disable Interfaces")
+	sns.logger.Info("Disable interfaces", "func", "disableInterfaces")
 	sns.interfaces.Range(func(key interface{}, value interface{}) bool {
 		sns.disableInterface(value.(networking.Iface))
 		sns.interfaces.Delete(key)
@@ -690,7 +734,7 @@ func (sns *SimpleNetworkService) disableInterfaces() {
 // disableInterface -
 // Set interface state down
 func (sns *SimpleNetworkService) disableInterface(intf networking.Iface) {
-	sns.logger.V(1).Info("Disable", "interface", intf)
+	sns.logger.V(1).Info("Disable interface", "func", "disableInterface", "interface", intf)
 	la := netlink.NewLinkAttrs()
 	la.Index = intf.GetIndex()
 	err := netlink.LinkSetDown(&netlink.Dummy{LinkAttrs: la})
@@ -702,14 +746,17 @@ func (sns *SimpleNetworkService) disableInterface(intf networking.Iface) {
 // watchVips -
 // Monitors VIP changes in Trench via NSP
 func (sns *SimpleNetworkService) watchVips(ctx context.Context) {
-	sns.logger.Info("Watch VIPs")
+	logger := sns.logger.WithValues("func", "watchVips")
+	logger.Info("Watch VIPs")
+	defer logger.Info("Stopped watching VIPs")
+
 	err := retry.Do(func() error {
 		vipsToWatch := &nspAPI.Vip{
 			Trench: sns.Conduit.GetTrench(),
 		}
 		watchVip, err := sns.ConfigurationManagerClient.WatchVip(ctx, vipsToWatch)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create vip watcher (%s): %w", vipsToWatch.String(), err)
 		}
 		for {
 			vipResponse, err := watchVip.Recv()
@@ -717,31 +764,34 @@ func (sns *SimpleNetworkService) watchVips(ctx context.Context) {
 				break
 			}
 			if err != nil {
-				return err
+				return fmt.Errorf("vip watcher receive error (%s): %w", vipsToWatch.String(), err)
 			}
 			err = sns.updateVips(vipResponse.GetVips())
 			if err != nil {
-				sns.logger.Error(err, "updateVips")
+				logger.Error(err, "updateVips")
 			}
 		}
 		return nil
 	}, retry.WithContext(ctx),
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
-	if err != nil {
-		sns.logger.Error(err, "watchVIPs") // todo
+
+	if err != nil && status.Code(err) != codes.Canceled {
+		logger.Error(err, "watchVIPs") // todo
 	}
 }
 
-// watchVips -
+// watchConduit -
 func (sns *SimpleNetworkService) watchConduit(ctx context.Context) {
-	logger := sns.logger.WithValues("func", "watchConduit")
-	logger.Info("Called")
+	logger := sns.logger.WithValues("func", "watchConduit", "conduit", sns.Conduit)
+	logger.Info("Start watching conduit")
+	defer logger.Info("Stopped watching conduit")
+
 	err := retry.Do(func() error {
 		conduitToWatch := sns.Conduit
 		watchConduit, err := sns.ConfigurationManagerClient.WatchConduit(ctx, conduitToWatch)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create conduit watcher (%s): %w", conduitToWatch.String(), err)
 		}
 		for {
 			conduitResponse, err := watchConduit.Recv()
@@ -749,7 +799,7 @@ func (sns *SimpleNetworkService) watchConduit(ctx context.Context) {
 				break
 			}
 			if err != nil {
-				return err
+				return fmt.Errorf("conduit watcher receive error (%s): %w", conduitToWatch.String(), err)
 			}
 			if len(conduitResponse.GetConduits()) != 1 {
 				continue
@@ -764,7 +814,8 @@ func (sns *SimpleNetworkService) watchConduit(ctx context.Context) {
 	}, retry.WithContext(ctx),
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
-	if err != nil {
+
+	if err != nil && status.Code(err) != codes.Canceled {
 		sns.logger.Error(err, "retry")
 	}
 }
@@ -772,6 +823,9 @@ func (sns *SimpleNetworkService) watchConduit(ctx context.Context) {
 // updateVips -
 // Sends list of VIPs to Netfilter Adaptor to adjust kerner based rules
 func (sns *SimpleNetworkService) updateVips(vips []*nspAPI.Vip) error {
-	sns.logger.V(1).Info("updateVips", "vips", vips)
-	return sns.nfa.SetDestinationIPs(vips)
+	sns.logger.V(1).Info("Updating VIPs", "func", "updateVips", "vips", vips)
+	if err := sns.nfa.SetDestinationIPs(vips); err != nil {
+		return fmt.Errorf("failed to set destination IPs during update VIPs (%v): %w", vips, err)
+	}
+	return nil
 }

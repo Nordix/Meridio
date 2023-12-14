@@ -26,6 +26,7 @@ import (
 	targetMetrics "github.com/nordix/meridio/pkg/loadbalancer/target"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/networking"
+	"github.com/nordix/meridio/pkg/utils"
 )
 
 type target struct {
@@ -50,12 +51,12 @@ func NewTarget(nspTarget *nspAPI.Target, netUtils networking.Utils, targetHitsMe
 	}
 	idStr, exists := nspTarget.GetContext()[types.IdentifierKey]
 	if !exists {
-		return nil, fmt.Errorf("No identifier")
+		return nil, fmt.Errorf("no identifier")
 	}
 	var err error
 	target.identifier, err = strconv.Atoi(idStr)
 	if err != nil {
-		return nil, fmt.Errorf("Invalid identifier: %w", err)
+		return nil, fmt.Errorf("invalid identifier: %w", err)
 	}
 	return target, nil
 }
@@ -86,7 +87,7 @@ func (t *target) Configure() error {
 		var fwMark networking.FWMarkRoute
 		fwMark, err := t.netUtils.NewFWMarkRoute(ip, offsetId, offsetId)
 		if err != nil {
-			return err
+			return fmt.Errorf("faled to configure fwmark route for ip (%s): %w", ip, err)
 		}
 		t.fwMarks = append(t.fwMarks, fwMark)
 	}
@@ -103,7 +104,7 @@ func (t *target) Delete() error {
 	for _, fwMark := range t.fwMarks {
 		err := fwMark.Delete()
 		if err != nil {
-			errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+			errFinal = utils.AppendErr(errFinal, fmt.Errorf("fwMark delete: %w", err)) // todo
 		}
 	}
 	t.fwMarks = []networking.FWMarkRoute{}
@@ -120,5 +121,9 @@ func (t *target) MarshalJSON() ([]byte, error) {
 		t.identifier,
 		t.nspTarget.GetIps(),
 	}
-	return json.Marshal(&ts)
+	enc, err := json.Marshal(&ts)
+	if err != nil {
+		return enc, fmt.Errorf("failed to marshal target (%v): %w", ts, err)
+	}
+	return enc, nil
 }

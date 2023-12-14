@@ -89,7 +89,10 @@ func NewNetfilterAdaptor(options ...Option) (*netfilterAdaptor, error) {
 	}
 
 	ku.logger.V(1).Info(
-		"Created", "num", ku.nftqueueNum, "total", ku.nftqueueTotal, "flag", ku.nftqueueFlag)
+		"Created Netfilter Adaptor",
+		"num", ku.nftqueueNum,
+		"total", ku.nftqueueTotal,
+		"flag", ku.nftqueueFlag)
 
 	return ku, nil
 }
@@ -118,7 +121,11 @@ func (na *netfilterAdaptor) Delete() error {
 	conn.FlushChain(na.localchain)
 	conn.DelChain(na.chain)
 	conn.DelChain(na.localchain)
-	return conn.Flush()
+	err := conn.Flush()
+	if err != nil {
+		return fmt.Errorf("failed to flush and delete chains: %w", err)
+	}
+	return nil
 }
 
 func (na *netfilterAdaptor) configure() error {
@@ -159,14 +166,15 @@ func (na *netfilterAdaptor) configureNFQueue() error {
 
 	num, err := strconv.ParseUint(nfqueues[0], 10, 16)
 	if err != nil {
-		return fmt.Errorf("netlinkAdaptor: parse nfqueue: %v", err)
+		return fmt.Errorf("netlinkAdaptor failed to parse nfqueue (%s): %v", nfqueues[0], err)
 	}
 	na.nftqueueNum = uint16(num)
 
 	if len(nfqueues) >= 2 {
 		end, err := strconv.ParseUint(nfqueues[1], 10, 16)
 		if err != nil {
-			return err
+			return fmt.Errorf("netlinkAdaptor failed to parse nqueue range end (%s): %w",
+				nfqueues[1], err)
 		}
 		na.nftqueueTotal = uint16(end - num + 1)
 	}
@@ -190,7 +198,7 @@ func (na *netfilterAdaptor) configureTable() error {
 
 	err := conn.Flush()
 	if err != nil {
-		return fmt.Errorf("netlinkAdaptor: nftable: %v", err)
+		return fmt.Errorf("netlinkAdaptor failed to add nftable (%v): %w", table, err)
 	}
 
 	na.table = table
@@ -202,13 +210,13 @@ func (na *netfilterAdaptor) configureTable() error {
 func (na *netfilterAdaptor) configureSets() error {
 	ipv4Set, err := kernel.NewNFSetIP(ipv4VIPSetName, syscall.AF_INET, na.table)
 	if err != nil {
-		return fmt.Errorf("netlinkAdaptor: %v set: %v", ipv4VIPSetName, err)
+		return fmt.Errorf("netlinkAdaptor failed to configure set (%s): %w", ipv4VIPSetName, err)
 	}
 
 	ipv6Set, err := kernel.NewNFSetIP(ipv6VIPSetName, syscall.AF_INET6, na.table)
 	if err != nil {
 		_ = ipv4Set.Delete()
-		return fmt.Errorf("netlinkAdaptor: %v set: %v", ipv6VIPSetName, err)
+		return fmt.Errorf("netlinkAdaptor failed to configure set (%s): %w", ipv6VIPSetName, err)
 	}
 
 	na.ipv4DestinationSet = ipv4Set
@@ -322,7 +330,11 @@ func (na *netfilterAdaptor) configureChainAndRules() error {
 	}
 	na.ipv6Rule = conn.AddRule(ipv6Rule)
 
-	return conn.Flush()
+	err := conn.Flush()
+	if err != nil {
+		return fmt.Errorf("netlinkAdaptor failed to configure chains and rules: %w", err)
+	}
+	return nil
 }
 
 // configurePMTUDChainAndRules -
@@ -642,7 +654,11 @@ func (na *netfilterAdaptor) configurePMTUDChainAndRules() error {
 	}
 	na.ipv6Rule = conn.AddRule(ipv6Rule)
 
-	return conn.Flush()
+	err := conn.Flush()
+	if err != nil {
+		return fmt.Errorf("netlinkAdaptor failed to configure pmtud chains and rules: %w", err)
+	}
+	return nil
 }
 
 // configureLocalChainAndRules -
@@ -788,23 +804,27 @@ func (na *netfilterAdaptor) configureLocalChainAndRules() error {
 	}
 	na.ipv6Rule = conn.AddRule(ipv6Rule)
 
-	return conn.Flush()
+	err := conn.Flush()
+	if err != nil {
+		return fmt.Errorf("netlinkAdaptor failed to configure local chains and rules: %w", err)
+	}
+	return nil
 }
 
 // SetDestinationIPs -
 // Update nftables Set based on the VIPs so that all traffic with VIP destination
 // could be handled by the user space application connected to the configured queue(s)
 func (na *netfilterAdaptor) SetDestinationIPs(vips []*nspAPI.Vip) error {
-	na.logger.V(2).Info("SetDestinationIPs", "vips", vips)
+	na.logger.V(2).Info("Update destination IPs", "func", "SetDestinationIPs", "vips", vips)
 	ips := []string{}
 	for _, vip := range vips {
 		ips = append(ips, vip.Address)
 	}
 	if err := na.ipv4DestinationSet.Update(ips); err != nil {
-		return err
+		return fmt.Errorf("netlinkAdaptor failed to update destination ipv4 addr set: %w", err)
 	}
 	if err := na.ipv6DestinationSet.Update(ips); err != nil {
-		return err
+		return fmt.Errorf("netlinkAdaptor failed to update destination ipv6 addr set: %w", err)
 	}
 
 	return nil

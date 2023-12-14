@@ -1,12 +1,9 @@
 /*
 Copyright (c) 2023 Nordix Foundation
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -14,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package proxy
+package monitor
 
 import (
 	"context"
@@ -29,22 +26,22 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// NSMConnectionMonitor -
-// NSMConnectionMonitor monitors NSM connection events to keep track of and log
+// ConnectionMonitor -
+// ConnectionMonitor monitors NSM connection events to keep track of and log
 // important changes. Currently, monitors connections this proxy is part of.
-// TODO: check if it could be made more generic or better integrated with proxy (to act upon certain events)
-func NSMConnectionMonitor(ctx context.Context, name string, monitorConnectionClient networkservice.MonitorConnectionClient) {
+// TODO: make more generic
+func ConnectionMonitor(ctx context.Context, name string, monitorConnectionClient networkservice.MonitorConnectionClient) {
 	if monitorConnectionClient == nil {
 		return
 	}
 
-	logger := log.Logger.WithValues("func", "NSMConnectionMonitor", "proxy", name)
+	logger := log.Logger.WithValues("func", "ConnectionMonitor", "name", name)
 	logger.V(1).Info("Start NSM connection monitor")
 	defer logger.V(1).Info("Stopped NSM connection monitor")
 	monitorScope := &networkservice.MonitorScopeSelector{
 		PathSegments: []*networkservice.PathSegment{
 			{
-				Name: name, // interested in connections this proxy is part of
+				Name: name, // interested in connections whose path includes name
 			},
 		},
 	}
@@ -70,14 +67,14 @@ func NSMConnectionMonitor(ctx context.Context, name string, monitorConnectionCli
 			}
 			for _, connection := range mccResponse.Connections {
 				if connection.GetPath() != nil && len(connection.GetPath().GetPathSegments()) >= 1 {
-					index := -1 // indicates at which path segment index the proxy is located
+					index := -1 // indicates at which path segment index the name is located
 					segmentNum := len(connection.GetPath().GetPathSegments())
 					pathSegments := make([]*networkservice.PathSegment, segmentNum)
-					// double check the proxy is involed and build temp pathSegments
+					// double check the name is involed and build temp pathSegments
 					// with reduced information for logging
 					for i, s := range connection.GetPath().GetPathSegments() {
 						if s.Name == name {
-							index = i // found the proxy
+							index = i // found the name
 						}
 						pathSegments[i] = &networkservice.PathSegment{Name: s.Name, Id: s.Id}
 					}

@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/edwarnicke/grpcfd"
-	"github.com/pkg/errors"
 	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"google.golang.org/grpc"
@@ -93,12 +92,11 @@ func (e *Endpoint) startWithoutRegister(ctx context.Context, additionalFunctiona
 
 	e.tmpDir, err = os.MkdirTemp("", e.config.Name)
 	if err != nil {
-		return errors.Wrap(err, "error creating tmpDir")
+		return fmt.Errorf("error creating tmpDir for endpoint: %w", err)
 	}
 	e.listenOn = &(url.URL{Scheme: "unix", Path: filepath.Join(e.tmpDir, "listen.on")})
 	srvErrCh := grpcutils.ListenAndServe(ctx, e.listenOn, server) // note: also stops the server if the context is closed
 	go e.errorHandler(srvErrCh)
-	e.logger.Info("startWithoutRegister")
 
 	e.nse = &registryapi.NetworkServiceEndpoint{
 		Name:                e.config.Name,
@@ -110,6 +108,7 @@ func (e *Endpoint) startWithoutRegister(ctx context.Context, additionalFunctiona
 		},
 		Url: e.listenOn.String(),
 	}
+	e.logger.Info("created endpoint", "func", "startWithoutRegister", "nse", e.nse)
 
 	return nil
 }
@@ -124,19 +123,19 @@ func (e *Endpoint) getSource(ctx context.Context) (*workloadapi.X509Source, erro
 	// retrieving svid, check spire agent logs if this is the last line you see
 	source, err := workloadapi.NewX509Source(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "error getting x509 source")
+		return nil, fmt.Errorf("error getting x509 source for endpoint: %w", err)
 	}
 	svid, err := source.GetX509SVID()
 	if err != nil {
-		return nil, errors.Wrap(err, "error getting x509 svid")
+		return nil, fmt.Errorf("error getting x509 svid for endpoint: %w", err)
 	}
-	e.logger.Info("getSource", "sVID", svid.ID)
+	e.logger.V(1).Info("getSource for endpoint", "sVID", svid.ID)
 	return source, nil
 }
 
 func (e *Endpoint) register(ctx context.Context) error {
 	if e.nse == nil {
-		return fmt.Errorf("registry api endpoint missing")
+		return fmt.Errorf("no network service endpoint to register")
 	}
 
 	networkService, err := e.networkServiceRegistryClient.Register(ctx, &registryapi.NetworkService{
@@ -144,16 +143,18 @@ func (e *Endpoint) register(ctx context.Context) error {
 		Payload: payload.Ethernet,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("network service registry client failed to register service (%s): %w",
+			e.config.ServiceName, err)
 	}
-	e.logger.Info("register", "networkService", networkService)
+	e.logger.Info("register network service endpoint", "networkService", networkService)
 
 	e.nse.ExpirationTime = nil
 	nse, err := e.networkServiceEndpointRegistryClient.Register(ctx, e.nse)
 	if err != nil {
-		return err
+		return fmt.Errorf("network service endpoint registry client failed to register endpoint (%v): %w",
+			e.nse, err)
 	}
-	e.logger.Info("register", "nse", nse)
+	e.logger.Info("registered network service endpoint", "nse", nse)
 
 	return nil
 }
@@ -169,15 +170,18 @@ func (e *Endpoint) unregister(ctx context.Context) error {
 		Seconds: -1,
 	}
 
-	e.logger.Info("unregister", "nse", e.nse)
+	e.logger.Info("unregister network service endpoint", "nse", e.nse)
 	_, err := e.networkServiceEndpointRegistryClient.Unregister(ctx, e.nse)
-	return err
+	if err != nil {
+		return fmt.Errorf("network service endpoint registry client failed to unregister endpoint (%v): %w", e.nse, err)
+	}
+	return nil
 }
 
 // Delete -
 func (e *Endpoint) Delete(ctx context.Context) {
 	logger := e.logger.WithValues("func", "Delete")
-	logger.Info("Called")
+	logger.Info("Delete endpoint", "nse", e.nse)
 
 	defer func() {
 		if e.cancel != nil {
@@ -187,7 +191,7 @@ func (e *Endpoint) Delete(ctx context.Context) {
 
 	if e.nse != nil {
 		if err := e.unregister(ctx); err != nil {
-			logger.Error(err, "unregister")
+			logger.Error(err, "unregister endpoint during delete")
 		}
 	}
 

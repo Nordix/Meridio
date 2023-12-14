@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"sync"
@@ -30,6 +31,8 @@ import (
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/retry"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // FrontendNetworkService -
@@ -65,13 +68,16 @@ func (fns *FrontendNetworkService) Start() error {
 		})
 		if err != nil {
 			fns.logger.Error(err, "targetRegistryClient", "MonitorType", nspAPI.Target_FRONTEND)
-			return err
+			return fmt.Errorf("failed to create frontend target watcher: %w", err)
 		}
 		return fns.recv()
 	}, retry.WithContext(fns.ctx),
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
-	return err
+	if err != nil {
+		return fmt.Errorf("failure watching frontend targets: %w", err)
+	}
+	return nil
 }
 
 func (fns *FrontendNetworkService) recv() error {
@@ -82,8 +88,10 @@ func (fns *FrontendNetworkService) recv() error {
 			break
 		}
 		if err != nil {
-			logger.Error(err, "Recv")
-			return err
+			if status.Code(err) != codes.Canceled {
+				logger.Error(err, "Frontend target watcher receive")
+			}
+			return fmt.Errorf("frontend target watcher receive error: %w", err)
 		}
 
 		target := fns.getLocal(targetResponse.GetTargets())
@@ -94,7 +102,7 @@ func (fns *FrontendNetworkService) recv() error {
 		}
 		fns.feAnnounced = currentState
 
-		logger.V(1).Info("event", "target", target)
+		logger.V(1).Info("received frontend target event", "target", target)
 
 		if fns.feAnnounced {
 			logger.Info("FE available", "IdentifierKey", target.GetContext()[types.IdentifierKey])

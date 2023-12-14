@@ -17,6 +17,8 @@ limitations under the License.
 package stream
 
 import (
+	"fmt"
+
 	"github.com/google/nftables"
 	"github.com/google/nftables/binaryutil"
 	"github.com/google/nftables/expr"
@@ -95,7 +97,11 @@ func (d *Defrag) configure() error {
 		Hooknum:  nftables.ChainHookOutput,
 		Priority: nftables.ChainPriorityRaw,
 	})
-	return conn.Flush()
+	err := conn.Flush()
+	if err != nil {
+		return fmt.Errorf("failed to configure defrag table and chains: %w", err)
+	}
+	return nil
 }
 
 func (d *Defrag) setupRules() error {
@@ -181,7 +187,11 @@ func (d *Defrag) setupRules() error {
 		})
 	}
 
-	return conn.Flush()
+	err := conn.Flush()
+	if err != nil {
+		return fmt.Errorf("failed to setup defrag rules: %w", err)
+	}
+	return nil
 }
 
 func (d *Defrag) Delete() error {
@@ -192,5 +202,9 @@ func (d *Defrag) Delete() error {
 		conn.DelChain(chain)
 	}
 
-	return conn.Flush()
+	err := conn.Flush()
+	if err != nil {
+		return fmt.Errorf("failed to flush and delete defrag chains: %w", err)
+	}
+	return nil
 }
