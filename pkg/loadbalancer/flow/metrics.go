@@ -18,6 +18,7 @@ package flow
 
 import (
 	"context"
+	"fmt"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/loadbalancer/nfqlb"
@@ -58,7 +59,8 @@ func CollectMetrics(options ...option) error {
 		}),
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create int64 observable counter (%s): %w",
+			meridioMetrics.MERIDIO_CONDUIT_STREAM_FLOW_MATCHES, err)
 	}
 
 	return nil
@@ -77,7 +79,7 @@ func nfqlbGetFlowStats() ([]FlowStat, error) {
 	for _, nfqlbFlowStat := range nfqlbFlowStats {
 		list = append(list, nfqlbFlowStat)
 	}
-	return list, err
+	return list, fmt.Errorf("failed to get nfqlb flow stats: %w", err)
 }
 
 type config struct {

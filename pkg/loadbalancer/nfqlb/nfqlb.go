@@ -62,7 +62,6 @@ func NewLbFactory(options ...Option) *nfqlbFactory {
 // from outside the cluster.
 func (nf *nfqlbFactory) Start(ctx context.Context) error {
 	logger := log.FromContextOrGlobal(ctx).WithValues("class", "nfqlbFactory")
-	logger.Info("Starting nfqlb process")
 
 	cmd := exec.CommandContext(
 		ctx,
@@ -87,7 +86,7 @@ func (nf *nfqlbFactory) Start(ctx context.Context) error {
 	logger.V(1).Info("execute", "cmd", cmd.String())
 	stdoutStderr, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%w, out: %s", err, stdoutStderr)
+		return fmt.Errorf("failed to start nfqlb: %w, out: %s", err, stdoutStderr)
 	}
 
 	return nil
@@ -130,6 +129,11 @@ func NewLb(options ...LbOption) (*nfqlb, error) {
 	}, nil
 }
 
+// GetName -
+func (n *nfqlb) GetName() string {
+	return n.name
+}
+
 // Start -
 // Start adds the shared mem lb to nfqlb running in 'flowlb' mode
 func (n *nfqlb) Start() error {
@@ -144,12 +148,13 @@ func (n *nfqlb) Start() error {
 		fmt.Sprintf("--N=%d", n.n),
 	)
 
-	n.logger.Info("Start nfqlb", "cmd", cmd.String())
+	n.logger.Info("Init nfqlb instance", "cmd", cmd.String())
 	stdoutStderr, err := cmd.CombinedOutput()
 	if err != nil {
-		err = fmt.Errorf("%v; %s", err, stdoutStderr)
+		return fmt.Errorf("failed to init nfqlb shm (%s) with maglev params M (%v) N (%v): %w; %s",
+			n.name, n.m, n.n, err, stdoutStderr)
 	}
-	return err
+	return nil
 }
 
 // Delete -
@@ -172,12 +177,12 @@ func (n *nfqlb) Delete() error {
 		fmt.Sprintf("--shm=%s", n.name),
 	)
 
-	n.logger.Info("Delete nfqlb", "cmd", cmd.String())
+	n.logger.Info("Delete nfqlb instance", "cmd", cmd.String())
 	stdoutStderr, err := cmd.CombinedOutput()
 	if err != nil {
-		err = fmt.Errorf("%v; %s", err, stdoutStderr)
+		return fmt.Errorf("failed to delete nfqlb shm (%s): %w; %s", n.name, err, stdoutStderr)
 	}
-	return err
+	return nil
 }
 
 // Activate -
@@ -193,9 +198,10 @@ func (n *nfqlb) Activate(index int, identifier int) error {
 		strconv.Itoa(identifier),
 	).CombinedOutput()
 	if err != nil {
-		err = fmt.Errorf("%v; %s", err, stdoutStderr)
+		return fmt.Errorf("failed to activate nfqlb target with index (%v) identifier (%v) in shm (%s): %w; %s",
+			index-1, identifier, n.name, err, stdoutStderr)
 	}
-	return err
+	return nil
 }
 
 // Deactivate -
@@ -210,9 +216,10 @@ func (n *nfqlb) Deactivate(index int) error {
 		fmt.Sprintf("--shm=%s", n.name),
 	).CombinedOutput()
 	if err != nil {
-		err = fmt.Errorf("%v; %s", err, stdoutStderr)
+		return fmt.Errorf("failed to deactivate nfqlb target with index (%v) in shm (%s): %w; %s",
+			index-1, n.name, err, stdoutStderr)
 	}
-	return err
+	return nil
 }
 
 // SetFlow -
@@ -256,12 +263,13 @@ func (n *nfqlb) SetFlow(flow *nspAPI.Flow) error {
 		args...,
 	)
 
-	n.logger.V(1).Info("SetFlow", "cmd", cmd.String())
+	n.logger.V(1).Info("Set nfqlb flow", "cmd", cmd.String())
 	stdoutStderr, err := cmd.CombinedOutput()
 	if err != nil {
-		err = fmt.Errorf("%v; %s", err, stdoutStderr)
+		return fmt.Errorf("failed to set nfqlb flow (%s) with prio (%v) in shm (%s): %w; %s",
+			flow.GetName(), flow.GetPriority(), n.name, err, stdoutStderr)
 	}
-	return err
+	return nil
 }
 
 // DeleteFlow -
@@ -279,10 +287,11 @@ func (n *nfqlb) DeleteFlow(flow *nspAPI.Flow) error {
 		args...,
 	)
 
-	n.logger.V(1).Info("DeleteFlow", "cmd", cmd.String())
+	n.logger.V(1).Info("Delete nfqlb flow", "cmd", cmd.String())
 	stdoutStderr, err := cmd.CombinedOutput()
 	if err != nil {
-		err = fmt.Errorf("%v; %s", err, stdoutStderr)
+		err = fmt.Errorf("failed to delete nfqlb flow (%s) in shm (%s): %w; %s",
+			flow.GetName(), n.name, err, stdoutStderr)
 	}
 	return err
 }
@@ -305,7 +314,7 @@ func FlowList() (string, error) {
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
-		return "", fmt.Errorf("%w; %s", err, stderr.String())
+		return "", fmt.Errorf("failed to run nfqlb flow-list cmd: %w; %s", err, stderr.String())
 	}
 	return stdout.String(), nil
 }

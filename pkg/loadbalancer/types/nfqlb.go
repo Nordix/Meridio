@@ -29,6 +29,7 @@ type NFQueueLoadBalancer interface {
 	Delete() error
 	SetFlow(flow *nspAPI.Flow) error
 	DeleteFlow(flow *nspAPI.Flow) error
+	GetName() string
 }
 
 type NFQueueLoadBalancerFactory interface {

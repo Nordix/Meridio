@@ -34,8 +34,11 @@ import (
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/retry"
+	"github.com/nordix/meridio/pkg/utils"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
+
+var errNoTarget error = errors.New("the target is not existing")
 
 // LoadBalancer -
 type LoadBalancer struct {
@@ -72,10 +75,11 @@ func New(
 	m := int(stream.GetMaxTargets()) * 100
 	nfqlb, err := lbFactory.New(stream.GetName(), m, n)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create new nfqlb instance (%s): %w", stream.GetName(), err)
 	}
 
-	logger := log.Logger.WithValues("class", "LoadBalancer", "instance", stream.GetName())
+	logger := log.Logger.WithValues("class", "LoadBalancer",
+		"instance", stream.GetName(), "identifierOffset", identifierOffset)
 	loadBalancer := &LoadBalancer{
 		Stream:                     stream,
 		TargetRegistryClient:       targetRegistryClient,
@@ -96,14 +100,14 @@ func New(
 	//loadBalancer.defrag, err = NewDefrag(types.InterfaceNamePrefix)
 	loadBalancer.defrag, err = NewDefrag(GetInterfaceNamePrefix())
 	if err != nil {
-		logger.Error(err, "Defrag setup")
-		return nil, err
+		logger.Error(err, "LB instance defrag setup")
+		return nil, fmt.Errorf("failed to setup defrag: %w", err)
 	}
 	err = nfqlb.Start()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to start nfqlb instance (%s): %w", stream.GetName(), err)
 	}
-	logger.Info("Created")
+	logger.V(1).Info("Created LB instance")
 	return loadBalancer, nil
 }
 
@@ -115,24 +119,25 @@ func (lb *LoadBalancer) Start(ctx context.Context) error {
 		interfaceMonitor.Subscribe(lb)
 	}
 	go func() { // todo
-		lb.logger.V(1).Info("Start watchTargets")
+		lb.logger.V(1).Info("Watch LB Targets")
 		err := retry.Do(func() error {
 			return lb.watchTargets(lb.ctx)
 		}, retry.WithContext(lb.ctx),
 			retry.WithDelay(500*time.Millisecond),
 			retry.WithErrorIngnored())
-		if err != nil {
+		if err != nil && lb.ctx.Err() != context.Canceled {
 			lb.logger.Error(err, "watchTargets")
 		}
 	}()
 	go lb.processPendingTargets(lb.ctx)
+	lb.logger.V(1).Info("Watch LB Flows")
 	err := retry.Do(func() error {
 		return lb.watchFlows(lb.ctx)
 	}, retry.WithContext(lb.ctx),
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
 	if err != nil {
-		return err
+		return fmt.Errorf("lb (%s) failed watching flows: %w", lb.Stream.GetName(), err)
 	}
 	return nil
 }
@@ -147,52 +152,60 @@ func (lb *LoadBalancer) Delete() error {
 	for identifier := range lb.targets {
 		err := lb.RemoveTarget(identifier)
 		if err != nil {
-			errFinal = fmt.Errorf("%w; target: %v", errFinal, err)
+			errFinal = utils.AppendErr(errFinal, fmt.Errorf("target: %w", err))
 		}
 	}
 	for _, flow := range lb.flows {
 		err := flow.Delete()
 		if err != nil {
-			errFinal = fmt.Errorf("%w; flow: %v", errFinal, err)
+			errFinal = utils.AppendErr(errFinal, fmt.Errorf("flow: %w", err))
 		}
 	}
 	err := lb.nfqlb.Delete()
 	if err != nil {
-		errFinal = fmt.Errorf("%w; nfqlb: %v", errFinal, err)
+		errFinal = utils.AppendErr(errFinal, fmt.Errorf("nfqlb: %w", err))
 	}
-	lb.logger.Info("Delete")
+	if interfaceMonitor := lb.netUtils.GetInterfaceMonitor(lb.ctx); interfaceMonitor != nil {
+		// unregister receiving interface events
+		interfaceMonitor.UnSubscribe(lb)
+	}
+	lb.logger.Info("Deleted")
 	return errFinal // todo
 }
 
 // AddTarget -
+// Adds a target by configuring routing and activating it in nfqlb.
+// Note: configuration fails if no (NSM) inteface is available in the subnet
+// the target IPs belong to.
 func (lb *LoadBalancer) AddTarget(target types.Target) error {
 	exists := lb.targetExists(target.GetIdentifier())
 	if exists {
 		return errors.New("the target is already registered")
 	}
+	logger := lb.logger.WithValues("func", "AddTarget", "target", target)
 	err := target.Configure() // TODO: avoid multiple identical ip rule entries (e.g. after container crash)
 	if err != nil {
 		lb.addPendingTarget(target)
-		returnErr := err
-		err = target.Delete()
+		returnErr := fmt.Errorf("target configure error: %w", err)
+		err = target.Delete() // remove setup for any Target IP successfully configured
 		if err != nil {
-			return fmt.Errorf("%w; %v", err, returnErr)
+			return fmt.Errorf("%w; target delete error: %w", returnErr, err)
 		}
 		return returnErr
 	}
 	err = lb.nfqlb.Activate(target.GetIdentifier(), target.GetIdentifier()+lb.IdentifierOffset)
 	if err != nil {
 		lb.addPendingTarget(target)
-		returnErr := err
+		returnErr := fmt.Errorf("target activate error: %w", err)
 		err = target.Delete()
 		if err != nil {
-			return fmt.Errorf("%w; %v", err, returnErr)
+			return fmt.Errorf("%w; target delete error: %w", returnErr, err)
 		}
 		return returnErr
 	}
 	lb.targets[target.GetIdentifier()] = target
 	lb.removeFromPendingTarget(target)
-	lb.logger.Info("AddTarget", "target", target)
+	logger.Info("Added target")
 	return nil
 }
 
@@ -201,19 +214,20 @@ func (lb *LoadBalancer) RemoveTarget(identifier int) error {
 	lb.removeFromPendingTargetByIdentifier(identifier)
 	target := lb.getTarget(identifier)
 	if target == nil {
-		return errors.New("the target is not existing")
+		return errNoTarget
 	}
+	logger := lb.logger.WithValues("func", "RemoveTarget", "target", target)
 	var errFinal error
 	err := lb.nfqlb.Deactivate(target.GetIdentifier())
 	if err != nil {
-		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+		errFinal = utils.AppendErr(errFinal, fmt.Errorf("target deactivate error: %w", err)) // todo
 	}
 	err = target.Delete()
 	if err != nil {
-		errFinal = fmt.Errorf("%w; %v", errFinal, err) // todo
+		errFinal = utils.AppendErr(errFinal, fmt.Errorf("target delete error: %w", err)) // todo
 	}
 	delete(lb.targets, target.GetIdentifier())
-	lb.logger.Info("RemoveTarget", "target", target)
+	logger.Info("Removed target", "target", target)
 	return errFinal
 }
 
@@ -249,7 +263,8 @@ func (lb *LoadBalancer) watchFlows(ctx context.Context) error {
 	}
 	watchFlow, err := lb.ConfigurationManagerClient.WatchFlow(ctx, flowsToWatch)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create configuration manager flow watcher (%s): %w",
+			lb.Stream.Name, err)
 	}
 	for {
 		flowResponse, err := watchFlow.Recv()
@@ -257,7 +272,8 @@ func (lb *LoadBalancer) watchFlows(ctx context.Context) error {
 			break
 		}
 		if err != nil {
-			return err
+			return fmt.Errorf("configuration manager flow watcher receive error (%s): %w",
+				lb.Stream.Name, err)
 		}
 		lb.setFlows(flowResponse.Flows)
 	}
@@ -312,6 +328,8 @@ func (lb *LoadBalancer) setFlows(flows []*nspAPI.Flow) {
 }
 
 // todo
+// watchTargets -
+// Watches the configuration (NSP) to learn the available Targets to configure.
 func (lb *LoadBalancer) watchTargets(ctx context.Context) error {
 	watchTarget, err := lb.TargetRegistryClient.Watch(ctx, &nspAPI.Target{
 		Status: nspAPI.Target_ENABLED,
@@ -319,32 +337,62 @@ func (lb *LoadBalancer) watchTargets(ctx context.Context) error {
 		Stream: lb.Stream,
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create target registry watcher (%s): %w",
+			lb.Stream.Name, err)
 	}
+	logger := lb.logger.WithValues("func", "watchTargets")
 	for {
 		targetResponse, err := watchTarget.Recv()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			return err
+			return fmt.Errorf("target registry watcher receive error (%s): %w",
+				lb.Stream.Name, err)
 		}
-		lb.logger.V(2).Info("watchTargets", "response", targetResponse)
+		logger.V(2).Info("recv", "response", targetResponse)
 		err = lb.setTargets(targetResponse.GetTargets())
 		if err != nil {
-			lb.logger.Error(err, "setTargets")
+			logger.Error(err, "setTargets", "targets", targetResponse.GetTargets())
 		}
 	}
 	return nil
 }
 
+// TODO/FIXME: setTargets might include a lingering Target with IPs that have
+// been alread re-assigned to an interface connecting LB with a proxy. In such
+// cases for IPv6 the error returned by FWMark route add attempt was EINVAL
+// while for IPV4 it succeeded(!!!): There seems to be sg weird around NSM heal
+// that can affect TAPAs causing them to miss proxy loss events and thus NSM heal
+// won't kick in when a trench is removed and redeployed: The TAPA gets stuck
+// trying to refersh the connection, but it fails due to sticking to an old proxy
+// not around anymore (no reselect due to no heal). On one occasion the issue
+// resolved after ~40 minutes when the TAPA finally got an NSM DELETE event and
+// heal recovered the connection changing its local IPs as well. NSM datapath
+// monitoring (even a custom one) would be really helpful IMHO in TAPA, as it
+// should lead to NSM heal with reconnect in such cases. (Although, the Target
+// announcement should also be synchronized with NSM connection availability in
+// the TAPA.)
 func (lb *LoadBalancer) setTargets(targets []*nspAPI.Target) error {
 	lb.mu.Lock()
 	defer lb.mu.Unlock()
 	if !lb.isStreamRunning() {
 		return nil
 	}
+
 	var errFinal error
+	var update bool = false
+	// to log incoming targets in case of any change compared to local ones
+	// (preferably before any update have been performed for better traceability)
+	logIncomingTargets := func() {
+		if !update {
+			update = true
+			lb.logger.V(1).Info("change in configuration", "func", "setTargets", "inTargets", targets)
+		}
+	}
+	if len(targets) != (len(lb.targets) + len(lb.pendingTargets)) {
+		logIncomingTargets()
+	}
 	newTargetsMap := make(map[int]types.Target)
 	for _, target := range targets {
 		t, err := NewTarget(target, lb.netUtils, lb.targetHitsMetrics, lb.IdentifierOffset)
@@ -354,32 +402,43 @@ func (lb *LoadBalancer) setTargets(targets []*nspAPI.Target) error {
 		newTargetsMap[t.GetIdentifier()] = t
 	}
 
-	for identifier, pendingTarget := range lb.pendingTargets { // pending targets to remove
+	// check pending targets to remove
+	for identifier, pendingTarget := range lb.pendingTargets {
 		// Remove pending targets not part of the configuration anymore.
 		// (Otherwise, a succesfull AddTarget was needed as the prerequisite
 		// for a removal. Meaning, a "shadow" Target disrupting load-balancing
 		// would be around until a setTargets call could remove it finally.)
 		newTarget, exists := newTargetsMap[identifier]
 		if !exists {
-			if err := lb.RemoveTarget(identifier); err != nil {
-				errFinal = fmt.Errorf("%w; %v", errFinal, err)
+			logIncomingTargets()
+			if err := lb.RemoveTarget(identifier); err != nil && !errors.Is(err, errNoTarget) {
+				errFinal = utils.AppendErr(errFinal, err)
 			}
 			continue
 		}
 		pendingTargetIPSet := sets.New(pendingTarget.GetIps()...)
 		newTargetIPSet := sets.New(newTarget.GetIps()...)
-		if !pendingTargetIPSet.Equal(newTargetIPSet) {
-			if err := lb.RemoveTarget(identifier); err != nil {
-				errFinal = fmt.Errorf("%w; %v", errFinal, err)
+		if !pendingTargetIPSet.Equal(newTargetIPSet) { // ips have changed
+			logIncomingTargets()
+			if err := lb.RemoveTarget(identifier); err != nil && !errors.Is(err, errNoTarget) {
+				errFinal = utils.AppendErr(errFinal, err)
 			}
+			continue
 		}
+		// same target in pending list; remove target from new list, there
+		// seems to be no reason for an instant add attempt
+		// note: pending targets are retried periodically and on interface
+		// events
+		delete(newTargetsMap, identifier)
 	}
-	for identifier, target := range lb.targets { // targets to remove
+	// check targets to remove
+	for identifier, target := range lb.targets {
 		newTarget, exists := newTargetsMap[identifier]
 		if !exists {
+			logIncomingTargets()
 			err := lb.RemoveTarget(identifier)
 			if err != nil {
-				errFinal = fmt.Errorf("%w; %v", errFinal, err)
+				errFinal = utils.AppendErr(errFinal, err)
 			}
 			continue
 		}
@@ -390,15 +449,18 @@ func (lb *LoadBalancer) setTargets(targets []*nspAPI.Target) error {
 			continue
 		}
 		// Have different IPs, so the target IPs have changed and need to be removed and re-added
+		logIncomingTargets()
 		err := lb.RemoveTarget(identifier)
 		if err != nil {
-			errFinal = fmt.Errorf("%w; %v", errFinal, err)
+			errFinal = utils.AppendErr(errFinal, err)
 		}
 	}
-	for _, target := range newTargetsMap { // targets to add
+	// check targets to add
+	for _, target := range newTargetsMap {
+		logIncomingTargets()
 		err := lb.AddTarget(target)
 		if err != nil {
-			errFinal = fmt.Errorf("%w; %v", errFinal, err)
+			errFinal = utils.AppendErr(errFinal, err)
 		}
 	}
 	return errFinal
@@ -456,19 +518,25 @@ func (lb *LoadBalancer) verifyTargets() {
 		if target.Verify() {
 			continue
 		}
+		lb.logger.Info("removing target after verification", "target", target)
 		err := lb.RemoveTarget(target.GetIdentifier())
 		if err != nil {
-			lb.logger.Error(err, "deleting target", "target", target)
+			// note: currently verification checks route availability,
+			// thus RemoveTarget shall probably fail with no route error
+			lb.logger.Error(err, "delete target after verification", "target", target)
 		}
 		lb.addPendingTarget(target)
 	}
 }
 
 func (lb *LoadBalancer) retryPendingTargets() {
+	if len(lb.pendingTargets) > 0 {
+		lb.logger.V(1).Info("retry pending targets", "pendingLength", len(lb.pendingTargets))
+	}
 	for _, target := range lb.pendingTargets {
 		err := lb.AddTarget(target)
 		if err != nil {
-			lb.logger.Error(err, "add target (pending)")
+			lb.logger.Error(err, "add target from pending list")
 		}
 	}
 }
@@ -478,7 +546,7 @@ func (lb *LoadBalancer) addPendingTarget(target types.Target) {
 	if exists {
 		return
 	}
-	lb.logger.Info("add pending target", "target", target)
+	lb.logger.Info("add pending target", "func", "addPendingTarget", "target", target)
 	lb.pendingTargets[target.GetIdentifier()] = target
 }
 
@@ -487,7 +555,7 @@ func (lb *LoadBalancer) removeFromPendingTarget(target types.Target) {
 	if !exists {
 		return
 	}
-	lb.logger.Info("remove pending target", "target", target)
+	lb.logger.Info("remove pending target", "func", "removeFromPendingTarget", "target", target)
 	delete(lb.pendingTargets, target.GetIdentifier())
 }
 

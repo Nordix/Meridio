@@ -41,6 +41,7 @@ import (
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
+	nsmmonitor "github.com/nordix/meridio/pkg/nsm/monitor"
 	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/nordix/meridio/pkg/retry"
 
@@ -221,7 +222,7 @@ func main() {
 	}
 	defer cc.Close()
 	monitorClient := networkservice.NewMonitorConnectionClient(cc)
-	go proxy.NSMConnectionMonitor(ctx, config.Name, monitorClient)
+	go nsmmonitor.ConnectionMonitor(ctx, config.Name, monitorClient)
 
 	// create and start NSC that connects all remote NSE belonging to the right service
 	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, p, netUtils)
