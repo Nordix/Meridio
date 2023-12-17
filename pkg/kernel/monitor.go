@@ -18,6 +18,7 @@ package kernel
 
 import (
 	"fmt"
+	"sync"
 	"syscall"
 
 	"github.com/nordix/meridio/pkg/networking"
@@ -30,15 +31,20 @@ type InterfaceMonitor struct {
 	done        chan struct{}
 	flush       chan struct{}
 	subscribers []networking.InterfaceMonitorSubscriber
+	mu          sync.Mutex
 }
 
 // Subscribe -
 func (im *InterfaceMonitor) Subscribe(subscriber networking.InterfaceMonitorSubscriber) {
+	im.mu.Lock()
+	defer im.mu.Unlock()
 	im.subscribers = append(im.subscribers, subscriber)
 }
 
 // UnSubscribe -
 func (im *InterfaceMonitor) UnSubscribe(subscriber networking.InterfaceMonitorSubscriber) {
+	im.mu.Lock()
+	defer im.mu.Unlock()
 	for index, current := range im.subscribers {
 		if subscriber == current {
 			im.subscribers = append(im.subscribers[:index], im.subscribers[index+1:]...)
@@ -47,6 +53,8 @@ func (im *InterfaceMonitor) UnSubscribe(subscriber networking.InterfaceMonitorSu
 }
 
 func (im *InterfaceMonitor) interfaceCreated(link netlink.Link) {
+	im.mu.Lock()
+	defer im.mu.Unlock()
 	for _, subscriber := range im.subscribers {
 		intf := NewInterface(link.Attrs().Index)
 		subscriber.InterfaceCreated(intf)
@@ -54,6 +62,8 @@ func (im *InterfaceMonitor) interfaceCreated(link netlink.Link) {
 }
 
 func (im *InterfaceMonitor) interfaceDeleted(link netlink.Link) {
+	im.mu.Lock()
+	defer im.mu.Unlock()
 	for _, subscriber := range im.subscribers {
 		intf := NewInterface(link.Attrs().Index, WithInterfaceName(link.Attrs().Name))
 		subscriber.InterfaceDeleted(intf)
