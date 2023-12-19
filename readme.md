@@ -57,7 +57,8 @@ The team is reachable on slack for any question, feedback or help: [Slack](https
 
 ### Events
 
-* Cloud Native Telco Day EU 2022 - [Network Service Mesh at Scale for Telco Networking](https://sched.co/zsoW)
+* Cloud Native Telco Day EU 2022 - [Network Service Mesh at Scale for Telco Networking](https://sched.co/zsoW) - [Youtube](https://www.youtube.com/watch?v=_9NNwTey6UM)
+* KubeDay India 2023 - [Use Meridio to Create Network Services for Telco Use Cases Using Secondary Networking for Kubernetes](https://sched.co/1T740) - [Youtube](https://www.youtube.com/watch?v=oWuimHoSg4k)
 
 ## Prerequisites
 
