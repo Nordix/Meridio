@@ -388,6 +388,7 @@ func (p *Proxy) ipReleaser(id string) {
 	p.connectionToReleaseMutex.Lock()
 	_, exists := p.connectionToReleaseMap[id]
 	if exists { // If an ipReleaser is already running for this connection Id
+		p.connectionToReleaseMutex.Unlock()
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
