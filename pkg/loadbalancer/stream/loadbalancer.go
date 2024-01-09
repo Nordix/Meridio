@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2023 Nordix Foundation
+Copyright (c) 2021-2024 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import (
 	"github.com/go-logr/logr"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/health"
+	"github.com/nordix/meridio/pkg/kernel/neighbor"
 	"github.com/nordix/meridio/pkg/loadbalancer/flow"
 	targetMetrics "github.com/nordix/meridio/pkg/loadbalancer/target"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
@@ -59,6 +60,7 @@ type LoadBalancer struct {
 	pendingCh                  chan struct{} // trigger pending Targets processing
 	logger                     logr.Logger
 	targetHitsMetrics          *targetMetrics.HitsMetrics
+	neighborReachDetector      *neighbor.NeighborReachabilityDetector
 }
 
 func New(
@@ -70,6 +72,7 @@ func New(
 	lbFactory types.NFQueueLoadBalancerFactory,
 	identifierOffset int,
 	targetHitsMetrics *targetMetrics.HitsMetrics,
+	neighborReachDetector *neighbor.NeighborReachabilityDetector,
 ) (types.Stream, error) {
 	n := int(stream.GetMaxTargets())
 	m := int(stream.GetMaxTargets()) * 100
@@ -94,6 +97,7 @@ func New(
 		pendingCh:                  make(chan struct{}, 10),
 		logger:                     logger,
 		targetHitsMetrics:          targetHitsMetrics,
+		neighborReachDetector:      neighborReachDetector,
 	}
 	// first enable kernel's IP defrag except for the interfaces facing targets
 	// (defrag is needed by Flows to match rules with L4 information)
@@ -204,6 +208,7 @@ func (lb *LoadBalancer) AddTarget(target types.Target) error {
 		return returnErr
 	}
 	lb.targets[target.GetIdentifier()] = target
+	lb.neighborReachDetector.Register(target.GetIps()...)
 	lb.removeFromPendingTarget(target)
 	logger.Info("Added target")
 	return nil
@@ -216,6 +221,7 @@ func (lb *LoadBalancer) RemoveTarget(identifier int) error {
 	if target == nil {
 		return errNoTarget
 	}
+	lb.neighborReachDetector.Unregister(target.GetIps()...)
 	logger := lb.logger.WithValues("func", "RemoveTarget", "target", target)
 	var errFinal error
 	err := lb.nfqlb.Deactivate(target.GetIdentifier())

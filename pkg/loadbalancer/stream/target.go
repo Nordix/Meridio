@@ -87,7 +87,7 @@ func (t *target) Configure() error {
 		var fwMark networking.FWMarkRoute
 		fwMark, err := t.netUtils.NewFWMarkRoute(ip, offsetId, offsetId)
 		if err != nil {
-			return fmt.Errorf("faled to configure fwmark route for ip (%s): %w", ip, err)
+			return fmt.Errorf("failed to configure fwmark route for ip (%s): %w", ip, err)
 		}
 		t.fwMarks = append(t.fwMarks, fwMark)
 	}
