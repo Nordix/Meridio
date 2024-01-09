@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2023 Nordix Foundation
+Copyright (c) 2021-2024 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -46,6 +46,7 @@ import (
 	"github.com/nordix/meridio/pkg/health/connection"
 	"github.com/nordix/meridio/pkg/health/probe"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
+	"github.com/nordix/meridio/pkg/kernel/neighbor"
 	"github.com/nordix/meridio/pkg/loadbalancer/flow"
 	"github.com/nordix/meridio/pkg/loadbalancer/nfqlb"
 	"github.com/nordix/meridio/pkg/loadbalancer/stream"
@@ -199,11 +200,21 @@ func main() {
 	lbFactory := nfqlb.NewLbFactory(nfqlb.WithNFQueue(config.Nfqueue))
 	nfa, err := nfqlb.NewNetfilterAdaptor(nfqlb.WithNFQueue(config.Nfqueue), nfqlb.WithNFQueueFanout(config.NfqueueFanout))
 	if err != nil {
-		log.Fatal(logger, "NewNetfilterAdaptor", "error", err)
+		logger.Error(err, "netfilter adaptor create")
+		cancel()
+		return
 	}
 	interfaceMonitor, err := netUtils.NewInterfaceMonitor()
 	if err != nil {
-		log.Fatal(logger, "NewInterfaceMonitor", "error", err)
+		logger.Error(err, "interface monitor create")
+		cancel()
+		return
+	}
+	neighborMonitor, err := neighbor.NewNeighborMonitor(ctx, neighbor.WithStateMask(netlink.NUD_FAILED|netlink.NUD_REACHABLE))
+	if err != nil {
+		logger.Error(err, "neighbor monitor create")
+		cancel()
+		return
 	}
 	sns := newSimpleNetworkService(
 		netUtils.WithInterfaceMonitor(ctx, interfaceMonitor),
@@ -215,6 +226,7 @@ func main() {
 		nfa,       // netfilter kernel configuration to steer VIP traffic to nfqlb process
 		config.IdentifierOffsetStart,
 		targetHitsMetrics,
+		neighborMonitor,
 	)
 
 	interfaceMonitorEndpoint := interfacemonitor.NewServer(interfaceMonitor, sns, netUtils)
@@ -379,6 +391,7 @@ type SimpleNetworkService struct {
 	nfa                         types.NFAdaptor
 	natHandler                  *nat.NatHandler
 	targetHitsMetrics           *target.HitsMetrics
+	neighborMonitor             *neighbor.NeighborMonitor
 }
 
 /* // Request checks if allowed to serve the request
@@ -416,6 +429,7 @@ func newSimpleNetworkService(
 	nfa types.NFAdaptor,
 	identifierOffsetStart int,
 	targetHitsMetrics *target.HitsMetrics,
+	neighborMonitor *neighbor.NeighborMonitor,
 ) *SimpleNetworkService {
 	identifierOffsetGenerator := NewIdentifierOffsetGenerator(identifierOffsetStart)
 	logger := log.FromContextOrGlobal(ctx).WithValues("class", "SimpleNetworkService",
@@ -442,6 +456,7 @@ func newSimpleNetworkService(
 		nfa:                         nfa,
 		natHandler:                  nh,
 		targetHitsMetrics:           targetHitsMetrics,
+		neighborMonitor:             neighborMonitor,
 	}
 	logger.Info("Created LB service", "conduit", conduit)
 	return simpleNetworkService
@@ -655,6 +670,10 @@ func (sns *SimpleNetworkService) addStream(strm *nspAPI.Stream) error {
 	if exists {
 		return fmt.Errorf("failed to generate identifier offset when adding stream (%s): %w", strm.String(), err)
 	}
+	neighborReachDetector, err := neighbor.NewNeighborReachabilityDetector(sns.ctx, strm.GetName(), sns.neighborMonitor)
+	if err != nil {
+		return fmt.Errorf("failed to create neighbor cache for stream (%s): %w", strm.String(), err)
+	}
 	logger.Info("Create LB stream")
 	s, err := stream.New(
 		strm,
@@ -665,6 +684,7 @@ func (sns *SimpleNetworkService) addStream(strm *nspAPI.Stream) error {
 		sns.lbFactory,
 		identifierOffset,
 		sns.targetHitsMetrics,
+		neighborReachDetector,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create stream (%s): %w", strm.String(), err)
@@ -676,6 +696,7 @@ func (sns *SimpleNetworkService) addStream(strm *nspAPI.Stream) error {
 		if err != nil && status.Code(err) != codes.Canceled {
 			logger.Error(err, "running LB stream")
 		}
+		neighborReachDetector.Close()
 	}()
 	sns.nfqueueIndex = sns.nfqueueIndex + 1
 	sns.streams[strm.GetName()] = s
@@ -719,9 +740,9 @@ func (sns *SimpleNetworkService) evictStreams() {
 }
 
 // disableInterfaces -
-// Set interfaces down, so that they won't interface with future "Add Target"
-// operation. Meaning old interfaces not yet removed by NSM must not get associated
-// with routes inserted for Targets after the block is lifted.
+// Set interfaces down, so that they won't interfere with future "Add Target"
+// operations. Meaning old interfaces not yet removed by NSM must not get
+// associated with routes inserted for Targets after the block is lifted.
 func (sns *SimpleNetworkService) disableInterfaces() {
 	sns.logger.Info("Disable interfaces", "func", "disableInterfaces")
 	sns.interfaces.Range(func(key interface{}, value interface{}) bool {
