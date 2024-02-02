@@ -50,12 +50,18 @@ type InterfaceSpec struct {
 	// +kubebuilder:validation:Pattern=`^[^:\//\s]{1,13}$`
 	Name string `json:"name"`
 
-	// (immutable) IPv4 prefix of the interface, which is used for frontend to set up communication with the ipv4 gateways.
+	// (immutable) IPv4 prefix or range of the interface, which is used for frontend to set up communication with the ipv4 gateways.
 	// If the type is "nsm-vlan", this information must be specified.
+	// For example, '192.168.100.0/24', '192.168.100.1-192.168.100.100/24'.
+	// Multiple IP ranges can be combined using semicolon delimiter, but they must belong to the same network.
+	// For example, '192.168.100.3-192.168.100.100/24;192.168.100.200-192.168.100.250/24'.
 	PrefixIPv4 string `json:"ipv4-prefix,omitempty"`
 
-	// (immutable) IPv6 prefix of the interface, which is used for frontend to set up communication with the ipv6 gateways.
+	// (immutable) IPv6 prefix or range of the interface, which is used for frontend to set up communication with the ipv6 gateways.
 	// If the type is "nsm-vlan", this information must be specified.
+	// For example, '100:100::/64', '100:100::bbbb-100:100::cccc/64'.
+	// Multiple IP ranges can be combined using semicolon delimiter, but they must belong to the same network.
+	// For example, '100:100::2-100:100::ffff/64;100:100::a:2-100:100::a:f/64;100:100::e:2-100:100::e:f/64'.
 	PrefixIPv6 string `json:"ipv6-prefix,omitempty"`
 
 	// Interface choice.

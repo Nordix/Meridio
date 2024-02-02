@@ -94,12 +94,12 @@ func (r *Attractor) validateAttractor() error {
 	}
 	switch r.Spec.Interface.Type {
 	case NSMVlan:
-		_, err := validatePrefix(r.Spec.Interface.PrefixIPv4)
+		err := validatePrefixAndRange(r.Spec.Interface.PrefixIPv4)
 		if err != nil {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("ipv4-prefix"), r.Spec.Interface.PrefixIPv4, err.Error()))
 		}
 
-		_, err = validatePrefix(r.Spec.Interface.PrefixIPv6)
+		err = validatePrefixAndRange(r.Spec.Interface.PrefixIPv6)
 		if err != nil {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("ipv6-prefix"), r.Spec.Interface.PrefixIPv6, err.Error()))
 		}
