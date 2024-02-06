@@ -76,10 +76,13 @@ type FlowStat interface {
 func nfqlbGetFlowStats() ([]FlowStat, error) {
 	list := []FlowStat{}
 	nfqlbFlowStats, err := nfqlb.GetFlowStats()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get nfqlb flow stats: %w", err)
+	}
 	for _, nfqlbFlowStat := range nfqlbFlowStats {
 		list = append(list, nfqlbFlowStat)
 	}
-	return list, fmt.Errorf("failed to get nfqlb flow stats: %w", err)
+	return list, nil
 }
 
 type config struct {
