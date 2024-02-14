@@ -1,5 +1,5 @@
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Vip
 metadata:
   name: vip-a-2-v4
@@ -9,7 +9,7 @@ metadata:
 spec:
   address: "60.0.0.150/32"
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Vip
 metadata:
   name: vip-a-2-v6
@@ -19,7 +19,7 @@ metadata:
 spec:
   address: "6000::150/128"
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Attractor
 metadata:
   name: attractor-a-1
@@ -47,7 +47,7 @@ spec:
       vlan-id: 100
       base-interface: eth0
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Flow
 metadata:
   name: flow-a-z-tcp

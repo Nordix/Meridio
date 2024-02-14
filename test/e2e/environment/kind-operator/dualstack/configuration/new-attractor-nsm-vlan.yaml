@@ -1,5 +1,5 @@
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Attractor
 metadata:
   name: attractor-a-3
@@ -25,7 +25,7 @@ spec:
       vlan-id: 102
       base-interface: eth0
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Gateway
 metadata:
   name: gateway-v4-a-3
@@ -46,7 +46,7 @@ spec:
       min-rx: 300ms
       multiplier: 5
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Gateway
 metadata:
   name: gateway-v6-a-3
@@ -67,7 +67,7 @@ spec:
       min-rx: 300ms
       multiplier: 5
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Vip
 metadata:
   name: vip-a-2-v4
@@ -77,7 +77,7 @@ metadata:
 spec:
   address: "60.0.0.150/32"
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Vip
 metadata:
   name: vip-a-2-v6
@@ -87,7 +87,7 @@ metadata:
 spec:
   address: "6000::150/128"
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Conduit
 metadata:
   name: conduit-a-3
@@ -97,7 +97,7 @@ metadata:
 spec:
   type: stateless-lb
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Stream
 metadata:
   name: stream-a-iii
@@ -107,7 +107,7 @@ metadata:
 spec:
   conduit: conduit-a-3
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Flow
 metadata:
   name: flow-a-x-tcp
