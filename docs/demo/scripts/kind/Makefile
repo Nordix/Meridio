@@ -37,6 +37,7 @@ BUILD_STEPS ?= build tag push
 REGISTRY ?= registry.nordix.org/cloud-native/meridio
 VERSION ?= latest
 KIND_EXTERNAL_HOST_VERSION ?= $(VERSION)
+KIND_EXTERNAL_HOST_DEFAULT_ROUTE ?= yes
 
 OBSERVABILITY_ENABLED ?= false
 
@@ -123,7 +124,7 @@ kind-create: temp-dir kind kind-delete ## Create the Kind cluster
 
 .PHONY: kind-gateways
 kind-gateways: ## Create the Kind cluster gateways
-	./external-host.sh
+	./external-host.sh --default-route=$(KIND_EXTERNAL_HOST_DEFAULT_ROUTE)
 
 .PHONY: kind-gateways
 kind-delete-gateways: ## Delete the Kind gateways
