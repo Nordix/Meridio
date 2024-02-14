@@ -23,5 +23,6 @@ ARG BIRD_CONFIG_PATH=docs/demo/scripts/kind/bird
 COPY $BIRD_CONFIG_PATH/bird-common.conf /etc/bird/
 COPY $BIRD_CONFIG_PATH/bird-gw.conf /etc/bird/
 COPY $BIRD_CONFIG_PATH/bird-gw-no-default.conf /etc/bird/
+COPY $BIRD_CONFIG_PATH/bird-filler-net.conf /etc/bird/
 
 CMD sleep 5 ; /usr/sbin/bird -d -c /etc/bird/bird-gw.conf
