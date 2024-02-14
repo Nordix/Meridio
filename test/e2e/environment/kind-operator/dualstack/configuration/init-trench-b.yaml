@@ -1,5 +1,5 @@
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Trench
 metadata:
   name: trench-b
@@ -7,7 +7,7 @@ metadata:
 spec:
   ip-family: dualstack
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Attractor
 metadata:
   name: attractor-b-1
@@ -33,7 +33,7 @@ spec:
       vlan-id: 200
       base-interface: eth0
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Gateway
 metadata:
   name: gateway-v4-b
@@ -54,7 +54,7 @@ spec:
       min-rx: 300ms
       multiplier: 5
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Gateway
 metadata:
   name: gateway-v6-b
@@ -75,7 +75,7 @@ spec:
       min-rx: 300ms
       multiplier: 5
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Vip
 metadata:
   name: vip-b-1-v4
@@ -85,7 +85,7 @@ metadata:
 spec:
   address: "20.0.0.1/32"
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Vip
 metadata:
   name: vip-b-1-v6
@@ -95,7 +95,7 @@ metadata:
 spec:
   address: "2000::1/128"
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Conduit
 metadata:
   name: conduit-b-1
@@ -105,7 +105,7 @@ metadata:
 spec:
   type: stateless-lb
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Stream
 metadata:
   name: stream-b-i
@@ -115,7 +115,7 @@ metadata:
 spec:
   conduit: conduit-b-1
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Flow
 metadata:
   name: flow-b-z-tcp
