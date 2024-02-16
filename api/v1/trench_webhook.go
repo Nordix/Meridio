@@ -25,6 +25,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -41,24 +42,24 @@ func (r *Trench) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &Trench{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Trench) ValidateCreate() error {
+func (r *Trench) ValidateCreate() (admission.Warnings, error) {
 	trenchlog.Info("validate create", "name", r.Name)
-	return r.validateTrench()
+	return nil, r.validateTrench()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Trench) ValidateUpdate(old runtime.Object) error {
+func (r *Trench) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	trenchlog.Info("validate update", "name", r.Name)
 	err := r.validateUpdate(old)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return r.validateTrench()
+	return nil, r.validateTrench()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Trench) ValidateDelete() error {
-	return nil
+func (r *Trench) ValidateDelete() (admission.Warnings, error) {
+	return nil, nil
 }
 
 func (r *Trench) validateTrench() error {

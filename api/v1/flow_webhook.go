@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -48,7 +49,7 @@ func (r *Flow) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &Flow{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Flow) ValidateCreate() error {
+func (r *Flow) ValidateCreate() (admission.Warnings, error) {
 	flowlog.Info("validate create", "name", r.Name)
 
 	// Get the trench by the label in stream
@@ -59,28 +60,28 @@ func (r *Flow) ValidateCreate() error {
 	trench := &Trench{}
 	err := flowClient.Get(context.TODO(), selector, trench)
 	if err != nil || trench == nil {
-		return fmt.Errorf("unable to find the trench in label, %s cannot be created", r.GroupVersionKind().Kind)
+		return nil, fmt.Errorf("unable to find the trench in label, %s cannot be created", r.GroupVersionKind().Kind)
 	}
 
-	return r.validateFlow()
+	return nil, r.validateFlow()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Flow) ValidateUpdate(old runtime.Object) error {
+func (r *Flow) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	flowlog.Info("validate update", "name", r.Name)
 
 	err := r.validateUpdate(old)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return r.validateFlow()
+	return nil, r.validateFlow()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Flow) ValidateDelete() error {
+func (r *Flow) ValidateDelete() (admission.Warnings, error) {
 	flowlog.Info("validate delete", "name", r.Name)
 
-	return nil
+	return nil, nil
 }
 
 func (r *Flow) validateFlow() error {

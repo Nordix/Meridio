@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -47,7 +48,7 @@ func (r *Gateway) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &Gateway{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Gateway) ValidateCreate() error {
+func (r *Gateway) ValidateCreate() (admission.Warnings, error) {
 	gatewaylog.Info("validate create", "name", r.Name)
 	// Get the trench by the label in stream
 	selector := client.ObjectKey{
@@ -57,27 +58,27 @@ func (r *Gateway) ValidateCreate() error {
 	trench := &Trench{}
 	err := gatewayClient.Get(context.TODO(), selector, trench)
 	if err != nil || trench == nil {
-		return fmt.Errorf("unable to find the trench in label, %s cannot be created", r.GroupVersionKind().Kind)
+		return nil, fmt.Errorf("unable to find the trench in label, %s cannot be created", r.GroupVersionKind().Kind)
 	}
-	return r.validateGateway()
+	return nil, r.validateGateway()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Gateway) ValidateUpdate(old runtime.Object) error {
+func (r *Gateway) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	gatewaylog.Info("validate update", "name", r.Name)
 
 	err := r.validateUpdate(old)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return r.validateGateway()
+	return nil, r.validateGateway()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Gateway) ValidateDelete() error {
+func (r *Gateway) ValidateDelete() (admission.Warnings, error) {
 	gatewaylog.Info("validate delete", "name", r.Name)
 
-	return nil
+	return nil, nil
 }
 
 func (r *Gateway) validateLabels() field.ErrorList {

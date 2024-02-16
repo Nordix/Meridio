@@ -14,7 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -113,6 +112,7 @@ var _ = Describe("Gateway", func() {
 			})
 
 			Context("mutating webhook", func() {
+				bfdSwitch := true
 				gatewayIncomplete := &meridiov1.Gateway{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "gateway-a",
@@ -129,7 +129,7 @@ var _ = Describe("Gateway", func() {
 							LocalASN:  uint32pointer(4321),
 							HoldTime:  "30s",
 							BFD: meridiov1.BfdSpec{
-								Switch: pointer.Bool(true),
+								Switch: &bfdSwitch,
 							},
 						},
 					},
@@ -277,8 +277,9 @@ var _ = Describe("Gateway", func() {
 			var gw = &meridiov1.Gateway{}
 			Eventually(func(g Gomega) {
 				g.Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
+				bfdSwitch := true
 				gw.Spec.Bgp.BFD = meridiov1.BfdSpec{
-					Switch:     pointer.Bool(true),
+					Switch:     &bfdSwitch,
 					MinRx:      "300ms",
 					MinTx:      "300ms",
 					Multiplier: uint16pointer(3),
@@ -309,9 +310,10 @@ var _ = Describe("Gateway", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(fw.GetResource(client.ObjectKeyFromObject(gateway), gw)).To(Succeed())
 				gw.Spec.Protocol = "static"
+				bfdSwitch := true
 				gw.Spec.Static = meridiov1.StaticSpec{
 					BFD: meridiov1.BfdSpec{
-						Switch:     pointer.Bool(true),
+						Switch:     &bfdSwitch,
 						MinRx:      "200ms",
 						MinTx:      "200ms",
 						Multiplier: uint16pointer(5),

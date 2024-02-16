@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.11.3
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: conduits.meridio.nordix.org
 spec:
   group: meridio.nordix.org
@@ -25,18 +24,24 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: Conduit is the Schema for the conduits API. It defines a logical/physical
+        description: |-
+          Conduit is the Schema for the conduits API. It defines a logical/physical
           traffic-path through the k8s cluster for processing traffic streams
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -50,11 +55,13 @@ spec:
                     port natting in the conduit
                   properties:
                     port:
-                      description: Destination Port exposed by the service (exposed
-                        in flows). Traffic containing this property will be NATted.
+                      description: |-
+                        Destination Port exposed by the service (exposed in flows).
+                        Traffic containing this property will be NATted.
                       type: integer
                     protocol:
-                      description: Protocol exposed by the service (exposed in flows).
+                      description: |-
+                        Protocol exposed by the service (exposed in flows).
                         Traffic containing this property will be NATted.
                       enum:
                       - tcp
@@ -62,11 +69,13 @@ spec:
                       - sctp
                       type: string
                     target-port:
-                      description: TargetPort represent the port the traffic will
-                        be NATted to. Targets will receive traffic on that port.
+                      description: |-
+                        TargetPort represent the port the traffic will be NATted to.
+                        Targets will receive traffic on that port.
                       type: integer
                     vips:
-                      description: VIPs exposed by the service (exposed in flows).
+                      description: |-
+                        VIPs exposed by the service (exposed in flows).
                         Traffic containing this property will be NATted.
                       items:
                         type: string
@@ -106,18 +115,24 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Conduit is the Schema for the conduits API. It defines a logical/physical
+        description: |-
+          Conduit is the Schema for the conduits API. It defines a logical/physical
           traffic-path through the k8s cluster for processing traffic streams
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -131,11 +146,13 @@ spec:
                     port natting in the conduit
                   properties:
                     port:
-                      description: Destination Port exposed by the service (exposed
-                        in flows). Traffic containing this property will be NATted.
+                      description: |-
+                        Destination Port exposed by the service (exposed in flows).
+                        Traffic containing this property will be NATted.
                       type: integer
                     protocol:
-                      description: Protocol exposed by the service (exposed in flows).
+                      description: |-
+                        Protocol exposed by the service (exposed in flows).
                         Traffic containing this property will be NATted.
                       enum:
                       - tcp
@@ -143,11 +160,13 @@ spec:
                       - sctp
                       type: string
                     target-port:
-                      description: TargetPort represent the port the traffic will
-                        be NATted to. Targets will receive traffic on that port.
+                      description: |-
+                        TargetPort represent the port the traffic will be NATted to.
+                        Targets will receive traffic on that port.
                       type: integer
                     vips:
-                      description: VIPs exposed by the service (exposed in flows).
+                      description: |-
+                        VIPs exposed by the service (exposed in flows).
                         Traffic containing this property will be NATted.
                       items:
                         type: string

@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.11.3
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: flows.meridio.nordix.org
 spec:
   group: meridio.nordix.org
@@ -43,18 +42,24 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: Flow is the Schema for the flows API. It defines how ingress
+        description: |-
+          Flow is the Schema for the flows API. It defines how ingress
           traffic flows are classified and collected into streams
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -67,10 +72,13 @@ spec:
                   type: string
                 type: array
               destination-ports:
-                description: 'Destination port ranges allowed in the flow. The ports
-                  should not have overlaps. Ports can be defined by: - a single port,
-                  such as 3000; - a port range, such as 3000-4000; - "any", which
-                  is equivalent to port range 0-65535.'
+                description: |-
+                  Destination port ranges allowed in the flow.
+                  The ports should not have overlaps.
+                  Ports can be defined by:
+                  - a single port, such as 3000;
+                  - a port range, such as 3000-4000;
+                  - "any", which is equivalent to port range 0-65535.
                 items:
                   type: string
                 type: array
@@ -79,8 +87,9 @@ spec:
                 format: int32
                 type: integer
               protocols:
-                description: Protocols allowed in this flow. The protocols should
-                  not have overlaps.
+                description: |-
+                  Protocols allowed in this flow.
+                  The protocols should not have overlaps.
                 items:
                   enum:
                   - tcp
@@ -89,16 +98,20 @@ spec:
                   type: string
                 type: array
               source-ports:
-                description: 'Source port ranges allowed in the flow. The ports should
-                  not have overlaps. Ports can be defined by: - a single port, such
-                  as 3000; - a port range, such as 3000-4000; - "any", which is equivalent
-                  to port range 0-65535.'
+                description: |-
+                  Source port ranges allowed in the flow.
+                  The ports should not have overlaps.
+                  Ports can be defined by:
+                  - a single port, such as 3000;
+                  - a port range, such as 3000-4000;
+                  - "any", which is equivalent to port range 0-65535.
                 items:
                   type: string
                 type: array
               source-subnets:
-                description: Source subnets allowed in the flow. The subnets should
-                  not have overlaps.
+                description: |-
+                  Source subnets allowed in the flow.
+                  The subnets should not have overlaps.
                 items:
                   type: string
                 type: array
@@ -107,8 +120,9 @@ spec:
                   flow
                 type: string
               vips:
-                description: Vips that this flow will send traffic to. The vips should
-                  not have overlaps.
+                description: |-
+                  Vips that this flow will send traffic to.
+                  The vips should not have overlaps.
                 items:
                   type: string
                 type: array
@@ -154,18 +168,24 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Flow is the Schema for the flows API. It defines how ingress
+        description: |-
+          Flow is the Schema for the flows API. It defines how ingress
           traffic flows are classified and collected into streams
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -178,10 +198,13 @@ spec:
                   type: string
                 type: array
               destination-ports:
-                description: 'Destination port ranges allowed in the flow. The ports
-                  should not have overlaps. Ports can be defined by: - a single port,
-                  such as 3000; - a port range, such as 3000-4000; - "any", which
-                  is equivalent to port range 0-65535.'
+                description: |-
+                  Destination port ranges allowed in the flow.
+                  The ports should not have overlaps.
+                  Ports can be defined by:
+                  - a single port, such as 3000;
+                  - a port range, such as 3000-4000;
+                  - "any", which is equivalent to port range 0-65535.
                 items:
                   type: string
                 type: array
@@ -190,8 +213,9 @@ spec:
                 format: int32
                 type: integer
               protocols:
-                description: Protocols allowed in this flow. The protocols should
-                  not have overlaps.
+                description: |-
+                  Protocols allowed in this flow.
+                  The protocols should not have overlaps.
                 items:
                   enum:
                   - tcp
@@ -200,16 +224,20 @@ spec:
                   type: string
                 type: array
               source-ports:
-                description: 'Source port ranges allowed in the flow. The ports should
-                  not have overlaps. Ports can be defined by: - a single port, such
-                  as 3000; - a port range, such as 3000-4000; - "any", which is equivalent
-                  to port range 0-65535.'
+                description: |-
+                  Source port ranges allowed in the flow.
+                  The ports should not have overlaps.
+                  Ports can be defined by:
+                  - a single port, such as 3000;
+                  - a port range, such as 3000-4000;
+                  - "any", which is equivalent to port range 0-65535.
                 items:
                   type: string
                 type: array
               source-subnets:
-                description: Source subnets allowed in the flow. The subnets should
-                  not have overlaps.
+                description: |-
+                  Source subnets allowed in the flow.
+                  The subnets should not have overlaps.
                 items:
                   type: string
                 type: array
@@ -218,8 +246,9 @@ spec:
                   flow
                 type: string
               vips:
-                description: Vips that this flow will send traffic to. The vips should
-                  not have overlaps.
+                description: |-
+                  Vips that this flow will send traffic to.
+                  The vips should not have overlaps.
                 items:
                   type: string
                 type: array

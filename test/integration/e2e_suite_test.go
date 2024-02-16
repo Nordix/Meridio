@@ -21,7 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	kubescheme "k8s.io/client-go/kubernetes/scheme"
 	scalescheme "k8s.io/client-go/scale/scheme"
-	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
@@ -85,6 +84,7 @@ func trench(namespace string) *meridiov1.Trench {
 
 // default attractor used in all tests
 func attractor(namespace string) *meridiov1.Attractor {
+	var vlanID int32 = 100
 	return &meridiov1.Attractor{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      attractorName,
@@ -102,7 +102,7 @@ func attractor(namespace string) *meridiov1.Attractor {
 				PrefixIPv4: "169.254.100.0/24",
 				PrefixIPv6: "100:100::/64",
 				NSMVlan: meridiov1.NSMVlanSpec{
-					VlanID:        pointer.Int32(100),
+					VlanID:        &vlanID,
 					BaseInterface: "eth0",
 				},
 			},
