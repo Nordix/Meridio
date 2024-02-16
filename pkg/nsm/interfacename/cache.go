@@ -28,7 +28,7 @@ import (
 
 const defaultReleaseTimeout = 600 * time.Second
 
-type ReleaseTrigger func() <-chan struct{}
+type ReleaseTrigger func(ctx context.Context) <-chan struct{}
 
 // InterfaceNameChache -
 // InterfaceNameChache keeps track of interface names
@@ -72,7 +72,7 @@ func NewInterfaceNameChache(ctx context.Context, generator NameGenerator, option
 		nameGenerator:       generator,
 		interfaceNames:      map[string]*interfaceName{},
 		interfaceNamesInUse: map[string]string{},
-		releaseTrigger: func() <-chan struct{} {
+		releaseTrigger: func(ctx context.Context) <-chan struct{} {
 			channel := make(chan struct{}, 1)
 			go func() {
 				select {
@@ -183,27 +183,34 @@ func (inc *InterfaceNameChache) Release(id string) {
 	cachedInterfaceName.cancelRelease = cancelRelease
 	name := cachedInterfaceName.name
 
+	releaseCh := inc.releaseTrigger(cancelCtx)
 	select {
-	case <-inc.releaseTrigger():
-		// release immediately
-		inc.release(cancelCtx, id, name)
+	case _, ok := <-releaseCh:
+		// if closed, do not release
+		if ok {
+			// release immediately
+			inc.release(cancelCtx, id, name)
+		}
 	default:
 		// start delayed release
 		go func() {
 			logger.V(1).Info("schedule release", "interface", name)
-			inc.pendingRelease(cancelCtx, id, name)
+			inc.pendingRelease(cancelCtx, releaseCh, id, name)
 		}()
 	}
 }
 
-func (inc *InterfaceNameChache) pendingRelease(ctx context.Context, id string, name string) {
+func (inc *InterfaceNameChache) pendingRelease(ctx context.Context, releaseCh <-chan struct{}, id string, name string) {
 	logger := inc.logger.WithValues("func", "pendingRelease", "ID", id, "interface", name)
 	select {
-	case <-inc.releaseTrigger():
-		// ID not re-added before delayed deletion is triggered
-		inc.mu.Lock()
-		inc.release(ctx, id, name)
-		inc.mu.Unlock()
+	case _, ok := <-releaseCh:
+		// if closed, do not release
+		if ok {
+			// ID not re-added before delayed deletion is triggered
+			inc.mu.Lock()
+			inc.release(ctx, id, name)
+			inc.mu.Unlock()
+		}
 	case <-ctx.Done():
 		// cancel to keep interface name associated with ID in cache
 		logger.V(1).Info("release cancelled")
