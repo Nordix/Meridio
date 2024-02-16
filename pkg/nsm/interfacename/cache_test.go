@@ -27,6 +27,7 @@ import (
 
 	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 )
 
 const PREFIX = "dev"
@@ -116,6 +117,20 @@ var CacheExpireTests = []struct {
 	},
 }
 
+var CacheCancelRelease = []struct {
+	id       string
+	expected string
+}{
+	{
+		id:       "first-id",
+		expected: fmt.Sprintf("%s-1", PREFIX),
+	},
+	{
+		id:       "second-id",
+		expected: fmt.Sprintf("%s-2", PREFIX),
+	},
+}
+
 func TestCacheGenerate(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
@@ -141,7 +156,7 @@ func TestCacheRecover(t *testing.T) {
 }
 
 func TestCacheImmediateExpire(t *testing.T) {
-	instantReleaseTrigger := func() <-chan struct{} {
+	instantReleaseTrigger := func(ctx context.Context) <-chan struct{} {
 		channel := make(chan struct{}, 1)
 		channel <- struct{}{}
 		return channel
@@ -161,7 +176,7 @@ func TestCacheImmediateExpire(t *testing.T) {
 }
 
 func TestCacheExpire(t *testing.T) {
-	instantReleaseTrigger := func() <-chan struct{} {
+	instantReleaseTrigger := func(ctx context.Context) <-chan struct{} {
 		channel := make(chan struct{}, 1)
 		go func() {
 			<-time.After(1 * time.Millisecond)
@@ -205,7 +220,7 @@ func TestReserveUnused(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
 
-	instantReleaseTrigger := func() <-chan struct{} {
+	instantReleaseTrigger := func(ctx context.Context) <-chan struct{} {
 		channel := make(chan struct{}, 1)
 		channel <- struct{}{}
 		return channel
@@ -259,4 +274,37 @@ func TestReserveError(t *testing.T) {
 
 	ret = cache.CheckAndReserve(id1, expected1, PREFIX, interfacename.MAX_INTERFACE_NAME_LENGTH)
 	require.Equal(t, ret, expected1)
+}
+
+func TestCacheCancelRelease(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+	var wg sync.WaitGroup
+	wg.Add(len(CacheCancelRelease))
+
+	stuckReleaseTrigger := func(ctx context.Context) <-chan struct{} {
+		channel := make(chan struct{}, 1)
+		go func() {
+			<-ctx.Done()
+			wg.Done()
+		}()
+		return channel
+	}
+
+	cache := interfacename.NewInterfaceNameChache(
+		ctx,
+		newDummyGenerator(),
+		interfacename.WithReleaseTrigger(stuckReleaseTrigger),
+	)
+
+	for _, nt := range CacheCancelRelease {
+		name := cache.Generate(nt.id, PREFIX, interfacename.MAX_INTERFACE_NAME_LENGTH)
+		require.Equal(t, name, nt.expected)
+		cache.Release(nt.id)
+		//<-time.After(10 * time.Millisecond)
+		name = cache.CheckAndReserve(nt.id, nt.expected, PREFIX, interfacename.MAX_INTERFACE_NAME_LENGTH)
+		require.Equal(t, name, nt.expected)
+	}
+	wg.Wait()
 }
