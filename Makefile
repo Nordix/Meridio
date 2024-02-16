@@ -269,7 +269,7 @@ output-dir:
 
 .PHONY: golangci-lint
 golangci-lint:
-	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.52.0)
+	$(call go-get-tool,$(GOLANGCI_LINT),github.com/golangci/golangci-lint/cmd/golangci-lint@v1.56.2)
 
 .PHONY: proto-compiler
 proto-compiler: protoc protoc-gen-go protoc-gen-go-grpc
@@ -294,7 +294,7 @@ mockgen:
 
 .PHONY: ginkgo
 ginkgo:
-	$(call go-get-tool,$(GINKGO),github.com/onsi/ginkgo/v2/ginkgo@v2.9.1)
+	$(call go-get-tool,$(GINKGO),github.com/onsi/ginkgo/v2/ginkgo@v2.14.0)
 
 .PHONY: nancy-tool
 nancy-tool:
@@ -302,7 +302,7 @@ nancy-tool:
 
 .PHONY: controller-gen
 controller-gen:
-	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.11.3)
+	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0)
 
 .PHONY: kustomize
 kustomize:

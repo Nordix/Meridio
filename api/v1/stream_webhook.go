@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -45,7 +46,7 @@ func (r *Stream) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &Stream{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Stream) ValidateCreate() error {
+func (r *Stream) ValidateCreate() (admission.Warnings, error) {
 	streamlog.Info("validate create", "name", r.Name)
 
 	// Get the trench by the label in stream
@@ -56,28 +57,28 @@ func (r *Stream) ValidateCreate() error {
 	trench := &Trench{}
 	err := streamClient.Get(context.TODO(), selector, trench)
 	if err != nil || trench == nil {
-		return fmt.Errorf("unable to find the trench in label, %s cannot be created", r.GroupVersionKind().Kind)
+		return nil, fmt.Errorf("unable to find the trench in label, %s cannot be created", r.GroupVersionKind().Kind)
 	}
 
-	return r.validateStream()
+	return nil, r.validateStream()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Stream) ValidateUpdate(old runtime.Object) error {
+func (r *Stream) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	streamlog.Info("validate update", "name", r.Name)
 
 	err := r.validateUpdate(old)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return r.validateStream()
+	return nil, r.validateStream()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Stream) ValidateDelete() error {
+func (r *Stream) ValidateDelete() (admission.Warnings, error) {
 	streamlog.Info("validate delete", "name", r.Name)
 
-	return nil
+	return nil, nil
 }
 
 func (r *Stream) validateStream() error {

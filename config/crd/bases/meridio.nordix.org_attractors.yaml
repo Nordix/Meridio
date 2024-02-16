@@ -3,8 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.11.3
-  creationTimestamp: null
+    controller-gen.kubebuilder.io/version: v0.14.0
   name: attractors.meridio.nordix.org
 spec:
   group: meridio.nordix.org
@@ -40,20 +39,26 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: Attractor is the Schema for the attractors API. It defines how
-          traffic are attracted and lead into the K8s cluster. This includes which
-          external interface to consume. The Attractor is instantiated as a set of
-          pods running frontend functionality.
+        description: |-
+          Attractor is the Schema for the attractors API. It defines how traffic are
+          attracted and lead into the K8s cluster. This includes which external interface
+          to consume. The Attractor is instantiated as a set of pods running frontend
+          functionality.
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -74,44 +79,49 @@ spec:
                 description: defines the interface information that attractor use
                 properties:
                   ipv4-prefix:
-                    description: (immutable) IPv4 prefix of the interface, which is
-                      used for frontend to set up communication with the ipv4 gateways.
+                    description: |-
+                      (immutable) IPv4 prefix of the interface, which is used for frontend to set up communication with the ipv4 gateways.
                       If the type is "nsm-vlan", this information must be specified.
                     type: string
                   ipv6-prefix:
-                    description: (immutable) IPv6 prefix of the interface, which is
-                      used for frontend to set up communication with the ipv6 gateways.
+                    description: |-
+                      (immutable) IPv6 prefix of the interface, which is used for frontend to set up communication with the ipv6 gateways.
                       If the type is "nsm-vlan", this information must be specified.
                     type: string
                   name:
-                    description: Name of the interface. Must be a valid Linux kernel
-                      interface name.
+                    description: |-
+                      Name of the interface.
+                      Must be a valid Linux kernel interface name.
                     pattern: ^[^:\//\s]{1,13}$
                     type: string
                   network-attachments:
-                    description: If the type is "network-attachment", this information
-                      must be specified. One NetworkAttachmentSpec allowed currently.
+                    description: |-
+                      If the type is "network-attachment", this information must be specified.
+                      One NetworkAttachmentSpec allowed currently.
                     items:
-                      description: 'NetworkAttachmentSpec identifies a Network Attachment
-                        Definition intended to setup an interface. It is a subset
-                        of NetworkSelectionElement: https://pkg.go.dev/github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1#NetworkSelectionElement'
+                      description: |-
+                        NetworkAttachmentSpec identifies a Network Attachment Definition intended to setup an interface.
+                        It is a subset of NetworkSelectionElement:
+                        https://pkg.go.dev/github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1#NetworkSelectionElement
                       properties:
                         interface:
-                          description: Name to be used as the given name for the POD
-                            interface. Must be a valid Linux kernel interface name.
+                          description: |-
+                            Name to be used as the given name for the POD interface.
+                            Must be a valid Linux kernel interface name.
                           pattern: ^[^:\//\s]{1,13}$
                           type: string
                         name:
-                          description: Name of the Network Attachment Definition.
+                          description: |-
+                            Name of the Network Attachment Definition.
                             Must be a valid lowercase RFC 1123 subdomain.
                           maxLength: 253
                           pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
                           type: string
                         namespace:
                           default: default
-                          description: Kubernetes namespace where the Network Attachment
-                            Definition is defined. Must be a valid lowercase RFC 1123
-                            label. Its default value is "default".
+                          description: |-
+                            Kubernetes namespace where the Network Attachment Definition is defined.
+                            Must be a valid lowercase RFC 1123 label. Its default value is "default".
                           pattern: ^[a-z0-9](?:[a-z0-9-]{0,61}?[a-z0-9])?$
                           type: string
                       type: object
@@ -190,20 +200,26 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Attractor is the Schema for the attractors API. It defines how
-          traffic are attracted and lead into the K8s cluster. This includes which
-          external interface to consume. The Attractor is instantiated as a set of
-          pods running frontend functionality.
+        description: |-
+          Attractor is the Schema for the attractors API. It defines how traffic are
+          attracted and lead into the K8s cluster. This includes which external interface
+          to consume. The Attractor is instantiated as a set of pods running frontend
+          functionality.
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object

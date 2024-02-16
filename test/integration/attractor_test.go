@@ -8,7 +8,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/utils/pointer"
 
 	meridiov1 "github.com/nordix/meridio/api/v1"
 	"github.com/nordix/meridio/pkg/configuration/reader"
@@ -119,6 +118,7 @@ var _ = Describe("Attractor", func() {
 				It("will fail creating the second attractor", func() {
 					testAttractor := attractor.DeepCopy()
 					Expect(fw.CreateResource(testAttractor)).To(Succeed())
+					var vlanID int32 = 100
 					attractorB := &meridiov1.Attractor{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "attractor-b",
@@ -134,7 +134,7 @@ var _ = Describe("Attractor", func() {
 								PrefixIPv4: "169.254.100.0/24",
 								PrefixIPv6: "100:100::/64",
 								NSMVlan: meridiov1.NSMVlanSpec{
-									VlanID:        pointer.Int32(100),
+									VlanID:        &vlanID,
 									BaseInterface: "eth0",
 								},
 							},

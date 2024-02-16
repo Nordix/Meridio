@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -45,7 +46,7 @@ func (r *Vip) SetupWebhookWithManager(mgr ctrl.Manager) error {
 var _ webhook.Validator = &Vip{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Vip) ValidateCreate() error {
+func (r *Vip) ValidateCreate() (admission.Warnings, error) {
 	viplog.Info("validate create", "name", r.Name)
 
 	// Get the trench by the label in stream
@@ -56,26 +57,26 @@ func (r *Vip) ValidateCreate() error {
 	trench := &Trench{}
 	err := vipClient.Get(context.TODO(), selector, trench)
 	if err != nil || trench == nil {
-		return fmt.Errorf("unable to find the trench in label, %s cannot be created", r.GroupVersionKind().Kind)
+		return nil, fmt.Errorf("unable to find the trench in label, %s cannot be created", r.GroupVersionKind().Kind)
 	}
-	return r.validateVip()
+	return nil, r.validateVip()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Vip) ValidateUpdate(old runtime.Object) error {
+func (r *Vip) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	viplog.Info("validate update", "name", r.Name)
 	err := r.validateLabelUpdate(old)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return r.validateVip()
+	return nil, r.validateVip()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Vip) ValidateDelete() error {
+func (r *Vip) ValidateDelete() (admission.Warnings, error) {
 	viplog.Info("validate delete", "name", r.Name)
 
-	return nil
+	return nil, nil
 }
 
 func (r *Vip) validateVip() error {

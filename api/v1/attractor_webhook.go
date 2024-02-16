@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -49,7 +50,7 @@ var attractorClient client.Client
 var _ webhook.Validator = &Attractor{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *Attractor) ValidateCreate() error {
+func (r *Attractor) ValidateCreate() (admission.Warnings, error) {
 	attractorlog.Info("validate create", "name", r.Name)
 
 	// Get the trench by the label in attractor
@@ -60,7 +61,7 @@ func (r *Attractor) ValidateCreate() error {
 	trench := &Trench{}
 	err := attractorClient.Get(context.TODO(), selector, trench)
 	if err != nil || trench == nil {
-		return fmt.Errorf("unable to find the trench in label, %s cannot be created", r.GroupVersionKind().Kind)
+		return nil, fmt.Errorf("unable to find the trench in label, %s cannot be created", r.GroupVersionKind().Kind)
 	}
 
 	if r.Spec.Replicas == nil {
@@ -68,23 +69,23 @@ func (r *Attractor) ValidateCreate() error {
 		*r.Spec.Replicas = 1
 	}
 
-	return r.validateAttractor()
+	return nil, r.validateAttractor()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *Attractor) ValidateUpdate(old runtime.Object) error {
+func (r *Attractor) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	attractorlog.Info("validate update", "name", r.Name)
 	err := r.validateUpdate(old)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return r.validateAttractor()
+	return nil, r.validateAttractor()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *Attractor) ValidateDelete() error {
+func (r *Attractor) ValidateDelete() (admission.Warnings, error) {
 	attractorlog.Info("validate delete", "name", r.Name)
-	return nil
+	return nil, nil
 }
 
 func (r *Attractor) validateAttractor() error {
