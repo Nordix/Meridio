@@ -222,7 +222,7 @@ func (im *InterfaceMetrics) observe(ctx context.Context, observer metric.Int64Ob
 			continue
 		}
 		metricAttributes = append(metricAttributes, metric.WithAttributes(attribute.String("MAC Address", link.Attrs().HardwareAddr.String())))
-		metricAttributes = append(metricAttributes, metric.WithAttributes(attribute.StringSlice("IP Addresses", listIPs(link))))
+		metricAttributes = append(metricAttributes, metric.WithAttributes(attribute.StringSlice("IPs", listIPs(link))))
 		observer.Observe(
 			valueFunc(link.Attrs().Statistics),
 			metricAttributes...,

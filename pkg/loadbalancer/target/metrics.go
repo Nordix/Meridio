@@ -38,7 +38,6 @@ const (
 )
 
 type HitsMetrics struct {
-	hostname      string
 	meter         metric.Meter
 	targets       map[int]*nspAPI.Target
 	fwmarkChains  map[int]*nftables.Chain
@@ -48,10 +47,9 @@ type HitsMetrics struct {
 	mu            sync.Mutex
 }
 
-func NewTargetHitsMetrics(hostname string) (*HitsMetrics, error) {
+func NewTargetHitsMetrics() (*HitsMetrics, error) {
 	meter := otel.GetMeterProvider().Meter(meridioMetrics.METER_NAME)
 	hm := &HitsMetrics{
-		hostname:     hostname,
 		meter:        meter,
 		targets:      map[int]*nspAPI.Target{},
 		fwmarkChains: map[int]*nftables.Chain{},
@@ -233,7 +231,7 @@ func (hm *HitsMetrics) Unregister(id int) error {
 // Collect collects the metrics for the all the target rules.
 func (hm *HitsMetrics) Collect() error {
 	_, err := hm.meter.Int64ObservableCounter(
-		meridioMetrics.MERIDIO_CONDUIT_STREAM_TARGET_HITS_PACKETS,
+		meridioMetrics.MERIDIO_CONDUIT_STREAM_TARGET_HIT_PACKETS,
 		metric.WithUnit("packets"), // TODO: what unit must be set?
 		metric.WithDescription("Counts number of packets that have hit a target."),
 		metric.WithInt64Callback(func(ctx context.Context, observer metric.Int64Observer) error {
@@ -262,7 +260,6 @@ func (hm *HitsMetrics) Collect() error {
 
 				observer.Observe(
 					int64(metrics.Packets),
-					metric.WithAttributes(attribute.String("Hostname", hm.hostname)),
 					metric.WithAttributes(attribute.String("Trench", trenchName)),
 					metric.WithAttributes(attribute.String("Conduit", conduitName)),
 					metric.WithAttributes(attribute.String("Stream", streamName)),
@@ -278,7 +275,7 @@ func (hm *HitsMetrics) Collect() error {
 	}
 
 	_, err = hm.meter.Int64ObservableCounter(
-		meridioMetrics.MERIDIO_CONDUIT_STREAM_TARGET_HITS_BYTES,
+		meridioMetrics.MERIDIO_CONDUIT_STREAM_TARGET_HIT_BYTES,
 		metric.WithUnit("bytes"), // TODO: what unit must be set?
 		metric.WithDescription("Counts number of bytes that have hit a target."),
 		metric.WithInt64Callback(func(ctx context.Context, observer metric.Int64Observer) error {
@@ -307,7 +304,6 @@ func (hm *HitsMetrics) Collect() error {
 
 				observer.Observe(
 					int64(metrics.Bytes),
-					metric.WithAttributes(attribute.String("Hostname", hm.hostname)),
 					metric.WithAttributes(attribute.String("Trench", trenchName)),
 					metric.WithAttributes(attribute.String("Conduit", conduitName)),
 					metric.WithAttributes(attribute.String("Stream", streamName)),

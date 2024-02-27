@@ -114,7 +114,6 @@ func main() {
 	}
 
 	gatewayMetrics := frontend.NewGatewayMetrics([]metric.ObserveOption{
-		metric.WithAttributes(attribute.String("Hostname", hostname)),
 		metric.WithAttributes(attribute.String("Trench", config.TrenchName)),
 		metric.WithAttributes(attribute.String("Attractor", config.AttractorName)),
 	})
@@ -162,7 +161,6 @@ func main() {
 	go watchConfig(ctx, cancel, c, fe)
 
 	interfaceMetrics := linuxKernel.NewInterfaceMetrics([]metric.ObserveOption{
-		metric.WithAttributes(attribute.String("Hostname", hostname)),
 		metric.WithAttributes(attribute.String("Trench", config.TrenchName)),
 		metric.WithAttributes(attribute.String("Attractor", config.AttractorName)),
 	})

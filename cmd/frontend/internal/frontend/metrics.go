@@ -74,8 +74,8 @@ func (gm *GatewayMetrics) Collect() error {
 		return fmt.Errorf("frontend metrics, failed to RoutingService.LookupCli: %w", err)
 	}
 
-	_, err = gm.meter.Int64ObservableCounter(
-		meridioMetrics.MERIDIO_ATTRACTOR_GATEWAY_ROUTES_IMPORTED,
+	_, err = gm.meter.Int64ObservableGauge(
+		meridioMetrics.MERIDIO_ATTRACTOR_GATEWAY_IMPORTED_ROUTES,
 		metric.WithUnit("routes"),
 		metric.WithDescription("Counts number of routes imported for a gateway."),
 		metric.WithInt64Callback(func(ctx context.Context, observer metric.Int64Observer) error {
@@ -90,11 +90,11 @@ func (gm *GatewayMetrics) Collect() error {
 		}),
 	)
 	if err != nil {
-		return fmt.Errorf("frontend metrics, failed to Int64ObservableCounter (%s): %w", meridioMetrics.MERIDIO_ATTRACTOR_GATEWAY_ROUTES_IMPORTED, err)
+		return fmt.Errorf("frontend metrics, failed to Int64ObservableGauge (%s): %w", meridioMetrics.MERIDIO_ATTRACTOR_GATEWAY_IMPORTED_ROUTES, err)
 	}
 
-	_, err = gm.meter.Int64ObservableCounter(
-		meridioMetrics.MERIDIO_ATTRACTOR_GATEWAY_ROUTES_EXPORTED,
+	_, err = gm.meter.Int64ObservableGauge(
+		meridioMetrics.MERIDIO_ATTRACTOR_GATEWAY_EXPORTED_ROUTES,
 		metric.WithUnit("routes"),
 		metric.WithDescription("Counts number of routes exported for a gateway."),
 		metric.WithInt64Callback(func(ctx context.Context, observer metric.Int64Observer) error {
@@ -109,11 +109,11 @@ func (gm *GatewayMetrics) Collect() error {
 		}),
 	)
 	if err != nil {
-		return fmt.Errorf("frontend metrics, failed to Int64ObservableCounter (%s): %w", meridioMetrics.MERIDIO_ATTRACTOR_GATEWAY_ROUTES_EXPORTED, err)
+		return fmt.Errorf("frontend metrics, failed to Int64ObservableGauge (%s): %w", meridioMetrics.MERIDIO_ATTRACTOR_GATEWAY_EXPORTED_ROUTES, err)
 	}
 
-	_, err = gm.meter.Int64ObservableCounter(
-		meridioMetrics.MERIDIO_ATTRACTOR_GATEWAY_ROUTES_PREFERRED,
+	_, err = gm.meter.Int64ObservableGauge(
+		meridioMetrics.MERIDIO_ATTRACTOR_GATEWAY_PREFERRED_ROUTES,
 		metric.WithUnit("routes"),
 		metric.WithDescription("Counts number of routes preferred for a gateway."),
 		metric.WithInt64Callback(func(ctx context.Context, observer metric.Int64Observer) error {
@@ -128,7 +128,7 @@ func (gm *GatewayMetrics) Collect() error {
 		}),
 	)
 	if err != nil {
-		return fmt.Errorf("frontend metrics, failed to Int64ObservableCounter (%s): %w", meridioMetrics.MERIDIO_ATTRACTOR_GATEWAY_ROUTES_PREFERRED, err)
+		return fmt.Errorf("frontend metrics, failed to Int64ObservableGauge (%s): %w", meridioMetrics.MERIDIO_ATTRACTOR_GATEWAY_PREFERRED_ROUTES, err)
 	}
 	return nil
 }
