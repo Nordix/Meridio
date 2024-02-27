@@ -187,13 +187,12 @@ func main() {
 		log.Fatal(logger, "Unable to get hostname", "error", err)
 	}
 
-	targetHitsMetrics, err := target.NewTargetHitsMetrics(hostname)
+	targetHitsMetrics, err := target.NewTargetHitsMetrics()
 	if err != nil {
 		log.Fatal(logger, "Unable to init lb target metrics", "error", err)
 	}
 
 	interfaceMetrics := linuxKernel.NewInterfaceMetrics([]metric.ObserveOption{
-		metric.WithAttributes(attribute.String("Hostname", hostname)),
 		metric.WithAttributes(attribute.String("Trench", config.TrenchName)),
 		metric.WithAttributes(attribute.String("Conduit", config.ConduitName)),
 	})
@@ -377,7 +376,6 @@ func main() {
 			}
 
 			err = flow.CollectMetrics(
-				flow.WithHostname(hostname),
 				flow.WithTrenchName(config.TrenchName),
 				flow.WithConduitName(config.ConduitName),
 			)

@@ -48,7 +48,6 @@ func CollectMetrics(options ...option) error {
 			for _, fs := range flowStats {
 				observer.Observe(
 					int64(fs.GetMatchesCount()),
-					metric.WithAttributes(attribute.String("Hostname", config.hostname)),
 					metric.WithAttributes(attribute.String("Trench", config.trenchName)),
 					metric.WithAttributes(attribute.String("Conduit", config.conduitName)),
 					metric.WithAttributes(attribute.String("Stream", fs.GetFlow().GetStream().GetName())),
@@ -88,7 +87,6 @@ func nfqlbGetFlowStats() ([]FlowStat, error) {
 type config struct {
 	getFlowStatsFunc GetFlowStats
 	meter            metric.Meter
-	hostname         string
 	trenchName       string
 	conduitName      string
 }
@@ -114,13 +112,6 @@ func WithMeter(meter metric.Meter) option {
 func WithGetFlowStatsFunc(getFlowStatsFunc GetFlowStats) option {
 	return func(c *config) {
 		c.getFlowStatsFunc = getFlowStatsFunc
-	}
-}
-
-// WithHostname specifies the hostname attribute.
-func WithHostname(hostname string) option {
-	return func(c *config) {
-		c.hostname = hostname
 	}
 }
 

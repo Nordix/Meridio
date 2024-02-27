@@ -10,11 +10,12 @@ Counts number of `METRIC_TYPE` for a network interface.
 
 * Type: Counter
 * Attributes:
-   * Pod Name
    * Trench
    * Conduit (optional)
    * Attactor (optional)
    * Interface Name
+   * MAC Address
+   * IPs
 
 ### meridio.conduit.stream.flow.matches
 
@@ -22,13 +23,12 @@ Counts number of packets that have matched a flow.
 
 * Type: Counter
 * Attributes:
-   * Pod Name
    * Trench
    * Conduit
    * Stream
    * Flow
 
-### meridio.conduit.stream.target.hits.`METRIC_TYPE`
+### meridio.conduit.stream.target.hit.`METRIC_TYPE`
 
 `METRIC_TYPE`: packets, bytes
 
@@ -36,7 +36,6 @@ Counts number of `METRIC_TYPE` that have hit a target.
 
 * Type: Counter
 * Attributes:
-   * Pod Name
    * Trench
    * Conduit
    * Stream
@@ -49,20 +48,18 @@ Reports the latency with a target.
 
 * Type: Gauge
 * Attributes:
-   * Pod Name
    * Trench
    * Conduit
    * IP
 
-### meridio.attracted.gateway.routes.`METRIC_TYPE`
+### meridio.attractor.gateway.`METRIC_TYPE`.routes
 
 `METRIC_TYPE`: imported, exported, preferred
 
 Number of `METRIC_TYPE` routes for a gateway in the attractor instance.
 
-* Type: Counter
+* Type: Gauge
 * Attributes:
-   * Pod Name
    * Trench
    * Attactor
    * Gateway

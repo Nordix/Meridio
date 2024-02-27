@@ -24,7 +24,7 @@ kubectl apply -f - <<EOF
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: stateless-lb-frontend-attractor-a-1-service-monitor
+  name: stateless-lb-frontend-service-monitor
   labels:
     release: prometheus
 spec:
@@ -49,4 +49,4 @@ The dashboard of this demo can be accessed by exposing the grafana service with 
 
 ### Install Meridio
 
-Make sure the `NSM_METRICS_ENABLED` environement variable is set to true in the stateless-lb container.
+Make sure the `NSM_METRICS_ENABLED` environement variable is set to true in the stateless-lb container and `NFE_METRICS_ENABLED` environement variable is set to true in the frontend container.
