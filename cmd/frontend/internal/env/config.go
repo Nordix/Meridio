@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2021-2024 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,7 +16,10 @@ limitations under the License.
 
 package env
 
-import "time"
+import (
+	"net/url"
+	"time"
+)
 
 type Config struct {
 	VRRPs                 []string      `default:"" desc:"VRRP IP addresses to be used as next-hops for static default routes" envconfig:"VRRPS"`
@@ -46,4 +49,5 @@ type Config struct {
 	MaxSessionErrors      int           `default:"5" desc:"Max session errors when checking Bird until denounce"`
 	MetricsEnabled        bool          `default:"false" desc:"Enable the metrics collection" split_words:"true"`
 	MetricsPort           int           `default:"2224" desc:"Specify the port used to expose the metrics" split_words:"true"`
+	LBSocket              url.URL       `default:"unix:///var/lib/meridio/lb.sock" desc:"LB socket to connect to" envconfig:"LB_SOCKET"`
 }

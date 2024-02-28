@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2023 Nordix Foundation
+Copyright (c) 2021-2024 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"strconv"
@@ -29,6 +30,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	lbAPI "github.com/nordix/meridio/api/loadbalancer/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/cmd/frontend/internal/bird"
 	feConfig "github.com/nordix/meridio/cmd/frontend/internal/config"
@@ -37,9 +39,13 @@ import (
 	"github.com/nordix/meridio/cmd/frontend/internal/utils"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/k8s/watcher"
+	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/retry"
 	"github.com/vishvananda/netlink"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 const rulePriorityVIP int = 100
@@ -61,34 +67,36 @@ func NewFrontEndService(ctx context.Context, c *feConfig.Config, gatewayMetrics 
 			syscall.AF_INET:  {},
 			syscall.AF_INET6: {},
 		},
-		vrrps:                c.VRRPs,
-		birdConfPath:         c.BirdConfigPath,
-		birdConfFile:         birdConfFile,
-		birdCommSocket:       c.BirdCommunicationSock,
-		birdLogFileSize:      c.BirdLogFileSize,
-		kernelTableId:        c.TableID,
-		extInterface:         c.ExternalInterface,
-		localASN:             c.LocalAS,
-		remoteASN:            c.RemoteAS,
-		localPortBGP:         c.BGPLocalPort,
-		remotePortBGP:        c.BGPRemotePort,
-		holdTimeBGP:          c.BGPHoldTime,
-		ecmp:                 c.ECMP,
-		dropIfNoPeer:         c.DropIfNoPeer,
-		logBird:              c.LogBird,
-		reconfCh:             make(chan struct{}),
-		targetRegistryClient: targetRegistryClient,
-		advertiseVIP:         false,
-		logNextMonitorStatus: true,
-		nspEntryTimeout:      c.NSPEntryTimeout,
-		routingService:       bird.NewRoutingService(ctx, c.BirdCommunicationSock, birdConfFile),
-		namespace:            c.Namespace,
-		secretDatabase:       sdb,
-		secretManager:        watcher.NewObjectMonitorManager(ctx, c.Namespace, sdb, secret.CreateSecretInterface),
-		authCh:               authCh,
-		logger:               logger,
-		config:               c,
-		gatewayMetrics:       gatewayMetrics,
+		vrrps:                    c.VRRPs,
+		birdConfPath:             c.BirdConfigPath,
+		birdConfFile:             birdConfFile,
+		birdCommSocket:           c.BirdCommunicationSock,
+		birdLogFileSize:          c.BirdLogFileSize,
+		kernelTableId:            c.TableID,
+		extInterface:             c.ExternalInterface,
+		localASN:                 c.LocalAS,
+		remoteASN:                c.RemoteAS,
+		localPortBGP:             c.BGPLocalPort,
+		remotePortBGP:            c.BGPRemotePort,
+		holdTimeBGP:              c.BGPHoldTime,
+		ecmp:                     c.ECMP,
+		dropIfNoPeer:             c.DropIfNoPeer,
+		logBird:                  c.LogBird,
+		reconfCh:                 make(chan struct{}),
+		targetRegistryClient:     targetRegistryClient,
+		advertiseVIP:             false,
+		logNextMonitorStatus:     true,
+		nspEntryTimeout:          c.NSPEntryTimeout,
+		routingService:           bird.NewRoutingService(ctx, c.BirdCommunicationSock, birdConfFile),
+		namespace:                c.Namespace,
+		secretDatabase:           sdb,
+		secretManager:            watcher.NewObjectMonitorManager(ctx, c.Namespace, sdb, secret.CreateSecretInterface),
+		authCh:                   authCh,
+		logger:                   logger,
+		config:                   c,
+		gatewayMetrics:           gatewayMetrics,
+		extConnectivityCh:        make(chan bool),
+		streamAvailabilityClient: lbAPI.NewStreamAvailabilityServiceClient(c.LBConn),
 	}
 
 	if len(frontEndService.vrrps) > 0 {
@@ -104,44 +112,42 @@ func NewFrontEndService(ctx context.Context, c *feConfig.Config, gatewayMetrics 
 
 // FrontEndService -
 type FrontEndService struct {
-	vips                 []string
-	gateways             []*utils.Gateway
-	gatewayNamesByFamily map[int]map[string]*utils.Gateway
-	gwMu                 sync.Mutex
-	cfgMu                sync.Mutex
-	monitorMu            sync.Mutex
-	vrrps                []string
-	birdConfPath         string
-	birdConfFile         string
-	birdCommSocket       string
-	birdLogFileSize      int
-	kernelTableId        int
-	extInterface         string
-	localASN             string
-	remoteASN            string
-	localPortBGP         string
-	remotePortBGP        string
-	holdTimeBGP          string
-	ecmp                 bool
-	dropIfNoPeer         bool
-	logBird              bool
-	reconfCh             chan struct{}
-	advertiseVIP         bool
-	logNextMonitorStatus bool
-	targetRegistryClient nspAPI.TargetRegistryClient
-	nspEntryTimeout      time.Duration
-	routingService       *bird.RoutingService
-	namespace            string
-	secretDatabase       secret.DatabaseInterface              // stores contents of Secrets referenced by configuration
-	secretManager        watcher.ObjectMonitorManagerInterface // keeps track changes of Secrets
-	authCh               chan struct{}                         // used by secretDatabase to signal updates to FE Service
-	logger               logr.Logger
-	config               *feConfig.Config
-	gatewayMetrics       *GatewayMetrics
-}
-
-func (fes *FrontEndService) GetRoutingService() *bird.RoutingService {
-	return fes.routingService
+	vips                     []string
+	gateways                 []*utils.Gateway
+	gatewayNamesByFamily     map[int]map[string]*utils.Gateway
+	gwMu                     sync.Mutex
+	cfgMu                    sync.Mutex
+	monitorMu                sync.Mutex
+	vrrps                    []string
+	birdConfPath             string
+	birdConfFile             string
+	birdCommSocket           string
+	birdLogFileSize          int
+	kernelTableId            int
+	extInterface             string
+	localASN                 string
+	remoteASN                string
+	localPortBGP             string
+	remotePortBGP            string
+	holdTimeBGP              string
+	ecmp                     bool
+	dropIfNoPeer             bool
+	logBird                  bool
+	reconfCh                 chan struct{}
+	advertiseVIP             bool
+	logNextMonitorStatus     bool
+	targetRegistryClient     nspAPI.TargetRegistryClient
+	nspEntryTimeout          time.Duration
+	routingService           *bird.RoutingService
+	namespace                string
+	secretDatabase           secret.DatabaseInterface              // stores contents of Secrets referenced by configuration
+	secretManager            watcher.ObjectMonitorManagerInterface // keeps track changes of Secrets
+	authCh                   chan struct{}                         // used by secretDatabase to signal updates to FE Service
+	logger                   logr.Logger
+	config                   *feConfig.Config
+	gatewayMetrics           *GatewayMetrics
+	extConnectivityCh        chan bool
+	streamAvailabilityClient lbAPI.StreamAvailabilityServiceClient
 }
 
 // CleanUp -
@@ -151,6 +157,7 @@ func (fes *FrontEndService) CleanUp() {
 
 	close(fes.reconfCh)
 	close(fes.authCh)
+	close(fes.extConnectivityCh)
 	_ = fes.RemoveVIPRules()
 }
 
@@ -168,6 +175,7 @@ func (fes *FrontEndService) Start(ctx context.Context, errCh chan<- error) {
 	go fes.start(ctx, errCh)
 	go fes.reconfigurationAgent(ctx, fes.reconfCh, errCh)
 	go fes.authenticationAgent(ctx, errCh) // monitors updates for secrets of interest to trigger reconfiguration
+	go fes.vipAgent(ctx, fes.streamAvailabilityClient, errCh)
 }
 
 // Stop -
@@ -318,7 +326,11 @@ func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 				}
 				cancel()
 				health.SetServingStatus(ctx, health.EgressSvc, false)
-				fes.denounceVIP(ctx, errCh)
+				// announce change in connectivity
+				select {
+				case <-ctx.Done(): // allows blocked channel write to break free
+				case fes.extConnectivityCh <- hasConnectivity:
+				}
 			}
 
 			select {
@@ -400,7 +412,11 @@ func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 							retry.WithDelay(fes.nspEntryTimeout),
 							retry.WithErrorIngnored())
 					}()
-					fes.announceVIP(ctx, errCh)
+					// announce change in connectivity
+					select {
+					case <-ctx.Done(): // allows blocked channel write to break free
+					case fes.extConnectivityCh <- hasConnectivity:
+					}
 				}
 			}
 
@@ -518,7 +534,7 @@ func (fes *FrontEndService) promoteConfig(ctx context.Context) error {
 // promoteConfigNoLock -
 func (fes *FrontEndService) promoteConfigNoLock(ctx context.Context) error {
 	if err := fes.writeConfig(); err != nil {
-		return fmt.Errorf("error writing configuration: %v", err)
+		return fmt.Errorf("error writing configuration: %w", err)
 	}
 	// send signal to reconfiguration agent to apply the new config
 	fes.logger.V(1).Info("promote configuration change")
@@ -1260,6 +1276,138 @@ func (fes *FrontEndService) getGatewayByName(name string) (*utils.Gateway, int) 
 }
 
 //-------------------------------------------------------------------------------------------
+
+// Watch and aggregate information to decide whether VIP addresses have to
+// be announced through the routing protocol towards the connected gateways.
+// (Applicable in case of BGP.)
+func (fes *FrontEndService) vipAgent(ctx context.Context, client lbAPI.StreamAvailabilityServiceClient, errCh chan<- error) {
+	const (
+		TARGET       = "loadbalancerTarget"   // local LB announced itself being capable of handling incoming traffic
+		CONNECTIVITY = "externalConnectivity" // FE has external connectivity
+	)
+	avilabilityMap := map[string]bool{
+		TARGET:       false,
+		CONNECTIVITY: false,
+	}
+	availability := false // overall availability
+	targetCh := make(chan bool)
+	logger := fes.logger.WithValues("func", "vipAgent")
+	defer func() {
+		logger.Info("VIP agent stopped")
+		close(targetCh)
+	}()
+
+	checkAvailabilityAction := func(currentAvail *bool, keyValuePairs ...struct {
+		string
+		bool
+	}) {
+		// check if any availability component has changed in a way
+		// that it would affect the overall availability
+		oldSum := *currentAvail
+		newSum := true
+
+		for _, elem := range keyValuePairs {
+			oldVal, ok := avilabilityMap[elem.string]
+			if !ok || oldVal != elem.bool {
+				logger.Info("VIP agent set availability information", "key", elem.string, "value", elem.bool)
+			}
+			avilabilityMap[elem.string] = elem.bool
+		}
+
+		for _, v := range avilabilityMap {
+			newSum = newSum && v
+			if !v {
+				break
+			}
+		}
+
+		if newSum == oldSum { // no change in overall state
+			return
+		}
+
+		if newSum {
+			fes.announceVIP(ctx, errCh)
+		} else {
+			fes.denounceVIP(ctx, errCh)
+		}
+		*currentAvail = newSum
+	}
+
+	getLocal := func(targets []*lbAPI.Target) *lbAPI.Target {
+		// find and return collocated loadbalancer if any
+		for _, target := range targets {
+			identifierStr, exists := target.GetContext()[types.IdentifierKey]
+			if !exists {
+				continue
+			}
+			if identifierStr == fes.config.Hostname {
+				return target
+			}
+		}
+		return nil
+	}
+
+	go func() {
+		// watch loadbalancer Targets to learn possible changes affecting
+		// the local loadbalancer's ability to handle incoming traffic
+		_ = retry.Do(func() error {
+			watchClient, err := client.Watch(ctx, &emptypb.Empty{})
+			if err != nil {
+				return fmt.Errorf("failed to create loadbalancer target watcher: %w", err)
+			}
+			for {
+				targetResponse, err := watchClient.Recv()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					if status.Code(err) != codes.Canceled {
+						logger.Error(err, "loadbalancer target watcher receive")
+					}
+					return fmt.Errorf("loadbalancer target watch receive error: %w", err)
+				}
+
+				target := getLocal(targetResponse.GetTargets())
+				select {
+				case targetCh <- func() bool { return target != nil }():
+				case <-ctx.Done():
+					return fmt.Errorf("context closed, abort target channel write")
+				}
+			}
+			return nil
+		}, retry.WithContext(ctx),
+			retry.WithDelay(500*time.Millisecond), // TODO
+			retry.WithErrorIngnored())
+	}()
+
+	// process external connectivity and loadbalancer target related events
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case hasTarget, ok := <-targetCh:
+			if ok {
+				checkAvailabilityAction(
+					&availability,
+					struct {
+						string
+						bool
+					}{TARGET, hasTarget},
+				)
+			}
+		case hasConnectivity, ok := <-fes.extConnectivityCh:
+			if ok {
+				checkAvailabilityAction(
+					&availability,
+					struct {
+						string
+						bool
+					}{CONNECTIVITY, hasConnectivity},
+				)
+			}
+		}
+	}
+}
 
 // TODO: what to do once Static+BFD gets introduced? Probably do nothing...
 // TODO: when there's only static, no need to play with announce/denounceVIP...
