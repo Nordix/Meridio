@@ -44,23 +44,24 @@ var errNoTarget error = errors.New("the target is not existing")
 // LoadBalancer -
 type LoadBalancer struct {
 	*nspAPI.Stream
-	TargetRegistryClient       nspAPI.TargetRegistryClient
-	ConfigurationManagerClient nspAPI.ConfigurationManagerClient
-	IdentifierOffset           int
-	nfqlb                      types.NFQueueLoadBalancer
-	flows                      map[string]types.Flow
-	targets                    map[int]types.Target // key: Identifier
-	netUtils                   networking.Utils
-	nfqueue                    int
-	mu                         sync.Mutex
-	ctx                        context.Context
-	cancel                     context.CancelFunc
-	pendingTargets             map[int]types.Target // key: Identifier
-	defrag                     *Defrag
-	pendingCh                  chan struct{} // trigger pending Targets processing
-	logger                     logr.Logger
-	targetHitsMetrics          *targetMetrics.HitsMetrics
-	neighborReachDetector      *neighbor.NeighborReachabilityDetector
+	TargetRegistryClient          nspAPI.TargetRegistryClient
+	ConfigurationManagerClient    nspAPI.ConfigurationManagerClient
+	IdentifierOffset              int
+	nfqlb                         types.NFQueueLoadBalancer
+	flows                         map[string]types.Flow
+	targets                       map[int]types.Target // key: Identifier
+	netUtils                      networking.Utils
+	nfqueue                       int
+	mu                            sync.Mutex
+	ctx                           context.Context
+	cancel                        context.CancelFunc
+	pendingTargets                map[int]types.Target // key: Identifier
+	defrag                        *Defrag
+	pendingCh                     chan struct{} // trigger pending Targets processing
+	logger                        logr.Logger
+	targetHitsMetrics             *targetMetrics.HitsMetrics
+	neighborReachDetector         *neighbor.NeighborReachabilityDetector
+	forwardingAvailabilityService *ForwardingAvailabilityService
 }
 
 func New(
@@ -73,6 +74,7 @@ func New(
 	identifierOffset int,
 	targetHitsMetrics *targetMetrics.HitsMetrics,
 	neighborReachDetector *neighbor.NeighborReachabilityDetector,
+	forwardingAvailabilityService *ForwardingAvailabilityService,
 ) (types.Stream, error) {
 	n := int(stream.GetMaxTargets())
 	m := int(stream.GetMaxTargets()) * 100
@@ -84,20 +86,21 @@ func New(
 	logger := log.Logger.WithValues("class", "LoadBalancer",
 		"instance", stream.GetName(), "identifierOffset", identifierOffset)
 	loadBalancer := &LoadBalancer{
-		Stream:                     stream,
-		TargetRegistryClient:       targetRegistryClient,
-		ConfigurationManagerClient: configurationManagerClient,
-		IdentifierOffset:           identifierOffset,
-		flows:                      make(map[string]types.Flow),
-		nfqlb:                      nfqlb,
-		targets:                    make(map[int]types.Target),
-		netUtils:                   netUtils,
-		nfqueue:                    nfqueue,
-		pendingTargets:             make(map[int]types.Target),
-		pendingCh:                  make(chan struct{}, 10),
-		logger:                     logger,
-		targetHitsMetrics:          targetHitsMetrics,
-		neighborReachDetector:      neighborReachDetector,
+		Stream:                        stream,
+		TargetRegistryClient:          targetRegistryClient,
+		ConfigurationManagerClient:    configurationManagerClient,
+		IdentifierOffset:              identifierOffset,
+		flows:                         make(map[string]types.Flow),
+		nfqlb:                         nfqlb,
+		targets:                       make(map[int]types.Target),
+		netUtils:                      netUtils,
+		nfqueue:                       nfqueue,
+		pendingTargets:                make(map[int]types.Target),
+		pendingCh:                     make(chan struct{}, 10),
+		logger:                        logger,
+		targetHitsMetrics:             targetHitsMetrics,
+		neighborReachDetector:         neighborReachDetector,
+		forwardingAvailabilityService: forwardingAvailabilityService,
 	}
 	// first enable kernel's IP defrag except for the interfaces facing targets
 	// (defrag is needed by Flows to match rules with L4 information)
@@ -210,6 +213,7 @@ func (lb *LoadBalancer) AddTarget(target types.Target) error {
 	lb.targets[target.GetIdentifier()] = target
 	lb.neighborReachDetector.Register(target.GetIps()...)
 	lb.removeFromPendingTarget(target)
+	lb.forwardingAvailabilityService.Register(lb.Name)
 	logger.Info("Added target")
 	return nil
 }
@@ -233,6 +237,9 @@ func (lb *LoadBalancer) RemoveTarget(identifier int) error {
 		errFinal = utils.AppendErr(errFinal, fmt.Errorf("target delete error: %w", err)) // todo
 	}
 	delete(lb.targets, target.GetIdentifier())
+	if len(lb.targets) == 0 {
+		lb.forwardingAvailabilityService.Unregister(lb.Name)
+	}
 	logger.Info("Removed target", "target", target)
 	return errFinal
 }

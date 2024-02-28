@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2021-2024 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ type Config struct {
 	GRPCMaxBackoff        time.Duration `default:"5s" desc:"Upper bound on gRPC connection backoff delay" envconfig:"grpc_max_backoff"`
 	MetricsEnabled        bool          `default:"false" desc:"Enable the metrics collection" split_words:"true"`
 	MetricsPort           int           `default:"2223" desc:"Specify the port used to expose the metrics" split_words:"true"`
+	Socket                url.URL       `default:"unix:///var/lib/meridio/lb.sock" desc:"Server socket to host Stream Availability Service" split_words:"true"`
 }
 
 // IsValid checks if the configuration is valid
