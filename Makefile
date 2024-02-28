@@ -211,8 +211,12 @@ nsp-proto: proto-compiler
 ambassador-proto: proto-compiler
 	protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative api/ambassador/**/*.proto
 
+.PHONY: loadbalancer-proto
+loadbalancer-proto: proto-compiler
+	protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative api/loadbalancer/**/*.proto
+
 .PHONY: proto
-proto: ipam-proto nsp-proto ambassador-proto ## Compile the proto.
+proto: ipam-proto nsp-proto ambassador-proto loadbalancer-proto ## Compile the proto.
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
