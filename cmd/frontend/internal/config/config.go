@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2022 Nordix Foundation
+Copyright (c) 2022-2024 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,5 +23,7 @@ import (
 
 type Config struct {
 	*env.Config
-	NSPConn *grpc.ClientConn
+	NSPConn  *grpc.ClientConn
+	LBConn   *grpc.ClientConn
+	Hostname string
 }

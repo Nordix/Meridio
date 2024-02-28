@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2021-2023 Nordix Foundation
+Copyright (c) 2021-2024 Nordix Foundation
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -102,25 +102,7 @@ func main() {
 
 	// connect NSP
 	logger.Info("Dial NSP", "NSPService", config.NSPService)
-	grpcBackoffCfg := backoff.DefaultConfig
-	if grpcBackoffCfg.MaxDelay != config.GRPCMaxBackoff {
-		grpcBackoffCfg.MaxDelay = config.GRPCMaxBackoff
-	}
-	conn, err := grpc.DialContext(ctx,
-		config.NSPService,
-		grpc.WithTransportCredentials(
-			credentials.GetClient(context.Background()),
-		),
-		grpc.WithDefaultCallOptions(
-			grpc.WaitForReady(true),
-		),
-		grpc.WithConnectParams(grpc.ConnectParams{
-			Backoff: grpcBackoffCfg,
-		}),
-		grpc.WithKeepaliveParams(keepalive.ClientParameters{
-			Time: config.GRPCKeepaliveTime,
-		}),
-	)
+	conn, err := connectNSP(ctx, config)
 	if err != nil {
 		log.Fatal(logger, "Dial NSP", "error", err)
 	}
@@ -137,10 +119,20 @@ func main() {
 		metric.WithAttributes(attribute.String("Attractor", config.AttractorName)),
 	})
 
+	// connect loadbalancer
+	logger.Info("Dial loadbalancer", "LBService", config.LBSocket)
+	lbConn, err := connectLoadbalancer(ctx, config)
+	if err != nil {
+		log.Fatal(logger, "Dial loadbalancer", "error", err)
+	}
+	defer lbConn.Close()
+
 	// create and start frontend service
 	c := &feConfig.Config{
-		Config:  config,
-		NSPConn: conn,
+		Config:   config,
+		NSPConn:  conn,
+		LBConn:   lbConn,
+		Hostname: hostname,
 	}
 	fe := frontend.NewFrontEndService(ctx, c, gatewayMetrics)
 	defer fe.CleanUp()
@@ -271,7 +263,7 @@ func watchAttractor(ctx context.Context, cli nspAPI.ConfigurationManagerClient, 
 	logger := log.FromContextOrGlobal(ctx)
 	watchAttractor, err := cli.WatchAttractor(ctx, toWatch)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create attractor watcher: %w", err)
 	}
 	for {
 		attractorResponse, err := watchAttractor.Recv()
@@ -280,12 +272,76 @@ func watchAttractor(ctx context.Context, cli nspAPI.ConfigurationManagerClient, 
 		}
 		if err != nil {
 			logger.Info("Attractor watcher closing down")
-			return err
+			return fmt.Errorf("attractor watcher recv error: %w", err)
 		}
 		logger.Info("Attractor config change event")
 		if err := fe.SetNewConfig(ctx, attractorResponse.Attractors); err != nil {
-			return err
+			return fmt.Errorf("failed to set new Attractor config: %w", err)
 		}
 	}
 	return nil
+}
+
+func connectNSP(ctx context.Context, config *env.Config) (*grpc.ClientConn, error) {
+	grpcBackoffCfg := backoff.DefaultConfig
+	if grpcBackoffCfg.MaxDelay != config.GRPCMaxBackoff {
+		grpcBackoffCfg.MaxDelay = config.GRPCMaxBackoff
+	}
+	conn, err := grpc.DialContext(ctx,
+		config.NSPService,
+		grpc.WithTransportCredentials(
+			credentials.GetClient(context.Background()),
+		),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+		),
+		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff: grpcBackoffCfg,
+		}),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time: config.GRPCKeepaliveTime,
+		}),
+	)
+	if err != nil {
+		err = fmt.Errorf("failed to dial NSP: %w", err)
+	}
+
+	return conn, err
+}
+
+func connectLoadbalancer(ctx context.Context, config *env.Config) (*grpc.ClientConn, error) {
+	lbConn, err := grpc.DialContext(ctx,
+		func() string {
+			switch config.LBSocket.Scheme {
+			case "unix":
+				return config.LBSocket.String()
+			case "tcp":
+				return config.LBSocket.Host
+			}
+			return config.LBSocket.String()
+		}(),
+		grpc.WithTransportCredentials(
+			credentials.GetClient(context.Background()),
+		),
+		grpc.WithDefaultCallOptions(
+			grpc.WaitForReady(true),
+		),
+		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff: func() backoff.Config {
+				grpcBackoffCfg := backoff.DefaultConfig
+				if grpcBackoffCfg.MaxDelay != config.GRPCMaxBackoff {
+					grpcBackoffCfg.MaxDelay = config.GRPCMaxBackoff
+				}
+				return grpcBackoffCfg
+			}(),
+		}),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time: config.GRPCKeepaliveTime,
+		}),
+	)
+	if err != nil {
+		err = fmt.Errorf("failed to dial loadbalancer: %w", err)
+	}
+
+	return lbConn, err
 }
