@@ -40,6 +40,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	nsmlog "github.com/networkservicemesh/sdk/pkg/tools/log"
+	lbAPI "github.com/nordix/meridio/api/loadbalancer/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"
@@ -216,6 +217,52 @@ func main() {
 		cancel()
 		return
 	}
+
+	// start server to host Stream Forwarding Availability service
+	lis, err := createStreamAvailabilityListener(config)
+	if err != nil {
+		logger.Error(err, "createStreamAvailabilityListener")
+		cancel()
+		return
+	}
+	s := grpc.NewServer(
+		grpc.Creds(credentials.GetServer(context.Background())),
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime: config.GRPCKeepaliveTime,
+		}),
+	)
+	defer func() {
+		// attempt graceful shutdown to allow sending out pending msgs
+		stopped := make(chan struct{})
+		go func() {
+			s.GracefulStop()
+			close(stopped)
+		}()
+		waitTimer := time.NewTimer(time.Second)
+		select {
+		case <-waitTimer.C:
+			s.Stop() // graceful shutdown not finished in time, force stop immediately
+		case <-stopped:
+			waitTimer.Stop()
+		}
+	}()
+	// announces forwarding availability of streams (i.e. if the LB can forward traffic towards application targets)
+	streamFwdAvailabilityService := stream.NewForwardingAvailabilityService(
+		context.Background(),
+		&lbAPI.Target{
+			Context: map[string]string{
+				types.IdentifierKey: hostname,
+			},
+		},
+	)
+	defer streamFwdAvailabilityService.Stop()
+	lbAPI.RegisterStreamAvailabilityServiceServer(s, streamFwdAvailabilityService)
+	go func() {
+		if err := s.Serve(lis); err != nil {
+			logger.Error(err, "Failed to serve on lb socket")
+		}
+	}()
+
 	sns := newSimpleNetworkService(
 		netUtils.WithInterfaceMonitor(ctx, interfaceMonitor),
 		targetRegistryClient,
@@ -227,6 +274,7 @@ func main() {
 		config.IdentifierOffsetStart,
 		targetHitsMetrics,
 		neighborMonitor,
+		streamFwdAvailabilityService,
 	)
 
 	interfaceMonitorEndpoint := interfacemonitor.NewServer(interfaceMonitor, sns, netUtils)
@@ -370,28 +418,55 @@ func main() {
 	<-ctx.Done()
 }
 
+func createStreamAvailabilityListener(config Config) (net.Listener, error) {
+	address := ""
+	switch config.Socket.Scheme {
+	case "unix":
+		address = config.Socket.Path
+		if address == "" {
+			address = config.Socket.Opaque
+		}
+		if err := os.RemoveAll(address); err != nil {
+			return nil, fmt.Errorf("failed removing unix socket: %w", err)
+		}
+	case "tcp":
+		address = config.Socket.Host
+	}
+	lis, err := net.Listen(config.Socket.Scheme, address)
+	if err != nil {
+		return nil, fmt.Errorf("failed listen on socket: %w", err)
+	}
+	if config.Socket.Scheme == "unix" {
+		if err := os.Chmod(address, os.ModePerm); err != nil {
+			return nil, fmt.Errorf("failed changing unix socket permission to %v: %w", os.ModePerm, err)
+		}
+	}
+	return lis, nil
+}
+
 // SimpleNetworkService -
 type SimpleNetworkService struct {
 	*nspAPI.Conduit
-	targetRegistryClient        nspAPI.TargetRegistryClient
-	ConfigurationManagerClient  nspAPI.ConfigurationManagerClient
-	IdentifierOffsetGenerator   *IdentifierOffsetGenerator
-	interfaces                  sync.Map
-	ctx                         context.Context
-	logger                      logr.Logger
-	streams                     map[string]types.Stream
-	netUtils                    networking.Utils
-	nfqueueIndex                int
-	serviceCtrCh                chan bool
-	simpleNetworkServiceBlocked bool
-	mu                          sync.Mutex
-	cancelStreamWatcher         context.CancelFunc
-	streamWatcherRunning        bool
-	lbFactory                   types.NFQueueLoadBalancerFactory
-	nfa                         types.NFAdaptor
-	natHandler                  *nat.NatHandler
-	targetHitsMetrics           *target.HitsMetrics
-	neighborMonitor             *neighbor.NeighborMonitor
+	targetRegistryClient         nspAPI.TargetRegistryClient
+	ConfigurationManagerClient   nspAPI.ConfigurationManagerClient
+	IdentifierOffsetGenerator    *IdentifierOffsetGenerator
+	interfaces                   sync.Map
+	ctx                          context.Context
+	logger                       logr.Logger
+	streams                      map[string]types.Stream
+	netUtils                     networking.Utils
+	nfqueueIndex                 int
+	serviceCtrCh                 chan bool
+	simpleNetworkServiceBlocked  bool
+	mu                           sync.Mutex
+	cancelStreamWatcher          context.CancelFunc
+	streamWatcherRunning         bool
+	lbFactory                    types.NFQueueLoadBalancerFactory
+	nfa                          types.NFAdaptor
+	natHandler                   *nat.NatHandler
+	targetHitsMetrics            *target.HitsMetrics
+	neighborMonitor              *neighbor.NeighborMonitor
+	streamFwdAvailabilityService *stream.ForwardingAvailabilityService
 }
 
 /* // Request checks if allowed to serve the request
@@ -430,6 +505,7 @@ func newSimpleNetworkService(
 	identifierOffsetStart int,
 	targetHitsMetrics *target.HitsMetrics,
 	neighborMonitor *neighbor.NeighborMonitor,
+	streamFwdAvailabilityService *stream.ForwardingAvailabilityService,
 ) *SimpleNetworkService {
 	identifierOffsetGenerator := NewIdentifierOffsetGenerator(identifierOffsetStart)
 	logger := log.FromContextOrGlobal(ctx).WithValues("class", "SimpleNetworkService",
@@ -440,23 +516,24 @@ func newSimpleNetworkService(
 		log.Fatal(logger, "Unable to init NAT", "error", err)
 	}
 	simpleNetworkService := &SimpleNetworkService{
-		Conduit:                     conduit,
-		targetRegistryClient:        targetRegistryClient,
-		ConfigurationManagerClient:  configurationManagerClient,
-		IdentifierOffsetGenerator:   identifierOffsetGenerator,
-		ctx:                         ctx,
-		logger:                      logger,
-		netUtils:                    netUtils,
-		nfqueueIndex:                1,
-		streams:                     make(map[string]types.Stream),
-		serviceCtrCh:                make(chan bool),
-		simpleNetworkServiceBlocked: true,
-		streamWatcherRunning:        false,
-		lbFactory:                   lbFactory,
-		nfa:                         nfa,
-		natHandler:                  nh,
-		targetHitsMetrics:           targetHitsMetrics,
-		neighborMonitor:             neighborMonitor,
+		Conduit:                      conduit,
+		targetRegistryClient:         targetRegistryClient,
+		ConfigurationManagerClient:   configurationManagerClient,
+		IdentifierOffsetGenerator:    identifierOffsetGenerator,
+		ctx:                          ctx,
+		logger:                       logger,
+		netUtils:                     netUtils,
+		nfqueueIndex:                 1,
+		streams:                      make(map[string]types.Stream),
+		serviceCtrCh:                 make(chan bool),
+		simpleNetworkServiceBlocked:  true,
+		streamWatcherRunning:         false,
+		lbFactory:                    lbFactory,
+		nfa:                          nfa,
+		natHandler:                   nh,
+		targetHitsMetrics:            targetHitsMetrics,
+		neighborMonitor:              neighborMonitor,
+		streamFwdAvailabilityService: streamFwdAvailabilityService,
 	}
 	logger.Info("Created LB service", "conduit", conduit)
 	return simpleNetworkService
@@ -685,6 +762,7 @@ func (sns *SimpleNetworkService) addStream(strm *nspAPI.Stream) error {
 		identifierOffset,
 		sns.targetHitsMetrics,
 		neighborReachDetector,
+		sns.streamFwdAvailabilityService,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create stream (%s): %w", strm.String(), err)

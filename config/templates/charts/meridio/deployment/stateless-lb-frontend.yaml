@@ -125,6 +125,9 @@ spec:
             - name: tmp-lb
               mountPath: /tmp
               readOnly: false
+            - name: lb-socket
+              mountPath: /var/lib/meridio
+              readOnly: false
           securityContext:
             runAsNonRoot: true
             readOnlyRootFilesystem: true
@@ -277,6 +280,9 @@ spec:
             - name: log
               mountPath: /var/log
               readOnly: false
+            - name: lb-socket
+              mountPath: /var/lib/meridio
+              readOnly: false
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
       securityContext:
@@ -306,3 +312,7 @@ spec:
         - name: log
           emptyDir:
             medium: Memory
+        - name: lb-socket
+          emptyDir:
+            medium: Memory
+            sizeLimit: 1Ki
