@@ -53,6 +53,15 @@ NFE_NSP_SERVICE | string | IP (or domain) and port of the NSP Service | nsp-serv
 NFE_TRENCH_NAME | string | Name of the Trench the frontend is associated with | default
 NFE_ATTRACTOR_NAME | string | Name of the Attractor the frontend is associated with | default
 NFE_LOG_LEVEL | string | Log level | DEBUG
+NFE_NSP_ENTRY_TIMEOUT | time.Duration | Timeout of entries registered in NSP | 30s
+NFE_GRPC_KEEPALIVE_TIME | time.Duration | gRPC keepalive timeout | 30s
+NFE_GRPC_MAX_BACKOFF | time.Duration |  Upper bound on gRPC connection backoff delay | 5s
+NFE_DELAY_CONNECTIVITY | time.Duration | Delay between routing suite checks with connectivity | 1s
+NFE_DELAY_NO_CONNECTIVITY | time.Duration | Delay between routing suite checks without connectivity | 3s
+NFE_MAX_SESSION_ERRORS | int | Max session errors when checking routing suite until denounce | 5
+NFE_METRICS_ENABLED | bool | Enable the metrics collection | false
+NFE_METRICS_PORT | int | Specify the port used to expose the metrics | 2224
+NFE_LB_SOCKET | url.URL | LB socket to connect to | unix:///var/lib/meridio/lb.sock
 
 ## Command Line 
 
@@ -71,6 +80,7 @@ Spire | TBD | Unix Socket | Obtain and validate SVIDs
 NSP Service | yes (mTLS) | TCP | Watch configuration. Register/Unregister target (Advertise its readiness to the NSP target registry)
 Gateways | / | / | Routing protocol
 Kubernetes API | TDB | TCP | Watch the secrets for BGP authentication
+LB | yes (mTLS) | Unix socket | Watch internal connectivity status of collocated stateless-lb
 
 An overview of the communications between all components is available [here](resources.md).
 

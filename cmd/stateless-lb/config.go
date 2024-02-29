@@ -40,7 +40,7 @@ type Config struct {
 	Nfqueue               string        `default:"0:3" desc:"netfilter queue(s) to be used by nfqlb" split_words:"true"`
 	NfqueueFanout         bool          `default:"false" desc:"enable fanout nfqueue option" split_words:"true"`
 	IdentifierOffsetStart int           `default:"5000" desc:"Each Stream will get a unique identifier range starting from that value" split_words:"true"`
-	GRPCKeepaliveTime     time.Duration `default:"30s" desc:"gRPC keepalive timeout"`
+	GRPCKeepaliveTime     time.Duration `default:"30s" desc:"gRPC keepalive timeout" envconfig:"grpc_keepalive_time"`
 	GRPCProbeRPCTimeout   time.Duration `default:"1s" desc:"RPC timeout of internal gRPC health probe" envconfig:"grpc_probe_rpc_timeout"`
 	GRPCMaxBackoff        time.Duration `default:"5s" desc:"Upper bound on gRPC connection backoff delay" envconfig:"grpc_max_backoff"`
 	MetricsEnabled        bool          `default:"false" desc:"Enable the metrics collection" split_words:"true"`

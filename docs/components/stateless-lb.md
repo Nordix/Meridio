@@ -29,6 +29,13 @@ NSM_TRENCH_NAME | string | Trench the pod is running on | default
 NSM_LOG_LEVEL | string | Log level | DEBUG
 NSM_NFQUEUE | string | netfilter queue(s) to be used by nfqlb | 0:3
 NSM_NFQUEUE_FANOUT | bool | enable fanout nfqueue option | false
+NSM_IDENTIFIER_OFFSET_START | int | Each Stream will get a unique identifier range starting from that value | 5000
+NSM_GRPC_KEEPALIVE_TIME | time.Duration | gRPC keepalive timeout | 30s
+NSM_GRPC_PROBE_RPC_TIMEOUT | time.Duration | RPC timeout of internal gRPC health probe | 1s
+NSM_GRPC_MAX_BACKOFF | time.Duration | Upper bound on gRPC connection backoff delay | 5s
+NSM_METRICS_ENABLED | bool | Enable the metrics collection| false
+NSM_METRICS_PORT | int | Specify the port used to expose the metrics | 2223
+NSM_SOCKET | url.URL | Server socket to host Stream Availability Service | unix:///var/lib/meridio/lb.sock
 
 ## Command Line 
 
@@ -46,6 +53,7 @@ Component | Secured | Method | Description
 Spire | TBD | Unix Socket | Obtain and validate SVIDs
 NSM | yes (mTLS) | Unix Socket | Register NSE
 NSP Service | yes (mTLS) | TCP | Watch configuration. Watch target registry.
+FE | yes (mTLS) | Unix Socket | Send internal connectivity information.
 
 An overview of the communications between all components is available [here](resources.md).
 
