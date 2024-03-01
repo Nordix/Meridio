@@ -11,6 +11,8 @@ At Start, the load balancer is subscribing to events from the NSP Service to get
 
 Since the [nfqueue-loadbalancer program](https://github.com/Nordix/nfqueue-loadbalancer) is running in user space, iptables together with nfqueue are used to bring traffic from kernel space to user space. The [nfqueue-loadbalancer program](https://github.com/Nordix/nfqueue-loadbalancer) will then add a forwarding mark on the traffic based on [Maglev](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/44824.pdf) and according to the registered target identifiers, and will return the traffic to the kernel space. Using the forwarding mark, IP rules and IP routes, the traffic will be forwarded to the selected target.
 
+The information whether the load balancer is capable of forwarding traffic towards at least one target is made available for the collocated frontend to retrieve and use for controlling traffic attraction.
+
 ## Configuration 
 
 https://github.com/Nordix/Meridio/blob/master/cmd/load-balancer/config.go
