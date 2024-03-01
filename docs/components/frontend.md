@@ -9,7 +9,7 @@ The frontend makes it possible to attract external traffic to Meridio via a seco
 
 The external interface to be used for external connectivity must be provided to the frontend.  
 One way to achieve this is to rely on NSM which through a NSC container can install a VLAN capable interface into the particular frontend POD. The master interface residing in the host network namespace, the VLAN ID and the IP network NSM shall use to allocate IP address to the external interface must be configured to get consumed by the Remote VLAN NSE.  
-Alternatively, the external interface can be provided using Multus in which case no NSC or Remote VLAN NSE is required, and IP address allocation can be taken care of by a suitable IPAM CNI plugin (configured in the Network Attachment Definition).
+Alternatively, the external interface can be provided using Multus in which case no NSC or Remote VLAN NSE is required, and IP address allocation can be taken care of by a suitable IPAM CNI plugin (e.g. [whereabouts](https://github.com/k8snetworkplumbingwg/whereabouts)) configured in the Network Attachment Definition
 
 
 When started, the frontend installs src routing rules for each configured VIP address, then configures and spins off a [BIRD](https://bird.network.cz/) routing program instance providing for external connectivity. The bird routing suite is restricted to the external interface. The frontend uses [birdc](https://bird.network.cz/?get_doc&v=20&f=bird-4.html) for both monitoring and changing BIRD configuration.
@@ -19,7 +19,9 @@ In case of BGP a next-hop route for each VIP address gets announced by the proto
 
 Both ingress and egress traffic traverse a frontend POD (not necessarily the same).
 
-Currently the frontend is collocated with the load balancer, hence reside in the same POD. A load balancer relies on the collocated frontend to forward egress traffic, and the other way around to handle ingress traffic. There's no direct control plane interaction between the two though.
+Currently the frontend is collocated with the load balancer, hence reside in the same POD. A load balancer relies on the collocated frontend to forward egress traffic, and the other way around to handle ingress traffic. Also, the frontend signals information about external connectivity to its local load balancer, while the frontend gets information from the collocated load balancer whether it is capable of forwarding incoming traffic towards application targets. The latter is taken into consideration in case of BGP setup to control when to advertise VIP addresses, in order to avoid attracting external traffic if ingress forwarding is not available yet. Which also implies that VIP addresses are not advertised without application targets.
+
+To avoid leaking egress VIP traffic into the primary network, the frontend installs src routing rules with lesser priority upon its startup to match and blackhole such traffic when there's no external connectivity.
 
 #### External gateway router
 
