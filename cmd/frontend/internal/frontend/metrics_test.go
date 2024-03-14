@@ -37,7 +37,7 @@ func TestParseShowProtocolsAll(t *testing.T) {
 			},
 			want: []*BirdStats{
 				{
-					gatewayName:     "BIRD",
+					gatewayName:     "device1",
 					routesImported:  0,
 					routesExported:  0,
 					routesPreferred: 0,
@@ -117,7 +117,7 @@ func TestParseShowProtocolsAll(t *testing.T) {
 			},
 			want: []*BirdStats{
 				{
-					gatewayName:     "BIRD",
+					gatewayName:     "device1",
 					routesImported:  0,
 					routesExported:  0,
 					routesPreferred: 0,
@@ -169,6 +169,32 @@ func TestParseShowProtocolsAll(t *testing.T) {
 					routesImported:  0,
 					routesExported:  0,
 					routesPreferred: 0,
+				},
+				{
+					gatewayName:     "NBR-BFD",
+					routesImported:  0,
+					routesExported:  0,
+					routesPreferred: 0,
+				},
+			},
+		},
+		{
+			name: "t3",
+			args: args{
+				output: t3,
+			},
+			want: []*BirdStats{
+				{
+					gatewayName:     "NBR-gateway-v4-a-1",
+					routesImported:  1,
+					routesExported:  1,
+					routesPreferred: 1,
+				},
+				{
+					gatewayName:     "NBR-gateway-v6-a-1",
+					routesImported:  1,
+					routesExported:  1,
+					routesPreferred: 1,
 				},
 				{
 					gatewayName:     "NBR-BFD",
@@ -497,3 +523,79 @@ NBR-gateway-v6-a-1 BGP        ---        start  10:39:56.122  Active        Sock
     Output filter:  cluster_access
 
 NBR-BFD    BFD        ---        up     09:19:34.280`
+
+var t3 = `BIRD 2.0.10 ready.
+Name       Proto      Table      State  Since         Info
+NBR-gateway-v4-a-1 BGP        ---        up     13:49:37.427  Established   
+  BGP state:          Established
+    Neighbor address: 169.254.100.150%ext-vlan0
+    Neighbor AS:      4248829953
+    Local AS:         8103
+    Neighbor ID:      169.254.100.150
+    Local capabilities
+      Multiprotocol
+        AF announced: ipv4
+      Route refresh
+      4-octet AS numbers
+      Enhanced refresh
+    Neighbor capabilities
+      Multiprotocol
+        AF announced: ipv4 ipv6
+      Route refresh
+      4-octet AS numbers
+      Enhanced refresh
+    Session:          external AS4
+    Source address:   169.254.100.1
+    Hold timer:       2.107/3
+    Keepalive timer:  0.268/1
+  Channel ipv4
+    State:          UP
+    Table:          master4
+    Preference:     100
+    Input filter:   cluster_breakout
+    Output filter:  cluster_access
+    Routes:         1 imported, 1 exported, 1 preferred
+    Route change stats:     received   rejected   filtered    ignored   accepted
+      Import updates:              1          0          0          0          1
+      Import withdraws:            0          0        ---          0          0
+      Export updates:              2          1          0        ---          1
+      Export withdraws:            0        ---        ---        ---          0
+    BGP Next hop:   169.254.100.1
+
+NBR-gateway-v6-a-1 BGP        ---        up     13:49:37.047  Established   
+  BGP state:          Established
+    Neighbor address: 100:100::150%ext-vlan0
+    Neighbor AS:      4248829953
+    Local AS:         8103
+    Neighbor ID:      169.254.100.150
+    Local capabilities
+      Multiprotocol
+        AF announced: ipv6
+      Route refresh
+      4-octet AS numbers
+      Enhanced refresh
+    Neighbor capabilities
+      Multiprotocol
+        AF announced: ipv4 ipv6
+      Route refresh
+      4-octet AS numbers
+      Enhanced refresh
+    Session:          external AS4
+    Source address:   100:100::1
+    Hold timer:       2.193/3
+    Keepalive timer:  0.055/1
+  Channel ipv6
+    State:          UP
+    Table:          master6
+    Preference:     100
+    Input filter:   cluster_breakout
+    Output filter:  cluster_access
+    Routes:         1 imported, 1 exported, 1 preferred
+    Route change stats:     received   rejected   filtered    ignored   accepted
+      Import updates:              1          0          0          0          1
+      Import withdraws:            0          0        ---          0          0
+      Export updates:              2          1          0        ---          1
+      Export withdraws:            0        ---        ---        ---          0
+    BGP Next hop:   100:100::1 fe80::fe:a6ff:fea1:960a
+
+NBR-BFD    BFD        ---        up     13:49:34.392  `
