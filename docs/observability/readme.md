@@ -31,9 +31,7 @@ spec:
   podMetricsEndpoints:
   - port: metrics
     interval: 5s
-    scheme: "https"
-    tlsConfig:
-        insecureSkipVerify: true
+    scheme: "http"
   namespaceSelector:
     matchNames: 
     - red
