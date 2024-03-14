@@ -196,6 +196,14 @@ var regex = regexp.MustCompile(`(?m)    Routes:.*`)
 func ParseShowProtocolsAll(output string) []*BirdStats {
 	res := []*BirdStats{}
 
+	// BIRD 2.0.10 ready.
+	// Name       Proto      Table      State  Since         Info
+	// these 2 first lines must be removed.
+	outputSplitted := strings.Split(output, "\n")
+	if len(outputSplitted) > 2 && outputSplitted[0][:4] == "BIRD" && outputSplitted[1][:4] == "Name" {
+		output = strings.Join(outputSplitted[2:], "\n")
+	}
+
 	protocols := strings.Split(output, "\n\n")
 
 	for _, protocol := range protocols {
