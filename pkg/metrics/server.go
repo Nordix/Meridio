@@ -24,8 +24,6 @@ import (
 
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
-	"github.com/spiffe/go-spiffe/v2/workloadapi"
 )
 
 type Server struct {
@@ -36,39 +34,32 @@ type Server struct {
 func (s *Server) Start(ctx context.Context) error {
 	log.FromContextOrGlobal(ctx).Info("Start metrics server", "ip", s.IP, "port", s.Port)
 
-	source, err := workloadapi.NewX509Source(ctx, workloadapi.WithClientOptions())
-	if err != nil {
-		return fmt.Errorf("failed get certificates for metrics server: %w", err)
-	}
-	defer source.Close()
-
 	server := &http.Server{
-		Addr:      fmt.Sprintf("%s:%d", s.IP, s.Port),
-		TLSConfig: tlsconfig.TLSServerConfig(source),
+		Addr: fmt.Sprintf("%s:%d", s.IP, s.Port),
 	}
 
 	http.Handle("/metrics", promhttp.Handler())
 
 	serverCtx, cancel := context.WithCancel(ctx)
-	var listenAndServeTLSErr error
+	var ListenAndServeErr error
 
 	go func() {
-		listenAndServeTLSErr = server.ListenAndServeTLS("", "")
-		if listenAndServeTLSErr != nil {
+		ListenAndServeErr = server.ListenAndServe()
+		if ListenAndServeErr != nil {
 			cancel()
 		}
 	}()
 
 	<-serverCtx.Done()
 
-	if listenAndServeTLSErr != nil {
-		return fmt.Errorf("failed to ListenAndServeTLS on metrics server: %w", err)
+	if ListenAndServeErr != nil {
+		return fmt.Errorf("failed to ListenAndServe on metrics server: %w", ListenAndServeErr)
 	}
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer shutdownCancel()
 
-	err = server.Shutdown(shutdownCtx)
+	err := server.Shutdown(shutdownCtx)
 	if err != nil {
 		return fmt.Errorf("failed to shutdown metrics server: %w", err)
 	}
