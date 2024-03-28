@@ -214,15 +214,15 @@ func (im *InterfaceMetrics) observe(ctx context.Context, observer metric.Int64Ob
 
 	for interfaceName := range im.interfaces {
 		metricAttributes := []metric.ObserveOption{
-			metric.WithAttributes(attribute.String("Interface Name", interfaceName)),
+			metric.WithAttributes(attribute.String("interface_name", interfaceName)),
 		}
 		metricAttributes = append(metricAttributes, im.metricAttributes...)
 		link := getLinkByName(interfaceName)
 		if link == nil {
 			continue
 		}
-		metricAttributes = append(metricAttributes, metric.WithAttributes(attribute.String("MAC Address", link.Attrs().HardwareAddr.String())))
-		metricAttributes = append(metricAttributes, metric.WithAttributes(attribute.StringSlice("IPs", listIPs(link))))
+		metricAttributes = append(metricAttributes, metric.WithAttributes(attribute.String("mac_address", link.Attrs().HardwareAddr.String())))
+		metricAttributes = append(metricAttributes, metric.WithAttributes(attribute.StringSlice("ips", listIPs(link))))
 		observer.Observe(
 			valueFunc(link.Attrs().Statistics),
 			metricAttributes...,

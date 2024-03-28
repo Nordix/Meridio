@@ -114,8 +114,8 @@ func main() {
 	}
 
 	gatewayMetrics := frontend.NewGatewayMetrics([]metric.ObserveOption{
-		metric.WithAttributes(attribute.String("Trench", config.TrenchName)),
-		metric.WithAttributes(attribute.String("Attractor", config.AttractorName)),
+		metric.WithAttributes(attribute.String("trench", config.TrenchName)),
+		metric.WithAttributes(attribute.String("attractor", config.AttractorName)),
 	})
 
 	// connect loadbalancer
@@ -161,8 +161,8 @@ func main() {
 	go watchConfig(ctx, cancel, c, fe)
 
 	interfaceMetrics := linuxKernel.NewInterfaceMetrics([]metric.ObserveOption{
-		metric.WithAttributes(attribute.String("Trench", config.TrenchName)),
-		metric.WithAttributes(attribute.String("Attractor", config.AttractorName)),
+		metric.WithAttributes(attribute.String("trench", config.TrenchName)),
+		metric.WithAttributes(attribute.String("attractor", config.AttractorName)),
 	})
 	interfaceMetrics.Register(config.ExternalInterface)
 

@@ -48,10 +48,10 @@ func CollectMetrics(options ...option) error {
 			for _, fs := range flowStats {
 				observer.Observe(
 					int64(fs.GetMatchesCount()),
-					metric.WithAttributes(attribute.String("Trench", config.trenchName)),
-					metric.WithAttributes(attribute.String("Conduit", config.conduitName)),
-					metric.WithAttributes(attribute.String("Stream", fs.GetFlow().GetStream().GetName())),
-					metric.WithAttributes(attribute.String("Flow", fs.GetFlow().GetName())),
+					metric.WithAttributes(attribute.String("trench", config.trenchName)),
+					metric.WithAttributes(attribute.String("conduit", config.conduitName)),
+					metric.WithAttributes(attribute.String("stream", fs.GetFlow().GetStream().GetName())),
+					metric.WithAttributes(attribute.String("flow", fs.GetFlow().GetName())),
 				)
 			}
 			return nil

@@ -193,8 +193,8 @@ func main() {
 	}
 
 	interfaceMetrics := linuxKernel.NewInterfaceMetrics([]metric.ObserveOption{
-		metric.WithAttributes(attribute.String("Trench", config.TrenchName)),
-		metric.WithAttributes(attribute.String("Conduit", config.ConduitName)),
+		metric.WithAttributes(attribute.String("trench", config.TrenchName)),
+		metric.WithAttributes(attribute.String("conduit", config.ConduitName)),
 	})
 
 	lbFactory := nfqlb.NewLbFactory(nfqlb.WithNFQueue(config.Nfqueue))
