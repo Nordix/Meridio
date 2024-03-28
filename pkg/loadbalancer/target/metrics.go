@@ -260,11 +260,11 @@ func (hm *HitsMetrics) Collect() error {
 
 				observer.Observe(
 					int64(metrics.Packets),
-					metric.WithAttributes(attribute.String("Trench", trenchName)),
-					metric.WithAttributes(attribute.String("Conduit", conduitName)),
-					metric.WithAttributes(attribute.String("Stream", streamName)),
-					metric.WithAttributes(attribute.Int("Identifier", targetID)),
-					metric.WithAttributes(attribute.StringSlice("IPs", target.GetIps())),
+					metric.WithAttributes(attribute.String("trench", trenchName)),
+					metric.WithAttributes(attribute.String("conduit", conduitName)),
+					metric.WithAttributes(attribute.String("stream", streamName)),
+					metric.WithAttributes(attribute.Int("identifier", targetID)),
+					metric.WithAttributes(attribute.StringSlice("target_ips", target.GetIps())),
 				)
 			}
 			return nil
@@ -304,11 +304,11 @@ func (hm *HitsMetrics) Collect() error {
 
 				observer.Observe(
 					int64(metrics.Bytes),
-					metric.WithAttributes(attribute.String("Trench", trenchName)),
-					metric.WithAttributes(attribute.String("Conduit", conduitName)),
-					metric.WithAttributes(attribute.String("Stream", streamName)),
-					metric.WithAttributes(attribute.Int("Identifier", targetID)),
-					metric.WithAttributes(attribute.StringSlice("IPs", target.GetIps())),
+					metric.WithAttributes(attribute.String("trench", trenchName)),
+					metric.WithAttributes(attribute.String("conduit", conduitName)),
+					metric.WithAttributes(attribute.String("stream", streamName)),
+					metric.WithAttributes(attribute.Int("identifier", targetID)),
+					metric.WithAttributes(attribute.StringSlice("target_ips", target.GetIps())),
 				)
 			}
 			return nil

@@ -40,7 +40,7 @@ Counts number of `METRIC_TYPE` that have hit a target.
    * Conduit
    * Stream
    * Identifier
-   * IPs
+   * Target IPs
 
 ### meridio.conduit.stream.target.latency (Planned)
 
@@ -50,7 +50,7 @@ Reports the latency with a target.
 * Attributes:
    * Trench
    * Conduit
-   * IP
+   * Target IP
 
 ### meridio.attractor.gateway.`METRIC_TYPE`.routes
 
@@ -63,5 +63,5 @@ Number of `METRIC_TYPE` routes for a gateway in the attractor instance.
    * Trench
    * Attactor
    * Gateway
-   * IP
+   * Gateway IP
    * Protocol

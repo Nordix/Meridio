@@ -77,7 +77,7 @@ func (gm *GatewayMetrics) Collect() error {
 	_, err = gm.meter.Int64ObservableGauge(
 		meridioMetrics.MERIDIO_ATTRACTOR_GATEWAY_IMPORTED_ROUTES,
 		metric.WithUnit("routes"),
-		metric.WithDescription("Counts number of routes imported for a gateway."),
+		metric.WithDescription("Number of routes imported for a gateway."),
 		metric.WithInt64Callback(func(ctx context.Context, observer metric.Int64Observer) error {
 			return gm.observe(
 				ctx,
@@ -96,7 +96,7 @@ func (gm *GatewayMetrics) Collect() error {
 	_, err = gm.meter.Int64ObservableGauge(
 		meridioMetrics.MERIDIO_ATTRACTOR_GATEWAY_EXPORTED_ROUTES,
 		metric.WithUnit("routes"),
-		metric.WithDescription("Counts number of routes exported for a gateway."),
+		metric.WithDescription("Number of routes exported for a gateway."),
 		metric.WithInt64Callback(func(ctx context.Context, observer metric.Int64Observer) error {
 			return gm.observe(
 				ctx,
@@ -115,7 +115,7 @@ func (gm *GatewayMetrics) Collect() error {
 	_, err = gm.meter.Int64ObservableGauge(
 		meridioMetrics.MERIDIO_ATTRACTOR_GATEWAY_PREFERRED_ROUTES,
 		metric.WithUnit("routes"),
-		metric.WithDescription("Counts number of routes preferred for a gateway."),
+		metric.WithDescription("Number of routes preferred for a gateway."),
 		metric.WithInt64Callback(func(ctx context.Context, observer metric.Int64Observer) error {
 			return gm.observe(
 				ctx,
@@ -151,9 +151,9 @@ func (gm *GatewayMetrics) observe(ctx context.Context, observer metric.Int64Obse
 		}
 
 		metricAttributes := []metric.ObserveOption{
-			metric.WithAttributes(attribute.String("Protocol", getProtocolName(gateway))),
-			metric.WithAttributes(attribute.String("Gateway", gateway.Name)),
-			metric.WithAttributes(attribute.String("IP", gateway.Address)),
+			metric.WithAttributes(attribute.String("protocol", getProtocolName(gateway))),
+			metric.WithAttributes(attribute.String("gateway", gateway.Name)),
+			metric.WithAttributes(attribute.String("gateway_ip", gateway.Address)),
 		}
 		metricAttributes = append(metricAttributes, gm.metricAttributes...)
 
