@@ -52,6 +52,11 @@ const config = {
                             path: '/v1.0.0',
                             banner: 'none',
                         },
+                        "v1.1.0": {
+                            label: 'v1.1.0',
+                            path: '/v1.1.0',
+                            banner: 'none',
+                        },
                     },
                 },
                 theme: {

@@ -1,0 +1,198 @@
+{
+    "docs": [
+        {
+            "type": "doc",
+            "id": "readme"
+        },
+        {
+            "type": "doc",
+            "id": "use-cases"
+        },
+        {
+            "type": "category",
+            "label": "Deployment",
+            "link": {
+                "type": "generated-index",
+                "title": "Meridio Components",
+                "description": "Learn about how to deploy Meridio",
+                "keywords": [
+                    "guides"
+                ]
+            },
+            "items": [
+                "deployment/operator"
+            ]
+        },
+        {
+            "type": "category",
+            "label": "Concepts",
+            "link": {
+                "type": "generated-index",
+                "title": "Meridio Concepts",
+                "description": "Learn about the Meridio concepts",
+                "keywords": [
+                    "guides"
+                ]
+            },
+            "items": [
+                {
+                    "type": "doc",
+                    "id": "concepts/trench",
+                    "label": "Trench"
+                },
+                {
+                    "type": "doc",
+                    "id": "concepts/conduit",
+                    "label": "Conduit"
+                },
+                {
+                    "type": "doc",
+                    "id": "concepts/stream",
+                    "label": "Stream"
+                },
+                {
+                    "type": "doc",
+                    "id": "concepts/flow",
+                    "label": "Flow"
+                },
+                {
+                    "type": "doc",
+                    "id": "concepts/vip",
+                    "label": "VIP"
+                },
+                {
+                    "type": "doc",
+                    "id": "concepts/attractor",
+                    "label": "Attractor"
+                },
+                {
+                    "type": "doc",
+                    "id": "concepts/gateway",
+                    "label": "Gateway"
+                }
+            ]
+        },
+        {
+            "type": "category",
+            "label": "Data Plane",
+            "link": {
+                "type": "doc",
+                "id": "dataplane/readme"
+            },
+            "items": [
+                "dataplane/gateway-frontend",
+                "dataplane/stateless-lb-frontend",
+                "dataplane/stateless-lb-frontend-target",
+                "dataplane/target"
+            ]
+        },
+        {
+            "type": "category",
+            "label": "Components",
+            "link": {
+                "type": "doc",
+                "id": "components/resources"
+            },
+            "items": [
+                {
+                    "type": "category",
+                    "label": "Containers",
+                    "collapsed": false,
+                    "link": {
+                        "type": "generated-index",
+                        "title": "Meridio Components",
+                        "description": "Learn about the Meridio components",
+                        "keywords": [
+                            "guides"
+                        ]
+                    },
+                    "items": [
+                        "components/operator",
+                        "components/tapa",
+                        "components/stateless-lb",
+                        "components/frontend",
+                        "components/nsp",
+                        "components/ipam",
+                        "components/proxy"
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "category",
+            "label": "Integrate / Usage",
+            "link": {
+                "type": "generated-index",
+                "title": "Meridio Integration / Usage",
+                "description": "Learn about who to integrate Meridio",
+                "keywords": [
+                    "guides"
+                ]
+            },
+            "items": [
+                "integrate/user-application",
+                "integrate/public-cloud",
+                "integrate/kubernetes-distributions"
+            ]
+        },
+        {
+            "type": "category",
+            "label": "Observability",
+            "link": {
+                "type": "doc",
+                "id": "observability/readme"
+            },
+            "items": [
+                "observability/metrics"
+            ]
+        },
+        {
+            "type": "category",
+            "label": "Features",
+            "link": {
+                "type": "generated-index",
+                "title": "Features of Meridio",
+                "description": "Learn about the features Meridio offers",
+                "keywords": [
+                    "guides"
+                ]
+            },
+            "items": [
+                "port-nat"
+            ]
+        },
+        {
+            "type": "category",
+            "label": "Contribute / Developer",
+            "link": {
+                "type": "generated-index",
+                "title": "Contribute to Meridio",
+                "description": "Learn about who to contribute to Meridio",
+                "keywords": [
+                    "guides"
+                ]
+            },
+            "items": [
+                "contributing",
+                "dev/testing",
+                "dev/security-scanning",
+                "dev/logging",
+                "dev/environment",
+                "dev/e2e-test-list"
+            ]
+        },
+        {
+            "type": "category",
+            "label": "Trouble Shooting Guide",
+            "link": {
+                "type": "doc",
+                "id": "trouble-shooting/README"
+            },
+            "items": [
+                "trouble-shooting/common-issues"
+            ]
+        },
+        "faq",
+        "glossary"
+    ]
+}
