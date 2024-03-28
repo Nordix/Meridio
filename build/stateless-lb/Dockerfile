@@ -19,8 +19,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-extldflags -static -X main.vers
 
 FROM ${base_image} as lb-builder
 WORKDIR /
-ADD https://github.com/Nordix/nfqueue-loadbalancer/releases/download/1.1.4/nfqlb-1.1.4.tar.xz /
-RUN tar --strip-components=1 -xf /nfqlb-1.1.4.tar.xz nfqlb-1.1.4/bin/nfqlb
+ADD https://github.com/Nordix/nfqueue-loadbalancer/releases/download/1.2.0/nfqlb-1.2.0.tar.xz /
+RUN tar --strip-components=1 -xf /nfqlb-1.2.0.tar.xz nfqlb-1.2.0/bin/nfqlb
 
 FROM ${base_image}
 ARG USER

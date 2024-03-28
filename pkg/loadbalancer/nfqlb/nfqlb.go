@@ -76,6 +76,7 @@ func (nf *nfqlbFactory) Start(ctx context.Context) error {
 		// "--nolb_fwmark=",
 		fmt.Sprintf("--queue=%s", nf.nfqueue),
 		fmt.Sprintf("--qlength=%d", qlength),
+		"--hash_mode=0",
 		// "--ft_shm=",
 		// "--ft_size=",
 		// "--ft_buckets=",
