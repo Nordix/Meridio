@@ -34,6 +34,7 @@ import (
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/cmd/proxy/internal/config"
 	"github.com/nordix/meridio/cmd/proxy/internal/service"
+	"github.com/nordix/meridio/pkg/debug"
 	endpointOld "github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/health/connection"
@@ -69,10 +70,16 @@ var version = "(unknown)"
 
 func main() {
 	ver := flag.Bool("version", false, "Print version and quit")
+	debugCmd := flag.Bool("debug", false, "Print the debug information and quit")
 	help := flag.Bool("help", false, "Print help and quit")
 	flag.Parse()
 	if *ver {
 		fmt.Println(version)
+		os.Exit(0)
+	}
+	if *debugCmd {
+		debug.MeridioVersion = version
+		fmt.Println(debug.Collect().String())
 		os.Exit(0)
 	}
 	if *help {

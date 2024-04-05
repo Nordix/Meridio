@@ -46,6 +46,7 @@ import (
 	gatewaycontroller "github.com/nordix/meridio/pkg/controllers/gateway"
 	streamcontroller "github.com/nordix/meridio/pkg/controllers/stream"
 	trenchcontroller "github.com/nordix/meridio/pkg/controllers/trench"
+	"github.com/nordix/meridio/pkg/debug"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"google.golang.org/grpc/codes"
@@ -60,6 +61,13 @@ var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 )
+
+func printHelp() {
+	fmt.Println(`
+nsp --
+  The operator process in https://github.com/Nordix/Meridio
+  This program shall be started in a Kubernetes container.`)
+}
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
@@ -125,6 +133,26 @@ func main() {
 
 	if os.Getenv(common.LogLevelEnv) == "" { // trace as default value
 		os.Setenv(common.LogLevelEnv, "trace")
+	}
+
+	ver := flag.Bool("version", false, "Print version and quit")
+	debugCmd := flag.Bool("debug", false, "Print the debug information and quit")
+	help := flag.Bool("help", false, "Print help and quit")
+
+	flag.Parse()
+
+	if *ver {
+		fmt.Println(version.VersionInfo())
+		os.Exit(0)
+	}
+	if *debugCmd {
+		debug.MeridioVersion = version.VersionInfo()
+		fmt.Println(debug.Collect().String())
+		os.Exit(0)
+	}
+	if *help {
+		printHelp()
+		os.Exit(0)
 	}
 
 	logger := log.New("Operator", common.LogLevelEnv)

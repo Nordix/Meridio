@@ -277,6 +277,9 @@ debugging but ephemeral containers can do more. You can write
 automatic analyze tools and inject ephemeral containers in several Meridio PODs.
 
 
+## Common CLI
+
+Information about the meridio-version, unix-time, network-interfaces, rules, route, conntrack-table, neighbors, system, processes and environment-variables can be exported in a common way. Each program contains a debug command flag (e.g. `./stateless-lb --debug`) which will return the information in json format. The structure used is versionized and is available under [pkg/debug/types.go](https://github.com/Nordix/Meridio/tree/debug/pkg).
 
 ## LB/FE
 

@@ -31,6 +31,7 @@ import (
 	"github.com/nordix/meridio/pkg/configuration/manager"
 	"github.com/nordix/meridio/pkg/configuration/monitor"
 	"github.com/nordix/meridio/pkg/configuration/registry"
+	"github.com/nordix/meridio/pkg/debug"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/health/probe"
 	"github.com/nordix/meridio/pkg/log"
@@ -58,10 +59,16 @@ var version = "(unknown)"
 
 func main() {
 	ver := flag.Bool("version", false, "Print version and quit")
+	debugCmd := flag.Bool("debug", false, "Print the debug information and quit")
 	help := flag.Bool("help", false, "Print help and quit")
 	flag.Parse()
 	if *ver {
 		fmt.Println(version)
+		os.Exit(0)
+	}
+	if *debugCmd {
+		debug.MeridioVersion = version
+		fmt.Println(debug.Collect().String())
 		os.Exit(0)
 	}
 	if *help {
