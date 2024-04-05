@@ -38,6 +38,7 @@ import (
 	feConfig "github.com/nordix/meridio/cmd/frontend/internal/config"
 	"github.com/nordix/meridio/cmd/frontend/internal/env"
 	"github.com/nordix/meridio/cmd/frontend/internal/frontend"
+	"github.com/nordix/meridio/pkg/debug"
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/health/connection"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
@@ -59,10 +60,16 @@ var version = "(unknown)"
 
 func main() {
 	ver := flag.Bool("version", false, "Print version and quit")
+	debugCmd := flag.Bool("debug", false, "Print the debug information and quit")
 	help := flag.Bool("help", false, "Print help and quit")
 	flag.Parse()
 	if *ver {
 		fmt.Println(version)
+		os.Exit(0)
+	}
+	if *debugCmd {
+		debug.MeridioVersion = version
+		fmt.Println(debug.Collect().String())
 		os.Exit(0)
 	}
 	if *help {
