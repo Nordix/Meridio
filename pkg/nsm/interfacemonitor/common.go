@@ -53,6 +53,9 @@ type pendingInterface struct {
 	InterfaceType networking.InterfaceType
 }
 
+// ConnectionRequested -
+// Note: The pendingInterfaces logic relies on the interface name to relate kernel
+// and NSM originated events to collect all the info necessary for notifying subscribers.
 func (im *interfaceMonitor) ConnectionRequested(conn *connection, interfaceType networking.InterfaceType) {
 	interfaceName := conn.getInterfaceName()
 	pendingInterface := &pendingInterface{
@@ -97,6 +100,13 @@ func (im *interfaceMonitor) ConnectionClosed(conn *connection, interfaceType net
 			im.logger.V(1).Info("no interface index on connection close",
 				"id", id, "interfaceType", interfaceType, "err", err)
 		}
+		// XXX: Instead of return, maybe consider informing users even without a valid
+		// interface index. (IMHO not needed assuming kernel originated delete event
+		// is handled correctly. Don't see any added value in case of process/container
+		// crash either.)
+		// Note: NSM heal might spam ConnectionClosed events when it tries to reconnect
+		// with no luck. Thus, without returning, NSM heal would also be a source of
+		// false positive interface delete advertisements.
 		return
 	}
 
@@ -123,27 +133,33 @@ func (im *interfaceMonitor) InterfaceCreated(intf networking.Iface) {
 }
 
 // InterfaceDeleted -
+// InterfaceDeleted forwards kernel originated interface delete events.
 //
-// XXX: There's no "cache" to lookup all the information required for creating
-// a networking.Interface items. But, pendingInterfaces relies on the interface
-// name as well to link kernel and NSM originated create events to gather all
-// the necessary info. Now, we have both the name and index in case of kernel
-// originated delete event. IMHO it's unlikely to match both index and name
-// while the subsriber was aware of an existing interface with the same two
-// parameters yet pertained to a different interface. Also, implementing a
-// "pending delete" feature would most probably rely on the exact same concept
-// pendingInterfaces uses, that is to match information from two sources based
-// on the interface name. So, question comes, why not simply use these two
-// parameters to fire an event and leave it to the subscriber to either ignore
-// it, or do a lookup solely based on interface index and name. Luckily, only
-// the proxy uses this. Where in case of NSE role, the interface removal will
-// automatically detach the interface from the bridge, and doesn't seem to be
-// anything else to reconfigure. So, even though interface deletion won't
-// be advertised for NSE (not even by connection close), things shall work.
-// Also, proxy relies on DeepEqual to compare interfaces received in events
-// against stored ones, thus without major changes in the proxy, there wouldn't
-// be any point firing an event with missing interface index information...
+// Unlike during create, here there's no "cache" to lookup all the information
+// required for creating a fully fledged networking.Interface item.
+// Now, we have both the name and index in case of kernel originated delete event.
+// And it seems unlikely to match index (and/or name) while the subsriber was aware
+// of an existing interface with the same parameter, yet would pertain to a "different"
+// interface. So, it looks safe to fire an event solely based on inteface index and
+// name. And it should be up to the subscriber to either ignore or process it (e.g.
+// do a lookup based on interface index and/or name).
+//
+// Note: Only Proxy and LB uses interfaceMonitor. (LB's usage of InterfaceDeleted
+// events is rather simple and has been using kernel originated events for some time.)
+// The Proxy has both NSC and NSE roles. In case of NSE role, the kernel takes care of
+// detaching the removed interface from the linux bridge by default. Seemingly no other
+// reconfiguration is required in that case. Meaning, even if interface removal was not
+// advertised (not even by connection close), things wouldn't break.
+// When Proxy acts as a NSC (i.e. connects to LBs) it must get informed about the loss
+// of the network interface had it been removed before the connection close. (So that it
+// could reconfigure its nexthop routes.)
+//
+// Note: The subscriber should be prepared to handle interface delete events with missing
+// information, when only the interface index (and interface name) are known.
+// Note: interfacemonitor.server and client will both create an InterfaceMonitor, thus
+// such events will be received twice by the Proxy
 func (im *interfaceMonitor) InterfaceDeleted(intf networking.Iface) {
+	im.advertiseInterfaceDeletion(intf) // interface event solely based on interface index/name
 }
 
 func (im *interfaceMonitor) advertiseInterfaceCreation(index int, pendingInterface *pendingInterface) {
@@ -152,12 +168,12 @@ func (im *interfaceMonitor) advertiseInterfaceCreation(index int, pendingInterfa
 	newInterface.SetNeighborPrefixes(pendingInterface.neighborIPs)
 	newInterface.SetGatewayPrefixes(pendingInterface.gateways)
 	newInterface.SetInterfaceType(pendingInterface.InterfaceType)
-	im.logger.V(1).Info("advertise created", "interface", newInterface)
+	im.logger.V(1).Info("advertise created", "interface", newInterface, "index", newInterface.GetIndex())
 	im.interfaceMonitorSubscriber.InterfaceCreated(newInterface)
 }
 
 func (im *interfaceMonitor) advertiseInterfaceDeletion(intf networking.Iface) {
-	im.logger.V(1).Info("advertise deleted", "interface", intf)
+	im.logger.V(1).Info("advertise deleted", "interface", intf, "index", intf.GetIndex())
 	im.interfaceMonitorSubscriber.InterfaceDeleted(intf)
 }
 
