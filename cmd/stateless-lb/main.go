@@ -277,7 +277,6 @@ func main() {
 	)
 
 	interfaceMonitorEndpoint := interfacemonitor.NewServer(interfaceMonitor, sns, netUtils)
-	interfaceMonitor.Subscribe(sns) // subscribe to pure netlink events to learn interface delete
 
 	// Note: naming the interface is left to NSM (refer to getNameFromConnection())
 	// However NSM does not seem to ensure uniqueness either. Might need to revisit...
@@ -615,7 +614,7 @@ func (sns *SimpleNetworkService) InterfaceCreated(intf networking.Iface) {
 	}
 	_ = intf.GetName() // fills the Name field of the interface if necessary
 	if _, ok := sns.interfaces.Load(intf.GetIndex()); !ok {
-		sns.logger.Info("InterfaceCreated", "interface", intf) // TODO: the inteface might be already in the map because InterfaceDeleted (likely) won't get called
+		sns.logger.Info("InterfaceCreated", "interface", intf)
 	}
 	if sns.serviceBlocked() {
 		// if service blocked, do not process new interface events (which
