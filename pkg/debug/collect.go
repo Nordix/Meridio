@@ -25,7 +25,6 @@ import (
 
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/host"
-	"github.com/shirou/gopsutil/v3/process"
 	"github.com/vishvananda/netlink"
 )
 
@@ -38,9 +37,7 @@ func Collect() *Export {
 		Neighbors:            listNeighbors(),
 		Routes:               listRoutes(),
 		Rules:                listRules(),
-		ConntrackTable:       getConntrackTable(),
 		System:               getSystemInfo(),
-		Processes:            listProcesses(),
 		EnvironmentVariables: listEnvironmentVariables(),
 	}
 
@@ -202,20 +199,6 @@ func listRules() []*Rule {
 	return rules
 }
 
-func getConntrackTable() []string {
-	conntrackTable := []string{}
-	ct, err := netlink.ConntrackTableList(netlink.ConntrackTable, netlink.FAMILY_ALL)
-	if err != nil {
-		return nil
-	}
-
-	for _, entry := range ct {
-		conntrackTable = append(conntrackTable, entry.String())
-	}
-
-	return conntrackTable
-}
-
 func getSystemInfo() *System {
 	s := &System{}
 
@@ -230,34 +213,6 @@ func getSystemInfo() *System {
 	}
 
 	return s
-}
-
-func listProcesses() []*Process {
-	ps := []*Process{}
-
-	processes, err := process.Processes()
-	if err == nil {
-		return nil
-	}
-
-	for _, p := range processes {
-		name, _ := p.Name()
-		cmd, _ := p.Cmdline()
-		execPath, _ := p.Exe()
-		status, _ := p.Status()
-		parent, _ := p.Ppid()
-
-		ps = append(ps, &Process{
-			Pid:      int(p.Pid),
-			Name:     name,
-			Command:  cmd,
-			Parent:   int(parent),
-			ExecPath: execPath,
-			Status:   status,
-		})
-	}
-
-	return ps
 }
 
 func listEnvironmentVariables() []string {
