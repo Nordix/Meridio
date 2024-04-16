@@ -34,10 +34,8 @@ type Export struct {
 	NetworkInterfaces    []*NetworkInterface `json:"network-interfaces"`
 	Rules                []*Rule             `json:"rules"`
 	Routes               []*Route            `json:"route"`
-	ConntrackTable       []string            `json:"conntrack-table"`
 	Neighbors            []*Neighbor         `json:"neighbors"`
 	System               *System             `json:"system"`
-	Processes            []*Process          `json:"processes"`
 	EnvironmentVariables []string            `json:"environment-variables"`
 	// TODO: netfilter (nftables)
 	// TODO: Groups, Users...?
@@ -92,13 +90,4 @@ type Rule struct {
 type System struct {
 	CPUInfo  []cpu.InfoStat `json:"cpu-info"`
 	HostInfo *host.InfoStat `json:"host-info"`
-}
-
-type Process struct {
-	Pid      int      `json:"pid"`
-	Name     string   `json:"name"`
-	Command  string   `json:"command"`
-	Parent   int      `json:"parent"`
-	ExecPath string   `json:"exec-path"`
-	Status   []string `json:"status"`
 }
