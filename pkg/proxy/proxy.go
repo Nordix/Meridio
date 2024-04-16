@@ -32,6 +32,7 @@ import (
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/retry"
+	"github.com/vishvananda/netlink"
 )
 
 const dstChildNamePrefix = "-dst"
@@ -46,11 +47,12 @@ type Proxy struct {
 	IpamClient               ipamAPI.IpamClient
 	mutex                    sync.Mutex
 	netUtils                 networking.Utils
-	nexthops                 []string
+	nexthops                 map[string]struct{}
 	tableID                  int
 	logger                   logr.Logger
 	connectionToReleaseMap   map[string]context.CancelFunc
 	connectionToReleaseMutex sync.Mutex
+	mu                       sync.Mutex
 }
 
 func (p *Proxy) isNSMInterface(intf networking.Iface) bool {
@@ -58,20 +60,35 @@ func (p *Proxy) isNSMInterface(intf networking.Iface) bool {
 }
 
 // InterfaceCreated -
+//
+// Note: A NSM connection for which there's already a networking.Iface linked to
+// the bridge can be updated on the fly. It might involve update of the src/dst
+// addresses for example, which might confuse the bridge if the intefaces would
+// be always compared by considering all the networking.Iface fields. Therefore,
+// it is expected that the bridge can handle such cases for example by doing a
+// lookup based on interface index as well. (We expect only one networking.Iface
+// per interface index at a time. Which means, the proxy must handle interface
+// delete events originating from the kernel to reconfigure linked interfaces.)
+//
+// Note: Seemingly, upon NSM connncetion refresh the src and dst addresses might
+// appear in a different order then before.
 func (p *Proxy) InterfaceCreated(intf networking.Iface) {
 	if !p.isNSMInterface(intf) {
 		return
 	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	// TODO: Check why interface is not created with a name in the first place?
-	// TODO: If interface name was stored in the "database" calling intf.GetName(),
-	// then InterfaceDeleted() won't match due to relying on DeepEqual...
-	// TODO: Consider reworking the whole interface event handling part...
+	// TODO: Avoid using intf.GetName(), as it will load the interface name into
+	// the underlying struct, then InterfaceDeleted() won't match as it relies on
+	// "DeepEqual", or for the same connection another entry will be created on the
+	// coming InterfaceCreated() as part of connection refresh.
+	// TODO: Consider reworking the whole interface event handling part, including
+	// what gets stored and how is handled.
 	if !p.Bridge.InterfaceIsLinked(intf) { // avoid NSM connection refresh triggered spamming
-		p.logger.Info("InterfaceCreated", "name", intf.GetNameNoLoad(), "intf", intf, "nexthops", p.nexthops)
+		p.logger.Info("InterfaceCreated", "name", intf.GetNameNoLoad(), "index", intf.GetIndex(), "intf", intf, "nexthops", p.nexthops)
 	}
-	// Link the interface to the bridge
-	// TODO: Due to using DeepEqual to check if interface is already part of the bridge,
-	// the same interface might be appended multiple times to the linked interface list.
+	// Link the interface to the bridge (if already linked update interface fields in case of address changes)
 	err := p.Bridge.LinkInterface(intf)
 	if err != nil {
 		p.logger.Error(err, "LinkInterface")
@@ -86,51 +103,75 @@ func (p *Proxy) InterfaceCreated(intf networking.Iface) {
 				}
 			}
 			// append nexthop if not known
-			add := true
-			for _, nexthop := range p.nexthops {
-				if nexthop == ip {
-					add = false
-					break
-				}
-			}
-			if add {
-				p.nexthops = append(p.nexthops, ip)
-			}
+			p.nexthops[ip] = struct{}{}
 		}
 	}
 }
 
 // InterfaceDeleted -
-// Note: Not called on TAPA close because the interface normally
-// is not available to get the index. While kernel originated
-// interface delete events are ignored by default.
+// Used to get only called upon NSM connection close when the network interface
+// was still available in the kernel. Due to improvements around interfaceMonitor,
+// also expect a callback on interface remove events originating from kernel (only
+// interface index and name will be set).
+//
+// Note: IMHO there's no need for a callback with missing interface index upon
+// NSM connection close, since either the interface exists during close, or it does
+// not. And in the latter case a kernel event is supposed to take care of unlinking.
+// (Therefore, no need for an additional callback that contains only address info.)
+// Moreover, this way we don't have to deal with InterfaceDeleted events being
+// spammed by NSM heal when reconnect attempt fails and heal orders close of
+// non-established connection.
+//
+// Note: I'm a bit puzzled about abrupt proxy container restart. Although the proxy
+// won't remember the next hop addresses. Yet, the associated routes might remain in
+// the kernel until source routing of VIPs gets updated for the first time.
+// This might even be beneficial as such route can provide continuity of egress
+// communication assuming the associated LB is up. (Old interfaces remain in POD
+// until NSM cleans up the related connections.)
+//
+// Note: Might get called parallel for multiple NSC connections for example during
+// NSM heal, so locking of resources is required.
 func (p *Proxy) InterfaceDeleted(intf networking.Iface) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// For kernel originated event lookup linked interface based on the index.
+	// And continue processing with the stored Iface.
+	fromKernel := false
+	if !p.isNSMInterface(intf) && intf.GetIndex() >= 0 {
+		linkedIntf := p.Bridge.FindLinkedInterfaceByIndex(intf.GetIndex())
+		if linkedIntf == nil {
+			return
+		}
+		p.logger.V(1).Info("InterfaceDeleted event from kernel", "name", intf.GetNameNoLoad(), "index", intf.GetIndex())
+		fromKernel = true
+		intf = linkedIntf
+	}
 	if !p.isNSMInterface(intf) {
 		return
 	}
-	p.logger.Info("InterfaceDeleted", "name", intf.GetNameNoLoad(), "intf", intf, "nexthops", p.nexthops)
+	p.logger.Info("InterfaceDeleted", "name", intf.GetNameNoLoad(), "index", intf.GetIndex(), "intf", intf, "nexthops", p.nexthops)
 	// Unlink the interface from the bridge
 	err := p.Bridge.UnLinkInterface(intf)
 	if err != nil {
-		p.logger.Error(err, "UnLinkInterface")
+		// avoid unnecessary errors in case of kernel reported interface unavailable
+		var linkNotFoundErr netlink.LinkNotFoundError
+		if !fromKernel || !errors.As(err, &linkNotFoundErr) {
+			p.logger.Error(err, "UnLinkInterface")
+		}
 	}
 	if intf.GetInterfaceType() == networking.NSC {
 		// 	Remove the neighbor IPs of the interface from the nexthops (outgoing traffic)
 		for _, ip := range intf.GetNeighborPrefixes() {
+			_, isKnownNexthop := p.nexthops[ip]
 			for _, vip := range p.vips {
 				err = vip.RemoveNexthop(ip)
-				if err != nil {
+				if err != nil && isKnownNexthop {
 					p.logger.Error(err, "Removing nexthop")
 				}
 			}
 
-			nexthops := p.nexthops[:0]
-			for _, nexthop := range p.nexthops {
-				if nexthop != ip {
-					nexthops = append(nexthops, nexthop)
-				}
-			}
-			p.nexthops = nexthops
+			delete(p.nexthops, ip)
 		}
 	}
 }
@@ -461,6 +502,9 @@ func (p *Proxy) setBridgeIPs() error {
 }
 
 func (p *Proxy) SetVIPs(vips []string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	logger := p.logger.WithValues("func", "SetVIPs")
 	currentVIPs := make(map[string]*virtualIP)
 	for _, vip := range p.vips {
@@ -476,12 +520,13 @@ func (p *Proxy) SetVIPs(vips []string) {
 			}
 			p.tableID++
 			p.vips = append(p.vips, newVIP)
-			for _, nexthop := range p.nexthops {
+			for nexthop := range p.nexthops {
 				err = newVIP.AddNexthop(nexthop)
 				if err != nil {
 					logger.Error(err, "Adding nexthop", "nexthop", nexthop)
 				}
 			}
+
 		}
 		delete(currentVIPs, vip)
 	}
@@ -511,7 +556,7 @@ func NewProxy(conduit *nspAPI.Conduit, nodeName string, ipamClient ipamAPI.IpamC
 		Bridge:                 bridge,
 		conduit:                conduit,
 		netUtils:               netUtils,
-		nexthops:               []string{},
+		nexthops:               map[string]struct{}{},
 		vips:                   []*virtualIP{},
 		tableID:                1,
 		Subnets:                make(map[ipamAPI.IPFamily]*ipamAPI.Subnet),

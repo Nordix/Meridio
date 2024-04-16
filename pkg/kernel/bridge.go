@@ -19,6 +19,7 @@ package kernel
 import (
 	"fmt"
 
+	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/vishvananda/netlink"
 )
@@ -86,14 +87,41 @@ func (b *Bridge) InterfaceIsLinked(intf networking.Iface) bool {
 	return false
 }
 
-// LinkInterface set the bridge as master of another interface
+// FindLinkedInterfaceByIndex -
+// Finds and returns a linked interface by index.
+func (b *Bridge) FindLinkedInterfaceByIndex(index int) networking.Iface {
+	if index < 0 {
+		return nil
+	}
+	for _, i := range b.linkedInterfaces {
+		if i.GetIndex() == index {
+			return i
+		}
+	}
+	return nil
+}
+
+// LinkInterface sets the bridge as master of another interface
 //
-// TODO: InterfaceIsLinked() relies on DeepEqual, thus the same
+// Note: InterfaceIsLinked() relies on DeepEqual, thus the same
 // interface might be added multiple times to linkedInterfaces.
+// Therefore, do a lookup based on the interface index, and overwrite
+// existing linked interface with the new if interface type matches.
+// TODO: Check if interface type update is possible.
 func (b *Bridge) LinkInterface(intf networking.Iface) error {
 	if b.InterfaceIsLinked(intf) {
 		return nil
 	}
+	// check for linked interface with the same index, and replace it
+	if linked := b.FindLinkedInterfaceByIndex(intf.GetIndex()); linked != nil {
+		log.Logger.Info("Interface with index already linked to bridge",
+			"index", intf.GetIndex(), "linked interface", linked, "new interface", intf)
+		// Note: Type update propably should not happen, but I don't know the impacts if it would be possible.
+		if linked.GetInterfaceType() == intf.GetInterfaceType() {
+			b.removeFromlinkedInterfaces(linked)
+		}
+	}
+	// link the interface
 	b.addTolinkedInterfaces(intf)
 	bridgeLink, err := b.getLink()
 	if err != nil {
@@ -101,11 +129,11 @@ func (b *Bridge) LinkInterface(intf networking.Iface) error {
 	}
 	interfaceLink, err := getLink(intf)
 	if err != nil {
-		return fmt.Errorf("failed to getLink interface while linking interface (%s): %w", intf.GetName(), err)
+		return fmt.Errorf("failed to getLink interface while linking interface (%s): %w", intf.GetNameNoLoad(), err)
 	}
 	err = netlink.LinkSetMaster(interfaceLink, bridgeLink)
 	if err != nil {
-		return fmt.Errorf("failed to LinkSetMaster while linking interface (%s - %s): %w", b.GetName(), intf.GetName(), err)
+		return fmt.Errorf("failed to LinkSetMaster while linking interface (%s - %s): %w", b.GetName(), intf.GetNameNoLoad(), err)
 	}
 	return nil
 }
@@ -117,12 +145,12 @@ func (b *Bridge) UnLinkInterface(intf networking.Iface) error {
 	b.removeFromlinkedInterfaces(intf)
 	interfaceLink, err := getLink(intf)
 	if err != nil {
-		return fmt.Errorf("failed to getLink interface while unlinking interface (%s): %w", intf.GetName(), err)
+		return fmt.Errorf("failed to getLink interface while unlinking interface (%s): %w", intf.GetNameNoLoad(), err)
 	}
 
 	err = netlink.LinkSetNoMaster(interfaceLink)
 	if err != nil {
-		return fmt.Errorf("failed to LinkSetNoMaster interface while unlinking interface (%s): %w", intf.GetName(), err)
+		return fmt.Errorf("failed to LinkSetNoMaster interface while unlinking interface (%s): %w", intf.GetNameNoLoad(), err)
 	}
 
 	return nil

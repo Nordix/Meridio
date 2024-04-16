@@ -20,7 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"reflect"
+	"sort"
 
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/vishvananda/netlink"
@@ -136,7 +136,35 @@ func (intf *Interface) RemoveLocalPrefix(prefix string) error {
 }
 
 func (intf *Interface) Equals(iface networking.Iface) bool {
-	return reflect.DeepEqual(intf, iface)
+	if intf.index != iface.GetIndex() {
+		return false
+	}
+	if intf.GetInterfaceType() != iface.GetInterfaceType() {
+		return false
+	}
+	return equalStringList(intf.GetLocalPrefixes(), iface.GetLocalPrefixes()) &&
+		equalStringList(intf.GetNeighborPrefixes(), iface.GetNeighborPrefixes()) &&
+		equalStringList(intf.GetGatewayPrefixes(), iface.GetGatewayPrefixes())
+}
+
+func equalStringList(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	tmpa := make([]string, len(a))
+	tmpb := make([]string, len(b))
+	copy(tmpa, tmpa)
+	copy(tmpb, tmpb)
+	sort.Strings(tmpa)
+	sort.Strings(tmpb)
+
+	for i := range tmpa {
+		if tmpa[i] != tmpb[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func NewInterface(index int, options ...InterfaceOption) *Interface {

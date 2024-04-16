@@ -272,12 +272,6 @@ func main() {
 
 	// Start watching config events of interest
 	configurationManagerClient := nspAPI.NewConfigurationManagerClient(nspConn)
-	if err != nil {
-		logger.Error(err, "Failed to create configuration manager client")
-		cancelSignalCtx()
-		return
-	}
-
 	logger.V(1).Info("Watch configuration")
 	err = retry.Do(func() error {
 		vipWatcher, err := configurationManagerClient.WatchVip(signalCtx, &nspAPI.Vip{

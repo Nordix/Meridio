@@ -65,6 +65,7 @@ type Bridge interface {
 	LinkInterface(intf Iface) error
 	UnLinkInterface(intf Iface) error
 	InterfaceIsLinked(intf Iface) bool
+	FindLinkedInterfaceByIndex(index int) Iface
 }
 
 type FWMarkRoute interface {
