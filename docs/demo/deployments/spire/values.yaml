@@ -1,0 +1,14 @@
+spiffe-csi-driver:
+  enabled: false
+spiffe-oidc-discovery-provider:
+  enabled: false
+spire-agent:
+  socketPath: /run/spire/sockets/agent.sock
+spire-server:
+  controllerManager: 
+    identities:
+      clusterSPIFFEIDs:
+        default:
+          autoPopulateDNSNames: true
+          dnsNameTemplates: 
+          - "{{ .PodMeta.Name }}"
