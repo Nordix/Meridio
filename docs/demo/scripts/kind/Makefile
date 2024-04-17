@@ -148,12 +148,13 @@ clean: kind-delete-cluster kind-delete-gateways ## Delete the Kind cluster and t
 
 .PHONY: install-spire
 install-spire: ## Install spire
-	kubectl apply -k ../../deployments/spire
+	kubectl create namespace spire ; \
+	kubectl apply -f ../../deployments/spire/spire-crds.yaml -n spire ; \
+	kubectl apply -f ../../deployments/spire/spire.yaml -n spire
 
 .PHONY: wait-spire
 wait-spire: ## Wait for spire to be ready
-	kubectl wait -n spire --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=spire-agent ; \
-	kubectl wait -n spire --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=spire-server
+	kubectl wait -n spire --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app.kubernetes.io/instance=my-spire
 
 #############################################################################
 ##@ NSM

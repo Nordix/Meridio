@@ -1,0 +1,842 @@
+---
+# Source: spire/charts/spire-agent/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-spire-agent
+  namespace: spire
+  labels:
+    helm.sh/chart: spire-agent-0.1.0
+    app.kubernetes.io/name: agent
+    app.kubernetes.io/instance: my-spire
+    app.kubernetes.io/version: "1.9.4"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: spire/charts/spire-server/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-spire-server
+  namespace: spire
+  labels:
+    helm.sh/chart: spire-server-0.1.0
+    app.kubernetes.io/name: server
+    app.kubernetes.io/instance: my-spire
+    app.kubernetes.io/version: "1.9.4"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: spire/charts/spire-agent/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-spire-agent
+  namespace: spire
+data:
+  agent.conf: |
+    {
+      "agent": {
+        "data_dir": "/run/spire",
+        "log_level": "info",
+        "retry_bootstrap": true,
+        "server_address": "my-spire-server.spire",
+        "server_port": "443",
+        "socket_path": "/tmp/spire-agent/public/agent.sock",
+        "trust_bundle_path": "/run/spire/bundle/bundle.crt",
+        "trust_domain": "example.org"
+      },
+      "health_checks": {
+        "bind_address": "0.0.0.0",
+        "bind_port": "9982",
+        "listener_enabled": true,
+        "live_path": "/live",
+        "ready_path": "/ready"
+      },
+      "plugins": {
+        "KeyManager": [
+          {
+            "memory": {
+              "plugin_data": null
+            }
+          }
+        ],
+        "NodeAttestor": [
+          {
+            "k8s_psat": {
+              "plugin_data": {
+                "cluster": "example-cluster"
+              }
+            }
+          }
+        ],
+        "WorkloadAttestor": [
+          {
+            "k8s": {
+              "plugin_data": {
+                "disable_container_selectors": false,
+                "skip_kubelet_verification": true
+              }
+            }
+          }
+        ]
+      }
+    }
+---
+# Source: spire/charts/spire-server/templates/bundle-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spire-bundle
+  namespace: spire
+---
+# Source: spire/charts/spire-server/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-spire-server
+  namespace: spire
+data:
+  server.conf: |
+    {
+      "health_checks": {
+        "bind_address": "0.0.0.0",
+        "bind_port": "8080",
+        "listener_enabled": true,
+        "live_path": "/live",
+        "ready_path": "/ready"
+      },
+      "plugins": {
+        "DataStore": [
+          {
+            "sql": {
+              "plugin_data": {
+                "connection_string": "/run/spire/data/datastore.sqlite3",
+                "database_type": "sqlite3"
+              }
+            }
+          }
+        ],
+        "KeyManager": [
+          {
+            "disk": {
+              "plugin_data": {
+                "keys_path": "/run/spire/data/keys.json"
+              }
+            }
+          }
+        ],
+        "NodeAttestor": [
+          {
+            "k8s_psat": {
+              "plugin_data": {
+                "clusters": [
+                  {
+                    "example-cluster": {
+                      "allowed_node_label_keys": [],
+                      "allowed_pod_label_keys": [],
+                      "audience": [
+                        "spire-server"
+                      ],
+                      "service_account_allow_list": [
+                        "spire:my-spire-agent"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "Notifier": [
+          {
+            "k8sbundle": {
+              "plugin_data": {
+                "webhook_label": "spiffe.io/webhook",
+                "config_map": "spire-bundle",
+                "namespace": "spire"
+              }
+            }
+          }
+        ]
+      },
+      "server": {
+        "audit_log_enabled": false,
+        "bind_address": "0.0.0.0",
+        "bind_port": "8081",
+        "ca_key_type": "rsa-2048",
+        "ca_subject": [
+          {
+            "common_name": "example.org",
+            "country": [
+              "ARPA"
+            ],
+            "organization": [
+              "Example"
+            ]
+          }
+        ],
+        "ca_ttl": "24h",
+        "data_dir": "/run/spire/data",
+        "default_jwt_svid_ttl": "1h",
+        "default_x509_svid_ttl": "4h",
+        "jwt_issuer": "https://oidc-discovery.example.org",
+        "log_level": "info",
+        "trust_domain": "example.org"
+      }
+    }
+---
+# Source: spire/charts/spire-server/templates/controller-manager-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-spire-controller-manager
+  namespace: spire
+data:
+  controller-manager-config.yaml: |
+    apiVersion: spire.spiffe.io/v1alpha1
+    kind: ControllerManagerConfig
+    metadata:
+      name: my-spire-controller-manager
+      namespace: spire
+      labels:
+        helm.sh/chart: spire-server-0.1.0
+        app.kubernetes.io/name: server
+        app.kubernetes.io/instance: my-spire
+        app.kubernetes.io/version: "1.9.4"
+        app.kubernetes.io/managed-by: Helm
+    metrics:
+      bindAddress: 0.0.0.0:8082
+    health:
+      healthProbeBindAddress: 0.0.0.0:8083
+    leaderElection:
+      leaderElect: true
+      resourceName: ffa97b5d.spiffe.io
+      resourceNamespace: spire
+    validatingWebhookConfigurationName: spire-my-spire-controller-manager-webhook
+    entryIDPrefixCleanup: ""
+    entryIDPrefix: example-cluster
+    clusterName: example-cluster
+    trustDomain: example.org
+    ignoreNamespaces:
+      - kube-system
+      - kube-public
+      - local-path-storage
+    spireServerSocketPath: "/tmp/spire-server/private/api.sock"
+    className: "spire-my-spire"
+    watchClassless: false
+    parentIDTemplate: "spiffe://{{ .TrustDomain }}/spire/agent/k8s_psat/{{ .ClusterName }}/{{ .NodeMeta.UID }}"
+---
+# Source: spire/charts/spire-agent/templates/roles.yaml
+# Required cluster role to allow spire-agent to query k8s API server
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-spire-agent
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - nodes
+      - nodes/proxy
+    verbs: ["get"]
+---
+# Source: spire/charts/spire-server/templates/controller-manager-roles.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: spire-my-spire-controller-manager
+rules:
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["mutatingwebhookconfigurations", "validatingwebhookconfigurations"]
+    verbs: ["get", "list", "patch", "watch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["spire.spiffe.io"]
+    resources: ["clusterfederatedtrustdomains"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["spire.spiffe.io"]
+    resources: ["clusterfederatedtrustdomains/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["spire.spiffe.io"]
+    resources: ["clusterfederatedtrustdomains/status"]
+    verbs: ["get", "patch", "update"]
+  - apiGroups: ["spire.spiffe.io"]
+    resources: ["clusterspiffeids"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["spire.spiffe.io"]
+    resources: ["clusterspiffeids/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["spire.spiffe.io"]
+    resources: ["clusterspiffeids/status"]
+    verbs: ["get", "patch", "update"]
+  - apiGroups: ["spire.spiffe.io"]
+    resources: ["clusterstaticentries"]
+    verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+  - apiGroups: ["spire.spiffe.io"]
+    resources: ["clusterstaticentries/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["spire.spiffe.io"]
+    resources: ["clusterstaticentries/status"]
+    verbs: ["get", "patch", "update"]
+---
+# Source: spire/charts/spire-server/templates/roles.yaml
+# ClusterRole to allow spire-server node attestor to query Token Review API
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: spire-my-spire-server
+rules:
+  - apiGroups: [authentication.k8s.io]
+    resources: [tokenreviews]
+    verbs:
+      - get
+      - watch
+      - list
+      - create
+  - apiGroups: [""]
+    resources: [nodes, pods]
+    verbs:
+      - get
+      - list
+---
+# Source: spire/charts/spire-agent/templates/roles.yaml
+# Binds above cluster role to spire-agent service account
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: my-spire-agent
+subjects:
+  - kind: ServiceAccount
+    name: my-spire-agent
+    namespace: spire
+roleRef:
+  kind: ClusterRole
+  name: my-spire-agent
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: spire/charts/spire-server/templates/controller-manager-roles.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: spire-my-spire-controller-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: spire-my-spire-controller-manager
+subjects:
+- kind: ServiceAccount
+  name: my-spire-server
+  namespace: spire
+---
+# Source: spire/charts/spire-server/templates/roles.yaml
+# Binds above cluster role to spire-server service account
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: spire-my-spire-server
+subjects:
+  - kind: ServiceAccount
+    name: my-spire-server
+    namespace: spire
+roleRef:
+  kind: ClusterRole
+  name: spire-my-spire-server
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: spire/charts/spire-server/templates/controller-manager-roles.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-spire-controller-manager-leader-election
+  namespace: spire
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+# Source: spire/charts/spire-server/templates/roles.yaml
+# Role to be able to push certificate bundles to a configmap
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: spire-bundle
+  namespace: spire
+rules:
+  - apiGroups: [""]
+    resources: [configmaps]
+    resourceNames: [spire-bundle]
+    verbs:
+      - get
+      - patch
+---
+# Source: spire/charts/spire-server/templates/controller-manager-roles.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: my-spire-controller-manager-leader-election
+  namespace: spire
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: my-spire-controller-manager-leader-election
+subjects:
+- kind: ServiceAccount
+  name: my-spire-server
+  namespace: spire
+---
+# Source: spire/charts/spire-server/templates/roles.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: spire-bundle
+  namespace: spire
+subjects:
+  - kind: ServiceAccount
+    name: my-spire-server
+    namespace: spire
+roleRef:
+  kind: Role
+  name: spire-bundle
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: spire/charts/spire-server/templates/controller-manager-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-spire-controller-manager-webhook
+  namespace: spire
+  labels:
+    helm.sh/chart: spire-server-0.1.0
+    app.kubernetes.io/name: server
+    app.kubernetes.io/instance: my-spire
+    app.kubernetes.io/version: "1.9.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: https
+      port: 443
+      targetPort: https
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: server
+    app.kubernetes.io/instance: my-spire
+---
+# Source: spire/charts/spire-server/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-spire-server
+  namespace: spire
+  labels:
+    helm.sh/chart: spire-server-0.1.0
+    app.kubernetes.io/name: server
+    app.kubernetes.io/instance: my-spire
+    app.kubernetes.io/version: "1.9.4"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: grpc
+      port: 443
+      targetPort: grpc
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: server
+    app.kubernetes.io/instance: my-spire
+---
+# Source: spire/charts/spire-agent/templates/daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: my-spire-agent
+  namespace: spire
+  labels:
+    helm.sh/chart: spire-agent-0.1.0
+    app.kubernetes.io/name: agent
+    app.kubernetes.io/instance: my-spire
+    app.kubernetes.io/version: "1.9.4"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: default
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: agent
+      app.kubernetes.io/instance: my-spire
+      app.kubernetes.io/component: default
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: spire-agent
+        checksum/config: 189a2074a2638b33e12e48c6b48cd90430194c06c322e61278dbc90af0a6bbb1
+      labels:
+        app.kubernetes.io/name: agent
+        app.kubernetes.io/instance: my-spire
+        app.kubernetes.io/component: default
+    spec:
+      hostPID: true
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      serviceAccountName: my-spire-agent
+      securityContext:
+        {}
+      
+      initContainers:
+        - name: ensure-alternate-names
+          image: cgr.dev/chainguard/bash:latest@sha256:5921884408efe50b77796675dc109ad2126f54476fe7403c37d8898a5ceb2e76
+          imagePullPolicy: Always
+          command: ["bash", "-xc"]
+          args:
+            - |
+              cd /run/spire/sockets
+              L=`readlink socket`
+              [ "x$L" != "xagent.sock" ] && rm -f socket
+              [ ! -L socket ] && ln -s agent.sock socket
+              L=`readlink spire-agent.sock`
+              [ "x$L" != "xagent.sock" ] && rm -f spire-agent.sock
+              [ ! -L spire-agent.sock ] && ln -s agent.sock spire-agent.sock
+              L=`readlink api.sock`
+              [ "x$L" != "xagent.sock" ] && rm -f api.sock
+              [ ! -L api.sock ] && ln -s agent.sock api.sock
+              [ -L agent.sock ] && rm -f agent.sock
+              exit 0
+          resources:
+            {}
+          volumeMounts:
+            - name: spire-agent-socket-dir
+              mountPath: /run/spire/sockets
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+      containers:
+        - name: spire-agent
+          image: ghcr.io/spiffe/spire-agent:1.9.4
+          imagePullPolicy: IfNotPresent
+          args: ["-config", "/opt/spire/conf/agent/agent.conf"]
+          securityContext:
+            {}
+          env:
+            - name: PATH
+              value: "/opt/spire/bin:/bin"
+          ports:
+            - containerPort: 9982
+              name: healthz
+          volumeMounts:
+            - name: spire-config
+              mountPath: /opt/spire/conf/agent
+              readOnly: true
+            - name: spire-bundle
+              mountPath: /run/spire/bundle
+              readOnly: true
+            - name: spire-agent-socket-dir
+              mountPath: /tmp/spire-agent/public
+              readOnly: false
+            - name: spire-token
+              mountPath: /var/run/secrets/tokens
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: healthz
+            initialDelaySeconds: 15
+            periodSeconds: 60
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: healthz
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          resources:
+            {}
+      volumes:
+        - name: spire-config
+          configMap:
+            name: my-spire-agent
+        - name: spire-agent-admin-socket-dir
+          emptyDir: {}
+        - name: spire-bundle
+          configMap:
+            name: spire-bundle
+        - name: spire-token
+          projected:
+            sources:
+            - serviceAccountToken:
+                path: spire-agent
+                expirationSeconds: 7200
+                audience: spire-server
+        - name: spire-agent-socket-dir
+          hostPath:
+            path: /run/spire/sockets
+            type: DirectoryOrCreate
+---
+# Source: spire/charts/spire-server/templates/server-resource.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-spire-server
+  namespace: spire
+  labels:
+    helm.sh/chart: spire-server-0.1.0
+    app.kubernetes.io/name: server
+    app.kubernetes.io/instance: my-spire
+    app.kubernetes.io/version: "1.9.4"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: server
+spec:
+  replicas: 1
+  serviceName: my-spire-server
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: server
+      app.kubernetes.io/instance: my-spire
+      app.kubernetes.io/component: server
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: spire-server
+        checksum/config: 256ab3b88bd873772e8324e6a0bb215d439b742efd9aa656d8f9a5abf9d71ea1
+        checksum/config2: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+        checksum/config3: 757409015cd2cf0d5ceffc0f33f088b5dfe465dd5737e73b15dfa7cef23fb915
+        checksum/configTornjak: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
+      labels:
+        app.kubernetes.io/name: server
+        app.kubernetes.io/instance: my-spire
+        app.kubernetes.io/component: server
+        component: server
+        release: my-spire
+        release-namespace: spire
+    spec:
+      serviceAccountName: my-spire-server
+      shareProcessNamespace: true
+      securityContext:
+        {}
+      
+      containers:
+        - name: spire-server
+          securityContext:
+            {}
+          image: ghcr.io/spiffe/spire-server:1.9.4
+          imagePullPolicy: IfNotPresent
+          args:
+            - -expandEnv
+            - -config
+            - /run/spire/config/server.conf
+          env:
+          - name: PATH
+            value: "/opt/spire/bin:/bin"
+          ports:
+            - name: grpc
+              containerPort: 8081
+              protocol: TCP
+            - containerPort: 8080
+              name: healthz
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: healthz
+            failureThreshold: 2
+            initialDelaySeconds: 15
+            periodSeconds: 60
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: healthz
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {}
+          volumeMounts:
+            - name: spire-server-socket
+              mountPath: /tmp/spire-server/private
+              readOnly: false
+            - name: spire-config
+              mountPath: /run/spire/config
+              readOnly: true
+            - name: spire-data
+              mountPath: /run/spire/data
+              readOnly: false
+            - name: server-tmp
+              mountPath: /tmp
+              readOnly: false
+        - name: spire-controller-manager
+          securityContext:
+            {}
+          image: ghcr.io/spiffe/spire-controller-manager:0.5.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --config=controller-manager-config.yaml
+          env:
+            - name: ENABLE_WEBHOOKS
+              value: "true"
+          ports:
+            - name: https
+              containerPort: 9443
+              protocol: TCP
+            - containerPort: 8083
+              name: healthz
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: healthz
+          resources:
+            {}
+          volumeMounts:
+            - name: spire-server-socket
+              mountPath: /tmp/spire-server/private
+              readOnly: true
+            - name: controller-manager-config
+              mountPath: /controller-manager-config.yaml
+              subPath: controller-manager-config.yaml
+              readOnly: true
+            - name: spire-controller-manager-tmp
+              mountPath: /tmp
+              readOnly: false
+      volumes:
+        - name: server-tmp
+          emptyDir: {}
+        - name: spire-config
+          configMap:
+            name: my-spire-server
+        - name: spire-server-socket
+          emptyDir: {}
+        - name: spire-controller-manager-tmp
+          emptyDir: {}
+        - name: controller-manager-config
+          configMap:
+            name: my-spire-controller-manager
+  volumeClaimTemplates:
+    - metadata:
+        name: spire-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+---
+# Source: spire/charts/spire-server/templates/controller-manager-cluster-ids.yaml
+apiVersion: spire.spiffe.io/v1alpha1
+kind: ClusterSPIFFEID
+metadata:
+  name: spire-my-spire-default
+spec:
+  className: "spire-my-spire"
+  spiffeIDTemplate: "spiffe://{{ .TrustDomain }}/ns/{{ .PodMeta.Namespace }}/sa/{{ .PodSpec.ServiceAccountName }}"
+  namespaceSelector:
+    matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: NotIn
+      values:
+      - spire
+      - spire-server
+      - spire-system
+  dnsNameTemplates:
+    - '{{ .PodMeta.Name }}'
+  autoPopulateDNSNames: true
+---
+# Source: spire/charts/spire-server/templates/controller-manager-cluster-ids.yaml
+apiVersion: spire.spiffe.io/v1alpha1
+kind: ClusterSPIFFEID
+metadata:
+  name: spire-my-spire-oidc-discovery-provider
+spec:
+  className: "spire-my-spire"
+  spiffeIDTemplate: "spiffe://{{ .TrustDomain }}/ns/{{ .PodMeta.Namespace }}/sa/{{ .PodSpec.ServiceAccountName }}"
+  podSelector:
+    matchLabels:
+      component: oidc-discovery-provider
+      release: my-spire
+      release-namespace: spire
+  namespaceSelector:
+    matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: In
+      values:
+      - spire
+      - spire-server
+      - spire-system
+  dnsNameTemplates:
+    - oidc-discovery.{{ .TrustDomain }}
+  autoPopulateDNSNames: true
+---
+# Source: spire/charts/spire-server/templates/controller-manager-cluster-ids.yaml
+apiVersion: spire.spiffe.io/v1alpha1
+kind: ClusterSPIFFEID
+metadata:
+  name: spire-my-spire-test-keys
+spec:
+  className: "spire-my-spire"
+  spiffeIDTemplate: "spiffe://{{ .TrustDomain }}/ns/{{ .PodMeta.Namespace }}/sa/{{ .PodSpec.ServiceAccountName }}"
+  podSelector:
+    matchLabels:
+      component: test-keys
+      release: my-spire
+      release-namespace: spire
+  namespaceSelector:
+    matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: In
+      values:
+      - spire
+      - spire-server
+      - spire-system
+---
+# Source: spire/charts/spire-server/templates/controller-manager-webhook.yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: spire-my-spire-controller-manager-webhook
+  labels:
+    spiffe.io/webhook: "true"
+webhooks:
+  - admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        name: my-spire-controller-manager-webhook
+        namespace: spire
+        path: /validate-spire-spiffe-io-v1alpha1-clusterfederatedtrustdomain
+    failurePolicy: Ignore # Actual value to be set by post install/upgrade hooks
+    name: vclusterfederatedtrustdomain.kb.io
+    rules:
+      - apiGroups: ["spire.spiffe.io"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["clusterfederatedtrustdomains"]
+    sideEffects: None
+  - admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        name: my-spire-controller-manager-webhook
+        namespace: spire
+        path: /validate-spire-spiffe-io-v1alpha1-clusterspiffeid
+    failurePolicy: Ignore # Actual value to be set by post install/upgrade hooks
+    name: vclusterspiffeid.kb.io
+    rules:
+      - apiGroups: ["spire.spiffe.io"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["clusterspiffeids"]
+    sideEffects: None
