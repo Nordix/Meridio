@@ -47,25 +47,25 @@ func (intf *Interface) GetIndex() int {
 	return intf.index
 }
 
-func (intf *Interface) GetName() string {
-	if intf.Name == "" {
-		i, err := intf.getLink()
-		if err == nil {
-			intf.Name = i.Attrs().Name
-		}
+func (intf *Interface) GetName(options ...networking.IfaceNameOption) string {
+	opts := &networking.IfaceNameOptions{
+		NoResolve: false,
+		NoLoad:    false,
 	}
-	return intf.Name
-}
-
-// GetNameNoLoad -
-// Returns the name of the interface without changing the interface,
-// thus won't interfere with DeepEqual based comparison.
-func (intf *Interface) GetNameNoLoad() string {
-	if intf.Name == "" {
+	for _, option := range options {
+		option(opts)
+	}
+	// try to resolve name by interface index via netlink
+	if !opts.NoResolve && intf.Name == "" {
 		i, err := intf.getLink()
-		if err == nil {
+		if err != nil {
+			return ""
+		}
+		if opts.NoLoad {
+			// return name without changing the interface struct
 			return i.Attrs().Name
 		}
+		intf.Name = i.Attrs().Name
 	}
 	return intf.Name
 }
@@ -136,15 +136,13 @@ func (intf *Interface) RemoveLocalPrefix(prefix string) error {
 }
 
 func (intf *Interface) Equals(iface networking.Iface) bool {
-	if intf.index != iface.GetIndex() {
-		return false
-	}
-	if intf.GetInterfaceType() != iface.GetInterfaceType() {
-		return false
-	}
-	return equalStringList(intf.GetLocalPrefixes(), iface.GetLocalPrefixes()) &&
+	return intf.GetIndex() == iface.GetIndex() &&
+		intf.GetInterfaceType() == iface.GetInterfaceType() &&
+		intf.GetName(networking.WithNoResolve()) == iface.GetName(networking.WithNoResolve()) &&
+		equalStringList(intf.GetLocalPrefixes(), iface.GetLocalPrefixes()) &&
 		equalStringList(intf.GetNeighborPrefixes(), iface.GetNeighborPrefixes()) &&
 		equalStringList(intf.GetGatewayPrefixes(), iface.GetGatewayPrefixes())
+
 }
 
 func equalStringList(a, b []string) bool {
@@ -154,8 +152,8 @@ func equalStringList(a, b []string) bool {
 
 	tmpa := make([]string, len(a))
 	tmpb := make([]string, len(b))
-	copy(tmpa, tmpa)
-	copy(tmpb, tmpb)
+	copy(tmpa, a)
+	copy(tmpb, b)
 	sort.Strings(tmpa)
 	sort.Strings(tmpb)
 
