@@ -85,7 +85,7 @@ type ifaceMock struct {
 	name string
 }
 
-func (im *ifaceMock) GetName() string {
+func (im *ifaceMock) GetName(options ...networking.IfaceNameOption) string {
 	return im.name
 }
 

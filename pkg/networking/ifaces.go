@@ -25,10 +25,34 @@ const (
 
 type InterfaceType int
 
+type IfaceNameOptions struct {
+	NoResolve bool
+	NoLoad    bool
+}
+
+type IfaceNameOption func(*IfaceNameOptions)
+
+// WithNoResolve -
+// WithNoResolve implements option pattern for GetName function.
+// Tells not to resolve the interface name if not known.
+func WithNoResolve() IfaceNameOption {
+	return func(in *IfaceNameOptions) {
+		in.NoResolve = true
+	}
+}
+
+// WithNoLoad -
+// WithNoLoad implements option pattern for GetName function.
+// Tells not to load resolved interface name into the Name field of Interface struct.
+func WithNoLoad() IfaceNameOption {
+	return func(in *IfaceNameOptions) {
+		in.NoLoad = true
+	}
+}
+
 type Iface interface {
 	GetIndex() int
-	GetName() string
-	GetNameNoLoad() string
+	GetName(options ...IfaceNameOption) string
 
 	GetLocalPrefixes() []string
 	SetLocalPrefixes(localPrefixes []string)

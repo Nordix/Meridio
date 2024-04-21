@@ -72,6 +72,10 @@ func (p *Proxy) isNSMInterface(intf networking.Iface) bool {
 //
 // Note: Seemingly, upon NSM connncetion refresh the src and dst addresses might
 // appear in a different order then before.
+//
+// Note: Watch out when using intf.GetName(), because by default it will load
+// the interface name into the underlying struct. Which can break the logic
+// built on top of comparing interfaces as it relies on "DeepEqual".
 func (p *Proxy) InterfaceCreated(intf networking.Iface) {
 	if !p.isNSMInterface(intf) {
 		return
@@ -79,14 +83,11 @@ func (p *Proxy) InterfaceCreated(intf networking.Iface) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	// TODO: Check why interface is not created with a name in the first place?
-	// TODO: Avoid using intf.GetName(), as it will load the interface name into
-	// the underlying struct, then InterfaceDeleted() won't match as it relies on
-	// "DeepEqual", or for the same connection another entry will be created on the
-	// coming InterfaceCreated() as part of connection refresh.
 	// TODO: Consider reworking the whole interface event handling part, including
 	// what gets stored and how is handled.
 	if !p.Bridge.InterfaceIsLinked(intf) { // avoid NSM connection refresh triggered spamming
-		p.logger.Info("InterfaceCreated", "name", intf.GetNameNoLoad(), "index", intf.GetIndex(), "intf", intf, "nexthops", p.nexthops)
+		p.logger.Info("InterfaceCreated", "name", intf.GetName(networking.WithNoLoad()),
+			"index", intf.GetIndex(), "intf", intf, "nexthops", p.nexthops)
 	}
 	// Link the interface to the bridge (if already linked update interface fields in case of address changes)
 	err := p.Bridge.LinkInterface(intf)
@@ -143,14 +144,16 @@ func (p *Proxy) InterfaceDeleted(intf networking.Iface) {
 		if linkedIntf == nil {
 			return
 		}
-		p.logger.V(1).Info("InterfaceDeleted event from kernel", "name", intf.GetNameNoLoad(), "index", intf.GetIndex())
+		p.logger.V(1).Info("InterfaceDeleted event from kernel",
+			"name", intf.GetName(networking.WithNoLoad()), "index", intf.GetIndex())
 		fromKernel = true
 		intf = linkedIntf
 	}
 	if !p.isNSMInterface(intf) {
 		return
 	}
-	p.logger.Info("InterfaceDeleted", "name", intf.GetNameNoLoad(), "index", intf.GetIndex(), "intf", intf, "nexthops", p.nexthops)
+	p.logger.Info("InterfaceDeleted", "name", intf.GetName(networking.WithNoLoad()),
+		"index", intf.GetIndex(), "intf", intf, "nexthops", p.nexthops)
 	// Unlink the interface from the bridge
 	err := p.Bridge.UnLinkInterface(intf)
 	if err != nil {

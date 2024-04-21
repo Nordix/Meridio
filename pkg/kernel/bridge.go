@@ -129,11 +129,13 @@ func (b *Bridge) LinkInterface(intf networking.Iface) error {
 	}
 	interfaceLink, err := getLink(intf)
 	if err != nil {
-		return fmt.Errorf("failed to getLink interface while linking interface (%s): %w", intf.GetNameNoLoad(), err)
+		return fmt.Errorf("failed to getLink interface while linking interface (%s): %w",
+			intf.GetName(networking.WithNoLoad()), err)
 	}
 	err = netlink.LinkSetMaster(interfaceLink, bridgeLink)
 	if err != nil {
-		return fmt.Errorf("failed to LinkSetMaster while linking interface (%s - %s): %w", b.GetName(), intf.GetNameNoLoad(), err)
+		return fmt.Errorf("failed to LinkSetMaster while linking interface (%s - %s): %w",
+			b.GetName(), intf.GetName(networking.WithNoLoad()), err)
 	}
 	return nil
 }
@@ -145,12 +147,14 @@ func (b *Bridge) UnLinkInterface(intf networking.Iface) error {
 	b.removeFromlinkedInterfaces(intf)
 	interfaceLink, err := getLink(intf)
 	if err != nil {
-		return fmt.Errorf("failed to getLink interface while unlinking interface (%s): %w", intf.GetNameNoLoad(), err)
+		return fmt.Errorf("failed to getLink interface while unlinking interface (%s): %w",
+			intf.GetName(networking.WithNoLoad()), err)
 	}
 
 	err = netlink.LinkSetNoMaster(interfaceLink)
 	if err != nil {
-		return fmt.Errorf("failed to LinkSetNoMaster interface while unlinking interface (%s): %w", intf.GetNameNoLoad(), err)
+		return fmt.Errorf("failed to LinkSetNoMaster interface while unlinking interface (%s): %w",
+			intf.GetName(networking.WithNoLoad()), err)
 	}
 
 	return nil
