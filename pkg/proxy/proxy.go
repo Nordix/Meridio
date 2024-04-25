@@ -31,6 +31,7 @@ import (
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
+	kernelheal "github.com/nordix/meridio/pkg/nsm/heal"
 	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/utils"
 	"github.com/vishvananda/netlink"
@@ -271,6 +272,13 @@ func (p *Proxy) SetIPContext(ctx context.Context, conn *networkservice.Connectio
 		oldDstIpAddrs := ipContext.DstIpAddrs
 		ipContext.SrcIpAddrs = dstIpAddrs
 		ipContext.DstIpAddrs = srcIPAddrs
+		if conn.GetContext().ExtraContext == nil {
+			conn.GetContext().ExtraContext = map[string]string{}
+		}
+		if p.Bridge != nil {
+			conn.GetContext().ExtraContext[kernelheal.DatapathSourceIPsKey] = strings.Join(p.Bridge.GetLocalPrefixes(), kernelheal.DatapathIPsSeparator)
+			conn.GetContext().ExtraContext[kernelheal.DatapathDestinationIPsKey] = strings.Join(ipContext.DstIpAddrs, kernelheal.DatapathIPsSeparator)
+		}
 		// Note: It might be confusing to see all the "release IP" msgs if the
 		// LB NSE is gone, but NSM Find Client haven't reported it yet in order
 		// to close the related connection.

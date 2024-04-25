@@ -41,7 +41,7 @@ func expirationTimeIsNull(expirationTime *timestamppb.Timestamp) bool {
 // Refresh Client comes from the NSM sdk version used. (In case of NSM v1.1.1 the built-in
 // refresh might lead to connection issues if the different path segments have different
 // maxTokenLifetime configured (unless the NSC side has the lowest maxtokenlifetime)).
-func newClient(ctx context.Context, name string, nsmAPIClient *nsm.APIClient, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+func newClient(ctx context.Context, name string, nsmAPIClient *nsm.APIClient, healOptions []heal.Option, additionalFunctionality ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	additionalFunctionality = append(additionalFunctionality,
 		sendfd.NewClient(),
 	)
@@ -49,7 +49,7 @@ func newClient(ctx context.Context, name string, nsmAPIClient *nsm.APIClient, ad
 	return client.NewClient(ctx,
 		client.WithClientURL(&nsmAPIClient.Config.ConnectTo),
 		client.WithName(name),
-		client.WithHealClient(heal.NewClient(ctx)),
+		client.WithHealClient(heal.NewClient(ctx, healOptions...)),
 		client.WithAdditionalFunctionality(additionalFunctionality...),
 		client.WithDialTimeout(nsmAPIClient.Config.DialTimeout),
 		client.WithDialOptions(nsmAPIClient.GRPCDialOption...),

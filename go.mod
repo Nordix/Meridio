@@ -7,6 +7,7 @@ require (
 	github.com/faisal-memon/sviddisk v0.0.0-20211007205134-77ccea0b9271
 	github.com/go-logr/logr v1.4.1
 	github.com/go-logr/zapr v1.3.0
+	github.com/go-ping/ping v1.0.0
 	github.com/golang/mock v1.6.0
 	github.com/google/nftables v0.1.0
 	github.com/google/uuid v1.3.1
