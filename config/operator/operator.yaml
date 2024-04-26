@@ -59,6 +59,8 @@ spec:
             value: "1s"
           - name: CONDUIT_MTU
             value: "1500"
+          - name: PROXY_IP_RELEASE_DELAY
+            value: "20s"
         securityContext:
           allowPrivilegeEscalation: false
         livenessProbe:
