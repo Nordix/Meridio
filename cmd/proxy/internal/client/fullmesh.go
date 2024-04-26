@@ -87,6 +87,7 @@ func (fmnsc *FullMeshNetworkServiceClient) Request(request *networkservice.Netwo
 
 // Close -
 // Note: adding further clients once closed must be avoided
+// TODO: improve code to support parallel closing of connections (seems to require a lot of redesign)
 func (fmnsc *FullMeshNetworkServiceClient) Close() error {
 	logger := fmnsc.logger.WithValues("func", "Close")
 	fmnsc.mu.Lock()
@@ -142,6 +143,16 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 	// the same connection id maintened by NSMgr (for example after a possible
 	// Proxy crash). Hence, no need for a NSM connection monitor to attempt
 	// connection recovery when trying to connect the first time.
+	// TODO: But the random part also implies, that after a crash the old IPs
+	// will be be leaked.
+	// TODO: Consider trying to recover a connection towards the new NSE via
+	// NSM Monitor Connection, before generating an ID for a new connection.
+	// That's because in case of an instable system NSEs might be reported
+	// unaivalble and then shortly available again. NSM Close() related the
+	// unavailable report might fail, thus leaving interfaces behind whose IPs
+	// could get freed up before the old interfaces would disappear. Luckily,
+	// the old interfaces should be removed from the bridge, thus hopefully not
+	// causing problem just confusion.
 	request.Connection.Id = fmt.Sprintf("%s-%s-%s-%s", uuid.New().String(),
 		fmnsc.config.Name,
 		request.Connection.NetworkService,

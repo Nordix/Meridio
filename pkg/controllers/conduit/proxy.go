@@ -73,6 +73,9 @@ func (i *Proxy) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	if mtu := common.GetConduitMTU(); mtu != "" {
 		operatorEnv = append(operatorEnv, corev1.EnvVar{Name: "NSM_MTU", Value: mtu})
 	}
+	if ipReleaseDelay := common.GetProxyIPReleaseDelay(); ipReleaseDelay != "" {
+		operatorEnv = append(operatorEnv, corev1.EnvVar{Name: "NSM_IP_RELEASE_DELAY", Value: ipReleaseDelay})
+	}
 	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }
 

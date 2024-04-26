@@ -32,6 +32,7 @@ import (
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/retry"
+	"github.com/nordix/meridio/pkg/utils"
 	"github.com/vishvananda/netlink"
 )
 
@@ -270,10 +271,9 @@ func (p *Proxy) SetIPContext(ctx context.Context, conn *networkservice.Connectio
 		oldDstIpAddrs := ipContext.DstIpAddrs
 		ipContext.SrcIpAddrs = dstIpAddrs
 		ipContext.DstIpAddrs = srcIPAddrs
-		// TODO: how to log reconnect events during heal without logging? Now,
-		// it will be confusing to see all the "release IP" msgs if the LB NSE
-		// is gone, but NSM Find Client haven't reported it yet to close the
-		// related connection.
+		// Note: It might be confusing to see all the "release IP" msgs if the
+		// LB NSE is gone, but NSM Find Client haven't reported it yet in order
+		// to close the related connection.
 		if len(oldSrcIpAddrs) == 0 && len(oldDstIpAddrs) == 0 {
 			// src and dst IP addresses were not filled in the request
 			// note: NSM retry clients like fullMeshClient clone the Request
@@ -281,6 +281,12 @@ func (p *Proxy) SetIPContext(ctx context.Context, conn *networkservice.Connectio
 			// src/dst information are empty.
 			p.logger.V(1).Info("Set IP Context of initial connection request",
 				"id", id, "ipContext", ipContext, "interfaceType", "NSC")
+		} else {
+			if !utils.EqualStringList(oldSrcIpAddrs, dstIpAddrs) || !utils.EqualStringList(oldDstIpAddrs, srcIPAddrs) {
+				p.logger.Info("Updated IP Context of connection request",
+					"id", id, "ipContext", ipContext, "interfaceType", "NSC",
+					"oldSrcIPs", oldSrcIpAddrs, "oldDstIPs", oldDstIpAddrs)
+			}
 		}
 	}
 	return nil
@@ -417,18 +423,19 @@ func listToMap(l []string) map[string]struct{} {
 	return res
 }
 
-func (p *Proxy) UnsetIPContext(ctx context.Context, conn *networkservice.Connection, interfaceType networking.InterfaceType) error {
+func (p *Proxy) UnsetIPContext(ctx context.Context, conn *networkservice.Connection,
+	interfaceType networking.InterfaceType, delay time.Duration) error {
 	id := conn.Id
 	if interfaceType == networking.NSE {
 		// Use the segment ID referring to the TAPA side of the NSM connection
 		id = conn.GetPath().GetPathSegments()[0].Id
 	}
 	// Release the IPs in background, so it is not blocking in case the IPAM is down
-	go p.ipReleaser(id)
+	go p.ipReleaser(id, delay)
 	return nil
 }
 
-func (p *Proxy) ipReleaser(id string) {
+func (p *Proxy) ipReleaser(id string, delay time.Duration) {
 	p.connectionToReleaseMutex.Lock()
 	_, exists := p.connectionToReleaseMap[id]
 	if exists { // If an ipReleaser is already running for this connection Id
@@ -438,39 +445,54 @@ func (p *Proxy) ipReleaser(id string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	p.connectionToReleaseMap[id] = cancel // So SetIPContext can cancel in case it needs the IP for this connection
-	p.logger.V(1).Info("Attempt IP release", "id", id)
+	p.logger.V(1).Info("Attempt IP release", "id", id, "delay", delay)
 	p.connectionToReleaseMutex.Unlock()
-	_ = retry.Do(func() error {
-		ctxRelease, cancelRelease := context.WithTimeout(ctx, 10*time.Second)
-		defer cancelRelease()
-		for _, subnet := range p.Subnets {
-			child := &ipamAPI.Child{
-				Name:   fmt.Sprintf("%s%s", id, srcChildNamePrefix),
-				Subnet: subnet,
-			}
-			_, err := p.IpamClient.Release(ctxRelease, child)
-			if err != nil {
-				if ctxRelease.Err() != context.Canceled {
-					p.logger.Error(err, "failed to release src IP", "id", id, "subnet", subnet)
-				}
-				return fmt.Errorf("proxy failed to release IP for child %v, %w", child, err)
-			}
-			child = &ipamAPI.Child{
-				Name:   fmt.Sprintf("%s%s", id, dstChildNamePrefix),
-				Subnet: subnet,
-			}
-			_, err = p.IpamClient.Release(ctxRelease, child)
-			if err != nil {
-				if ctxRelease.Err() != context.Canceled {
-					p.logger.Error(err, "failed to release dst IP", "id", id, "subnet", subnet)
-				}
-				return fmt.Errorf("proxy failed to release IP for child %v, %w", child, err)
-			}
-			p.logger.Info("release IP", "id", id, "subnet", subnet)
+
+	if delay > 0 { // Delay release
+		t := time.NewTimer(delay)
+		select {
+		case <-ctx.Done():
+			t.Stop()
+			p.logger.V(1).Info("Canceled delayed IP release", "id", id)
+		case <-t.C: // delay before attempting actual release
 		}
-		return nil
-	}, retry.WithContext(ctx),
-		retry.WithDelay(2*time.Second))
+	}
+
+	select {
+	case <-ctx.Done():
+	default:
+		_ = retry.Do(func() error {
+			ctxRelease, cancelRelease := context.WithTimeout(ctx, 10*time.Second)
+			defer cancelRelease()
+			for _, subnet := range p.Subnets {
+				child := &ipamAPI.Child{
+					Name:   fmt.Sprintf("%s%s", id, srcChildNamePrefix),
+					Subnet: subnet,
+				}
+				_, err := p.IpamClient.Release(ctxRelease, child)
+				if err != nil {
+					if ctxRelease.Err() != context.Canceled {
+						p.logger.Error(err, "failed to release src IP", "id", id, "subnet", subnet)
+					}
+					return fmt.Errorf("proxy failed to release IP for child %v, %w", child, err)
+				}
+				child = &ipamAPI.Child{
+					Name:   fmt.Sprintf("%s%s", id, dstChildNamePrefix),
+					Subnet: subnet,
+				}
+				_, err = p.IpamClient.Release(ctxRelease, child)
+				if err != nil {
+					if ctxRelease.Err() != context.Canceled {
+						p.logger.Error(err, "failed to release dst IP", "id", id, "subnet", subnet)
+					}
+					return fmt.Errorf("proxy failed to release IP for child %v, %w", child, err)
+				}
+				p.logger.Info("release IP", "id", id, "subnet", subnet)
+			}
+			return nil
+		}, retry.WithContext(ctx),
+			retry.WithDelay(2*time.Second))
+	}
 	p.connectionToReleaseMutex.Lock()
 	delete(p.connectionToReleaseMap, id)
 	p.connectionToReleaseMutex.Unlock()
@@ -546,6 +568,56 @@ func (p *Proxy) SetVIPs(vips []string) {
 			}
 		}
 	}
+}
+
+// Close -
+// Tries to force release of IPs with pending release
+func (p *Proxy) Close(ctx context.Context) {
+	logger := p.logger.WithValues("func", "Close")
+	var wg sync.WaitGroup
+
+	p.connectionToReleaseMutex.Lock()
+	logger.Info("Release pending IPs", "num", len(p.connectionToReleaseMap))
+	defer logger.Info("Pending IP release concluded")
+
+	wg.Add(len(p.connectionToReleaseMap))
+	for id, cancel := range p.connectionToReleaseMap {
+		cancel()
+		go func(ctx context.Context, id string) {
+			defer wg.Done()
+
+			_ = retry.Do(func() error {
+				ctxRelease, cancelRelease := context.WithTimeout(ctx, 4*time.Second)
+				defer cancelRelease()
+				for _, subnet := range p.Subnets {
+					child := &ipamAPI.Child{
+						Name:   fmt.Sprintf("%s%s", id, srcChildNamePrefix),
+						Subnet: subnet,
+					}
+					_, err := p.IpamClient.Release(ctxRelease, child)
+					if err != nil {
+						logger.Error(err, "failed to release src IP", "id", id, "subnet", subnet)
+						return fmt.Errorf("proxy failed to release IP for child %v, %w", child, err)
+					}
+					child = &ipamAPI.Child{
+						Name:   fmt.Sprintf("%s%s", id, dstChildNamePrefix),
+						Subnet: subnet,
+					}
+					_, err = p.IpamClient.Release(ctxRelease, child)
+					if err != nil {
+						logger.Error(err, "failed to release dst IP", "id", id, "subnet", subnet)
+						return fmt.Errorf("proxy failed to release IP for child %v, %w", child, err)
+					}
+					logger.Info("release IP", "id", id, "subnet", subnet)
+				}
+				return nil
+			}, retry.WithContext(ctx),
+				retry.WithDelay(200*time.Millisecond))
+		}(ctx, id)
+	}
+
+	p.connectionToReleaseMutex.Unlock()
+	wg.Wait()
 }
 
 // NewProxy -
