@@ -25,4 +25,5 @@ type Config struct {
 	Labels           map[string]string
 	MaxTokenLifetime time.Duration
 	MTU              int
+	IPReleaseDelay   time.Duration
 }

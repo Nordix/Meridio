@@ -38,6 +38,7 @@ const (
 	FeServiceAccountEnv     = "FE_SERVICE_ACCOUNT"
 	GRPCHealthRPCTimeoutEnv = "GRPC_PROBE_RPC_TIMEOUT" // RPC timeout of grpc_health_probes run from code
 	ConduitMTU              = "CONDUIT_MTU"            // Control default Conduit MTU
+	ProxyIPReleaseDelayEnv  = "PROXY_IP_RELEASE_DELAY" // Duration how much the IP release of NSM connections in proxy should be delayed by.
 
 	Registry        = "registry.nordix.org"
 	Organization    = "cloud-native/meridio"
@@ -195,4 +196,12 @@ func GetGRPCProbeRPCTimeout() string {
 
 func NsName(meta metav1.ObjectMeta) string {
 	return fmt.Sprintf("%s/%s", meta.Namespace, meta.Name)
+}
+
+func GetProxyIPReleaseDelay() string {
+	delay := os.Getenv(ProxyIPReleaseDelayEnv)
+	if _, err := time.ParseDuration(delay); err != nil {
+		return ""
+	}
+	return delay
 }

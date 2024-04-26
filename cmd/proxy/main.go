@@ -209,6 +209,11 @@ func main() {
 		},
 	}
 	p := proxy.NewProxy(conduit, config.Host, ipamClient, config.IPFamily, netUtils)
+	defer func() {
+		closeCtx, closeCancel := context.WithTimeout(ctx, 8*time.Second)
+		p.Close(closeCtx)
+		closeCancel()
+	}()
 
 	apiClientConfig := &nsm.Config{
 		Name:             config.Name,
@@ -251,6 +256,7 @@ func main() {
 		MaxTokenLifetime: config.MaxTokenLifetime,
 		Labels:           labels,
 		MTU:              config.MTU,
+		IPReleaseDelay:   config.IPReleaseDelay,
 	}
 	interfaceMonitorServer := interfacemonitor.NewServer(interfaceMonitor, p, netUtils)
 	ep, err := service.StartNSE(ctx, endpointConfig, nsmAPIClient, p, interfaceMonitorServer)

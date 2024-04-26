@@ -18,12 +18,22 @@ package ipcontext
 
 import (
 	"context"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/nordix/meridio/pkg/networking"
 )
 
 type ipContextSetter interface {
-	SetIPContext(ctx context.Context, conn *networkservice.Connection, interfaceType networking.InterfaceType) error
-	UnsetIPContext(ctx context.Context, conn *networkservice.Connection, interfaceType networking.InterfaceType) error
+	SetIPContext(
+		ctx context.Context,
+		conn *networkservice.Connection,
+		interfaceType networking.InterfaceType,
+	) error
+	UnsetIPContext(
+		ctx context.Context,
+		conn *networkservice.Connection,
+		interfaceType networking.InterfaceType,
+		delay time.Duration,
+	) error
 }

@@ -45,6 +45,7 @@ type Config struct {
 	GRPCKeepaliveTime   time.Duration `default:"30s" desc:"gRPC keepalive timeout"`
 	GRPCProbeRPCTimeout time.Duration `default:"1s" desc:"RPC timeout of internal gRPC health probe" envconfig:"grpc_probe_rpc_timeout"`
 	GRPCMaxBackoff      time.Duration `default:"5s" desc:"Upper bound on gRPC connection backoff delay" envconfig:"grpc_max_backoff"`
+	IPReleaseDelay      time.Duration `default:"20s" desc:"delay releasing IP address of NSM connection" envconfig:"ip_release_delay"`
 }
 
 // IsValid checks if the configuration is valid

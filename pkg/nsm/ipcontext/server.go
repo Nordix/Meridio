@@ -18,6 +18,7 @@ package ipcontext
 
 import (
 	"context"
+	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -26,13 +27,15 @@ import (
 )
 
 type ipcontextServer struct {
-	ics ipContextSetter
+	ics            ipContextSetter
+	ipReleaseDelay time.Duration
 }
 
 // NewServer
-func NewServer(ipContextSetter ipContextSetter) networkservice.NetworkServiceServer {
+func NewServer(ipContextSetter ipContextSetter, ipReleaseDelay time.Duration) networkservice.NetworkServiceServer {
 	return &ipcontextServer{
-		ics: ipContextSetter,
+		ics:            ipContextSetter,
+		ipReleaseDelay: ipReleaseDelay,
 	}
 }
 
@@ -47,7 +50,9 @@ func (ics *ipcontextServer) Request(ctx context.Context, request *networkservice
 
 // Close
 func (ics *ipcontextServer) Close(ctx context.Context, conn *networkservice.Connection) (*emptypb.Empty, error) {
-	err := ics.ics.UnsetIPContext(ctx, conn, networking.NSE)
+	// Note: In case of TAPA connections, IPs are identified by the TAPA path id, which does
+	// not contain a random part, thus IPs can be recovered.
+	err := ics.ics.UnsetIPContext(ctx, conn, networking.NSE, ics.ipReleaseDelay)
 	if err != nil {
 		return nil, err
 	}
