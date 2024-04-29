@@ -48,7 +48,9 @@ Environment variable | Type | Description | Default
 
 Command | Action | Default
 --- | --- | ---
- | |
+--help | Display a help describing |
+--version | Display the version |
+--debug | Prints meridio-version, unix-time, network-interfaces, rules, route, neighbors, system information, and environment-variables in a json format |
 
 ## Communication 
 
