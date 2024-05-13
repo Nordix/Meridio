@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021-2023 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -283,6 +284,11 @@ func (p *Proxy) SetIPContext(ctx context.Context, conn *networkservice.Connectio
 				"id", id, "ipContext", ipContext, "interfaceType", "NSC")
 		} else {
 			if !utils.EqualStringList(oldSrcIpAddrs, dstIpAddrs) || !utils.EqualStringList(oldDstIpAddrs, srcIPAddrs) {
+				// IMHO update of IP addresses should be avoided for interfaces
+				// of type NSC. That's because if the interface was not removed
+				// prior to this to trigger an InterfaceDeleted event, then the
+				// proxy would not remove the remote IPs from the list of valid
+				// nexthops (possibly resulting in invalid routes).
 				p.logger.Info("Updated IP Context of connection request",
 					"id", id, "ipContext", ipContext, "interfaceType", "NSC",
 					"oldSrcIPs", oldSrcIpAddrs, "oldDstIPs", oldDstIpAddrs)
@@ -453,6 +459,10 @@ func (p *Proxy) ipReleaser(id string, delay time.Duration) {
 		select {
 		case <-ctx.Done():
 			t.Stop()
+			select {
+			case <-t.C:
+			default:
+			}
 			p.logger.V(1).Info("Canceled delayed IP release", "id", id)
 		case <-t.C: // delay before attempting actual release
 		}

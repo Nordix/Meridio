@@ -251,6 +251,10 @@ func main() {
 			s.Stop() // graceful shutdown not finished in time, force stop immediately
 		case <-stopped:
 			waitTimer.Stop()
+			select {
+			case <-waitTimer.C:
+			default:
+			}
 		}
 	}()
 	// announces forwarding availability of streams (i.e. if the LB can forward traffic towards application targets)
