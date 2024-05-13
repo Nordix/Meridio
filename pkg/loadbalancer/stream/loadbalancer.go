@@ -1,5 +1,6 @@
 /*
-Copyright (c) 2021-2024 Nordix Foundation
+Copyright (c) 2021-2023 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -480,6 +481,8 @@ func (lb *LoadBalancer) setTargets(targets []*nspAPI.Target) error {
 }
 
 // TODO: revisit if timeout based periodic check can be removed
+// TODO: Would be nice if a Target was not unconfigured in nfqlb upon
+// "Interface replaced during interface create event"
 func (lb *LoadBalancer) processPendingTargets(ctx context.Context) {
 	checkf := func() {
 		lb.mu.Lock()

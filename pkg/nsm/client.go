@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021-2023 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -37,6 +38,7 @@ import (
 	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -54,6 +56,7 @@ type APIClient struct {
 	NetworkServiceEndpointRegistryClient registry.NetworkServiceEndpointRegistryClient
 	NetworkServiceRegistryClient         registry.NetworkServiceRegistryClient
 	GRPCDialOption                       []grpc.DialOption
+	grpcBackoffCfg                       *backoff.Config
 }
 
 func (apiClient *APIClient) GetClientOptions() []grpc.DialOption {
@@ -71,6 +74,9 @@ func (apiClient *APIClient) GetClientOptions() []grpc.DialOption {
 				),
 			),
 		),
+		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff: *apiClient.grpcBackoffCfg,
+		}),
 		grpcfd.WithChainStreamInterceptor(),
 		grpcfd.WithChainUnaryInterceptor(),
 	)
@@ -119,6 +125,9 @@ func (apiClient *APIClient) dial() {
 				grpc.WaitForReady(true),
 				grpc.PerRPCCredentials(token.NewPerRPCCredentials(spiffejwt.TokenGeneratorFunc(apiClient.x509source, apiClient.Config.MaxTokenLifetime))),
 			),
+			grpc.WithConnectParams(grpc.ConnectParams{
+				Backoff: *apiClient.grpcBackoffCfg,
+			}),
 			grpc.WithTransportCredentials(
 				grpcfd.TransportCredentials(
 					credentials.NewTLS(
@@ -147,6 +156,9 @@ func (apiClient *APIClient) dialOptions() {
 				),
 			),
 		),
+		grpc.WithConnectParams(grpc.ConnectParams{
+			Backoff: *apiClient.grpcBackoffCfg,
+		}),
 	)
 }
 
@@ -170,6 +182,13 @@ func NewAPIClient(ctx context.Context, config *Config) *APIClient {
 		cancel:         cancel,
 		Config:         config,
 		GRPCDialOption: []grpc.DialOption{},
+		grpcBackoffCfg: func() *backoff.Config {
+			grpcBackoffCfg := backoff.DefaultConfig
+			if config.GRPCMaxBackoff != 0 && grpcBackoffCfg.MaxDelay != config.GRPCMaxBackoff {
+				grpcBackoffCfg.MaxDelay = config.GRPCMaxBackoff
+			}
+			return &grpcBackoffCfg
+		}(),
 	}
 
 	apiClient.dial()
