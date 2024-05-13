@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2023 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -75,9 +76,16 @@ func NewInterfaceNameChache(ctx context.Context, generator NameGenerator, option
 		releaseTrigger: func(ctx context.Context) <-chan struct{} {
 			channel := make(chan struct{}, 1)
 			go func() {
+				defer close(channel)
+				t := time.NewTimer(defaultReleaseTimeout)
 				select {
 				case <-ctx.Done():
-				case <-time.After(defaultReleaseTimeout):
+					t.Stop()
+					select { // make sure to drain the timer channel (note that it could have fired concurrently with ctx cancel)
+					case <-t.C:
+					default:
+					}
+				case <-t.C:
 					channel <- struct{}{}
 				}
 			}()
@@ -206,20 +214,20 @@ func (inc *InterfaceNameChache) pendingRelease(ctx context.Context, releaseCh <-
 	case _, ok := <-releaseCh:
 		// if closed, do not release
 		if ok {
-			// ID not re-added before delayed deletion is triggered
+			// ID not re-added before delayed deletion got triggered
 			inc.mu.Lock()
 			inc.release(ctx, id, name)
 			inc.mu.Unlock()
+			return
 		}
-	case <-ctx.Done():
-		// cancel to keep interface name associated with ID in cache
-		logger.V(1).Info("release cancelled")
-		return
+	case <-ctx.Done(): // canceled to keep interface name associated with ID in cache
 	}
+
+	logger.V(1).Info("release cancelled")
 }
 
 // must be called with lock held
-func (inc *InterfaceNameChache) release(ctx context.Context, id string, name string) {
+func (inc *InterfaceNameChache) release(_ context.Context, id string, name string) {
 	logger := inc.logger.WithValues("func", "release", "ID", id, "interface", name)
 	_, exists := inc.interfaceNames[id]
 	if !exists {
