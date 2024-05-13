@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021-2023 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -45,6 +46,7 @@ type Tap struct {
 	NSPServicePort          int
 	NSPEntryTimeout         time.Duration
 	GRPCMaxBackoff          time.Duration
+	Timeout                 time.Duration
 	NetUtils                networking.Utils
 	StreamRegistry          types.Registry
 	currentTrench           types.Trench
@@ -61,6 +63,7 @@ func New(targetName string,
 	nspServicePort int,
 	nspEntryTimeout time.Duration,
 	grpcMaxBackoff time.Duration,
+	timeout time.Duration,
 	netUtils networking.Utils) (*Tap, error) {
 	tap := &Tap{
 		TargetName:              targetName,
@@ -72,6 +75,7 @@ func New(targetName string,
 		NSPServicePort:          nspServicePort,
 		NSPEntryTimeout:         nspEntryTimeout,
 		GRPCMaxBackoff:          grpcMaxBackoff,
+		Timeout:                 timeout,
 		NetUtils:                netUtils,
 		logger:                  log.Logger.WithValues("class", "Tap"),
 	}
@@ -120,8 +124,7 @@ func (tap *Tap) Close(ctx context.Context, s *ambassadorAPI.Stream) (*emptypb.Em
 		if tap.currentTrench == nil || !tap.currentTrench.Equals(s.GetConduit().GetTrench()) {
 			return
 		}
-		// todo: set timeout (the env variable) instead of 10 seconds
-		context, cancel := context.WithTimeout(context.TODO(), 10*time.Second)
+		context, cancel := context.WithTimeout(context.TODO(), tap.Timeout)
 		defer cancel()
 		conduit := tap.currentTrench.GetConduit(s.GetConduit())
 		if conduit == nil {
@@ -184,6 +187,7 @@ func (tap *Tap) setTrench(t *ambassadorAPI.Trench) (types.Trench, error) {
 		tap.NSPServicePort,
 		tap.NSPEntryTimeout,
 		tap.GRPCMaxBackoff,
+		tap.Timeout,
 		tap.NetUtils)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create trench: %w", err)
