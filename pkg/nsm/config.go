@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -29,6 +30,7 @@ type Config struct {
 	DialTimeout      time.Duration
 	RequestTimeout   time.Duration
 	MaxTokenLifetime time.Duration
+	GRPCMaxBackoff   time.Duration
 }
 
 // IsValid checks if the configuration is valid
