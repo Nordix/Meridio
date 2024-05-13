@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021-2023 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -39,13 +40,15 @@ type conduitConnect struct {
 	logger        logr.Logger
 }
 
-func newConduitConnect(conduit types.Conduit, configurationManagerClient nspAPI.ConfigurationManagerClient) *conduitConnect {
+func newConduitConnect(conduit types.Conduit,
+	configurationManagerClient nspAPI.ConfigurationManagerClient,
+	timeout time.Duration) *conduitConnect {
 	logger := log.Logger.WithValues("class", "conduitConnect", "conduit", conduit.GetConduit())
 	logger.V(1).Info("Create conduit connect")
 	cc := &conduitConnect{
 		conduit:       conduit,
-		configuration: newConfigurationImpl(conduit.SetVIPs, conduit.GetConduit().ToNSP(), configurationManagerClient),
-		Timeout:       10 * time.Second,
+		configuration: newConfigurationImpl(conduit.SetVIPs, conduit.GetConduit().ToNSP(), configurationManagerClient, timeout),
+		Timeout:       timeout,
 		RetryDelay:    2 * time.Second,
 		logger:        logger,
 	}
@@ -62,7 +65,7 @@ func (cc *conduitConnect) connect() {
 	cc.cancelOpen = cancelOpen
 	cc.ctxMu.Unlock()
 	_ = retry.Do(func() error {
-		retryCtx, cancel := context.WithTimeout(ctx, cc.Timeout) // todo: configurable timeout
+		retryCtx, cancel := context.WithTimeout(ctx, cc.Timeout)
 		err := cc.conduit.Connect(retryCtx)
 		defer cancel()
 		if err != nil {

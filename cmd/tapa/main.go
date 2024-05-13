@@ -196,6 +196,7 @@ func main() {
 		config.NSPServicePort,
 		config.NSPEntryTimeout,
 		config.GRPCMaxBackoff,
+		config.Timeout,
 		netUtils,
 	)
 	if err != nil {

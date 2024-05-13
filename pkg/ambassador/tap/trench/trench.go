@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021-2023 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -55,6 +56,7 @@ type Trench struct {
 	StreamRegistry             types.Registry
 	NetUtils                   networking.Utils
 	ConduitFactory             ConduitFactory
+	Timeout                    time.Duration
 	nspConn                    *grpc.ClientConn
 	conduits                   []*conduitConnect
 	mu                         sync.Mutex
@@ -75,6 +77,7 @@ func New(trench *ambassadorAPI.Trench,
 	nspServicePort int,
 	nspEntryTimeout time.Duration,
 	grpcMaxBackoff time.Duration,
+	timeout time.Duration,
 	netUtils networking.Utils) (*Trench, error) {
 
 	logger := log.Logger.WithValues("class", "Trench", "trench", trench.GetName())
@@ -89,6 +92,7 @@ func New(trench *ambassadorAPI.Trench,
 		StreamRegistry:       streamRegistry,
 		NetUtils:             netUtils,
 		conduits:             []*conduitConnect{},
+		Timeout:              timeout,
 		logger:               logger,
 	}
 
@@ -121,7 +125,7 @@ func (t *Trench) Delete(ctx context.Context) error {
 	var errFinal error
 	var err error
 	// close streams
-	streamsCtx, streamsCancel := context.WithTimeout(ctx, 10*time.Second)
+	streamsCtx, streamsCancel := context.WithTimeout(ctx, t.Timeout)
 	err = t.closeStreams(streamsCtx)
 	if err != nil {
 		errFinal = fmt.Errorf("failure during close streams: %w", err) // todo
@@ -130,7 +134,7 @@ func (t *Trench) Delete(ctx context.Context) error {
 	streamsCancel()
 
 	// disconnect conduits
-	conduitsCtx, conduitsCancel := context.WithTimeout(ctx, 10*time.Second)
+	conduitsCtx, conduitsCancel := context.WithTimeout(ctx, t.Timeout)
 	err = t.disconnectConduits(conduitsCtx)
 	if err != nil {
 		errFinal = fmt.Errorf("%w; failure during disconnect conduits: %w", errFinal, err) // todo
@@ -164,7 +168,7 @@ func (t *Trench) AddConduit(ctx context.Context, cndt *ambassadorAPI.Conduit) (t
 	if err != nil {
 		return nil, fmt.Errorf("conduit create failed: %w", err)
 	}
-	cc := newConduitConnect(c, t.ConfigurationManagerClient)
+	cc := newConduitConnect(c, t.ConfigurationManagerClient, t.Timeout)
 	go cc.connect()
 	t.conduits = append(t.conduits, cc)
 	return c, nil

@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2023 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -48,12 +49,14 @@ type configurationImpl struct {
 	mu         sync.Mutex
 	vipChan    chan []string
 	streamChan chan []*nspAPI.Stream
+	timeout    time.Duration
 	logger     logr.Logger
 }
 
 func newConfigurationImpl(setVips vipSetter,
 	conduit *nspAPI.Conduit,
-	configurationManagerClient nspAPI.ConfigurationManagerClient) *configurationImpl {
+	configurationManagerClient nspAPI.ConfigurationManagerClient,
+	timeout time.Duration) *configurationImpl {
 	logger := log.Logger.WithValues("class", "trench.configurationImpl", "conduit", conduit)
 	logger.V(1).Info("Create configuration implementation to set VIPs")
 	c := &configurationImpl{
@@ -61,6 +64,7 @@ func newConfigurationImpl(setVips vipSetter,
 		Conduit:                    conduit,
 		ConfigurationManagerClient: configurationManagerClient,
 		RetryDelay:                 1 * time.Second,
+		timeout:                    timeout,
 		logger:                     logger,
 	}
 	return c
@@ -92,7 +96,7 @@ func (c *configurationImpl) vipHandler(ctx context.Context) {
 		select {
 		case vips := <-c.vipChan:
 			_ = retry.Do(func() error {
-				setVIPsCtx, cancel := context.WithTimeout(ctx, 20*time.Second) // todo: configurable timeout
+				setVIPsCtx, cancel := context.WithTimeout(ctx, c.timeout)
 				defer cancel()
 				err := c.SetVips(setVIPsCtx, vips)
 				if err != nil {
