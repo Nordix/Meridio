@@ -31,6 +31,7 @@ import (
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
+	kernelheal "github.com/nordix/meridio/pkg/nsm/heal"
 	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/utils"
 	"github.com/vishvananda/netlink"
@@ -264,13 +265,23 @@ func (p *Proxy) SetIPContext(ctx context.Context, conn *networkservice.Connectio
 	}
 
 	if interfaceType == networking.NSE {
-		p.setNSEIpContext(id, conn.GetContext().GetIpContext(), srcIPAddrs, dstIpAddrs)
+		if conn.GetContext().ExtraContext == nil {
+			conn.GetContext().ExtraContext = map[string]string{}
+		}
+		p.setNSEIpContext(id, conn.GetContext().GetIpContext(), conn.GetContext().GetExtraContext(), srcIPAddrs, dstIpAddrs)
 	} else if interfaceType == networking.NSC {
 		ipContext := conn.GetContext().GetIpContext()
 		oldSrcIpAddrs := ipContext.SrcIpAddrs
 		oldDstIpAddrs := ipContext.DstIpAddrs
 		ipContext.SrcIpAddrs = dstIpAddrs
 		ipContext.DstIpAddrs = srcIPAddrs
+		if conn.GetContext().ExtraContext == nil {
+			conn.GetContext().ExtraContext = map[string]string{}
+		}
+		if p.Bridge != nil {
+			conn.GetContext().ExtraContext[kernelheal.DatapathSourceIPsKey] = strings.Join(p.Bridge.GetLocalPrefixes(), kernelheal.DatapathIPsSeparator)
+			conn.GetContext().ExtraContext[kernelheal.DatapathDestinationIPsKey] = strings.Join(ipContext.DstIpAddrs, kernelheal.DatapathIPsSeparator)
+		}
 		// Note: It might be confusing to see all the "release IP" msgs if the
 		// LB NSE is gone, but NSM Find Client haven't reported it yet in order
 		// to close the related connection.
@@ -292,11 +303,15 @@ func (p *Proxy) SetIPContext(ctx context.Context, conn *networkservice.Connectio
 	return nil
 }
 
-func (p *Proxy) setNSEIpContext(id string, ipContext *networkservice.IPContext, srcIPAddrs []string, dstIpAddrs []string) {
+func (p *Proxy) setNSEIpContext(id string, ipContext *networkservice.IPContext, extraContext map[string]string, srcIPAddrs []string, dstIpAddrs []string) {
 	if len(ipContext.SrcIpAddrs) == 0 && len(ipContext.DstIpAddrs) == 0 { // First request
 		ipContext.SrcIpAddrs = srcIPAddrs
 		ipContext.DstIpAddrs = dstIpAddrs
 		ipContext.ExtraPrefixes = p.Bridge.GetLocalPrefixes()
+		if p.Bridge != nil {
+			extraContext[kernelheal.DatapathSourceIPsKey] = strings.Join(ipContext.SrcIpAddrs, kernelheal.DatapathIPsSeparator)
+			extraContext[kernelheal.DatapathDestinationIPsKey] = strings.Join(p.Bridge.GetLocalPrefixes(), kernelheal.DatapathIPsSeparator)
+		}
 		p.logger.V(1).Info("Set IP Context of initial connection request",
 			"id", id, "ipContext", ipContext, "interfaceType", "NSE")
 		return

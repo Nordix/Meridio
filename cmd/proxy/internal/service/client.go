@@ -26,6 +26,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/payload"
 	"github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/mechanisms/vfio"
 	sriovtoken "github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/token"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
@@ -46,6 +47,7 @@ func GetNSC(ctx context.Context,
 	config *config.Config,
 	nsmAPIClient *nsm.APIClient,
 	p *proxy.Proxy,
+	healOptions []heal.Option,
 	interfaceMonitorClient networkservice.NetworkServiceClient) client.NetworkServiceClient {
 
 	logger := log.FromContextOrGlobal(ctx).WithValues("func", "GetNSC")
@@ -70,7 +72,7 @@ func GetNSC(ctx context.Context,
 		proxyHealth.NewClient(),
 		fullmeshtracker.NewClient(),
 	)
-	fullMeshClient := client.NewFullMeshNetworkServiceClient(ctx, clientConfig, additionalFunctionality)
+	fullMeshClient := client.NewFullMeshNetworkServiceClient(ctx, clientConfig, healOptions, additionalFunctionality)
 
 	return fullMeshClient
 }

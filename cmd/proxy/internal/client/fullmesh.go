@@ -28,6 +28,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	registryrefresh "github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
@@ -237,9 +238,9 @@ func (fmnsc *FullMeshNetworkServiceClient) prepareQuery() *registry.NetworkServi
 // monitoring Network Service Endpoints belonging to the Network Service of the request.
 // Connects to each new Network Service Endpoint, and closes connection when a known
 // endpoint disappears.
-func NewFullMeshNetworkServiceClient(ctx context.Context, config *Config, additionalFunctionality ...networkservice.NetworkServiceClient) NetworkServiceClient {
+func NewFullMeshNetworkServiceClient(ctx context.Context, config *Config, healOptions []heal.Option, additionalFunctionality ...networkservice.NetworkServiceClient) NetworkServiceClient {
 	// create base client relying on NSM's client.NewClient API
-	client := newClient(ctx, config.Name, config.APIClient, additionalFunctionality...)
+	client := newClient(ctx, config.Name, config.APIClient, healOptions, additionalFunctionality...)
 
 	fullMeshNetworkServiceClient := &FullMeshNetworkServiceClient{
 		networkServiceClients: make(map[string]NetworkServiceClient),

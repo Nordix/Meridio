@@ -28,6 +28,7 @@ import (
 
 	"github.com/kelseyhightower/envconfig"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	nsmlog "github.com/networkservicemesh/sdk/pkg/tools/log"
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
@@ -41,6 +42,7 @@ import (
 	"github.com/nordix/meridio/pkg/health/probe"
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/nsm"
+	kernelheal "github.com/nordix/meridio/pkg/nsm/heal"
 	"github.com/nordix/meridio/pkg/nsm/interfacemonitor"
 	nsmmonitor "github.com/nordix/meridio/pkg/nsm/monitor"
 	"github.com/nordix/meridio/pkg/nsp"
@@ -236,9 +238,18 @@ func main() {
 	monitorClient := networkservice.NewMonitorConnectionClient(cc)
 	go nsmmonitor.ConnectionMonitor(ctx, config.Name, monitorClient)
 
+	healOptions := []heal.Option{}
+	if config.LivenessCheckEnabled {
+		healOptions = []heal.Option{
+			heal.WithLivenessCheckInterval(config.LivenessCheckInterval),
+			heal.WithLivenessCheckTimeout(config.LivenessCheckTimeout),
+			heal.WithLivenessCheck(kernelheal.KernelLivenessCheck),
+		}
+	}
+
 	// create and start NSC that connects all remote NSE belonging to the right service
 	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, p, netUtils)
-	nsmClient := service.GetNSC(ctx, &config, nsmAPIClient, p, interfaceMonitorClient)
+	nsmClient := service.GetNSC(ctx, &config, nsmAPIClient, p, healOptions, interfaceMonitorClient)
 	defer nsmClient.Close()
 	go func() {
 		service.StartNSC(nsmClient, config.NetworkServiceName)

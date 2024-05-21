@@ -384,7 +384,8 @@ func (c *Conduit) SetVIPs(ctx context.Context, vips []string) error {
 			Labels:         c.connection.GetLabels(),
 			Payload:        c.connection.GetPayload(),
 			Context: &networkservice.ConnectionContext{
-				IpContext: c.connection.GetContext().GetIpContext(),
+				ExtraContext: c.connection.GetContext().GetExtraContext(),
+				IpContext:    c.connection.GetContext().GetIpContext(),
 			},
 		},
 	}

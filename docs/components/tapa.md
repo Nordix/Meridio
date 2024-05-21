@@ -59,6 +59,9 @@ MERIDIO_LOG_LEVEL | string | Log level | DEBUG
 MERIDIO_NSP_ETRY_TIMEOUT | time.Duration | Timeout of the entries registered in NSP | 30s
 MERIDO_GRPC_MAX_BACKOFF | time.Duration | Upper bound on gRPC connection backoff delay | 5s
 MERIDIO_GRPC_PROBE_RPC_TIMEOUT | time.Duration | RPC timeout of internal gRPC health probes if any | 1s
+MERIDIO_LIVENESS_CHECK_INTERVAL | time.Duration | Dataplane liveness check interval | 2s
+MERIDIO_LIVENESS_CHECK_TIMEOUT | time.Duration | Dataplane liveness check timeout | 1s
+MERIDIO_LIVENESS_CHECK_ENABLED | bool | Dataplane liveness check enabled/disabled | false
 
 ## Command Line 
 

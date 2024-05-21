@@ -49,6 +49,7 @@ import (
 	linuxKernel "github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/nsm"
+	kernelheal "github.com/nordix/meridio/pkg/nsm/heal"
 	"github.com/nordix/meridio/pkg/nsm/interfacename"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -155,10 +156,19 @@ func main() {
 		sendfd.NewClient(),
 	}
 
+	healOptions := []heal.Option{}
+	if config.LivenessCheckEnabled {
+		healOptions = []heal.Option{
+			heal.WithLivenessCheckInterval(config.LivenessCheckInterval),
+			heal.WithLivenessCheckTimeout(config.LivenessCheckTimeout),
+			heal.WithLivenessCheck(kernelheal.KernelLivenessCheck),
+		}
+	}
+
 	networkServiceClient := client.NewClient(ctx,
 		client.WithClientURL(&nsmAPIClient.Config.ConnectTo),
 		client.WithName(config.Name),
-		client.WithHealClient(heal.NewClient(ctx)),
+		client.WithHealClient(heal.NewClient(ctx, healOptions...)),
 		client.WithAdditionalFunctionality(additionalFunctionality...),
 		client.WithDialTimeout(nsmAPIClient.Config.DialTimeout),
 		client.WithDialOptions(nsmAPIClient.GRPCDialOption...),
