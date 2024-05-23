@@ -1,5 +1,5 @@
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Flow
 metadata:
   name: flow-a-z-tcp
@@ -20,7 +20,7 @@ spec:
   protocols:
   - tcp
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Conduit
 metadata:
   name: conduit-a-1

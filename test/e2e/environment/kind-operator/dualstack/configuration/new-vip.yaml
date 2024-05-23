@@ -1,4 +1,42 @@
 ---
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: trench-a-attr-a-1-nad
+  namespace: red
+spec:
+  config: '{
+      "cniVersion": "0.4.0",
+      "name": "mynet",
+      "plugins": [
+        {
+          "type":"bridge",
+          "name": "mybridge",
+          "bridge": "br-meridio",
+          "vlan": 100,
+          "ipam": {
+            "enable_overlapping_ranges": false,
+            "log_file": "/tmp/whereabouts.log",
+            "type": "whereabouts",
+            "ipRanges": [{
+              "range": "169.254.100.0/24",
+              "enable_overlapping_ranges": false,
+              "exclude": [
+                "169.254.100.150/32",
+                "169.254.100.253/32",
+                "169.254.100.254/32"
+              ]
+            }, {
+              "range": "100:100::/64",
+              "exclude": [
+                "100:100::150/128"
+              ]
+            }]
+          }
+        }
+      ]
+  }'
+---
 apiVersion: meridio.nordix.org/v1
 kind: Vip
 metadata:
@@ -40,12 +78,10 @@ spec:
   - vip-a-2-v6
   interface:
     name: ext-vlan0
-    ipv4-prefix: 169.254.100.0/24
-    ipv6-prefix: 100:100::/64
-    type: nsm-vlan
-    nsm-vlan:
-      vlan-id: 100
-      base-interface: eth0
+    type: network-attachment
+    network-attachments:
+      - name: trench-a-attr-a-1-nad
+        namespace: red
 ---
 apiVersion: meridio.nordix.org/v1
 kind: Flow

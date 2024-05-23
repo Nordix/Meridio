@@ -1,5 +1,38 @@
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: trench-b-attr-b-1-nad
+  namespace: red
+spec:
+  config: '{
+      "cniVersion": "0.4.0",
+      "name": "mynet",
+      "plugins": [
+        {
+          "type":"bridge",
+          "name": "mybridge",
+          "bridge": "br-meridio",
+          "vlan": 200,
+          "ipam": {
+            "enable_overlapping_ranges": false,
+            "log_file": "/tmp/whereabouts.log",
+            "type": "whereabouts",
+            "ipRanges": [{
+              "range": "169.254.100.0/24",
+              "enable_overlapping_ranges": false,
+              "exclude": [
+                "169.254.100.150/32",
+                "169.254.100.253/32",
+                "169.254.100.254/32"
+              ]
+            }]
+          }
+        }
+      ]
+  }'
+---
+apiVersion: meridio.nordix.org/v1
 kind: Trench
 metadata:
   name: trench-b
@@ -7,7 +40,7 @@ metadata:
 spec:
   ip-family: ipv4
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Attractor
 metadata:
   name: attractor-b-1
@@ -24,14 +57,12 @@ spec:
   - vip-b-1-v4
   interface:
     name: ext-vlan0
-    ipv4-prefix: 169.254.100.0/24
-    ipv6-prefix: 100:100::/64
-    type: nsm-vlan
-    nsm-vlan:
-      vlan-id: 200
-      base-interface: eth0
+    type: network-attachment
+    network-attachments:
+      - name: trench-b-attr-b-1-nad
+        namespace: red
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Gateway
 metadata:
   name: gateway-v4-b
@@ -52,7 +83,7 @@ spec:
       min-rx: 300ms
       multiplier: 5
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Vip
 metadata:
   name: vip-b-1-v4
@@ -62,7 +93,7 @@ metadata:
 spec:
   address: "20.0.0.1/32"
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Conduit
 metadata:
   name: conduit-b-1
@@ -72,7 +103,7 @@ metadata:
 spec:
   type: stateless-lb
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Stream
 metadata:
   name: stream-b-i
@@ -82,7 +113,7 @@ metadata:
 spec:
   conduit: conduit-b-1
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Flow
 metadata:
   name: flow-b-z-tcp
