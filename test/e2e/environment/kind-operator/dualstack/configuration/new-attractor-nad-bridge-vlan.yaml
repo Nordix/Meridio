@@ -2,7 +2,7 @@
 apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
-  name: trench-b-attr-b-1-nad
+  name: trench-a-attr-a-3-nad
   namespace: red
 spec:
   config: '{
@@ -13,23 +13,23 @@ spec:
           "type":"bridge",
           "name": "mybridge",
           "bridge": "br-meridio",
-          "vlan": 200,
+          "vlan": 102,
           "ipam": {
             "enable_overlapping_ranges": false,
             "log_file": "/tmp/whereabouts.log",
             "type": "whereabouts",
             "ipRanges": [{
-              "range": "169.254.100.0/24",
+              "range": "169.254.102.0/24",
               "enable_overlapping_ranges": false,
               "exclude": [
-                "169.254.100.150/32",
-                "169.254.100.253/32",
-                "169.254.100.254/32"
+                "169.254.102.150/32",
+                "169.254.102.253/32",
+                "169.254.102.254/32"
               ]
             }, {
-              "range": "100:100::/64",
+              "range": "100:102::/64",
               "exclude": [
-                "100:100::150/128"
+                "100:102::150/128"
               ]
             }]
           }
@@ -38,44 +38,59 @@ spec:
   }'
 ---
 apiVersion: meridio.nordix.org/v1
-kind: Trench
-metadata:
-  name: trench-b
-  namespace: red
-spec:
-  ip-family: ipv6
----
-apiVersion: meridio.nordix.org/v1
 kind: Attractor
 metadata:
-  name: attractor-b-1
+  name: attractor-a-3
   namespace: red
   labels:
-    trench: trench-b
+    trench: trench-a
 spec:
   replicas: 2
   composites:
-  - conduit-b-1
+  - conduit-a-3
   gateways:
-  - gateway-v6-b
+  - gateway-v4-a-3
+  - gateway-v6-a-3
   vips:
-  - vip-b-1-v6
+  - vip-a-2-v4
+  - vip-a-2-v6
   interface:
     name: ext-vlan0
     type: network-attachment
     network-attachments:
-      - name: trench-b-attr-b-1-nad
+      - name: trench-a-attr-a-3-nad
         namespace: red
 ---
 apiVersion: meridio.nordix.org/v1
 kind: Gateway
 metadata:
-  name: gateway-v6-b
+  name: gateway-v4-a-3
   namespace: red
   labels:
-    trench: trench-b
+    trench: trench-a
 spec:
-  address: 100:100::150
+  address: 169.254.102.150
+  bgp:
+    local-asn: 8103
+    remote-asn: 4248829953
+    hold-time: 24s
+    local-port: 10179
+    remote-port: 10179
+    bfd:
+      switch: true
+      min-tx: 300ms
+      min-rx: 300ms
+      multiplier: 5
+---
+apiVersion: meridio.nordix.org/v1
+kind: Gateway
+metadata:
+  name: gateway-v6-a-3
+  namespace: red
+  labels:
+    trench: trench-a
+spec:
+  address: 100:102::150
   bgp:
     local-asn: 8103
     remote-asn: 4248829953
@@ -91,46 +106,58 @@ spec:
 apiVersion: meridio.nordix.org/v1
 kind: Vip
 metadata:
-  name: vip-b-1-v6
+  name: vip-a-2-v4
   namespace: red
   labels:
-    trench: trench-b
+    trench: trench-a
 spec:
-  address: "2000::1/128"
+  address: "60.0.0.150/32"
+---
+apiVersion: meridio.nordix.org/v1
+kind: Vip
+metadata:
+  name: vip-a-2-v6
+  namespace: red
+  labels:
+    trench: trench-a
+spec:
+  address: "6000::150/128"
 ---
 apiVersion: meridio.nordix.org/v1
 kind: Conduit
 metadata:
-  name: conduit-b-1
+  name: conduit-a-3
   namespace: red
   labels:
-    trench: trench-b
+    trench: trench-a
 spec:
   type: stateless-lb
 ---
 apiVersion: meridio.nordix.org/v1
 kind: Stream
 metadata:
-  name: stream-b-i
+  name: stream-a-iii
   namespace: red
   labels:
-    trench: trench-b
+    trench: trench-a
 spec:
-  conduit: conduit-b-1
+  conduit: conduit-a-3
 ---
 apiVersion: meridio.nordix.org/v1
 kind: Flow
 metadata:
-  name: flow-b-z-tcp
+  name: flow-a-x-tcp
   namespace: red
   labels:
-    trench: trench-b
+    trench: trench-a
 spec:
-  stream: stream-b-i
+  stream: stream-a-iii
   priority: 1
   vips:
-  - vip-b-1-v6
+  - vip-a-2-v4
+  - vip-a-2-v6
   source-subnets:
+  - 0.0.0.0/0
   - 0:0:0:0:0:0:0:0/0
   source-ports:
   - any

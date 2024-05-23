@@ -267,10 +267,10 @@ Flow flow-byte-matches when Add tcp-destination-port-2 to destination ports of f
 
 ## Attractor
 
-### new-attractor-nsm-vlan
+### new-attractor-nad-bridge-vlan
 
 ```
-Attractor new-attractor-nsm-vlan when Configure a new attractor with new vips vip-2-v4 and vip-2-v6, gateways, conduit conduit-a-3, stream stream-a-III and flow with tcp and tcp-destination-port-0 as destination port (Traffic) is received by the targets
+Attractor new-attractor-nad-bridge-vlan when Configure a new attractor with new vips vip-2-v4 and vip-2-v6, gateways, conduit conduit-a-3, stream stream-a-III and flow with tcp and tcp-destination-port-0 as destination port (Traffic) is received by the targets
 /home/jenkins/nordix/slave_root/workspace/meridio-e2e-test-kind/11891/test/e2e/attractor_test.go:119
   STEP: Selecting the first target from the deployment with label app=target-a in namespace red @ 03/10/23 17:18:53.995
   STEP: Configuring the new attractor @ 03/10/23 17:18:54.015

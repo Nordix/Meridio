@@ -93,14 +93,14 @@ function flow_byte_matches_revert () {
     sleep 5
 }
 
-function new_attractor_nsm_vlan () {
-    kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/new-attractor-nsm-vlan.yaml
+function new_attractor_nad_bridge_vlan () {
+    kubectl apply -f $(dirname -- $(readlink -fn -- "$0"))/configuration/new-attractor-nad-bridge-vlan.yaml
     sleep 5
     kubectl wait --for=condition=Ready pods --all -n red --timeout=4m
 }
 
-function new_attractor_nsm_vlan_revert () {
-    kubectl delete -f $(dirname -- $(readlink -fn -- "$0"))/configuration/new-attractor-nsm-vlan.yaml
+function new_attractor_nad_bridge_vlan_revert () {
+    kubectl delete -f $(dirname -- $(readlink -fn -- "$0"))/configuration/new-attractor-nad-bridge-vlan.yaml
     sleep 5
     while kubectl get pods -n red --no-headers | awk '$3' | grep -v "Running" > /dev/null; do sleep 1; done
 }

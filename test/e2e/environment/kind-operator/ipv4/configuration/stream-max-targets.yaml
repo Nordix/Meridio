@@ -1,5 +1,5 @@
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Stream
 metadata:
   name: stream-a-iii
@@ -10,7 +10,7 @@ spec:
   conduit: conduit-a-1
   max-targets: 1
 ---
-apiVersion: meridio.nordix.org/v1alpha1
+apiVersion: meridio.nordix.org/v1
 kind: Flow
 metadata:
   name: flow-a-x-tcp

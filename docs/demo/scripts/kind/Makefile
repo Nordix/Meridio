@@ -1,8 +1,12 @@
 
 .PHONY: default
 default:
-	@for step in $(STEPS); do \
-		$(MAKE) -s -C $(shell pwd) $${step} ; \
+	@set -e; \
+	for step in $(STEPS); do \
+		if ! $(MAKE) -s -C $(shell pwd) $${step} ; then \
+			echo "$${step} failed" >&2; \
+			exit 1; \
+		fi; \
 	done
 
 .PHONY: all
@@ -15,7 +19,7 @@ help: ## Display this help.
 # Variables
 ############################################################################
 
-STEPS ?= clean kind-create kind-gateways install-metrics-server install-spire wait wait-spire install-nsm wait wait-nsm
+STEPS ?= clean kind-create kind-network multus cni-plugins whereabouts kind-gateways install-metrics-server install-spire wait wait-spire install-nsm wait wait-nsm
 
 KUBERNETES_VERSION ?= "v1.25"
 KUBERNETES_IP_FAMILY ?= "dualstack"
@@ -38,6 +42,7 @@ REGISTRY ?= registry.nordix.org/cloud-native/meridio
 VERSION ?= latest
 KIND_EXTERNAL_HOST_VERSION ?= $(VERSION)
 KIND_EXTERNAL_HOST_DEFAULT_ROUTE ?= yes
+BREAKOUT_NETWORK ?= kind-breakout
 
 OBSERVABILITY_ENABLED ?= false
 
@@ -122,9 +127,46 @@ kind-create: temp-dir kind kind-delete ## Create the Kind cluster
 	$(KIND) create cluster --config $(TEMP_DIR)/kind-config.yaml ; \
 	rm $(TEMP_DIR)/kind-config.yaml
 
+.PHONY: whereabouts
+whereabouts: ## Install whereabouts IPAM CNI plugin
+	kubectl apply \
+	-f https://raw.githubusercontent.com/k8snetworkplumbingwg/whereabouts/master/doc/crds/daemonset-install.yaml \
+	-f https://raw.githubusercontent.com/k8snetworkplumbingwg/whereabouts/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml \
+	-f https://raw.githubusercontent.com/k8snetworkplumbingwg/whereabouts/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml && \
+	kubectl rollout status daemonset whereabouts -n kube-system --timeout 300s || \
+	{ echo >&2 "Error: Failed to install Whereabouts"; exit 1; }
+
+.PHONY: multus
+multus: ## Install multus
+	kubectl apply -f https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/master/deployments/multus-daemonset.yml && \
+	kubectl rollout status daemonset kube-multus-ds -n kube-system --timeout 300s || { echo >&2 "Error: Failed to install Multus"; exit 1; }
+
+.PHONY: cni-plugins
+cni-plugins: ## Install CNI plugins (add recovery option by failing cni install container if wget fails)
+	curl -sL https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/master/e2e/templates/cni-install.yml.j2 | \
+	sed '/^\s*wget / s/$$/ || { echo "wget failed"; exit 1; }/' | \
+	kubectl apply -f - && \
+	kubectl rollout status daemonset install-cni-plugins -n kube-system --timeout 300s || \
+	{ echo >&2 "Error: Failed to install CNI plugins"; exit 1; }
+
+.PHONY: kind-network
+kind-network: kind-network-delete ## Setup the Kind network
+	./bridge-network-setup.sh --network-name=$(BREAKOUT_NETWORK) --kubernetes-workers=$(KUBERNETES_WORKERS) --ipfamily=$(KUBERNETES_IP_FAMILY) || \
+	{ echo >&2 "Error: Failed to setup network"; exit 1; }
+
+.PHONY: kind-network-delete
+kind-network-delete:  # Clean up the Kind network
+	docker network rm $(BREAKOUT_NETWORK) || true ;
+
+.PHONY: kind-gateways-network-disconnect
+kind-gateways-network-disconnect:
+	docker network disconnect -f $(BREAKOUT_NETWORK) trench-a ; \
+	docker network disconnect -f $(BREAKOUT_NETWORK) trench-b ; \
+	docker network disconnect -f $(BREAKOUT_NETWORK) trench-c ;
+
 .PHONY: kind-gateways
 kind-gateways: ## Create the Kind cluster gateways
-	./external-host.sh --default-route=$(KIND_EXTERNAL_HOST_DEFAULT_ROUTE)
+	./external-host.sh --default-route=$(KIND_EXTERNAL_HOST_DEFAULT_ROUTE) --network-name=$(BREAKOUT_NETWORK)
 
 .PHONY: kind-gateways
 kind-delete-gateways: ## Delete the Kind gateways
@@ -140,7 +182,7 @@ kind-delete-cluster: kind ## Delete the Kind cluster
 	$(KIND) delete cluster
 
 .PHONY: clean
-clean: kind-delete-cluster kind-delete-gateways ## Delete the Kind cluster and the Kind gateways
+clean: kind-delete-cluster kind-delete-gateways kind-network-delete ## Delete the Kind cluster and the Kind gateways
 
 #############################################################################
 ##@ Spire

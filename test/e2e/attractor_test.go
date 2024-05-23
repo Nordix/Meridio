@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2022 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -44,11 +45,11 @@ var _ = Describe("Attractor", func() {
 		targetPod = &pods.Items[0]
 	})
 
-	Describe("new-attractor-nsm-vlan", func() {
+	Describe("new-attractor-nad-bridge-vlan", func() {
 		When("Configure a new attractor with new vips vip-2-v4 and vip-2-v6, gateways, conduit conduit-a-3, stream stream-a-III and flow with tcp and tcp-destination-port-0 as destination port", func() {
 			BeforeEach(func() {
 				By("Configuring the new attractor")
-				err := utils.Exec(config.script, "new_attractor_nsm_vlan")
+				err := utils.Exec(config.script, "new_attractor_nad_bridge_vlan")
 				Expect(err).ToNot(HaveOccurred())
 
 				By(fmt.Sprintf("Opening stream %s (conduit: %s, trench: %s) in target %s in namespace %s", config.streamAIII, config.conduitA3, config.trenchA, targetPod.Name, targetPod.Namespace))
@@ -112,7 +113,7 @@ var _ = Describe("Attractor", func() {
 				}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 
 				By("Reverting the configuration of the new attractor")
-				err = utils.Exec(config.script, "new_attractor_nsm_vlan_revert")
+				err = utils.Exec(config.script, "new_attractor_nad_bridge_vlan_revert")
 				Expect(err).ToNot(HaveOccurred())
 			})
 
