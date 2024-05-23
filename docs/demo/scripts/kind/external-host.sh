@@ -15,6 +15,7 @@ unset o v
 long_opts=`set | grep '^__' | cut -d= -f1`
 
 test -n "$__default_route" || __default_route=yes  # BGP to annouce default routes by default
+test -n "$__network_name" || export __network_name=kind
 parent_if_name="eth0"
 vlan_id="100"
 
@@ -31,9 +32,9 @@ do
     docker rm $container_name || true
 
     if [ "$__default_route" == "yes" ]; then
-        docker run -t -d --network="kind" --name="$container_name" --privileged registry.nordix.org/cloud-native/meridio/kind-host:latest
+        docker run -t -d --network=$__network_name --name="$container_name" --privileged registry.nordix.org/cloud-native/meridio/kind-host:latest
     else
-        docker run -t -d --network="kind" --name="$container_name" --privileged registry.nordix.org/cloud-native/meridio/kind-host:latest \
+        docker run -t -d --network=$__network_name --name="$container_name" --privileged registry.nordix.org/cloud-native/meridio/kind-host:latest \
             /bin/sh -c "sleep 5 ; /usr/sbin/bird -d -c /etc/bird/bird-gw-no-default.conf"
     fi
     
