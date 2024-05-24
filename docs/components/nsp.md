@@ -40,6 +40,8 @@ NSM_PORT | string | Trench the pod is running on | 7778
 NSM_CONFIG_MAP_NAME | string | Name of the ConfigMap containing the configuration | meridio-configuration
 NSM_DATASOURCE | string | Path and file name of the sqlite database | /run/nsp/data/registry.db
 NSM_LOG_LEVEL | string | Log level | DEBUG
+NSM_ENTRY_TIMEOUT | time.Duration | Timeout of the entries | 60s
+NSM_GRPC_PROBE_RPC_TIMEOUT | time.Duration | RPC timeout of internal gRPC health probe | 1s
 
 ## Command Line 
 

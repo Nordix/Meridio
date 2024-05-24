@@ -49,6 +49,9 @@ IPAM_CONDUIT_PREFIX_LENGTH_IPV6 | int | Conduit prefix length which will be allo
 IPAM_NODE_PREFIX_LENGTH_IPV6 | int | node prefix length which will be allocated | 64
 IPAM_IP_FAMILY | string | IP family (ipv4, ipv6, dualstack) | dualstack
 IPAM_LOG_LEVEL | string | Log level (TRACE, DEBUG, INFO, WARNING, ERROR, FATAL, PANIC) | DEBUG
+IPAM_GRPC_KEEPALIVE_TIME | time.Duration | gRPC keepalive timeout | 30s
+IPAM_GRPC_PROBE_RPC_TIMEOUT | time.Duration | RPC timeout of internal gRPC health probe | 1s
+IPAM_GRPC_MAX_BACKOFF | time.Duration | Upper bound on gRPC connection backoff delay | 5s
 
 ## Command Line 
 
