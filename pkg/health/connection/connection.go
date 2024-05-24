@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2022-2023 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -59,11 +60,10 @@ func Monitor(ctx context.Context, healthService string, cc interface{}) error {
 				// So, even with the below forced connect, we might still report service unavailability because
 				// of the protocol.
 				waitCtx := ctx
+				var cancelWait context.CancelFunc
 				if s == connectivity.Idle {
 					// TODO: configurable timeout
-					timeoutCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-					waitCtx = timeoutCtx
-					defer cancel()
+					waitCtx, cancelWait = context.WithTimeout(ctx, 3*time.Second)
 				}
 				// Block until connection state changes
 				if !m.WaitForStateChange(waitCtx, s) {
@@ -71,11 +71,17 @@ func Monitor(ctx context.Context, healthService string, cc interface{}) error {
 					select {
 					case <-ctx.Done():
 						// main context done
+						if cancelWait != nil {
+							cancelWait()
+						}
 						return
 					default:
 						// timeout; try re-connect
 						m.Connect()
 					}
+				}
+				if cancelWait != nil {
+					cancelWait()
 				}
 			}
 		}()
