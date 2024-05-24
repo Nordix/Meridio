@@ -39,6 +39,11 @@ NSM_NSP_SERVICE_NAME | string | IP (or domain) of the NSP Service | nsp-service
 NSM_NSP_SERVICE_PORT | int | port of the NSP Service | 7778
 NSM_IP_FAMILY | string | ip family | dualstack
 NSM_LOG_LEVEL | string | Log level | DEBUG
+NSM_MTU | int | Conduit MTU | 1500
+NSM_GRPC_KEEPALIVE_TIME | time.Duration | gRPC keepalive timeout | 30s
+NSM_GRPC_PROBE_RPC_TIMEOUT | time.Duration | RPC timeout of internal gRPC health probe | 1s
+NSM_GRPC_MAX_BACKOFF | time.Duration | Upper bound on gRPC connection backoff delay | 5s
+NSM_IP_RELEASE_DELAY | time.Duration | delay releasing IP address of NSM connection | 20s
 
 ## Command Line 
 

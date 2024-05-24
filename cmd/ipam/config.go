@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -32,7 +33,7 @@ type Config struct {
 	NodePrefixLengthIPv6    int           `default:"64" desc:"node prefix length which will be allocated" envconfig:"node_prefix_length_ipv6"`
 	IPFamily                string        `default:"dualstack" desc:"ip family" envconfig:"ip_family"`
 	LogLevel                string        `default:"DEBUG" desc:"Log level" split_words:"true"`
-	GRPCKeepaliveTime       time.Duration `default:"30s" desc:"gRPC keepalive timeout"`
+	GRPCKeepaliveTime       time.Duration `default:"30s" desc:"gRPC keepalive timeout" envconfig:"grpc_keepalive_time"`
 	GRPCProbeRPCTimeout     time.Duration `default:"1s" desc:"RPC timeout of internal gRPC health probe" envconfig:"grpc_probe_rpc_timeout"`
 	GRPCMaxBackoff          time.Duration `default:"5s" desc:"Upper bound on gRPC connection backoff delay" envconfig:"grpc_max_backoff"`
 }
