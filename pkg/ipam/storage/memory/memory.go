@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -49,6 +50,10 @@ func (mis *MemoryIPAMStorage) Add(ctx context.Context, prefix types.Prefix) erro
 	}
 	mis.prefixes = append(mis.prefixes, prefix)
 	return nil
+}
+
+func (mis *MemoryIPAMStorage) Update(ctx context.Context, prefix types.Prefix) error {
+	return nil // maintain baseline functionality
 }
 
 func (mis *MemoryIPAMStorage) Delete(ctx context.Context, prefix types.Prefix) error {

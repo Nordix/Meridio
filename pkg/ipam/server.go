@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/go-logr/logr"
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
@@ -48,7 +50,9 @@ func NewServer(
 	trenchName string,
 	nspConn *grpc.ClientConn,
 	cidrs map[ipamAPI.IPFamily]string,
-	prefixLengths map[ipamAPI.IPFamily]*types.PrefixLengths) (ipamAPI.IpamServer, error) {
+	prefixLengths map[ipamAPI.IPFamily]*types.PrefixLengths,
+	garbageCollectionInterval time.Duration,
+	garbageCollectionThreshold time.Duration) (ipamAPI.IpamServer, error) {
 	is := &IpamServer{
 		ctx:           ctx,
 		logger:        logr.FromContextOrDiscard(ctx).WithValues("class", "IpamServer"),
@@ -59,6 +63,7 @@ func NewServer(
 	if err != nil {
 		return nil, fmt.Errorf("failed creating new sqlite store (%s): %w", datastore, err)
 	}
+	store.StartGarbageCollector(ctx, garbageCollectionInterval, garbageCollectionThreshold)
 	logStore := &logger.Store{
 		Store: store,
 	}

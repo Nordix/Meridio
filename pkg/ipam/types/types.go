@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -46,6 +47,7 @@ type Prefix interface {
 
 type Storage interface {
 	Add(ctx context.Context, prefix Prefix) error
+	Update(ctx context.Context, prefix Prefix) error
 	Delete(ctx context.Context, prefix Prefix) error
 	Get(ctx context.Context, name string, parent Prefix) (Prefix, error)
 	GetChilds(ctx context.Context, prefix Prefix) ([]Prefix, error)
