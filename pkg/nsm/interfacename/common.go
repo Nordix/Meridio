@@ -95,8 +95,8 @@ func (ins *interfaceNameSetter) setInterfaceNameMechanism(request *networkservic
 		// chance for this, as MechanismPreferences had to be vetted before.
 		var interfaceName string
 		if val == "" {
-			// TAPA can clear the interface name from the connection to indicate connection
-			// was restored via connection monitor, thus cache update might be necessary.
+			// Use case: TAPA can remove the interface name from the connection mechanism to indicate
+			// the connection was restored via connection monitor. So, cache update might be necessary.
 			// In such cases, TAPA passes the removed interface name in Mechanism Preferences.
 			// So, check if Mechanism Preferences contain a suggested interface name (matching the prefix).
 			// Then check if the name could be used (not in use by some other connection, or
@@ -117,9 +117,20 @@ func (ins *interfaceNameSetter) setInterfaceNameMechanism(request *networkservic
 				// If threre's already a cached value we shall use that instead.
 				if interfaceName = ins.nameCache.CheckAndReserve(id, prefVal, ins.prefix, ins.maxLength); interfaceName != "" {
 					// Use the returned interface name for the connection
-					// TODO: If the request fails to establish connection, the inteface name will not be released
+					// TODO: If the request fails to establish connection, the inteface name IMHO won't be released.
+					// That's because UnsetInterfaceName() ignores if Connection.Mechanism is not nil. In case of
+					// TAPA the interface should be also present in the POD, so it wouldn't be wise to just release
+					// the name anyways... Overall, probably the timeout based approach would work the best in case
+					// of interface name allocation...
 					log.Logger.Info("setInterfaceNameMechanism", "connection ID", id, "interface", interfaceName, "preferred interface", prefVal)
 					break
+				} else {
+					// If interface name cannot be reused (e.g. because it's already taken by another connection),
+					// then let's ask for a reselect. Otherwise, policy based routes would be a mess (either missing
+					// or scrambled). In my test with reselect the policy based routes ended up correct, although the
+					// connection was first closed and then reopened by NSM due to the reselect.
+					log.Logger.Info("setInterfaceNameMechanism requesting reselect due to interface name update", "connection ID", id)
+					request.GetConnection().State = networkservice.State_RESELECT_REQUESTED
 				}
 			}
 
@@ -135,6 +146,7 @@ func (ins *interfaceNameSetter) setInterfaceNameMechanismPreferences(request *ne
 	if request == nil || request.GetMechanismPreferences() == nil {
 		return
 	}
+	logger := log.Logger.WithValues("func", "setInterfaceNameMechanismPreferences")
 	for _, mechanism := range request.GetMechanismPreferences() {
 		if mechanism.GetParameters() == nil {
 			mechanism.Parameters = map[string]string{}
@@ -150,10 +162,40 @@ func (ins *interfaceNameSetter) setInterfaceNameMechanismPreferences(request *ne
 		// TODO: How to handle interface names in MechanismPreferences that match the prefix? One of them might
 		// get accepted. If the connection gets established that interface name won't be stored in the cache.
 		// We should either forbid passing "valid" preferred interface names or do sg about the cache.
-		if val, ok := mechanism.Parameters[common.InterfaceNameKey]; !ok ||
-			val == "" || (ins.prefix != "" && !strings.HasPrefix(val, ins.prefix)) {
+		val, ok := mechanism.Parameters[common.InterfaceNameKey]
+
+		// Use case: The state of NSM connection recovered by the TAPA NSC via
+		// NSM connection monitor indicated control plane down event. Thus, the
+		// connection's mechanism got cleared and reselect request was issued.
+		// In case of reselect-request the TAPA could still propose a preferred
+		// interface name based on the connection it retrieved from nsmgr using
+		// NSM connection monitor functionality.
+		// Therefore, first check with the cache if the proposed interface name
+		// is available. If not, then generate a new name instead.
+		if ok && val != "" && len(val) <= ins.maxLength && (ins.prefix == "" || strings.HasPrefix(val, ins.prefix)) {
+			conn := request.GetConnection()
+			// Ensure it's a valid connection reselect request
+			if conn != nil && conn.Id != "" && conn.State == networkservice.State_RESELECT_REQUESTED {
+				// Check if the preferred interface name is available and reserve it if so
+				interfaceName := ins.nameCache.CheckAndReserve(conn.Id, val, ins.prefix, ins.maxLength)
+				if interfaceName != "" {
+					// Use the returned interface name for the connection
+					// Note: If the request fails to establish connection, the UnsetInterfaceName() called
+					// by the client Request on the error path should release the interface name.
+					if val != interfaceName {
+						logger.Info("Use interface name as preferred", "connection ID", conn.Id, "interface", interfaceName, "preferred interface", val)
+						val = interfaceName
+					}
+				} else { // cannot use preferred name, clear val so that a new name could be generated
+					val = ""
+				}
+			}
+		}
+
+		if !ok || val == "" || (ins.prefix != "" && !strings.HasPrefix(val, ins.prefix)) {
 			// Note: If the request gets cancelled before the connection is established or simply the request
-			// fails, the inteface name has to be released.
+			// fails, the inteface name has to be released (e.g. by calling UnsetInterfaceName() in client Request
+			// on the error path).
 			// Note: In case of multiple MechanismPreferences only one can get accepted as the interface name
 			// of the connection. Luckily cache allows only 1 name per connection ID. So we shall not end up with
 			// leaked names.

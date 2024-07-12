@@ -227,6 +227,18 @@ func (c *Conduit) Connect(ctx context.Context) error {
 		}
 	}
 
+	// Check if recovered connection indicates issue with control plane,
+	// if so request reselect. Otherwise, the connection request might
+	// fail if an old path segment (e.g. NSE) was replaced in the meantime
+	// and recovery would take much longer.
+	// (refer to https://github.com/networkservicemesh/cmd-nsc/pull/600)
+	if request.GetConnection().State == networkservice.State_DOWN {
+		c.logger.Info("Connect requesting reselect for recovered connection")
+		request.GetConnection().Mechanism = nil
+		request.GetConnection().NetworkServiceEndpointName = ""
+		request.GetConnection().State = networkservice.State_RESELECT_REQUESTED
+	}
+
 	// request the connection
 	originalRequest := request.Clone()
 	connection, err := c.NetworkServiceClient.Request(ctx, request)
