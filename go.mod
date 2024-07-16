@@ -3,7 +3,7 @@ module github.com/nordix/meridio
 go 1.22
 
 require (
-	github.com/edwarnicke/grpcfd v1.1.2
+	github.com/edwarnicke/grpcfd v1.1.4
 	github.com/faisal-memon/sviddisk v0.0.0-20211007205134-77ccea0b9271
 	github.com/go-logr/logr v1.4.1
 	github.com/go-logr/zapr v1.3.0
@@ -11,9 +11,9 @@ require (
 	github.com/google/nftables v0.2.0
 	github.com/google/uuid v1.3.1
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/networkservicemesh/api v1.11.2
-	github.com/networkservicemesh/sdk v1.11.2
-	github.com/networkservicemesh/sdk-sriov v1.11.2
+	github.com/networkservicemesh/api v1.13.2
+	github.com/networkservicemesh/sdk v1.13.2
+	github.com/networkservicemesh/sdk-sriov v1.13.2
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/ginkgo/v2 v2.14.0
 	github.com/onsi/gomega v1.30.0

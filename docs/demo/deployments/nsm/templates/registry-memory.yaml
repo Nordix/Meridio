@@ -31,6 +31,18 @@ spec:
             - name: REGISTRY_MEMORY_REGISTRY_SERVER_POLICIES
               value: ""
             - name: REGISTRY_MEMORY_REGISTRY_CLIENT_POLICIES
+              value: ""
+            - name: NSM_LISTEN_ON
+              value: tcp://:5002
+            - name: NSM_LOG_LEVEL
+              value: TRACE
+            - name: NSM_PROXY_REGISTRY_URL
+              value: nsmgr-proxy:5004
+            - name: NSM_EXPIRE_PERIOD
+              value: "2s"
+            - name: NSM_REGISTRY_SERVER_POLICIES
+              value: ""
+            - name: NSM_REGISTRY_CLIENT_POLICIES
               value: "" 
           imagePullPolicy: {{ .Values.pullPolicy }}
           name: nsm-registry
