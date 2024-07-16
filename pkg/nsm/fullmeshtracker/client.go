@@ -54,6 +54,9 @@ func (fmtc *fullMeshTrackerClient) Request(ctx context.Context, request *network
 
 // Close -
 // TODO: remove NSE from the map when they are removed (real close)
+// Note related to above TODO: Heal with reconnect must be taken into consideration,
+// because it would close the connection first and then try to reconnect by erasing
+// NetworkServiceEndpointName, which could break proxy connecting to a specific LB.
 func (fmtc *fullMeshTrackerClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	_, err := next.Client(ctx).Close(ctx, conn, opts...)
 	return &emptypb.Empty{}, err

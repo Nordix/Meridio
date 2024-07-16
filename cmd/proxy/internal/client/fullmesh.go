@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/google/uuid"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	registryrefresh "github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
@@ -134,36 +133,80 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 	if fmnsc.serviceClosed || fmnsc.networkServiceClientExists(networkServiceEndpointName) {
 		return
 	}
+
+	var monitoredConnections map[string]*networkservice.Connection
 	networkServiceClient := NewSimpleNetworkServiceClient(fmnsc.ctx, fmnsc.config, fmnsc.client)
 	request := fmnsc.baseRequest.Clone()
 	request.Connection.NetworkServiceEndpointName = networkServiceEndpointName
-	// UUID part at the start of the conn id will be used by NSM to generate
-	// the interface name (we want it to be unique).
-	// The random part also secures that there should be no connections with
-	// the same connection id maintened by NSMgr (for example after a possible
-	// Proxy crash). Hence, no need for a NSM connection monitor to attempt
-	// connection recovery when trying to connect the first time.
-	// TODO: But the random part also implies, that after a crash the old IPs
-	// will be be leaked.
-	// TODO: Consider trying to recover a connection towards the new NSE via
-	// NSM Monitor Connection, before generating an ID for a new connection.
-	// That's because in case of an instable system NSEs might be reported
-	// unaivalble and then shortly available again. NSM Close() related the
-	// unavailable report might fail, thus leaving interfaces behind whose IPs
-	// could get freed up before the old interfaces would disappear. Luckily,
-	// the old interfaces should be removed from the bridge, thus hopefully not
-	// causing problem just confusion.
-	request.Connection.Id = fmt.Sprintf("%s-%s-%s-%s", uuid.New().String(),
+	// Note: Starting with NSM v1.13.2 the NSM interface name does NOT depend
+	// on the connection ID. Therefore, the random UUID part had been removed
+	// from the ID. This allows the proxy to attempt recovery of any previous
+	// connections after crash or temporary LB NSE unavailability (enabling
+	// recovery of assocaited IPs as well). This can be achieved by using NSM's
+	// connection monitor feature when connecting an LB NSE.
+	id := fmt.Sprintf("%s-%s-%s",
 		fmnsc.config.Name,
 		request.Connection.NetworkService,
 		request.Connection.NetworkServiceEndpointName,
 	)
+	request.Connection.Id = id
 	logger := fmnsc.logger.WithValues("func", "addNetworkServiceClient",
 		"name", networkServiceEndpointName,
 		"service", request.Connection.NetworkService,
 		"id", request.Connection.Id,
 	)
 	logger.Info("Add network service endpoint")
+
+	// Check if NSM already tracks a connection with the same ID, if it does
+	// then re-use the connection
+	if fmnsc.config.MonitorConnectionClient != nil {
+		monitorCli := fmnsc.config.MonitorConnectionClient
+		stream, err := monitorCli.MonitorConnections(fmnsc.ctx, &networkservice.MonitorScopeSelector{
+			PathSegments: []*networkservice.PathSegment{
+				{
+					Id: id,
+				},
+			},
+		})
+		if err != nil {
+			logger.Error(err, "Failed to create monitorConnectionClient")
+		} else {
+			event, err := stream.Recv()
+			if err != nil {
+				// probably running a really old NSM version, don't like this but let it continue anyways
+				// XXX: I guess nsmgr crash/upgrade would cause EOF here, after which it would
+				// make no sense trying again to fetch connections from an "empty" nsmgr...
+				logger.Error(err, "error from monitorConnection stream")
+			} else {
+				monitoredConnections = event.Connections
+			}
+		}
+	}
+
+	// Update request based on recovered connection(s) if any
+	for _, conn := range monitoredConnections {
+		path := conn.GetPath()
+		if path != nil && path.Index == 1 && path.PathSegments[0].Id == id && conn.Mechanism.Type == request.MechanismPreferences[0].Type {
+			logger.Info("Recovered connection", "connection", conn)
+			// TODO: consider merging any possible labels from baseRequest
+			request.Connection = conn
+			request.Connection.Path.Index = 0
+			request.Connection.Id = id
+			break
+		}
+	}
+
+	// Check if recovered connection indicates issue with control plane,
+	// if so request reselect. Otherwise, the connection request might fail
+	// if an old path segment (e.g. forwarder) was replaced in the meantime.
+	// (refer to https://github.com/networkservicemesh/cmd-nsc/pull/600)
+	if request.GetConnection().State == networkservice.State_DOWN ||
+		request.Connection.NetworkServiceEndpointName != networkServiceEndpointName {
+		logger.Info("Request reselect for recovered connection")
+		request.GetConnection().Mechanism = nil
+		request.GetConnection().NetworkServiceEndpointName = networkServiceEndpointName // must be a valid reselect request because fullmeshtracker in case of heal with reconnect would do the same
+		request.GetConnection().State = networkservice.State_RESELECT_REQUESTED
+	}
 
 	// Request would try forever, but what if the NetworkServiceEndpoint is removed in the meantime?
 	// The recv() method must not be blocked by a pending Request that might not ever succeed.

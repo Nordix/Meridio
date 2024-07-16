@@ -9,7 +9,6 @@ require (
 	github.com/go-logr/zapr v1.3.0
 	github.com/golang/mock v1.6.0
 	github.com/google/nftables v0.2.0
-	github.com/google/uuid v1.3.1
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/networkservicemesh/api v1.13.2
 	github.com/networkservicemesh/sdk v1.13.2
@@ -79,6 +78,7 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
+	github.com/google/uuid v1.3.1 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect

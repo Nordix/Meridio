@@ -21,16 +21,18 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/nordix/meridio/pkg/nsm"
 )
 
 // Config - configuration for network service client
 type Config struct {
-	Name             string
-	RequestTimeout   time.Duration
-	ConnectTo        url.URL
-	MaxTokenLifetime time.Duration
-	APIClient        *nsm.APIClient
+	Name                    string
+	RequestTimeout          time.Duration
+	ConnectTo               url.URL
+	MaxTokenLifetime        time.Duration
+	APIClient               *nsm.APIClient
+	MonitorConnectionClient networkservice.MonitorConnectionClient
 }
 
 // IsValid - check if configuration is valid
