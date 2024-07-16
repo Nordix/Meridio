@@ -240,7 +240,7 @@ func main() {
 
 	// create and start NSC that connects all remote NSE belonging to the right service
 	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, p, netUtils)
-	nsmClient := service.GetNSC(ctx, &config, nsmAPIClient, p, interfaceMonitorClient)
+	nsmClient := service.GetNSC(ctx, &config, nsmAPIClient, p, interfaceMonitorClient, monitorClient)
 	defer nsmClient.Close()
 	go func() {
 		service.StartNSC(nsmClient, config.NetworkServiceName)

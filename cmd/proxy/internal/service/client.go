@@ -46,15 +46,17 @@ func GetNSC(ctx context.Context,
 	config *config.Config,
 	nsmAPIClient *nsm.APIClient,
 	p *proxy.Proxy,
-	interfaceMonitorClient networkservice.NetworkServiceClient) client.NetworkServiceClient {
+	interfaceMonitorClient networkservice.NetworkServiceClient,
+	monitorConnectionClient networkservice.MonitorConnectionClient) client.NetworkServiceClient {
 
 	logger := log.FromContextOrGlobal(ctx).WithValues("func", "GetNSC")
 	logger.Info("Create Full Mesh NSC")
 	clientConfig := &client.Config{
-		Name:           config.Name,
-		RequestTimeout: config.RequestTimeout,
-		ConnectTo:      config.ConnectTo,
-		APIClient:      nsmAPIClient,
+		Name:                    config.Name,
+		RequestTimeout:          config.RequestTimeout,
+		ConnectTo:               config.ConnectTo,
+		APIClient:               nsmAPIClient,
+		MonitorConnectionClient: monitorConnectionClient,
 	}
 	// Note: naming the interface is left to NSM (refer to getNameFromConnection())
 	// However NSM does not seem to ensure uniqueness either. Might need to revisit...
