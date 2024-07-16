@@ -104,7 +104,7 @@ func (fmnsc *FullMeshNetworkServiceClient) Close() error {
 func (fmnsc *FullMeshNetworkServiceClient) recv(networkServiceDiscoveryStream registry.NetworkServiceEndpointRegistry_FindClient) error {
 	for {
 		resp, err := networkServiceDiscoveryStream.Recv()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
