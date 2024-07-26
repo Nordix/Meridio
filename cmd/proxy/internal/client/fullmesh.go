@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021-2023 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -38,6 +39,7 @@ import (
 
 type FullMeshNetworkServiceClient struct {
 	networkServiceClients                map[string]NetworkServiceClient
+	networkServiceEndpoints              map[string]*registry.NetworkServiceEndpoint // known endpoints
 	client                               networkservice.NetworkServiceClient
 	config                               *Config
 	ctx                                  context.Context
@@ -50,8 +52,9 @@ type FullMeshNetworkServiceClient struct {
 
 // Request -
 // Blocks on listening for NSE add/delete events
-// TODO: That NSM Find client seems unreliable; reports lost/new NSEs with delay.
-// When scaled-in all LBs left the system as was, then scaled back LBs, old proxies were not notified about new LB NSEs.
+// Note: NSM Find client is unreliable; might report NSE create/update with delay and
+// might miss to report NSE delete completely.
+// TODO: When scaled-in all LBs left the system as was, then scaled back LBs, old proxies were not notified about new LB NSEs.
 // While a new proxy (e.g. after deleting an old POD) got the notification (NSM 1.11.1). Check how this is supposed to work!!!
 func (fmnsc *FullMeshNetworkServiceClient) Request(request *networkservice.NetworkServiceRequest) error {
 	if !fmnsc.requestIsValid(request) {
@@ -65,6 +68,9 @@ func (fmnsc *FullMeshNetworkServiceClient) Request(request *networkservice.Netwo
 
 	err := retry.Do(func() error {
 		var err error
+		// Note: Our NetworkServiceEndpointRegistry_FindClient recv will return every 15 seconds apparently. Otherwise,
+		// it would return after 1 minute if k8s-registry is in use due to how the k8s client Watch object is created by NSM.
+		// (refer to: https://github.com/networkservicemesh/sdk-k8s/blob/release/v1.13.2/pkg/registry/etcd/nse_server.go#L173)
 		networkServiceDiscoveryStream, err := fmnsc.networkServiceEndpointRegistryClient.Find(fmnsc.ctx, query)
 		if err != nil {
 			if status.Code(err) != codes.Canceled {
@@ -72,7 +78,17 @@ func (fmnsc *FullMeshNetworkServiceClient) Request(request *networkservice.Netwo
 			}
 			return fmt.Errorf("failed to create network service endpoint registry find client: %w", err)
 		}
-		return fmnsc.recv(networkServiceDiscoveryStream)
+		err = fmnsc.recv(networkServiceDiscoveryStream)
+		if err != nil {
+			fmnsc.logger.Info("NetworkServiceEndpointRegistry_FindClient recv failed", "err", err)
+		}
+
+		// Because a new Find stream must be opened periodically, there can be gaps
+		// when NSE removals could be missed. Therefore, whenever Find stream "returns",
+		// check if any of the endpoints known to FullMeshNetworkServiceClient have
+		// expired. And if so, remove them.
+		fmnsc.checkEndpointExpiration()
+		return err
 	}, retry.WithContext(fmnsc.ctx),
 		retry.WithDelay(500*time.Millisecond),
 		retry.WithErrorIngnored())
@@ -114,14 +130,60 @@ func (fmnsc *FullMeshNetworkServiceClient) recv(networkServiceDiscoveryStream re
 		}
 		networkServiceEndpoint := resp.NetworkServiceEndpoint
 		if !expirationTimeIsNull(networkServiceEndpoint.ExpirationTime) && !resp.Deleted {
-			fmnsc.addNetworkServiceClient(networkServiceEndpoint.Name)
+			fmnsc.addNetworkServiceEndpoint(networkServiceEndpoint)
 		} else {
 			fmnsc.logger.Info("Network service endpoint deleted or expired",
 				"name", networkServiceEndpoint.Name, "resp", resp)
-			fmnsc.deleteNetworkServiceClient(networkServiceEndpoint.Name)
+			fmnsc.deleteNetworkServiceEndpoint(networkServiceEndpoint)
 		}
 	}
 	return nil
+}
+
+// addNetworkServiceEndpoint adds or overwrites network service endpoint to keep track of
+// its expiration time.
+func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceEndpoint(endpoint *registry.NetworkServiceEndpoint) {
+	fmnsc.networkServiceEndpoints[endpoint.Name] = endpoint
+	fmnsc.addNetworkServiceClient(endpoint.Name)
+}
+
+func (fmnsc *FullMeshNetworkServiceClient) deleteNetworkServiceEndpoint(endpoint *registry.NetworkServiceEndpoint) {
+	delete(fmnsc.networkServiceEndpoints, endpoint.Name)
+	fmnsc.deleteNetworkServiceClient(endpoint.Name)
+}
+
+// checkEndpointExpiration checks the expiratiom time of the locally stored
+// network service endpoints to determine if they are still valid.
+// The logic aims to complement NSM NetworkServiceEndpointRegistry_FindClient
+// based watch logic. So that endpoints for whom the delete notification
+// happened to be missed via Find could be removed.
+// (refer to: https://github.com/networkservicemesh/sdk-k8s/issues/512)
+//
+// Note: Removing endpoints based on expiration time shouldn't cause any problems,
+// since heal should be informed right in time when sg happens to an LB endpoint.
+// This periodic check merely stands to ensure the proxy won't keep spamming NSM
+// "forever" with requests for which the endpoint is long gone.
+func (fmnsc *FullMeshNetworkServiceClient) checkEndpointExpiration() {
+	logger := fmnsc.logger.WithValues("func", "checkEndpointExpiration")
+	for name, endpoint := range fmnsc.networkServiceEndpoints {
+		if fmnsc.ctx.Err() != nil {
+			// If context is closed FullMeshNetworkServiceClient.Close() is expected anyways to clen up...
+			return
+		}
+		// Endpoint is considered expired if based on its ExpirationTime it's
+		// been outdated for at least MaxTokenLifetime seconds. The reason why
+		// an additional MaxTokenLifetime/2 seconds is used is because NSM might
+		// not pass all updates in time via Find (refer to the NSM issue above).
+		// In our case the delay can be 15 seconds as at the start of each Find
+		// the list of available endpoints is returned anyways by NSM (v1.13.2).
+		// So, the additional MaxTokenLifetime/2 delay is an overkill.
+		if endpoint.ExpirationTime != nil &&
+			endpoint.ExpirationTime.AsTime().Local().Add(fmnsc.config.MaxTokenLifetime/2).Before(time.Now()) {
+			logger.Info("Network service endpoint expired", "name", name, "endpoint", endpoint)
+			fmnsc.deleteNetworkServiceEndpoint(endpoint)
+		}
+	}
+
 }
 
 // addNetworkServiceClient -
@@ -285,11 +347,12 @@ func NewFullMeshNetworkServiceClient(ctx context.Context, config *Config, additi
 	client := newClient(ctx, config.Name, config.APIClient, additionalFunctionality...)
 
 	fullMeshNetworkServiceClient := &FullMeshNetworkServiceClient{
-		networkServiceClients: make(map[string]NetworkServiceClient),
-		client:                client,
-		ctx:                   ctx,
-		config:                config,
-		logger:                log.FromContextOrGlobal(ctx).WithValues("class", "FullMeshNetworkServiceClient"),
+		networkServiceClients:   make(map[string]NetworkServiceClient),
+		networkServiceEndpoints: make(map[string]*registry.NetworkServiceEndpoint),
+		client:                  client,
+		ctx:                     ctx,
+		config:                  config,
+		logger:                  log.FromContextOrGlobal(ctx).WithValues("class", "FullMeshNetworkServiceClient"),
 	}
 
 	fullMeshNetworkServiceClient.networkServiceEndpointRegistryClient = registrychain.NewNetworkServiceEndpointRegistryClient(
