@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/go-logr/logr"
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
@@ -48,7 +50,10 @@ func NewServer(
 	trenchName string,
 	nspConn *grpc.ClientConn,
 	cidrs map[ipamAPI.IPFamily]string,
-	prefixLengths map[ipamAPI.IPFamily]*types.PrefixLengths) (ipamAPI.IpamServer, error) {
+	prefixLengths map[ipamAPI.IPFamily]*types.PrefixLengths,
+	garbageCollectionEnabled bool,
+	garbageCollectionInterval time.Duration,
+	garbageCollectionThreshold time.Duration) (ipamAPI.IpamServer, error) {
 	is := &IpamServer{
 		ctx:           ctx,
 		logger:        logr.FromContextOrDiscard(ctx).WithValues("class", "IpamServer"),
@@ -58,6 +63,9 @@ func NewServer(
 	store, err := sqlite.New(datastore)
 	if err != nil {
 		return nil, fmt.Errorf("failed creating new sqlite store (%s): %w", datastore, err)
+	}
+	if garbageCollectionEnabled {
+		store.StartGarbageCollector(ctx, garbageCollectionInterval, garbageCollectionThreshold)
 	}
 	logStore := &logger.Store{
 		Store: store,
@@ -80,6 +88,15 @@ func NewServer(
 	return is, nil
 }
 
+// Note: IMHO ideally all allocations should be treated as leases. Meaning they
+// should be required to be renewed periodically instead of being allocated forever.
+// Would the API be extended so that users could choose between lease or permanent
+// allocation, it would make the cluster upgrade problematic due to the possible
+// mix of old and new clients. Hence, IMHO the best approach for now is to let the
+// server decide which prefixes should have their expirable attribute set. Currently,
+// this translates to calls of node.Allocate() (excluding bridges). The information
+// regarding the time scope is passed in context to avoid the need for changing all
+// the API in between.
 func (is *IpamServer) Allocate(ctx context.Context, child *ipamAPI.Child) (*ipamAPI.Prefix, error) {
 	ctx = logr.NewContext(ctx, is.logger)
 	trench, exists := is.Trenches[child.GetSubnet().GetIpFamily()]
@@ -113,7 +130,7 @@ func (is *IpamServer) Allocate(ctx context.Context, child *ipamAPI.Child) (*ipam
 	if err != nil {
 		return nil, fmt.Errorf("failed getting node (%s) while allocating (%s): %w", child.GetSubnet().GetNode(), child.GetName(), err)
 	}
-	p, err := node.Allocate(ctx, child.GetName())
+	p, err := node.Allocate(sqlite.WithExpirable(ctx), child.GetName())
 	if err != nil {
 		return nil, fmt.Errorf("failed allocating (%s): %w", child.GetName(), err)
 	}

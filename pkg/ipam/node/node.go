@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -59,6 +60,11 @@ func (n *Node) Allocate(ctx context.Context, name string) (types.Prefix, error) 
 		p, err = prefix.AllocateWithBlocklist(ctx, n, name, n.PrefixLengths.ChildLength, n.Store, blocklist)
 		if err != nil {
 			return nil, fmt.Errorf("failed to AllocateWithBlocklist (%s) while allocating in node prefix (%s): %w", name, n.GetName(), err)
+		}
+	} else {
+		// Refresh the entry's updatedAt timestamp in storage
+		if err = n.Store.Update(ctx, p); err != nil {
+			return nil, fmt.Errorf("failed to update (%s) while allocating in node prefix (%s): %w", name, n.GetName(), err)
 		}
 	}
 	return p, nil

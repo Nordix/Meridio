@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,17 +19,20 @@ package sqlite
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/nordix/meridio/pkg/ipam/prefix"
 	"github.com/nordix/meridio/pkg/ipam/types"
 )
 
 type Prefix struct {
-	Id       string `gorm:"primaryKey"`
-	Name     string
-	Cidr     string
-	ParentID string
-	Parent   *Prefix
+	Id        string `gorm:"primaryKey"`
+	Name      string `gorm:"index"` // supposedly indexing could improve query performance
+	Cidr      string
+	ParentID  string `gorm:"index"`
+	Parent    *Prefix
+	UpdatedAt time.Time `gorm:"index"`               // supposedly indexing could improve query performance
+	Expirable *bool     `gorm:"index;default:false"` // indicates whether prefix can expire and thus be subject to garbage collection
 }
 
 func modelToPrefix(p *Prefix, parent types.Prefix) types.Prefix {

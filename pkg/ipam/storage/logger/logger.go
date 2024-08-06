@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -38,6 +39,20 @@ func (s *Store) Add(ctx context.Context, prefix types.Prefix) error {
 	}
 	if prefix != nil {
 		log.FromContextOrGlobal(ctx).Info("Add", "Name", prefix.GetName(), "Cidr", prefix.GetCidr())
+	}
+	return nil
+}
+
+func (s *Store) Update(ctx context.Context, prefix types.Prefix) error {
+	err := s.Store.Update(ctx, prefix)
+	if err != nil {
+		if prefix != nil {
+			log.FromContextOrGlobal(ctx).Error(err, "Update", "Name", prefix.GetName(), "Cidr", prefix.GetCidr())
+		}
+		return err
+	}
+	if prefix != nil {
+		log.FromContextOrGlobal(ctx).V(2).Info("Update", "Name", prefix.GetName(), "Cidr", prefix.GetCidr())
 	}
 	return nil
 }
