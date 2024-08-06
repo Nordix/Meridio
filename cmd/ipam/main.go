@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021-2023 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -157,7 +158,16 @@ func main() {
 
 	// cteate IPAM server
 	ipamServer, err := ipam.NewServer(
-		ctx, config.Datasource, config.TrenchName, conn, cidrs, prefixLengths)
+		ctx,
+		config.Datasource,
+		config.TrenchName,
+		conn,
+		cidrs,
+		prefixLengths,
+		config.GarbageCollectionEnabled,
+		config.GarbageCollectionInterval,
+		config.GarbageCollectionThreshold,
+	)
 	if err != nil {
 		logger.Error(err, "Unable to create ipam server")
 	}

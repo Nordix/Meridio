@@ -21,19 +21,22 @@ import "time"
 
 // Config for the ipam
 type Config struct {
-	Port                    int           `default:"7777" desc:"Trench the pod is running on" split_words:"true"`
-	Datasource              string        `default:"/run/ipam/data/registry.db" desc:"Path and file name of the sqlite database" split_words:"true"`
-	TrenchName              string        `default:"default" desc:"Trench the pod is running on" split_words:"true"`
-	NSPService              string        `default:"nsp-service:7778" desc:"IP (or domain) and port of the NSP Service" split_words:"true"`
-	PrefixIPv4              string        `default:"169.255.0.0/16" desc:"ipv4 prefix from which the proxy prefixes will be allocated" envconfig:"prefix_ipv4"`
-	ConduitPrefixLengthIPv4 int           `default:"20" desc:"conduit prefix length which will be allocated" envconfig:"conduit_prefix_length_ipv4"`
-	NodePrefixLengthIPv4    int           `default:"24" desc:"node prefix length which will be allocated" envconfig:"node_prefix_length_ipv4"`
-	PrefixIPv6              string        `default:"fd00::/48" desc:"ipv4 prefix from which the proxy prefixes will be allocated" envconfig:"prefix_ipv6"`
-	ConduitPrefixLengthIPv6 int           `default:"56" desc:"conduit prefix length which will be allocated" envconfig:"conduit_prefix_length_ipv6"`
-	NodePrefixLengthIPv6    int           `default:"64" desc:"node prefix length which will be allocated" envconfig:"node_prefix_length_ipv6"`
-	IPFamily                string        `default:"dualstack" desc:"ip family" envconfig:"ip_family"`
-	LogLevel                string        `default:"DEBUG" desc:"Log level" split_words:"true"`
-	GRPCKeepaliveTime       time.Duration `default:"30s" desc:"gRPC keepalive timeout" envconfig:"grpc_keepalive_time"`
-	GRPCProbeRPCTimeout     time.Duration `default:"1s" desc:"RPC timeout of internal gRPC health probe" envconfig:"grpc_probe_rpc_timeout"`
-	GRPCMaxBackoff          time.Duration `default:"5s" desc:"Upper bound on gRPC connection backoff delay" envconfig:"grpc_max_backoff"`
+	Port                       int           `default:"7777" desc:"Trench the pod is running on" split_words:"true"`
+	Datasource                 string        `default:"/run/ipam/data/registry.db" desc:"Path and file name of the sqlite database" split_words:"true"`
+	TrenchName                 string        `default:"default" desc:"Trench the pod is running on" split_words:"true"`
+	NSPService                 string        `default:"nsp-service:7778" desc:"IP (or domain) and port of the NSP Service" split_words:"true"`
+	PrefixIPv4                 string        `default:"169.255.0.0/16" desc:"ipv4 prefix from which the proxy prefixes will be allocated" envconfig:"prefix_ipv4"`
+	ConduitPrefixLengthIPv4    int           `default:"20" desc:"conduit prefix length which will be allocated" envconfig:"conduit_prefix_length_ipv4"`
+	NodePrefixLengthIPv4       int           `default:"24" desc:"node prefix length which will be allocated" envconfig:"node_prefix_length_ipv4"`
+	PrefixIPv6                 string        `default:"fd00::/48" desc:"ipv4 prefix from which the proxy prefixes will be allocated" envconfig:"prefix_ipv6"`
+	ConduitPrefixLengthIPv6    int           `default:"56" desc:"conduit prefix length which will be allocated" envconfig:"conduit_prefix_length_ipv6"`
+	NodePrefixLengthIPv6       int           `default:"64" desc:"node prefix length which will be allocated" envconfig:"node_prefix_length_ipv6"`
+	IPFamily                   string        `default:"dualstack" desc:"ip family" envconfig:"ip_family"`
+	LogLevel                   string        `default:"DEBUG" desc:"Log level" split_words:"true"`
+	GRPCKeepaliveTime          time.Duration `default:"30s" desc:"gRPC keepalive timeout" envconfig:"grpc_keepalive_time"`
+	GRPCProbeRPCTimeout        time.Duration `default:"1s" desc:"RPC timeout of internal gRPC health probe" envconfig:"grpc_probe_rpc_timeout"`
+	GRPCMaxBackoff             time.Duration `default:"5s" desc:"Upper bound on gRPC connection backoff delay" envconfig:"grpc_max_backoff"`
+	GarbageCollectionEnabled   bool          `default:"true" desc:"IP garbage collection enabled or disabled" split_words:"true"`
+	GarbageCollectionInterval  time.Duration `default:"2h" desc:"Interval at which IP garbage collection is running" split_words:"true"`
+	GarbageCollectionThreshold time.Duration `default:"40m" desc:"IP record older than threshold is considered leftover" split_words:"true"`
 }
