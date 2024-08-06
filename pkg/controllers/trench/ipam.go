@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -106,15 +107,15 @@ func (i *IpamStatefulSet) insertParameters(dep *appsv1.StatefulSet) *appsv1.Stat
 			}
 			if container.StartupProbe == nil {
 				container.StartupProbe = common.GetProbe(common.StartUpTimer,
-					common.GetProbeCommand(false, "unix:///tmp/health.sock", ""))
+					common.GetProbeCommand(false, "unix:///tmp/health.sock", "Startup"))
 			}
 			if container.ReadinessProbe == nil {
 				container.ReadinessProbe = common.GetProbe(common.ReadinessTimer,
-					common.GetProbeCommand(true, fmt.Sprintf(":%d", common.IpamPort), ""))
+					common.GetProbeCommand(false, "unix:///tmp/health.sock", "Readiness"))
 			}
 			if container.LivenessProbe == nil {
 				container.LivenessProbe = common.GetProbe(common.LivenessTimer,
-					common.GetProbeCommand(false, "unix:///tmp/health.sock", ""))
+					common.GetProbeCommand(false, "unix:///tmp/health.sock", "Liveness"))
 			}
 			container.Env = i.getEnvVars(ret.Spec.Template.Spec.Containers[0].Env)
 			// set resource requirements for container (if not found, then values from model
