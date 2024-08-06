@@ -64,6 +64,8 @@ ipam:
       service: "Readiness"
     liveness:
       service: "Liveness"
+    startup:
+      service: "Startup"
 
 nsp:
   image: nsp

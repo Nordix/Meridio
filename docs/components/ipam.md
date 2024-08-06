@@ -83,6 +83,7 @@ Service | Description
 --- | ---
 Liveness | A unique service to be used by liveness probe to return status, can aggregate other lesser services
 Readiness | A unique service to be used by readiness probe to return status, can aggregate other lesser services
+Startup | A unique service to be used by startup probe to return status, can aggregate other lesser services
 
 Service | Probe | Description
 --- | --- | ---
