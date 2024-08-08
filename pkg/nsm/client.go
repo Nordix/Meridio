@@ -87,6 +87,7 @@ func (apiClient *APIClient) setNetworkServiceEndpointRegistryClient() {
 	apiClient.NetworkServiceEndpointRegistryClient = registryclient.NewNetworkServiceEndpointRegistryClient(
 		apiClient.context,
 		registryclient.WithClientURL(&apiClient.Config.ConnectTo),
+		registryclient.WithDialTimeout(apiClient.Config.DialTimeout),
 		registryclient.WithDialOptions(clientOptions...),
 		registryclient.WithNSEAdditionalFunctionality(
 			expirationtime.NewNetworkServiceEndpointRegistryClient(time.Minute), // keep legacy nse lifetime (changed by https://github.com/networkservicemesh/sdk/pull/1404)
@@ -101,6 +102,7 @@ func (apiClient *APIClient) setNetworkServiceRegistryClient() {
 	apiClient.NetworkServiceRegistryClient = registryclient.NewNetworkServiceRegistryClient(
 		apiClient.context,
 		registryclient.WithClientURL(&apiClient.Config.ConnectTo),
+		registryclient.WithDialTimeout(apiClient.Config.DialTimeout),
 		registryclient.WithDialOptions(clientOptions...),
 		registryclient.WithAuthorizeNSRegistryClient(registryauthorize.NewNetworkServiceRegistryClient()),
 	)
