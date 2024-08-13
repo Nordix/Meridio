@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021-2023 Nordix Foundation
+Copyright (c) 2024 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -57,6 +58,7 @@ func GetNSC(ctx context.Context,
 		ConnectTo:               config.ConnectTo,
 		APIClient:               nsmAPIClient,
 		MonitorConnectionClient: monitorConnectionClient,
+		MaxTokenLifetime:        config.MaxTokenLifetime,
 	}
 	// Note: naming the interface is left to NSM (refer to getNameFromConnection())
 	// However NSM does not seem to ensure uniqueness either. Might need to revisit...

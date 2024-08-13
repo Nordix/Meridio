@@ -167,7 +167,7 @@ func (fmnsc *FullMeshNetworkServiceClient) checkEndpointExpiration() {
 	logger := fmnsc.logger.WithValues("func", "checkEndpointExpiration")
 	for name, endpoint := range fmnsc.networkServiceEndpoints {
 		if fmnsc.ctx.Err() != nil {
-			// If context is closed FullMeshNetworkServiceClient.Close() is expected anyways to clen up...
+			// If context is closed FullMeshNetworkServiceClient.Close() is expected anyways to clean up...
 			return
 		}
 		// Endpoint is considered expired if based on its ExpirationTime it's
