@@ -246,6 +246,7 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 	}
 
 	// Update request based on recovered connection(s) if any
+	var recoveredConnection bool
 	for _, conn := range monitoredConnections {
 		path := conn.GetPath()
 		if path != nil && path.Index == 1 && path.PathSegments[0].Id == id && conn.Mechanism.Type == request.MechanismPreferences[0].Type {
@@ -254,16 +255,18 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 			request.Connection = conn
 			request.Connection.Path.Index = 0
 			request.Connection.Id = id
+			recoveredConnection = true
 			break
 		}
 	}
 
-	// Check if recovered connection indicates issue with control plane,
-	// if so request reselect. Otherwise, the connection request might fail
-	// if an old path segment (e.g. forwarder) was replaced in the meantime.
-	// (refer to https://github.com/networkservicemesh/cmd-nsc/pull/600)
-	if request.GetConnection().State == networkservice.State_DOWN ||
-		request.Connection.NetworkServiceEndpointName != networkServiceEndpointName {
+	// Even if the recovered connection indicates no issue with control plane,
+	// it's not desirable to continue LB connection e.g. after a proxy process
+	// crash without reselect. That's because it would lead to outdated target
+	// related neighbor entries on the LB side due to LB link remaining intact
+	// (yet the target replacing the nsm interface due to heal with reselect
+	// kicking in causing MAC address update).
+	if recoveredConnection {
 		logger.Info("Request reselect for recovered connection")
 		request.GetConnection().Mechanism = nil
 		request.GetConnection().NetworkServiceEndpointName = networkServiceEndpointName // must be a valid reselect request because fullmeshtracker in case of heal with reconnect would do the same
