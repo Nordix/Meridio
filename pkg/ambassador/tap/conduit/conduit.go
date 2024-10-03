@@ -163,7 +163,9 @@ func (c *Conduit) Connect(ctx context.Context) error {
 
 	if c.MonitorConnectionClient != nil {
 		// check if NSM already tracks a connection with the same ID, if it does, re-use the connection
-		stream, err := c.MonitorConnectionClient.MonitorConnections(ctx, &networkservice.MonitorScopeSelector{
+		monitorCtx, cancelMonitor := context.WithCancel(ctx)
+		defer cancelMonitor()
+		stream, err := c.MonitorConnectionClient.MonitorConnections(monitorCtx, &networkservice.MonitorScopeSelector{
 			PathSegments: []*networkservice.PathSegment{
 				{
 					Id: id,

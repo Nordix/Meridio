@@ -47,7 +47,9 @@ func ConnectionMonitor(ctx context.Context, name string, monitorConnectionClient
 	}
 
 	_ = retry.Do(func() error {
-		monitorConnectionsClient, err := monitorConnectionClient.MonitorConnections(ctx, monitorScope)
+		monitorCtx, cancelMonitor := context.WithCancel(ctx)
+		defer cancelMonitor()
+		monitorConnectionsClient, err := monitorConnectionClient.MonitorConnections(monitorCtx, monitorScope)
 		if err != nil {
 			return fmt.Errorf("failed to create connection monitor client: %w", err)
 		}

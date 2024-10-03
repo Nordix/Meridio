@@ -223,7 +223,8 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 	// then re-use the connection
 	if fmnsc.config.MonitorConnectionClient != nil {
 		monitorCli := fmnsc.config.MonitorConnectionClient
-		stream, err := monitorCli.MonitorConnections(fmnsc.ctx, &networkservice.MonitorScopeSelector{
+		monitorCtx, cancelMonitor := context.WithCancel(fmnsc.ctx) // dedicated context when cancelled ensures closing the stream opened by MonitorConnections
+		stream, err := monitorCli.MonitorConnections(monitorCtx, &networkservice.MonitorScopeSelector{
 			PathSegments: []*networkservice.PathSegment{
 				{
 					Id: id,
@@ -243,6 +244,7 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 				monitoredConnections = event.Connections
 			}
 		}
+		cancelMonitor()
 	}
 
 	// Update request based on recovered connection(s) if any
