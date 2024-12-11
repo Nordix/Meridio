@@ -190,7 +190,7 @@ func listRules() []*Rule {
 		rules = append(rules, &Rule{
 			Table:       r.Table,
 			Priority:    r.Priority,
-			Mark:        r.Mark,
+			Mark:        int(r.Mark),
 			Source:      source,
 			Destination: destination,
 		})
