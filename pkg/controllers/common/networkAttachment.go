@@ -18,7 +18,6 @@ package common
 
 import (
 	"encoding/json"
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -85,7 +84,7 @@ func parsePodNetworkObjectName(podnetwork string) (string, string, string, error
 	for _, v := range allItems {
 		matched := v.reg.MatchString(v.value)
 		if !matched && len([]rune(v.value)) > 0 {
-			return "", "", "", errors.Errorf(fmt.Sprintf("parsePodNetworkObjectName: Failed to parse: one or more items did not match comma-delimited format. Mismatch @ '%v'", v.value))
+			return "", "", "", errors.Errorf("parsePodNetworkObjectName: Failed to parse: one or more items did not match comma-delimited format. Mismatch @ '%v'", v.value)
 		}
 	}
 

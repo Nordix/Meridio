@@ -3,6 +3,7 @@ module github.com/nordix/meridio
 go 1.22
 
 require (
+	github.com/edwarnicke/genericsync v0.0.0-20220910010113-61a344f9bc29
 	github.com/edwarnicke/grpcfd v1.1.4
 	github.com/faisal-memon/sviddisk v0.0.0-20211007205134-77ccea0b9271
 	github.com/go-logr/logr v1.4.1
@@ -55,7 +56,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/edwarnicke/exechelper v1.0.2 // indirect
-	github.com/edwarnicke/genericsync v0.0.0-20220910010113-61a344f9bc29 // indirect
 	github.com/edwarnicke/serialize v1.0.7 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/evanphx/json-patch/v5 v5.8.0 // indirect
