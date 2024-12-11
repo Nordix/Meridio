@@ -47,6 +47,7 @@ import (
 	lbAPI "github.com/nordix/meridio/api/loadbalancer/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/cmd/stateless-lb/internal/neighborcache"
+	conduitns "github.com/nordix/meridio/pkg/conduit"
 	"github.com/nordix/meridio/pkg/debug"
 	"github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"
@@ -964,7 +965,18 @@ func startClusterConnectionMonitor(
 		registry.NewNetworkServiceEndpointRegistryClient(cc),
 		// Use provided gRPC dial options to connect NSMgrs
 		dialOptions,
-		&networkservice.MonitorScopeSelector{},
+		// Monitor only connections matching the specified network service name
+		// Note: A server running an old API version will simply ignore the unknown
+		// field in the selector, resulting in a wildcard match.
+		&networkservice.MonitorScopeSelector{
+			NetworkServices: []string{
+				conduitns.GetNetworkServiceNameWithProxy(
+					config.ConduitName,
+					config.TrenchName,
+					config.Namespace,
+				),
+			},
+		},
 		// Replace "local" URLs with the local NSMgr's URL to avoid connecting the local forwarder
 		func(connectTo *url.URL) *url.URL {
 			if strings.HasPrefix(connectTo.String(), "inode://") {
