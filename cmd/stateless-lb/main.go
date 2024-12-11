@@ -24,8 +24,10 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -35,6 +37,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/noop"
+	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
@@ -43,6 +46,7 @@ import (
 	nsmlog "github.com/networkservicemesh/sdk/pkg/tools/log"
 	lbAPI "github.com/nordix/meridio/api/loadbalancer/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/cmd/stateless-lb/internal/neighborcache"
 	"github.com/nordix/meridio/pkg/debug"
 	"github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/health"
@@ -139,13 +143,13 @@ func main() {
 
 	netUtils := &linuxKernel.KernelUtils{}
 
-	// create and start health server
+	// Create and start health server
 	ctx = health.CreateChecker(ctx)
 	if err := health.RegisterReadinessSubservices(ctx, health.LBReadinessServices...); err != nil {
 		logger.Error(err, "RegisterReadinessSubservices")
 	}
-	// note: NSM endpoint service is hosted from early on by its server, thus it can be probed
-	// irrespective of its registration status at NSM
+	// Note: The NSM endpoint service is hosted from the start by its server,
+	// so it can be probed regardless of its registration status at NSM.
 	if err := health.RegisterLivenessSubservices(ctx, health.LBLivenessServices...); err != nil {
 		logger.Error(err, "RegisterLivenessSubservices")
 	}
@@ -175,12 +179,12 @@ func main() {
 	}
 	defer conn.Close()
 
-	// monitor status of NSP connection and adjust probe status accordingly
+	// Monitor status of NSP connection and adjust probe status accordingly
 	if err := connection.Monitor(ctx, health.NSPCliSvc, conn); err != nil {
 		logger.Error(err, "NSP connection state monitor")
 	}
 
-	stream.SetInterfaceNamePrefix(config.ServiceName) // deduce the NSM interfacename prefix for the netfilter defrag rules
+	stream.SetInterfaceNamePrefix(config.ServiceName) // Determine the NSM interface name prefix for the netfilter defragmentation rules
 	targetRegistryClient := nspAPI.NewTargetRegistryClient(conn)
 	configurationManagerClient := nspAPI.NewConfigurationManagerClient(conn)
 	conduit := &nspAPI.Conduit{
@@ -225,7 +229,7 @@ func main() {
 		return
 	}
 
-	// start server to host Stream Forwarding Availability service
+	// Start server to host Stream Forwarding Availability service
 	lis, err := createStreamAvailabilityListener(config)
 	if err != nil {
 		logger.Error(err, "createStreamAvailabilityListener")
@@ -239,7 +243,7 @@ func main() {
 		}),
 	)
 	defer func() {
-		// attempt graceful shutdown to allow sending out pending msgs
+		// Attempt graceful shutdown to allow sending out pending msgs
 		stopped := make(chan struct{})
 		go func() {
 			s.GracefulStop()
@@ -248,7 +252,7 @@ func main() {
 		waitTimer := time.NewTimer(time.Second)
 		select {
 		case <-waitTimer.C:
-			s.Stop() // graceful shutdown not finished in time, force stop immediately
+			s.Stop() // Graceful shutdown not finished in time, force stop immediately
 		case <-stopped:
 			waitTimer.Stop()
 			select {
@@ -257,7 +261,8 @@ func main() {
 			}
 		}
 	}()
-	// announces forwarding availability of streams (i.e. if the LB can forward traffic towards application targets)
+	// Announces the forwarding availability of streams
+	// (i.e., whether the LB can forward traffic towards application targets)
 	streamFwdAvailabilityService := stream.NewForwardingAvailabilityService(
 		context.Background(),
 		&lbAPI.Target{
@@ -280,8 +285,8 @@ func main() {
 		configurationManagerClient,
 		conduit,
 		netUtils,
-		lbFactory, // to spawn nfqlb instance for each Stream created
-		nfa,       // netfilter kernel configuration to steer VIP traffic to nfqlb process
+		lbFactory, // To spawn nfqlb instance for each Stream created
+		nfa,       // Netfilter kernel configuration to steer VIP traffic to nfqlb process
 		config.IdentifierOffsetStart,
 		targetHitsMetrics,
 		neighborMonitor,
@@ -290,7 +295,7 @@ func main() {
 
 	interfaceMonitorEndpoint := interfacemonitor.NewServer(interfaceMonitor, sns, netUtils)
 
-	// Note: naming the interface is left to NSM (refer to getNameFromConnection())
+	// Note: Naming the interface is left to NSM (refer to getNameFromConnection())
 	// However NSM does not seem to ensure uniqueness either. Might need to revisit...
 	responderEndpoint := []networkservice.NetworkServiceServer{
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
@@ -310,10 +315,10 @@ func main() {
 		MaxTokenLifetime: config.MaxTokenLifetime,
 		GRPCMaxBackoff:   config.GRPCMaxBackoff,
 	}
-	nsmAPIClient := nsm.NewAPIClient(context.Background(), apiClientConfig) // background context to allow endpoint unregistration on tear down
+	nsmAPIClient := nsm.NewAPIClient(context.Background(), apiClientConfig) // Background context to allow endpoint unregistration on tear down
 	defer nsmAPIClient.Delete()
 
-	// connect NSMgr and start NSM connection monitoring (to log events of interest)
+	// Connect local NSMgr
 	cc, err := grpc.DialContext(ctx,
 		grpcutils.URLToTarget(&nsmAPIClient.Config.ConnectTo),
 		nsmAPIClient.GRPCDialOption...,
@@ -324,8 +329,13 @@ func main() {
 		return
 	}
 	defer cc.Close()
+	// Start monitoring NSM connections the LB is part of
 	monitorClient := networkservice.NewMonitorConnectionClient(cc)
 	go nsmmonitor.ConnectionMonitor(ctx, config.Name, monitorClient)
+	// Start cluster-wide monitoring of NSM connection Delete events between TAPA and Proxy
+	if config.TargetDisconnectMonitoring {
+		go startClusterConnectionMonitor(ctx, config, cc, nsmAPIClient.GRPCDialOption)
+	}
 
 	endpointConfig := &endpoint.Config{
 		Name:             config.Name,
@@ -334,7 +344,7 @@ func main() {
 		MaxTokenLifetime: config.MaxTokenLifetime,
 	}
 	ep, err := endpoint.NewEndpoint(
-		context.Background(), // use background context to allow endpoint unregistration on tear down
+		context.Background(), // Use background context to allow endpoint unregistration on tear down
 		endpointConfig,
 		nsmAPIClient.NetworkServiceRegistryClient,
 		nsmAPIClient.NetworkServiceEndpointRegistryClient,
@@ -346,7 +356,7 @@ func main() {
 	defer func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*3))
 		defer cancel()
-		ep.Delete(ctx) // let endpoint unregister with NSM to inform proxies in time
+		ep.Delete(ctx) // Let endpoint unregister with NSM to inform proxies in time
 		logger.Info("LB endpoint deleted")
 	}()
 
@@ -367,7 +377,7 @@ func main() {
 		cancel()
 	}()
 	sns.Start()
-	// monitor availibilty of frontends (advertise NSE to proxies only if there's feasible FE)
+	// Monitor availibilty of frontends (advertise NSE to proxies only if there's feasible FE)
 	fns := NewFrontendNetworkService(ctx, targetRegistryClient, ep, NewServiceControlDispatcher(sns))
 	go func() {
 		logger.Info("Start frontend monitoring service")
@@ -937,4 +947,32 @@ func (sns *SimpleNetworkService) updateVips(vips []*nspAPI.Vip) error {
 		return fmt.Errorf("failed to set destination IPs during update VIPs (%v): %w", vips, err)
 	}
 	return nil
+}
+
+// startClusterConnectionMonitor starts cluster-wide monitoring of NSM connection
+// Delete events between TAPA and Proxy, removing invalid Target entries from
+// the Linux neighbor cache to prevent connection disturbances.
+func startClusterConnectionMonitor(
+	ctx context.Context,
+	config Config,
+	cc grpc.ClientConnInterface,
+	dialOptions []grpc.DialOption,
+) {
+	nsmmonitor.ClusterConnectionMonitor(
+		ctx,
+		// Create a registry client to learn NSMgr URLs
+		registry.NewNetworkServiceEndpointRegistryClient(cc),
+		// Use provided gRPC dial options to connect NSMgrs
+		dialOptions,
+		&networkservice.MonitorScopeSelector{},
+		// Replace "local" URLs with the local NSMgr's URL to avoid connecting the local forwarder
+		func(connectTo *url.URL) *url.URL {
+			if strings.HasPrefix(connectTo.String(), "inode://") {
+				return &config.ConnectTo
+			}
+			return connectTo
+		},
+		// Callback function to remove invalid entries from the neighbor cache
+		neighborcache.RemoveInvalid,
+	)
 }

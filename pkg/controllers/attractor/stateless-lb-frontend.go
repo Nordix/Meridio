@@ -75,6 +75,7 @@ func (l *LoadBalancer) getLbEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 		{Name: "NSM_TRENCH_NAME", Value: l.trench.ObjectMeta.Name},
 		{Name: "NSM_NSP_SERVICE", Value: common.NSPServiceWithPort(l.trench)},
 		{Name: "NSM_LOG_LEVEL", Value: common.GetLogLevel()},
+		{Name: "NSM_NAMESPACE", Value: l.attractor.ObjectMeta.Namespace},
 	}
 	if rpcTimeout := common.GetGRPCProbeRPCTimeout(); rpcTimeout != "" {
 		operatorEnv = append(operatorEnv, corev1.EnvVar{Name: "NSM_GRPC_PROBE_RPC_TIMEOUT", Value: rpcTimeout})
