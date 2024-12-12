@@ -113,7 +113,9 @@ func main() {
 	if err != nil {
 		log.Fatal(logger, "Dial NSP", "error", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	// monitor status of NSP connection and adjust probe status accordingly
 	if err := connection.Monitor(ctx, health.NSPCliSvc, conn); err != nil {
@@ -131,7 +133,9 @@ func main() {
 	if err != nil {
 		log.Fatal(logger, "Dial loadbalancer", "error", err)
 	}
-	defer lbConn.Close()
+	defer func() {
+		_ = lbConn.Close()
+	}()
 
 	// create and start frontend service
 	c := &feConfig.Config{

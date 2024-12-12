@@ -170,7 +170,9 @@ func main() {
 	if err != nil {
 		log.Fatal(logger, "dial to NSMgr", "error", err)
 	}
-	defer cc.Close()
+	defer func() {
+		_ = cc.Close()
+	}()
 	monitorClient := networkservice.NewMonitorConnectionClient(cc)
 
 	if err := os.RemoveAll(config.Socket); err != nil {
