@@ -60,7 +60,7 @@ func (trsql *TargetRegistrySQLite) Close() error {
 	if err != nil {
 		return fmt.Errorf("failed to close db connection: %w", err)
 	}
-	sqlDB.Close()
+	_ = sqlDB.Close()
 	return nil
 }
 

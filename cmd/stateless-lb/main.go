@@ -178,7 +178,9 @@ func main() {
 	if err != nil {
 		log.Fatal(logger, "Dial NSP", "error", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	// Monitor status of NSP connection and adjust probe status accordingly
 	if err := connection.Monitor(ctx, health.NSPCliSvc, conn); err != nil {
@@ -329,7 +331,9 @@ func main() {
 		cancel()
 		return
 	}
-	defer cc.Close()
+	defer func() {
+		_ = cc.Close()
+	}()
 	// Start monitoring NSM connections the LB is part of
 	monitorClient := networkservice.NewMonitorConnectionClient(cc)
 	go nsmmonitor.ConnectionMonitor(ctx, config.Name, monitorClient)

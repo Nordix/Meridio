@@ -172,7 +172,7 @@ func (apiClient *APIClient) Delete() {
 		apiClient.cancel()
 	}
 	if apiClient.GRPCClient != nil {
-		apiClient.GRPCClient.Close()
+		_ = apiClient.GRPCClient.Close()
 	}
 }
 
