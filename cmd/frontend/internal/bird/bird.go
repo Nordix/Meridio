@@ -124,7 +124,9 @@ func (b *RoutingService) Run(ctx context.Context, monitorLogs bool) error {
 				return
 			}
 			// when context is done, close File thus signalling EOF to bufio Scan()
-			defer w.Close()
+			defer func() {
+				_ = w.Close()
+			}()
 			<-ctx.Done()
 			b.logger.Info("Context closed, terminate log monitoring")
 		}()

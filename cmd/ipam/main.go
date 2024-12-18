@@ -137,7 +137,9 @@ func main() {
 	if err != nil {
 		log.Fatal(logger, "Dial NSP err", "error", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	// monitor status of NSP connection and adjust probe status accordingly
 	if err := connection.Monitor(ctx, health.NSPCliSvc, conn); err != nil {

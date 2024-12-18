@@ -118,7 +118,9 @@ func (hp *HealthProbe) Request(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect service %q, %w", hp.addr, err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	rpcCtx, rpcCancel := context.WithTimeout(ctx, hp.rpcTimeout)
 	defer rpcCancel()

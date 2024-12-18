@@ -30,7 +30,9 @@ const dbFileName = "test.db"
 
 func Test_Add_Get(t *testing.T) {
 	_ = os.Remove(dbFileName)
-	defer os.Remove(dbFileName)
+	defer func() {
+		_ = os.Remove(dbFileName)
+	}()
 
 	store, err := sqlite.New(dbFileName)
 	assert.Nil(t, err)
@@ -74,7 +76,9 @@ func Test_Add_Get(t *testing.T) {
 
 func Test_GetChilds(t *testing.T) {
 	_ = os.Remove(dbFileName)
-	defer os.Remove(dbFileName)
+	defer func() {
+		_ = os.Remove(dbFileName)
+	}()
 
 	store, err := sqlite.New(dbFileName)
 	assert.Nil(t, err)
@@ -106,7 +110,9 @@ func Test_GetChilds(t *testing.T) {
 
 func Test_Delete(t *testing.T) {
 	_ = os.Remove(dbFileName)
-	defer os.Remove(dbFileName)
+	defer func() {
+		_ = os.Remove(dbFileName)
+	}()
 
 	store, err := sqlite.New(dbFileName)
 	assert.Nil(t, err)

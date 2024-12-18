@@ -87,7 +87,9 @@ func setupTLSCert(socket string) error {
 	certDir := "/tmp/k8s-webhook-server/serving-certs"
 
 	go func() {
-		defer client.Close()
+		defer func() {
+			_ = client.Close()
+		}()
 		err := client.WatchX509Context(ctx, &x509Watcher{CertDir: certDir})
 		if err != nil && status.Code(err) != codes.Canceled {
 			log.Fatal(setupLog, "error watching X.509 context", "error", err)
@@ -132,7 +134,7 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 
 	if os.Getenv(common.LogLevelEnv) == "" { // trace as default value
-		os.Setenv(common.LogLevelEnv, "trace")
+		_ = os.Setenv(common.LogLevelEnv, "trace")
 	}
 
 	ver := flag.Bool("version", false, "Print version and quit")
