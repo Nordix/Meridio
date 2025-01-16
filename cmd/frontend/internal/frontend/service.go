@@ -812,6 +812,7 @@ func (fes *FrontEndService) writeConfigGW(conf *string) {
 	// Note: BIRD 2.0.8 does not support per peer BFD attributes for Static protocol,
 	// thus only 1 BFD configuration per interface is possible
 	*conf += "protocol bfd 'NBR-BFD' {\n"
+	*conf += "\taccept direct;\n"
 	*conf += fmt.Sprintf("\tinterface \"%v\" {\n", fes.extInterface)
 	writeBfdSpec(conf, bfdSpec)
 	*conf += "\t};\n"
