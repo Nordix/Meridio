@@ -38,6 +38,8 @@ NSM_GRPC_MAX_BACKOFF | time.Duration | Upper bound on gRPC connection backoff de
 NSM_METRICS_ENABLED | bool | Enable the metrics collection| false
 NSM_METRICS_PORT | int | Specify the port used to expose the metrics | 2223
 NSM_SOCKET | url.URL | Server socket to host Stream Availability Service | unix:///var/lib/meridio/lb.sock
+NSM_NAMESPACE | string | Namespace the pod is running on | default
+NSM_TARGET_DISCONNECT_MONITORING | bool | Enable listenting to Target disconnect events to clean-up linux neighbor cache | true
 
 ## Command Line 
 
@@ -91,6 +93,6 @@ Sysctl: net.ipv4.conf.all.rp_filter=0 | Allow packets to have a source IPv4 addr
 Sysctl: net.ipv4.conf.default.rp_filter=0 | Allow packets to have a source IPv6 address which does not correspond to any routing destination address.
 Sysctl: net.ipv4.fwmark_reflect=1 | Allow LB generated outbound ICMP Frag Needed reply to use VIP as source address.
 Sysctl: net.ipv6.fwmark_reflect=1 | Allow LB generated outbound ICMPv6 Packet Too Big reply to use VIP as source address.
-NET_ADMIN | The load balancer configures IP rules and IP routes to steer packets (processed by [nfqueue-loadbalancer program](https://github.com/Nordix/nfqueue-loadbalancer)) to targets. The user space load balancer program relies on [libnetfilter_queue](https://netfilter.org/projects/libnetfilter_queue).
+NET_ADMIN | The load balancer configures IP rules and IP routes to steer packets (processed by [nfqueue-loadbalancer program](https://github.com/Nordix/nfqueue-loadbalancer)) to targets. The user space load balancer program relies on [libnetfilter_queue](https://netfilter.org/projects/libnetfilter_queue). The load balancer can remove entries from its Linux neighbor cache that correspond to targets for which the MAC address is no longer valid.
 IPC_LOCK | The user space load balancer program uses shared memory.
 IPC_OWNER | The user space load balancer program uses shared memory.
