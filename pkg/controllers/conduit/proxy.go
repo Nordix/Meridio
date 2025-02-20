@@ -186,10 +186,10 @@ func (i *Proxy) getCurrentStatus() (*appsv1.DaemonSet, error) {
 	return currentStatus, nil
 }
 
-func (i *Proxy) getAction() error {
+func (i *Proxy) getAction() (isUpdate bool, err error) {
 	cs, err := i.getCurrentStatus()
 	if err != nil {
-		return err
+		return false, err
 	}
 	if cs == nil {
 		ds := i.getDesiredStatus()
@@ -198,7 +198,29 @@ func (i *Proxy) getAction() error {
 		ds := i.getReconciledDesiredStatus(cs)
 		if !equality.Semantic.DeepEqual(ds.Spec, cs.Spec) {
 			i.exec.AddUpdateAction(ds)
+			isUpdate = true
 		}
 	}
-	return nil
+	return isUpdate, nil
+}
+
+// IsReady checks if the underlying DaemonSet has updated all the desired PODs
+// according to the most recent Generation ID.
+func (i *Proxy) isReady(reader *common.Reader) (bool, error) {
+	ds := &appsv1.DaemonSet{}
+	selector := i.getSelector()
+	err := reader.GetObject(selector, ds)
+	if err != nil {
+		return false, err
+	}
+	if ds.Status.ObservedGeneration != ds.Generation {
+		return false, fmt.Errorf("daemonset generation id mismatch: Generation=%v, ObservedGeneration=%v", ds.Generation, ds.Status.ObservedGeneration)
+	}
+	if ds.Status.UpdatedNumberScheduled != ds.Status.DesiredNumberScheduled {
+		return false, fmt.Errorf("mismatch: UpdatedNumberScheduled=%v, DesiredNumberScheduled=%v", ds.Status.UpdatedNumberScheduled, ds.Status.DesiredNumberScheduled)
+	}
+	if ds.Status.NumberReady != ds.Status.DesiredNumberScheduled {
+		return false, fmt.Errorf("mismatch: NumberReady=%v, DesiredNumberScheduled=%v", ds.Status.NumberReady, ds.Status.DesiredNumberScheduled)
+	}
+	return true, nil
 }
