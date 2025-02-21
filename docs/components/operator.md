@@ -42,7 +42,17 @@ Update Strategy of the related resources. Service disturbances and outages are t
 
 Environment variable | Type | Description | Default
 --- | --- | --- | ---
- | |
+SPIFFE_ENDPOINT_SOCKET | string | Path to the Spiffe endpoint socket when using Spire | ""
+RESOURCE_NAME_PREFIX | string | Prefix for the names of deployed resources | ""
+LOG_LEVEL | string | Log levels of the operator and deployed components | "TRACE"
+NSP_SERVICE_ACCOUNT | string | Service Account for NSP | ""
+FE_SERVICE_ACCOUNT | string | Service Account for the frontend | ""
+IMAGE_PULL_SECRET | string | ImagePullSecrets to be passed to components if set | ""
+WATCH_NAMESPACE | string | Namespace scope of the operator | ""
+GRPC_PROBE_RPC_TIMEOUT | time.Duration | GRPC_PROBE_RPC_TIMEOUT value passed to components if set | ""
+CONDUIT_MTU | int | MTU value for Conduits, passed if set | ""
+PROXY_IP_RELEASE_DELAY | time.Duration | Delay before releasing an NSM connection's IP address, passed to the proxy if set | ""
+CONDUIT_UPDATE_SYNC_GROUP_KEY | string | Annotation key for defining update sync groups in Conduits | update-sync-group
 
 ## Command Line 
 
