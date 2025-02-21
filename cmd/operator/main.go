@@ -132,7 +132,7 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 
 	if os.Getenv(common.LogLevelEnv) == "" { // trace as default value
-		os.Setenv(common.LogLevelEnv, "trace")
+		os.Setenv(common.LogLevelEnv, "TRACE")
 	}
 
 	ver := flag.Bool("version", false, "Print version and quit")
@@ -155,7 +155,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	logger := log.New("Operator", common.LogLevelEnv)
+	logger := log.New("Operator", os.Getenv(common.LogLevelEnv))
 	ctrl.SetLogger(logger)
 
 	// Set operator scope to the namespace where the operator pod exists
