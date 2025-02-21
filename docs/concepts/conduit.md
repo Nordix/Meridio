@@ -97,6 +97,50 @@ The picture below represents a Kubernetes cluster with Conduit applied and highl
 * `.metadata.labels.trench` property is mandatory and immutable.
 * `.spec.type` property is mandatory and immutable.
 
+## Update groups
+
+By default, simultaneous updates of different Conduits are not coordinated, meaning that changes might
+be processed in parallel, affecting underlying resources at the same time (e.g., during an upgrade).
+
+In certain scenarios, it might be desirable to serialize updates within a set of Conduits controlled by
+the same operator. This can be achieved by annotating Conduits and grouping them based on annotation values.
+Conduits that belong to the same group will be updated sequentially, while different update groups can still
+be processed parallel.
+
+A Conduit's annotation value can be set, changed, or removed on the fly. Additionally, existing Conduits can be
+annotated before upgrading to a Meridio version that supports serialized Conduit updates. In this case, the new
+operator will respect the update groups from the start, ensuring that Conduits are upgraded accordingly.
+
+Note: The annotation key for defining update groups defaults to `update-sync-group`.
+
+Below is an example of two conduit objects being part of the same update group (`group-A`):
+
+```yaml
+apiVersion: meridio.nordix.org/v1
+kind: Conduit
+metadata:
+  name: load-balancer-b1
+  namespace: default
+  annotations:
+    update-sync-group: "group-A"
+  labels:
+    trench: trench-a
+spec:
+  type: stateless-lb
+---
+apiVersion: meridio.nordix.org/v1
+kind: Conduit
+metadata:
+  name: load-balancer-a1
+  namespace: default
+  annotations:
+    update-sync-group: "group-A"
+  labels:
+    trench: trench-a
+spec:
+  type: stateless-lb
+```
+
 ## Configuration
 
 TODO: Update

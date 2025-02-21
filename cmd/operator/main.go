@@ -132,7 +132,7 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 
 	if os.Getenv(common.LogLevelEnv) == "" { // trace as default value
-		os.Setenv(common.LogLevelEnv, "trace")
+		os.Setenv(common.LogLevelEnv, "TRACE")
 	}
 
 	ver := flag.Bool("version", false, "Print version and quit")
@@ -155,7 +155,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	logger := log.New("Operator", common.LogLevelEnv)
+	logger := log.New("Operator", os.Getenv(common.LogLevelEnv))
 	ctrl.SetLogger(logger)
 
 	// Set operator scope to the namespace where the operator pod exists
@@ -259,9 +259,10 @@ func main() {
 	}
 
 	if err = (&conduitcontroller.ConduitReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Conduit"),
-		Scheme: mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		APIReader: mgr.GetAPIReader(),
+		Log:       ctrl.Log.WithName("controllers").WithName("Conduit"),
+		Scheme:    mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Conduit")
 		os.Exit(1)
