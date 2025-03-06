@@ -33,18 +33,34 @@ const (
 	imageProxy = "proxy"
 )
 
+type ProxyModelLoader interface {
+	Load() (*appsv1.DaemonSet, error)
+}
+
+type defaultProxyModelLoader struct {
+}
+
+func (p *defaultProxyModelLoader) Load() (*appsv1.DaemonSet, error) {
+	return common.GetDaemonsetModel("deployment/proxy.yaml")
+}
+
 type Proxy struct {
 	trench  *meridiov1.Trench
 	conduit *meridiov1.Conduit
 	model   *appsv1.DaemonSet
 	exec    *common.Executor
+	loader  ProxyModelLoader
 }
 
-func NewProxy(e *common.Executor, t *meridiov1.Trench, c *meridiov1.Conduit) (*Proxy, error) {
+func NewProxy(e *common.Executor, t *meridiov1.Trench, c *meridiov1.Conduit, loader ProxyModelLoader) (*Proxy, error) {
+	if loader == nil {
+		loader = &defaultProxyModelLoader{}
+	}
 	l := &Proxy{
 		trench:  t.DeepCopy(),
 		conduit: c.DeepCopy(),
 		exec:    e,
+		loader:  loader,
 	}
 
 	// get model
@@ -144,7 +160,7 @@ func (i *Proxy) insertParameters(init *appsv1.DaemonSet) *appsv1.DaemonSet {
 }
 
 func (i *Proxy) getModel() error {
-	model, err := common.GetDaemonsetModel("deployment/proxy.yaml")
+	model, err := i.loader.Load()
 	if err != nil {
 		return fmt.Errorf("failed to get daemonset model in deployment/proxy.yaml: %w", err)
 	}

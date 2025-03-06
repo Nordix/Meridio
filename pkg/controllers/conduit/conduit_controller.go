@@ -44,8 +44,9 @@ type ConduitReconciler struct {
 	APIReader        client.Reader // reader contacting the API server directly bypassing the local cache
 	Log              logr.Logger
 	Scheme           *runtime.Scheme
-	updateSyncGroups sync.Map // map stores Update Sync Group annotation values for each conduit Custom Resource object part of one
-	updateLocks      sync.Map // map stores locks for Upgrade Sync Groups
+	updateSyncGroups sync.Map         // map stores Update Sync Group annotation values for each conduit Custom Resource object part of one
+	updateLocks      sync.Map         // map stores locks for Upgrade Sync Groups
+	ProxyModelLoader ProxyModelLoader // optional; change how proxy loads its model
 }
 
 // Note: In memory lock. Not effective if operator crashes during ongoing
@@ -88,7 +89,7 @@ func (r *ConduitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 	// clear conduit status
 	currentConduit := conduit.DeepCopy()
-	updateSyncGroup := getUpdateSyncGroup(currentConduit) // Check if conduit belongs to an update sync group
+	updateSyncGroup := GetUpdateSyncGroup(currentConduit) // Check if conduit belongs to an update sync group
 	logger = logger.WithValues("updateSyncGroup", updateSyncGroup)
 	r.manageUpdateSyncGroupChange(updateSyncGroup, req.NamespacedName.String()) // Check if update sync group has changed
 
@@ -110,7 +111,7 @@ func (r *ConduitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// create/update stateless-lb-frontend & nse-vlan deployment
 	executor.SetOwner(conduit)
 
-	proxy, err := NewProxy(executor, trench, conduit)
+	proxy, err := NewProxy(executor, trench, conduit, r.ProxyModelLoader)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -133,7 +134,7 @@ func (r *ConduitReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			}
 			logger.Info("Lock acquired")
 		}
-		if r.hasLock(updateSyncGroup, req.NamespacedName.String()) {
+		if r.HasLock(updateSyncGroup, req.NamespacedName.String()) {
 			defer func() {
 				// Check if proxy daemonset along with its PODs have been updated
 				// after pushing the actions to the API server. If so release the lock.
@@ -170,7 +171,7 @@ func (r *ConduitReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			DeleteFunc: func(e event.DeleteEvent) bool {
 				// Handle conduit Custom Resource deletion from locking perspective
 				if _, ok := e.Object.(*meridiov1.Conduit); ok {
-					r.cleanupLock(e.Object.GetName(), e.Object.GetNamespace())
+					r.HandleConduitDeletion(e.Object.GetName(), e.Object.GetNamespace())
 				}
 				return true
 			},
@@ -181,6 +182,11 @@ func (r *ConduitReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	return nil
+}
+
+// HandleConduitDeletion wraps cleanupLock making it available for unit tests
+func (r *ConduitReconciler) HandleConduitDeletion(name, namespace string) {
+	r.cleanupLock(name, namespace)
 }
 
 // Try to acquire update sync group lock for owner
@@ -205,8 +211,8 @@ func (r *ConduitReconciler) acquireLock(updateSyncGroup, owner string) bool {
 }
 
 // Check if owner has locked the update sync group
-func (r *ConduitReconciler) hasLock(updateSyncGroup, owner string) bool {
-	logger := r.Log.WithName("hasLock").WithValues("updateSyncGroup", updateSyncGroup, "caller", owner)
+func (r *ConduitReconciler) HasLock(updateSyncGroup, owner string) bool {
+	logger := r.Log.WithName("HasLock").WithValues("updateSyncGroup", updateSyncGroup, "caller", owner)
 	lock, ok := r.updateLocks.Load(updateSyncGroup)
 	if !ok {
 		logger.V(1).Info("No lock found")
@@ -291,13 +297,41 @@ func (r *ConduitReconciler) isProxyUpdateReady(reader *common.Reader, proxy *Pro
 	return proxy.isReady(reader)
 }
 
+// GetUpdateSyncGroups returns a new map of conduit names to update sync groups
+func (r *ConduitReconciler) GetUpdateSyncGroups() map[string]string {
+	syncGroups := make(map[string]string)
+	r.updateSyncGroups.Range(func(key, value interface{}) bool {
+		if conduitName, ok := key.(string); ok {
+			if groupName, ok := value.(string); ok {
+				syncGroups[conduitName] = groupName
+			}
+		}
+		return true
+	})
+	return syncGroups
+}
+
+// GetUpdateLocks returns a new map of update sync group names to lock owners
+func (r *ConduitReconciler) GetUpdateLocks() map[string]string {
+	locks := make(map[string]string)
+	r.updateLocks.Range(func(key, value interface{}) bool {
+		if groupName, ok := key.(string); ok {
+			if lock, ok := value.(*updateLock); ok {
+				locks[groupName] = lock.owner
+			}
+		}
+		return true
+	})
+	return locks
+}
+
 func getConduitActions(executor *common.Executor, new, old *meridiov1.Conduit) {
 	if !equality.Semantic.DeepEqual(new.ObjectMeta, old.ObjectMeta) {
 		executor.AddUpdateAction(new)
 	}
 }
 
-func getUpdateSyncGroup(conduit *meridiov1.Conduit) string {
+func GetUpdateSyncGroup(conduit *meridiov1.Conduit) string {
 	updateSyncGroupAnnotation := common.GetConduitUpdateSyncGroupKey() // allows customization of annotation key
 	if val, ok := conduit.GetAnnotations()[updateSyncGroupAnnotation]; ok {
 		return val
