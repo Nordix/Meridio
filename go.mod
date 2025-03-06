@@ -58,6 +58,7 @@ require (
 	github.com/edwarnicke/genericsync v0.0.0-20220910010113-61a344f9bc29 // indirect
 	github.com/edwarnicke/serialize v1.0.7 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
+	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.8.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
