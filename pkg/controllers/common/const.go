@@ -76,6 +76,9 @@ const (
 
 	ResourceRequirementKey          = "resource-template"
 	ResourceRequirementTemplatePath = "template/resource"
+
+	ConduitUpdateSyncGroupKeyEnv     = "CONDUIT_UPDATE_SYNC_GROUP_KEY" // Annotation key to be used to mark Conduits which update sync group they belong to if any.
+	DefaultConduitUpdateSyncGroupKey = "update-sync-group"
 )
 
 func NSPServiceAccountName() string {
@@ -204,4 +207,11 @@ func GetProxyIPReleaseDelay() string {
 		return ""
 	}
 	return delay
+}
+
+func GetConduitUpdateSyncGroupKey() string {
+	if key := os.Getenv(ConduitUpdateSyncGroupKeyEnv); key != "" {
+		return key
+	}
+	return DefaultConduitUpdateSyncGroupKey
 }

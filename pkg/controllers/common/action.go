@@ -220,3 +220,45 @@ func (e *Executor) AddUpdateStatusAction(obj client.Object) {
 	e.log.Info("add action", "action", "update status", "object", name, "kind", obj.GetObjectKind().GroupVersionKind())
 	e.appendActions(updateStatusAction{obj: obj, action: "update status"})
 }
+
+type Reader struct {
+	scheme *runtime.Scheme
+	client client.Reader
+	ctx    context.Context
+	log    logr.Logger
+}
+
+func NewReader(s *runtime.Scheme, c client.Reader, ct context.Context, l logr.Logger) *Reader {
+	return &Reader{
+		scheme: s,
+		client: c,
+		ctx:    ct,
+		log:    l.WithName("reader"),
+	}
+}
+
+func (r *Reader) LogInfo(msg string) {
+	r.log.Info(msg)
+}
+
+func (r *Reader) LogError(err error, msg string) {
+	r.log.Error(err, msg)
+}
+
+func (r *Reader) GetObject(selector client.ObjectKey, obj client.Object) error {
+	err := r.client.Get(r.ctx, selector, obj)
+	if err != nil {
+		return fmt.Errorf("reader failed to get objects: %w", err)
+	}
+
+	return nil
+}
+
+func (r *Reader) ListObject(obj client.ObjectList, opts ...client.ListOption) error {
+	err := r.client.List(r.ctx, obj, opts...)
+	if err != nil {
+		return fmt.Errorf("reader failed to list objects: %w", err)
+	}
+
+	return nil
+}
