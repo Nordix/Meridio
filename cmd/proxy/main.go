@@ -164,7 +164,9 @@ func main() {
 	if err != nil {
 		log.Fatal(logger, "Dialing IPAM", "error", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	// monitor status of IPAM connection and adjust probe status accordingly
 	if err := connection.Monitor(signalCtx, health.IPAMCliSvc, conn); err != nil {
@@ -193,7 +195,9 @@ func main() {
 	if err != nil {
 		log.Fatal(logger, "Dialing NSP", "error", err)
 	}
-	defer nspConn.Close()
+	defer func() {
+		_ = nspConn.Close()
+	}()
 
 	// monitor status of NSP connection and adjust probe status accordingly
 	if err := connection.Monitor(signalCtx, health.NSPCliSvc, nspConn); err != nil {
@@ -234,14 +238,18 @@ func main() {
 		cancelSignalCtx()
 		return
 	}
-	defer cc.Close()
+	defer func() {
+		_ = cc.Close()
+	}()
 	monitorClient := networkservice.NewMonitorConnectionClient(cc)
 	go nsmmonitor.ConnectionMonitor(ctx, config.Name, monitorClient)
 
 	// create and start NSC that connects all remote NSE belonging to the right service
 	interfaceMonitorClient := interfacemonitor.NewClient(interfaceMonitor, p, netUtils)
 	nsmClient := service.GetNSC(ctx, &config, nsmAPIClient, p, interfaceMonitorClient, monitorClient)
-	defer nsmClient.Close()
+	defer func() {
+		_ = nsmClient.Close()
+	}()
 	go func() {
 		service.StartNSC(nsmClient, config.NetworkServiceName)
 		cancelSignalCtx() // let others with proper clean-up gracefully terminate

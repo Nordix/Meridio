@@ -51,7 +51,9 @@ func (r *routingConfig) Apply() error {
 	if err != nil {
 		return fmt.Errorf("create %v, err: %v", r.path, err)
 	}
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	_, err = file.WriteString(r.config)
 	if err != nil {

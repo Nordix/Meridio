@@ -115,6 +115,8 @@ spec:
               value:  # to be filled by operator
             - name: NSM_METRICS_ENABLED
               value: "true"
+            - name: NSM_NAMESPACE
+              value:  # to be filled by operator
           volumeMounts:
             - name: spire-agent-socket
               mountPath: /run/spire/sockets

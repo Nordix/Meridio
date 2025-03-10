@@ -31,12 +31,12 @@ func TestTargetRegistrySQLite_Set(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	dbFile := "test.db"
-	os.Remove(dbFile)
+	_ = os.Remove(dbFile)
 	db, err := sqlite.New(dbFile)
 	assert.Nil(t, err)
 	defer func() {
-		db.Close()
-		os.Remove(dbFile)
+		_ = db.Close()
+		_ = os.Remove(dbFile)
 	}()
 
 	ctx := context.Background()
