@@ -52,4 +52,6 @@ type StreamManager interface {
 	Run()
 	// Stop closes all streams
 	Stop(context.Context) error
+	// ConduitDown updates stream status
+	ConduitDown(down bool)
 }

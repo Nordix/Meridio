@@ -437,8 +437,13 @@ func (c *Conduit) getGateways() []string {
 	return []string{}
 }
 
-// monitor the current nsm connection in order to get the new local IPs in case of a change made by the proxy.
-// TODO: Reflect the NSM connection status with the stream status in the TAPA API.
+// Monitors the current nsm connection in order to get the new local IPs in case of a
+// change made by the proxy. It is also used to reflect changes in NSM connectivity via
+// stream status for TAP API users.
+// TODO: It would be beneficial for the conduit to know if datapath monitoring is enabled
+// or not in order to decide when to signal conduit connectivity down to Stream Manager.
+// If datapath monitoring is enabled only connection closed events should signal
+// connectivity problems.
 func (c *Conduit) monitorConnection(ctx context.Context, initialConnection *networkservice.Connection) {
 	if c.MonitorConnectionClient == nil {
 		return
@@ -486,30 +491,37 @@ func (c *Conduit) monitorConnection(ctx context.Context, initialConnection *netw
 							msg = "Connection monitor received down event" // control plane is down
 						}
 						logger.Info(msg, "event type", mccResponse.Type, "connection state", connection.GetState())
-					}
-					c.mu.Lock()
-					// Check for changes involving localIPs of the connection
-					if c.isConnected() {
-						c.connection.Context = connection.GetContext()
-						oldLocalIPsSet := sets.New(c.localIPs...)
-						c.localIPs = getLocalIPs(c.connection.GetContext().GetIpContext().GetSrcIpAddrs(), c.vips, c.getGateways())
-						if !oldLocalIPsSet.Equal(sets.New(c.localIPs...)) {
-							logger.Info("Connection IPs updated, streams require update", "ID", initialConnection.GetId(), "localIPs", c.localIPs, "old localIPs", oldLocalIPsSet)
-							// Trigger stream update to announce new localIPs.
-							// Note: First let's close streams in the conduit to
-							// release identifiers currently in use. In order to
-							// avoid lingering outdated Targets, and registration
-							// delays due to low availability of free identifiers.
-							// Note: Locks are held, context cannot be cancelled.
-							stopCtx, stopCancel := context.WithTimeout(ctx, 2*c.nspEntryTimeout) // don't risk blocking indefinitely
-							if err := c.StreamManager.Stop(stopCtx); err != nil {
-								logger.Info("Connection update triggered stream error", "err", err, "ID", initialConnection.GetId())
+						// Note: Exploit the fact that datapath monitoring is disabled,
+						// thus report change in connectivity even in case of control
+						// plane down events allowing faster status update.
+						// TODO: nsmgr loss should also signal conduit down event
+						c.StreamManager.ConduitDown(true) // update stream status to reflect change in conduit availability
+					} else {
+						c.mu.Lock()
+						// Check for changes involving localIPs of the connection
+						if c.isConnected() {
+							c.connection.Context = connection.GetContext()
+							oldLocalIPsSet := sets.New(c.localIPs...)
+							c.localIPs = getLocalIPs(c.connection.GetContext().GetIpContext().GetSrcIpAddrs(), c.vips, c.getGateways())
+							if !oldLocalIPsSet.Equal(sets.New(c.localIPs...)) {
+								logger.Info("Connection IPs updated, streams require update", "ID", initialConnection.GetId(), "localIPs", c.localIPs, "old localIPs", oldLocalIPsSet)
+								// Trigger stream update to announce new localIPs.
+								// Note: First let's close streams in the conduit to
+								// release identifiers currently in use. In order to
+								// avoid lingering outdated Targets, and registration
+								// delays due to low availability of free identifiers.
+								// Note: Locks are held, context cannot be cancelled.
+								stopCtx, stopCancel := context.WithTimeout(ctx, 2*c.nspEntryTimeout) // don't risk blocking indefinitely
+								if err := c.StreamManager.Stop(stopCtx); err != nil {
+									logger.Info("Connection update triggered stream error", "err", err, "ID", initialConnection.GetId())
+								}
+								stopCancel()
+								c.StreamManager.Run()
 							}
-							stopCancel()
-							c.StreamManager.Run()
+							c.StreamManager.ConduitDown(false) // inform manager about recovered conduit connectivity
 						}
+						c.mu.Unlock()
 					}
-					c.mu.Unlock()
 					break
 				}
 			}

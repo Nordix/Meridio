@@ -19,6 +19,7 @@ package conduit
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -57,6 +58,7 @@ type streamManager struct {
 	mu             sync.Mutex
 	status         status
 	logger         logr.Logger
+	conduitIsDown  bool // conduit connectivity down, currently does not affect NSP registration
 }
 
 func NewStreamManager(configurationManagerClient nspAPI.ConfigurationManagerClient,
@@ -102,6 +104,7 @@ func (sm *streamManager) AddStream(strm *ambassadorAPI.Stream) error {
 		Timeout:         sm.Timeout,
 		NSPEntryTimeout: sm.NSPEntryTimeout,
 		RetryDelay:      sm.RetryDelay,
+		conduitIsDown:   sm.conduitIsDown,
 	}
 	sm.Streams[strm.FullName()] = sr
 	if sm.status == stopped {
@@ -116,7 +119,7 @@ func (sm *streamManager) AddStream(strm *ambassadorAPI.Stream) error {
 		return nil
 	}
 	sr.setStatus(ambassadorAPI.StreamStatus_PENDING)
-	sr.Open(nspStream)
+	sr.Open(nspStream, false)
 	return nil
 }
 
@@ -165,7 +168,7 @@ func (sm *streamManager) SetStreams(streams []*nspAPI.Stream) {
 	for _, sr := range sm.Streams {
 		nspStream := sm.getNSPStream(sr)
 		if nspStream != nil {
-			sr.Open(nspStream)
+			sr.Open(nspStream, false)
 		} else {
 			ctx, cancel := context.WithTimeout(context.TODO(), sr.Timeout)
 			defer cancel()
@@ -191,7 +194,7 @@ func (sm *streamManager) Run() {
 	for _, sr := range sm.Streams {
 		nspStream := sm.getNSPStream(sr)
 		if nspStream != nil {
-			sr.Open(nspStream)
+			sr.Open(nspStream, false)
 		} else {
 			sr.setStatus(ambassadorAPI.StreamStatus_UNDEFINED)
 		}
@@ -227,6 +230,27 @@ func (sm *streamManager) Stop(ctx context.Context) error {
 	return errFinal
 }
 
+func (sm *streamManager) ConduitDown(isDown bool) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	if sm.conduitIsDown == isDown {
+		return
+	}
+
+	sm.conduitIsDown = isDown
+	var wg sync.WaitGroup
+	wg.Add(len(sm.Streams))
+	for _, stream := range sm.Streams {
+		go func(s *streamRetry) {
+			defer wg.Done()
+			nspStream := sm.getNSPStream(stream)
+			stream.conduitChange(isDown, nspStream)
+		}(stream)
+	}
+	wg.Wait()
+}
+
 type streamRetry struct {
 	Stream          types.Stream
 	StreamRegistry  types.Registry
@@ -236,28 +260,66 @@ type streamRetry struct {
 	currentStatus   ambassadorAPI.StreamStatus_Status
 	ctxMu           sync.Mutex
 	cancelOpen      context.CancelFunc
+	conduitIsDown   bool // conduit connectivity down, indicate ambassador API users if stream can carry traffic
+	statusMu        sync.Mutex
 }
 
 // Open continuously tries to open the stream. When opened it continuously
 // tries to refresh it to keep it open.
 // Calling cancelOpen() stops the open/refresh goroutine.
-func (sr *streamRetry) Open(nspStream *nspAPI.Stream) {
+//
+// Note: Force=true cancels previous open/refresh goroutine and starts new
+// one with a short random delay. A canceled open/refresh goroutine will
+// update the stream status to UNAVAILABLE. Hence, avoid using force=true
+// unless conduitIsDown=true to avoid misleading status changes. Or make
+// sure to uniformly set stream status in caller (i.e. streamManager) when
+// cancelling a streamRetry open.
+func (sr *streamRetry) Open(nspStream *nspAPI.Stream, force bool) {
 	// Set cancelOpen, so the close function could cancel this Open function.
 	sr.ctxMu.Lock()
 	if sr.cancelOpen != nil { // a previous open is still running
-		sr.ctxMu.Unlock()
-		return
+		if !force {
+			sr.ctxMu.Unlock()
+			return
+		}
+		log.Logger.V(1).Info("Forced stream re-open to ensure stream status is up to date", "stream", sr.Stream.GetStream())
+		sr.cancelOpen() // force cancels former open goroutine to trigger a quick re-open
 	}
 	var ctx context.Context
 	ctx, sr.cancelOpen = context.WithCancel(context.TODO())
 	sr.ctxMu.Unlock()
 	go func() {
+		if force {
+			// Add a short random delay in an attempt to avoid burst of open calls
+			// in the case of multipe opened Streams per Conduit. (Also, lowers risk
+			// of race with a previous lingering open/refresh goroutine to occur in
+			// the case of force open.)
+			randomDelay := 10*time.Millisecond + time.Duration(rand.Intn(90))*time.Millisecond // 10-100ms delay
+			log.Logger.V(1).Info("delay initial open", "delay ms", randomDelay.Milliseconds(), "stream", sr.Stream.GetStream())
+			timer := time.NewTimer(randomDelay)
+			select {
+			case <-timer.C:
+			case <-ctx.Done():
+				log.Logger.V(1).Info("open context cancelled during initial delay", "stream", sr.Stream.GetStream())
+				timer.Stop()
+				select { // Drain timer channel if it fired concurrently with ctx cancel
+				case <-timer.C:
+				default:
+				}
+				return // Context cancelled, exit goroutine
+			}
+		}
 		// retry to refresh
 		_ = retry.Do(func() error {
 			// retry to open
 			_ = retry.Do(func() error {
 				openCtx, cancel := context.WithTimeout(ctx, sr.Timeout)
 				defer cancel()
+				// WARNING: Stream.Open calls conduit's GetIPs(), which could lead to
+				// deadlock because of the conduit mutex in case a cancelOpen action
+				// via the conduit would wait for the old open/refresh goroutine to
+				// terminate before returning. So, rather risk a race between an old
+				// and a new goroutine when it comes to setStatus() calls.
 				err := sr.Stream.Open(openCtx, nspStream)
 				if err != nil {
 					if ctx.Err() != context.Canceled { // if cancelOpen got called by Close() no need to complain
@@ -300,6 +362,15 @@ func (sr *streamRetry) Close(ctx context.Context) error {
 }
 
 func (sr *streamRetry) setStatus(status ambassadorAPI.StreamStatus_Status) {
+	sr.statusMu.Lock()
+	defer sr.statusMu.Unlock()
+
+	if sr.conduitIsDown && status == ambassadorAPI.StreamStatus_OPEN {
+		log.Logger.Info("ambassadorAPI stream status not set to OPEN due to conduit being down",
+			"stream", sr.Stream.GetStream(), "current status", sr.currentStatus)
+		return
+	}
+
 	if status != sr.currentStatus {
 		log.Logger.Info("ambassadorAPI stream status changed", "status", status, "stream", sr.Stream.GetStream())
 	}
@@ -308,6 +379,32 @@ func (sr *streamRetry) setStatus(status ambassadorAPI.StreamStatus_Status) {
 		return
 	}
 	sr.StreamRegistry.SetStatus(sr.Stream.GetStream(), status)
+}
+
+func (sr *streamRetry) conduitChange(isDown bool, nspStream *nspAPI.Stream) {
+	sr.statusMu.Lock()
+	// set conduitDown variable to reflect conduit connectivity status
+	if sr.conduitIsDown != isDown {
+		log.Logger.V(1).Info("Conduit connectivity status changed", "isDown", isDown, "stream", sr.Stream.GetStream(), "nspStream", nspStream)
+		sr.conduitIsDown = isDown
+	}
+	sr.statusMu.Unlock()
+
+	if isDown {
+		// update status to UNAVAILABLE if conduit connectivity is down
+		sr.setStatus(ambassadorAPI.StreamStatus_UNAVAILABLE)
+		return
+	}
+
+	// in case the conduit connectivity is restored force stream re-open to
+	// allow a quick user update (assuming open succeeds)
+	// Note: In case of multiple Streams per Conduit the refresh periods could
+	// get synced, which might lead to CPU spikes. Thus, Open() adds a short
+	// random delay at the start of the background goroutine taking care of
+	// open/refresh tasks.
+	if nspStream != nil {
+		sr.Open(nspStream, true)
+	}
 }
 
 func convert(streams []*nspAPI.Stream) map[string]*nspAPI.Stream {
