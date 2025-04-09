@@ -35,6 +35,7 @@ import (
 	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/utils"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 const dstChildNamePrefix = "-dst"
@@ -536,6 +537,30 @@ func (p *Proxy) setBridgeIPs() error {
 	return nil
 }
 
+// Skip reserved linux kernel routing tables
+// TODO: What to do on container crash (IP rules and routes remain)?
+// TODO: Why not track used tableIDs instead of mindlessly bumping the value?
+func (p *Proxy) nextTableId() {
+	for {
+		p.tableID++
+		switch p.tableID {
+		case unix.RT_TABLE_UNSPEC:
+		case unix.RT_TABLE_COMPAT:
+		case unix.RT_TABLE_DEFAULT:
+		case unix.RT_TABLE_MAIN:
+		case unix.RT_TABLE_LOCAL:
+		default:
+			// Note: apparently netlink package uses int type for Table which might be problematic on 32 bit architecture...
+			if p.tableID <= unix.RT_TABLE_MAX {
+				return
+			}
+			p.logger.WithValues("func", "nextTableId").Info("Max tableID reached")
+			p.tableID = 0
+		}
+	}
+}
+
+// TODO: Consider cleaning up source based routing rules upon the first call.
 func (p *Proxy) SetVIPs(vips []string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -548,12 +573,15 @@ func (p *Proxy) SetVIPs(vips []string) {
 	for _, vip := range vips {
 		if _, ok := currentVIPs[vip]; !ok {
 			logger.Info("Add VIP", "vip", vip)
+			// TODO: Either this should double-check if there's a rule already in place for the VIP but with a different table,
+			// or the code should clean-up leftover rules at proxy startup. IMHO, the first option is preferred because in the
+			// case of changed vips, some rules might linger on.
 			newVIP, err := newVirtualIP(vip, p.tableID, p.netUtils)
 			if err != nil {
 				logger.Error(err, "Adding SourceBaseRoute", "vip", vip, "tableID", p.tableID)
 				continue
 			}
-			p.tableID++
+			p.nextTableId()
 			p.vips = append(p.vips, newVIP)
 			for nexthop := range p.nexthops {
 				err = newVIP.AddNexthop(nexthop)
