@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -92,7 +93,9 @@ func (i *IpamService) getDesiredStatus() *corev1.Service {
 func (i *IpamService) getReconciledDesiredStatus(svc *corev1.Service) *corev1.Service {
 	template := svc.DeepCopy()
 	template.Spec.Type = i.model.Spec.Type
-	return i.insertParameters(svc)
+	template.ObjectMeta.Labels = common.MergeMapsInPlace(template.ObjectMeta.Labels, i.model.ObjectMeta.Labels)
+	template.ObjectMeta.Annotations = common.MergeMapsInPlace(template.ObjectMeta.Annotations, i.model.ObjectMeta.Annotations)
+	return i.insertParameters(template)
 }
 
 func (i *IpamService) getModel() error {
