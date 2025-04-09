@@ -19,6 +19,7 @@ package conduit
 
 import (
 	"fmt"
+	"maps"
 	"strconv"
 
 	meridiov1 "github.com/nordix/meridio/api/v1"
@@ -187,6 +188,10 @@ func (i *Proxy) getReconciledDesiredStatus(cd *appsv1.DaemonSet) *appsv1.DaemonS
 	template.Spec.Template.Spec.Containers = i.model.Spec.Template.Spec.Containers
 	template.Spec.Template.Spec.InitContainers = i.model.Spec.Template.Spec.InitContainers
 	template.Spec.Template.Spec.Volumes = i.model.Spec.Template.Spec.Volumes
+	template.Spec.Template.ObjectMeta.Labels = common.MergeMapsInPlace(template.Spec.Template.ObjectMeta.Labels, i.model.Spec.Template.ObjectMeta.Labels)
+	template.Spec.Template.ObjectMeta.Annotations = common.MergeMapsInPlace(template.Spec.Template.ObjectMeta.Annotations, i.model.Spec.Template.ObjectMeta.Annotations)
+	template.ObjectMeta.Labels = common.MergeMapsInPlace(template.ObjectMeta.Labels, i.model.ObjectMeta.Labels)
+	template.ObjectMeta.Annotations = common.MergeMapsInPlace(template.ObjectMeta.Annotations, i.model.ObjectMeta.Annotations)
 	return i.insertParameters(template)
 }
 
@@ -213,7 +218,9 @@ func (i *Proxy) getAction() (isUpdate bool, err error) {
 		i.exec.AddCreateAction(ds)
 	} else {
 		ds := i.getReconciledDesiredStatus(cs)
-		if !equality.Semantic.DeepEqual(ds.Spec, cs.Spec) {
+		if !equality.Semantic.DeepEqual(ds.Spec, cs.Spec) ||
+			!maps.Equal(ds.ObjectMeta.Labels, cs.ObjectMeta.Labels) ||
+			!maps.Equal(ds.ObjectMeta.Annotations, cs.ObjectMeta.Annotations) {
 			i.exec.AddUpdateAction(ds)
 			isUpdate = true
 		}

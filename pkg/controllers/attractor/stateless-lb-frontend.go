@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +20,7 @@ package attractor
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 
 	meridiov1 "github.com/nordix/meridio/api/v1"
 	common "github.com/nordix/meridio/pkg/controllers/common"
@@ -322,6 +324,10 @@ func (l *LoadBalancer) getReconciledDesiredStatus(lb *appsv1.Deployment) *appsv1
 	template.Spec.Template.Spec.InitContainers = l.model.Spec.Template.Spec.InitContainers
 	template.Spec.Template.Spec.Containers = l.model.Spec.Template.Spec.Containers
 	template.Spec.Template.Spec.Volumes = l.model.Spec.Template.Spec.Volumes
+	template.Spec.Template.ObjectMeta.Labels = common.MergeMapsInPlace(template.Spec.Template.ObjectMeta.Labels, l.model.Spec.Template.ObjectMeta.Labels)
+	template.Spec.Template.ObjectMeta.Annotations = common.MergeMapsInPlace(template.Spec.Template.ObjectMeta.Annotations, l.model.Spec.Template.ObjectMeta.Annotations)
+	template.ObjectMeta.Labels = common.MergeMapsInPlace(template.ObjectMeta.Labels, l.model.ObjectMeta.Labels)
+	template.ObjectMeta.Annotations = common.MergeMapsInPlace(template.ObjectMeta.Annotations, l.model.ObjectMeta.Annotations)
 	return l.insertParameters(template)
 }
 
@@ -338,7 +344,9 @@ func (l *LoadBalancer) getAction() error {
 		l.exec.AddCreateAction(ds)
 	} else {
 		ds := l.getReconciledDesiredStatus(cs)
-		if !equality.Semantic.DeepEqual(ds.Spec, cs.Spec) {
+		if !equality.Semantic.DeepEqual(ds.Spec, cs.Spec) ||
+			!maps.Equal(ds.ObjectMeta.Labels, cs.ObjectMeta.Labels) ||
+			!maps.Equal(ds.ObjectMeta.Annotations, cs.ObjectMeta.Annotations) {
 			l.exec.AddUpdateAction(ds)
 		}
 	}
