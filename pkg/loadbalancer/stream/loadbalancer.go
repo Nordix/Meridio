@@ -1,6 +1,6 @@
 /*
 Copyright (c) 2021-2023 Nordix Foundation
-Copyright (c) 2024 OpenInfra Foundation Europe
+Copyright (c) 2024-2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -221,6 +221,10 @@ func (lb *LoadBalancer) AddTarget(target types.Target) error {
 
 // RemoveTarget -
 func (lb *LoadBalancer) RemoveTarget(identifier int) error {
+	return lb.removeTarget(identifier, true)
+}
+
+func (lb *LoadBalancer) removeTarget(identifier int, doForwardingAvailabilityUpdate bool) error {
 	lb.removeFromPendingTargetByIdentifier(identifier)
 	target := lb.getTarget(identifier)
 	if target == nil {
@@ -238,7 +242,7 @@ func (lb *LoadBalancer) RemoveTarget(identifier int) error {
 		errFinal = utils.AppendErr(errFinal, fmt.Errorf("target delete error: %w", err)) // todo
 	}
 	delete(lb.targets, target.GetIdentifier())
-	if len(lb.targets) == 0 {
+	if doForwardingAvailabilityUpdate && len(lb.targets) == 0 {
 		lb.forwardingAvailabilityService.Unregister(lb.Name)
 	}
 	logger.Info("Removed target", "target", target)
@@ -483,11 +487,24 @@ func (lb *LoadBalancer) setTargets(targets []*nspAPI.Target) error {
 // TODO: revisit if timeout based periodic check can be removed
 // TODO: Would be nice if a Target was not unconfigured in nfqlb upon
 // "Interface replaced during interface create event"
+//
+// Note: Update of Forwarding Availability Service is delayed until retryPendingTargets()
+// has finished before reporting if the stream had initial Targets yet ended up with no
+// Targets. This could help avoid unnecessary signalling towards the Frontend, e.g. in
+// case links get replaced in short time.
 func (lb *LoadBalancer) processPendingTargets(ctx context.Context) {
 	checkf := func() {
 		lb.mu.Lock()
-		lb.verifyTargets()
+
+		initialTargetsPresent := len(lb.targets) > 0
+		lb.verifyTargets() // does not update Forwarding Availability even if it removed all targets part of the verification process
+		allTargetsRemovedByVerification := initialTargetsPresent && len(lb.targets) == 0
 		lb.retryPendingTargets()
+		// If there were initial targets, and verifyTargets() removed all of them, but
+		// retryPendingTargets() failed to add any, then we must update forwarding availability.
+		if allTargetsRemovedByVerification && len(lb.targets) == 0 {
+			lb.forwardingAvailabilityService.Unregister(lb.Name)
+		}
 		lb.mu.Unlock()
 	}
 	drainf := func(ctx context.Context) bool {
@@ -535,7 +552,7 @@ func (lb *LoadBalancer) verifyTargets() {
 			continue
 		}
 		lb.logger.Info("removing target after verification", "target", target)
-		err := lb.RemoveTarget(target.GetIdentifier())
+		err := lb.removeTarget(target.GetIdentifier(), false) // do not update forwarding availability here, let the caller handle it
 		if err != nil {
 			// note: currently verification checks route availability,
 			// thus RemoveTarget shall probably fail with no route error

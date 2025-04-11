@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -27,11 +28,13 @@ import (
 )
 
 type InterfaceMonitor struct {
-	ch          chan netlink.LinkUpdate
-	done        chan struct{}
-	flush       chan struct{}
-	subscribers []networking.InterfaceMonitorSubscriber
-	mu          sync.Mutex
+	ch                 chan netlink.LinkUpdate
+	done               chan struct{}
+	flush              chan struct{}
+	subscribers        []networking.InterfaceMonitorSubscriber
+	subscribersCopy    []networking.InterfaceMonitorSubscriber // allows subscriber notifications to proceed without the need of holding the mutex
+	subscribersChanged bool                                    // indicates change in subsribers list
+	mu                 sync.Mutex
 }
 
 // Subscribe -
@@ -39,6 +42,7 @@ func (im *InterfaceMonitor) Subscribe(subscriber networking.InterfaceMonitorSubs
 	im.mu.Lock()
 	defer im.mu.Unlock()
 	im.subscribers = append(im.subscribers, subscriber)
+	im.subscribersChanged = true
 }
 
 // UnSubscribe -
@@ -48,23 +52,48 @@ func (im *InterfaceMonitor) UnSubscribe(subscriber networking.InterfaceMonitorSu
 	for index, current := range im.subscribers {
 		if subscriber == current {
 			im.subscribers = append(im.subscribers[:index], im.subscribers[index+1:]...)
+			im.subscribersChanged = true
 		}
 	}
 }
 
-func (im *InterfaceMonitor) interfaceCreated(link netlink.Link) {
+// updateSubscribersCopy - updates copy of subscribers if there had been a change
+// Note: It is assumed that changes due to Subscribe/UnSubscribe calls are rare,
+// thus subscribersCopy approach can provide a resource efficient protection against
+// subscriber induced deadlocks.
+func (im *InterfaceMonitor) updateSubscribersCopy() {
 	im.mu.Lock()
 	defer im.mu.Unlock()
-	for _, subscriber := range im.subscribers {
+
+	if im.subscribersCopy == nil || im.subscribersChanged {
+		if len(im.subscribers) > 0 {
+			im.subscribersCopy = make([]networking.InterfaceMonitorSubscriber, len(im.subscribers))
+			copy(im.subscribersCopy, im.subscribers)
+		} else {
+			im.subscribersCopy = []networking.InterfaceMonitorSubscriber{}
+		}
+		im.subscribersChanged = false
+	}
+}
+
+// Note: Due to the usage of subscribersCopy approach for deadlock prevention,
+// in the case of a prolonged subscriber notification other subscribers who might
+// have already unsubscribed could still get a single delayed notification.
+// If that's a problem slow subscribers are encouraged to implement custom solutions
+// to avoid blocking interfaceMonitor notifications.
+func (im *InterfaceMonitor) interfaceCreated(link netlink.Link) {
+	im.updateSubscribersCopy()
+
+	for _, subscriber := range im.subscribersCopy {
 		intf := NewInterface(link.Attrs().Index)
 		subscriber.InterfaceCreated(intf)
 	}
 }
 
 func (im *InterfaceMonitor) interfaceDeleted(link netlink.Link) {
-	im.mu.Lock()
-	defer im.mu.Unlock()
-	for _, subscriber := range im.subscribers {
+	im.updateSubscribersCopy()
+
+	for _, subscriber := range im.subscribersCopy {
 		intf := NewInterface(link.Attrs().Index, WithInterfaceName(link.Attrs().Name))
 		subscriber.InterfaceDeleted(intf)
 	}
