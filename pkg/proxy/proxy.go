@@ -1,6 +1,6 @@
 /*
 Copyright (c) 2021-2023 Nordix Foundation
-Copyright (c) 2024 OpenInfra Foundation Europe
+Copyright (c) 2024-2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/retry"
@@ -40,6 +41,8 @@ import (
 
 const dstChildNamePrefix = "-dst"
 const srcChildNamePrefix = "-src"
+
+var once sync.Once
 
 // Proxy -
 type Proxy struct {
@@ -538,7 +541,6 @@ func (p *Proxy) setBridgeIPs() error {
 }
 
 // Skip reserved linux kernel routing tables
-// TODO: What to do on container crash (IP rules and routes remain)?
 // TODO: Why not track used tableIDs instead of mindlessly bumping the value?
 func (p *Proxy) nextTableId() {
 	for {
@@ -551,6 +553,11 @@ func (p *Proxy) nextTableId() {
 		case unix.RT_TABLE_LOCAL:
 		default:
 			// Note: apparently netlink package uses int type for Table which might be problematic on 32 bit architecture...
+			// TODO: Use a more reasonable limit based on the max number of VIPs that
+			// must be supported. Also, it doesn't seem to make much sense to handle VIPs
+			// separately by having dedicated routing tableID for each. The code does not
+			// differentiate between VIPs based on nexthops (including the theoretical
+			// use case where the proxy was connected with multiple Attractors).
 			if p.tableID <= unix.RT_TABLE_MAX {
 				return
 			}
@@ -560,8 +567,50 @@ func (p *Proxy) nextTableId() {
 	}
 }
 
-// TODO: Consider cleaning up source based routing rules upon the first call.
+// cleanupRules flushes any potentially lingering IP rules that might remain
+// after a container or process restart.
+// Note: In theory newVirtualIP() could double-check if there was a rule already
+// installed for the particular VIP address but referencing a different table.
+// But due to the dynamic nature of vips (might change during proxy restart),
+// it's safer to flush rules on start.
+func (p *Proxy) cleanupRules(ctx context.Context) {
+	flushCtx, flushCancel := context.WithTimeout(ctx, 10*time.Second)
+	defer flushCancel()
+
+	logger := p.logger.WithValues("func", "cleanupRules")
+	getNetlinkFamily := func(subnet *ipamAPI.Subnet) int {
+		switch subnet.IpFamily {
+		case ipamAPI.IPFamily_IPV4:
+			return netlink.FAMILY_V4
+		case ipamAPI.IPFamily_IPV6:
+			return netlink.FAMILY_V6
+		default:
+			return netlink.FAMILY_ALL
+		}
+	}
+
+	for _, subnet := range p.Subnets {
+		err := kernel.FlushRules(flushCtx, getNetlinkFamily(subnet), kernel.SkipBuiltInRules)
+		if err != nil {
+			logger.Error(err, "Failed to flush rules for subnet", "subnet", subnet)
+		} else {
+			logger.Info("Successfully flushed rules for subnet", "subnet", subnet)
+		}
+	}
+}
+
 func (p *Proxy) SetVIPs(vips []string) {
+	once.Do(func() {
+		// Cleaning up source based routing rules that might have persisted in the
+		// network stack after a container/process restart. Performing the cleanup
+		// here aims to minimize traffic disturbance once NSM datapath monitoring
+		// is enabled (allowing NSM intefaces to survive such events). Currently,
+		// the rule cleanup could be safely executed during NewProxy() call.
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 15*time.Second) // TODO: timeout
+		defer cleanupCancel()
+		p.cleanupRules(cleanupCtx)
+	})
+
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -573,9 +622,6 @@ func (p *Proxy) SetVIPs(vips []string) {
 	for _, vip := range vips {
 		if _, ok := currentVIPs[vip]; !ok {
 			logger.Info("Add VIP", "vip", vip)
-			// TODO: Either this should double-check if there's a rule already in place for the VIP but with a different table,
-			// or the code should clean-up leftover rules at proxy startup. IMHO, the first option is preferred because in the
-			// case of changed vips, some rules might linger on.
 			newVIP, err := newVirtualIP(vip, p.tableID, p.netUtils)
 			if err != nil {
 				logger.Error(err, "Adding SourceBaseRoute", "vip", vip, "tableID", p.tableID)
