@@ -1,6 +1,6 @@
 /*
 Copyright (c) 2021-2023 Nordix Foundation
-Copyright (c) 2024 OpenInfra Foundation Europe
+Copyright (c) 2024-2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -30,15 +30,19 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/utils"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
 const dstChildNamePrefix = "-dst"
 const srcChildNamePrefix = "-src"
+
+var once sync.Once
 
 // Proxy -
 type Proxy struct {
@@ -536,7 +540,71 @@ func (p *Proxy) setBridgeIPs() error {
 	return nil
 }
 
+// Skip reserved linux kernel routing tables
+// TODO: Why not track used tableIDs instead of mindlessly bumping the value?
+func (p *Proxy) nextTableId() {
+	for {
+		p.tableID++
+		switch p.tableID {
+		case unix.RT_TABLE_COMPAT:
+		case unix.RT_TABLE_DEFAULT:
+		case unix.RT_TABLE_MAIN:
+		case unix.RT_TABLE_LOCAL:
+		default:
+			// Note: apparently netlink package uses int type for Table which might be problematic on 32 bit architecture...
+			if p.tableID <= unix.RT_TABLE_MAX {
+				return
+			}
+			p.logger.WithValues("func", "nextTableId").Info("Max tableID reached")
+			p.tableID = 0
+		}
+	}
+}
+
+// cleanupRules flushes any potentially lingering IP rules that might remain
+// after a container or process restart.
+// Note: In theory newVirtualIP() could double-check if there was a rule already
+// installed for the particular VIP address but referencing a different table.
+// But due to the dynamic nature of vips (might change during proxy restart),
+// it's safer to flush rules on start.
+func (p *Proxy) cleanupRules(ctx context.Context) {
+	flushCtx, flushCancel := context.WithTimeout(ctx, 10*time.Second)
+	defer flushCancel()
+
+	logger := p.logger.WithValues("func", "cleanupRules")
+	getNetlinkFamily := func(subnet *ipamAPI.Subnet) int {
+		switch subnet.IpFamily {
+		case ipamAPI.IPFamily_IPV4:
+			return netlink.FAMILY_V4
+		case ipamAPI.IPFamily_IPV6:
+			return netlink.FAMILY_V6
+		default:
+			return netlink.FAMILY_ALL
+		}
+	}
+
+	for _, subnet := range p.Subnets {
+		err := kernel.FlushRules(flushCtx, getNetlinkFamily(subnet), kernel.SkipBuiltInRules)
+		if err != nil {
+			logger.Error(err, "Failed to flush rules for subnet", "subnet", subnet)
+		} else {
+			logger.Info("Successfully flushed rules for subnet", "subnet", subnet)
+		}
+	}
+}
+
 func (p *Proxy) SetVIPs(vips []string) {
+	once.Do(func() {
+		// Cleaning up source based routing rules that might have persisted in the
+		// network stack after a container/process restart. Performing the cleanup
+		// here aims to minimize traffic disturbance once NSM datapath monitoring
+		// is enabled (allowing NSM intefaces to survive such events). Currently,
+		// the rule cleanup could be safely executed during NewProxy() call.
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cleanupCancel()
+		p.cleanupRules(cleanupCtx)
+	})
+
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -553,7 +621,7 @@ func (p *Proxy) SetVIPs(vips []string) {
 				logger.Error(err, "Adding SourceBaseRoute", "vip", vip, "tableID", p.tableID)
 				continue
 			}
-			p.tableID++
+			p.nextTableId()
 			p.vips = append(p.vips, newVIP)
 			for nexthop := range p.nexthops {
 				err = newVIP.AddNexthop(nexthop)
