@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"strings"
 	"sync"
@@ -30,6 +31,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/retry"
@@ -37,8 +39,11 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-const dstChildNamePrefix = "-dst"
-const srcChildNamePrefix = "-src"
+const (
+	dstChildNamePrefix     = "-dst"
+	srcChildNamePrefix     = "-src"
+	tableID            int = 1 // routing table ID is shared both for installing nexthop routes and for setting up VIP src IP rules as part of source-based routing
+)
 
 // Proxy -
 type Proxy struct {
@@ -50,7 +55,7 @@ type Proxy struct {
 	mutex                    sync.Mutex
 	netUtils                 networking.Utils
 	nexthops                 map[string]struct{}
-	tableID                  int
+	nexthopRoute             *kernel.NexthopRoute
 	logger                   logr.Logger
 	connectionToReleaseMap   map[string]context.CancelFunc
 	connectionToReleaseMutex sync.Mutex
@@ -99,11 +104,9 @@ func (p *Proxy) InterfaceCreated(intf networking.Iface) {
 	if intf.GetInterfaceType() == networking.NSC {
 		// 	Add the neighbor IPs of the interface to the nexthops (outgoing traffic)
 		for _, ip := range intf.GetNeighborPrefixes() {
-			for _, vip := range p.vips {
-				err = vip.AddNexthop(ip)
-				if err != nil {
-					p.logger.Error(err, "Adding nexthop")
-				}
+			err = p.nexthopRoute.AddNexthop(ip)
+			if err != nil && !errors.Is(err, fs.ErrExist) {
+				p.logger.Error(err, "Adding nexthop")
 			}
 			// append nexthop if not known
 			p.nexthops[ip] = struct{}{}
@@ -126,8 +129,8 @@ func (p *Proxy) InterfaceCreated(intf networking.Iface) {
 // non-established connection.
 //
 // Note: I'm a bit puzzled about abrupt proxy container restart. Although the proxy
-// won't remember the next hop addresses. Yet, the associated routes might remain in
-// the kernel until source routing of VIPs gets updated for the first time.
+// won't remember the next hop addresses. Yet, the associated routes might remain in the
+// kernel until the first next hop address is learnt to update the shared routing table.
 // This might even be beneficial as such route can provide continuity of egress
 // communication assuming the associated LB is up. (Old interfaces remain in POD
 // until NSM cleans up the related connections.)
@@ -169,11 +172,9 @@ func (p *Proxy) InterfaceDeleted(intf networking.Iface) {
 		// 	Remove the neighbor IPs of the interface from the nexthops (outgoing traffic)
 		for _, ip := range intf.GetNeighborPrefixes() {
 			_, isKnownNexthop := p.nexthops[ip]
-			for _, vip := range p.vips {
-				err = vip.RemoveNexthop(ip)
-				if err != nil && isKnownNexthop {
-					p.logger.Error(err, "Removing nexthop")
-				}
+			err = p.nexthopRoute.RemoveNexthop(ip)
+			if err != nil && isKnownNexthop {
+				p.logger.Error(err, "Removing nexthop")
 			}
 
 			delete(p.nexthops, ip)
@@ -548,20 +549,13 @@ func (p *Proxy) SetVIPs(vips []string) {
 	for _, vip := range vips {
 		if _, ok := currentVIPs[vip]; !ok {
 			logger.Info("Add VIP", "vip", vip)
-			newVIP, err := newVirtualIP(vip, p.tableID, p.netUtils)
+			newVIP, err := newVirtualIP(vip, tableID, p.netUtils) // use shared tableID to lookup nexthop route for outbound VIP traffic
 			if err != nil {
-				logger.Error(err, "Adding SourceBaseRoute", "vip", vip, "tableID", p.tableID)
+				logger.Error(err, "Adding SourceBaseRoute", "vip", vip, "tableID", tableID)
 				continue
 			}
-			p.tableID++
 			p.vips = append(p.vips, newVIP)
-			for nexthop := range p.nexthops {
-				err = newVIP.AddNexthop(nexthop)
-				if err != nil {
-					logger.Error(err, "Adding nexthop", "nexthop", nexthop)
-				}
-			}
-
+			// note: don't add nexthops to vips; the "nexthop" routing table is managed independently
 		}
 		delete(currentVIPs, vip)
 	}
@@ -643,7 +637,7 @@ func NewProxy(conduit *nspAPI.Conduit, nodeName string, ipamClient ipamAPI.IpamC
 		netUtils:               netUtils,
 		nexthops:               map[string]struct{}{},
 		vips:                   []*virtualIP{},
-		tableID:                1,
+		nexthopRoute:           kernel.NewNexthopRoute(tableID),
 		Subnets:                make(map[ipamAPI.IPFamily]*ipamAPI.Subnet),
 		IpamClient:             ipamClient,
 		logger:                 logger,
