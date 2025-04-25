@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021-2023 Nordix Foundation
+Copyright (c) 2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,20 +18,18 @@ limitations under the License.
 package kernel
 
 import (
-	"context"
 	"fmt"
 	"io/fs"
 	"net"
 	"sync"
-	"time"
 
+	"github.com/nordix/meridio/pkg/log"
+	"github.com/nordix/meridio/pkg/utils"
 	"github.com/vishvananda/netlink"
 )
 
 // SourceBasedRoute -
 type SourceBasedRoute struct {
-	ctx      context.Context
-	cancel   context.CancelFunc
 	tableID  int
 	vip      *netlink.Addr
 	nexthops []*netlink.Addr
@@ -147,9 +146,6 @@ func (sbr *SourceBasedRoute) RemoveNexthop(nexthop string) error {
 func (sbr *SourceBasedRoute) Delete() error {
 	sbr.mu.Lock()
 	defer sbr.mu.Unlock()
-	if sbr.cancel != nil {
-		sbr.cancel()
-	}
 	// Delete Rule
 	rule := netlink.NewRule()
 	rule.Table = sbr.tableID
@@ -162,7 +158,13 @@ func (sbr *SourceBasedRoute) Delete() error {
 	if err != nil {
 		return fmt.Errorf("failed RuleDel (%s) while deleting source base route: %w", rule.String(), err)
 	}
-	return sbr.removeRoute()
+	// routing table might be shared by multiple SourceBasedRoutes, only cleanup route if sbr has dedicated nexthops (via sbr.AddNexthop)
+	if len(sbr.nexthops) > 0 {
+		if err := sbr.removeRoute(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (sbr *SourceBasedRoute) family() int {
@@ -170,21 +172,6 @@ func (sbr *SourceBasedRoute) family() int {
 		return netlink.FAMILY_V4
 	}
 	return netlink.FAMILY_V6
-}
-
-// Todo
-// pkg/loadbalancer/stream/loadbalancer.go - processPendingTargets
-func (sbr *SourceBasedRoute) verify() {
-	for {
-		select {
-		case <-time.After(10 * time.Second):
-			sbr.mu.Lock()
-			_ = sbr.updateRoute()
-			sbr.mu.Unlock()
-		case <-sbr.ctx.Done():
-			return
-		}
-	}
 }
 
 // NewSourceBasedRoute -
@@ -198,11 +185,165 @@ func NewSourceBasedRoute(tableID int, vip string) (*SourceBasedRoute, error) {
 		vip:      netlinkAddr,
 		nexthops: []*netlink.Addr{},
 	}
-	sourceBasedRoute.ctx, sourceBasedRoute.cancel = context.WithCancel(context.TODO())
 	err = sourceBasedRoute.create()
 	if err != nil {
 		return nil, err
 	}
-	go sourceBasedRoute.verify()
 	return sourceBasedRoute, nil
+}
+
+// NexthopRoute -
+// Manages default multipath routes in a routing table towards multiple nexthops
+// for both IPv4 and IPv6. (IPv4 and IPv6 uses the same table ID value)
+type NexthopRoute struct {
+	tableID  int                     // kernel routing table ID where default multipath route is installed
+	nexthops map[int][]*netlink.Addr // store IPv4 and IPv6 nexthops separately
+	mu       sync.Mutex
+}
+
+// AddNexthop -
+// Adds a nexthop which shall be included in the multipath route
+func (nr *NexthopRoute) AddNexthop(nexthop string) error {
+	nr.mu.Lock()
+	defer nr.mu.Unlock()
+
+	netlinkAddr, err := netlink.ParseAddr(nexthop)
+	if err != nil {
+		return fmt.Errorf("failed ParseAddr (%s) while adding nexthop: %w", nexthop, err)
+	}
+
+	family := getNetlinkFamily(netlinkAddr)
+	originalList := nr.nexthops[family]
+
+	// don't append if already exists
+	for _, nh := range originalList {
+		if netlinkAddr.Equal(*nh) {
+			return fmt.Errorf("nexthop already exists (%s) while adding nexthop: %w", nexthop, fs.ErrExist)
+		}
+	}
+
+	nr.nexthops[family] = append(originalList, netlinkAddr)
+	err = nr.updateRoute(family)
+	if err != nil {
+		nr.nexthops[family] = removeAddrFromList(netlinkAddr, nr.nexthops[family])
+		return fmt.Errorf("error configuring nexthop %v: %w", nexthop, err)
+	}
+	log.Logger.Info("Added nexthop", "nexthop", nexthop, "tableID", nr.tableID)
+	return nil
+}
+
+// RemoveNexthop -
+// Removes a nexthop from the multipath route
+func (nr *NexthopRoute) RemoveNexthop(nexthop string) error {
+	nr.mu.Lock()
+	defer nr.mu.Unlock()
+
+	netlinkAddr, err := netlink.ParseAddr(nexthop)
+	if err != nil {
+		return fmt.Errorf("failed ParseAddr (%s) while removing nexthop: %w", nexthop, err)
+	}
+
+	family := getNetlinkFamily(netlinkAddr)
+	originalList := nr.nexthops[family]
+	nr.nexthops[family] = removeAddrFromList(netlinkAddr, nr.nexthops[family])
+
+	if len(nr.nexthops[family]) < len(originalList) { // Only update route if something was removed
+		if len(nr.nexthops[family]) > 0 {
+			err = nr.updateRoute(family)
+		} else {
+			err = nr.removeRoute(family)
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("error removing nexthop %v: %w", nexthop, err)
+	}
+
+	log.Logger.Info("Removed nexthop", "nexthop", nexthop, "tableID", nr.tableID)
+	return nil
+}
+
+// Delete -
+// Cleans up both IPv4 and IPv6 routes if any
+func (nr *NexthopRoute) Delete() error {
+	nr.mu.Lock()
+	defer nr.mu.Unlock()
+
+	var err error
+	for family := range nr.nexthops {
+		if len(nr.nexthops[family]) > 0 {
+			if delErr := nr.removeRoute(family); delErr != nil {
+				err = utils.AppendErr(err, delErr)
+			}
+		}
+	}
+	return nil
+}
+
+func (nr *NexthopRoute) updateRoute(family int) error {
+	nexthops := []*netlink.NexthopInfo{}
+	for _, nexthop := range nr.nexthops[family] {
+		nexthops = append(nexthops, &netlink.NexthopInfo{
+			Gw: nexthop.IP,
+		})
+	}
+	src := net.IPv4(0, 0, 0, 0)
+	if netlink.FAMILY_V6 == family {
+		src = net.ParseIP("::")
+	}
+	route := &netlink.Route{
+		Table:     nr.tableID,
+		Src:       src,
+		MultiPath: nexthops,
+	}
+	err := netlink.RouteReplace(route)
+	if err != nil {
+		return fmt.Errorf("failed to update nexthop route (%s): %w", route.String(), err)
+	}
+	return nil
+}
+
+func (nr *NexthopRoute) removeRoute(family int) error {
+	// Delete Route
+	src := net.IPv4(0, 0, 0, 0)
+	if netlink.FAMILY_V6 == family {
+		src = net.ParseIP("::")
+	}
+	route := &netlink.Route{
+		Table: nr.tableID,
+		Src:   src,
+	}
+	if err := netlink.RouteDel(route); err != nil {
+		return fmt.Errorf("failed to remove nexthop route (%s): %w", route.String(), err)
+	}
+	return nil
+}
+
+// NewNexthopRoute -
+func NewNexthopRoute(tableID int) *NexthopRoute {
+	nextHopRoute := &NexthopRoute{
+		tableID: tableID,
+		nexthops: map[int][]*netlink.Addr{
+			netlink.FAMILY_V4: {},
+			netlink.FAMILY_V6: {},
+		},
+	}
+	return nextHopRoute
+}
+
+func getNetlinkFamily(addr *netlink.Addr) int {
+	if addr.IP.To4() != nil {
+		return netlink.FAMILY_V4
+	}
+	return netlink.FAMILY_V6
+}
+
+func removeAddrFromList(addrToRemove *netlink.Addr, list []*netlink.Addr) []*netlink.Addr {
+	for index, addr := range list {
+		if addrToRemove.Equal(*addr) {
+			lastIndex := len(list) - 1
+			list[index] = list[lastIndex] // Swap with the last element
+			return list[:lastIndex]       // Return the slice with the last element removed
+		}
+	}
+	return list // Return the original slice if the element was not found
 }
