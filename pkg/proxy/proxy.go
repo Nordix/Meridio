@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"strings"
 	"sync"
@@ -36,7 +37,6 @@ import (
 	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/utils"
 	"github.com/vishvananda/netlink"
-	"golang.org/x/sys/unix"
 )
 
 const dstChildNamePrefix = "-dst"
@@ -54,7 +54,8 @@ type Proxy struct {
 	mutex                    sync.Mutex
 	netUtils                 networking.Utils
 	nexthops                 map[string]struct{}
-	tableID                  int
+	nexthopRoute             *kernel.NexthopRoute
+	tableID                  int // routing table ID is shared for installing nexthop routes and for VIP src IP rules in source-based routing
 	logger                   logr.Logger
 	connectionToReleaseMap   map[string]context.CancelFunc
 	connectionToReleaseMutex sync.Mutex
@@ -103,11 +104,9 @@ func (p *Proxy) InterfaceCreated(intf networking.Iface) {
 	if intf.GetInterfaceType() == networking.NSC {
 		// 	Add the neighbor IPs of the interface to the nexthops (outgoing traffic)
 		for _, ip := range intf.GetNeighborPrefixes() {
-			for _, vip := range p.vips {
-				err = vip.AddNexthop(ip)
-				if err != nil {
-					p.logger.Error(err, "Adding nexthop")
-				}
+			err = p.nexthopRoute.AddNexthop(ip)
+			if err != nil && !errors.Is(err, fs.ErrExist) {
+				p.logger.Error(err, "Adding nexthop")
 			}
 			// append nexthop if not known
 			p.nexthops[ip] = struct{}{}
@@ -173,11 +172,9 @@ func (p *Proxy) InterfaceDeleted(intf networking.Iface) {
 		// 	Remove the neighbor IPs of the interface from the nexthops (outgoing traffic)
 		for _, ip := range intf.GetNeighborPrefixes() {
 			_, isKnownNexthop := p.nexthops[ip]
-			for _, vip := range p.vips {
-				err = vip.RemoveNexthop(ip)
-				if err != nil && isKnownNexthop {
-					p.logger.Error(err, "Removing nexthop")
-				}
+			err = p.nexthopRoute.RemoveNexthop(ip)
+			if err != nil && isKnownNexthop {
+				p.logger.Error(err, "Removing nexthop")
 			}
 
 			delete(p.nexthops, ip)
@@ -540,33 +537,6 @@ func (p *Proxy) setBridgeIPs() error {
 	return nil
 }
 
-// Skip reserved linux kernel routing tables
-// TODO: Why not track used tableIDs instead of mindlessly bumping the value?
-func (p *Proxy) nextTableId() {
-	for {
-		p.tableID++
-		switch p.tableID {
-		case unix.RT_TABLE_UNSPEC:
-		case unix.RT_TABLE_COMPAT:
-		case unix.RT_TABLE_DEFAULT:
-		case unix.RT_TABLE_MAIN:
-		case unix.RT_TABLE_LOCAL:
-		default:
-			// Note: apparently netlink package uses int type for Table which might be problematic on 32 bit architecture...
-			// TODO: Use a more reasonable limit based on the max number of VIPs that
-			// must be supported. Also, it doesn't seem to make much sense to handle VIPs
-			// separately by having dedicated routing tableID for each. The code does not
-			// differentiate between VIPs based on nexthops (including the theoretical
-			// use case where the proxy was connected with multiple Attractors).
-			if p.tableID <= unix.RT_TABLE_MAX {
-				return
-			}
-			p.logger.WithValues("func", "nextTableId").Info("Max tableID reached")
-			p.tableID = 0
-		}
-	}
-}
-
 // cleanupRules flushes any potentially lingering IP rules that might remain
 // after a container or process restart.
 // Note: In theory newVirtualIP() could double-check if there was a rule already
@@ -622,20 +592,13 @@ func (p *Proxy) SetVIPs(vips []string) {
 	for _, vip := range vips {
 		if _, ok := currentVIPs[vip]; !ok {
 			logger.Info("Add VIP", "vip", vip)
-			newVIP, err := newVirtualIP(vip, p.tableID, p.netUtils)
+			newVIP, err := newVirtualIP(vip, p.tableID, p.netUtils) // lookup shared tableID nexthop routes are installed into
 			if err != nil {
 				logger.Error(err, "Adding SourceBaseRoute", "vip", vip, "tableID", p.tableID)
 				continue
 			}
-			p.nextTableId()
 			p.vips = append(p.vips, newVIP)
-			for nexthop := range p.nexthops {
-				err = newVIP.AddNexthop(nexthop)
-				if err != nil {
-					logger.Error(err, "Adding nexthop", "nexthop", nexthop)
-				}
-			}
-
+			// note: don't add nexthops to vips; the "nexthop" routing table is managed independently
 		}
 		delete(currentVIPs, vip)
 	}
@@ -711,13 +674,15 @@ func NewProxy(conduit *nspAPI.Conduit, nodeName string, ipamClient ipamAPI.IpamC
 	if err != nil {
 		logger.Error(err, "Creating the bridge")
 	}
+	tableID := 1
 	proxy := &Proxy{
 		Bridge:                 bridge,
 		conduit:                conduit,
 		netUtils:               netUtils,
 		nexthops:               map[string]struct{}{},
 		vips:                   []*virtualIP{},
-		tableID:                1,
+		tableID:                tableID,
+		nexthopRoute:           kernel.NewNexthopRoute(tableID),
 		Subnets:                make(map[ipamAPI.IPFamily]*ipamAPI.Subnet),
 		IpamClient:             ipamClient,
 		logger:                 logger,
