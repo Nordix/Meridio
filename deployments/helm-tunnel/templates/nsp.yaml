@@ -1,0 +1,83 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nsp-{{ .Values.trench.name }}
+  labels:
+    app: nsp-{{ .Values.trench.name }}
+spec:
+  replicas: 1
+  serviceName: nsp-{{ .Values.trench.name }}
+  selector:
+    matchLabels:
+      app: nsp-{{ .Values.trench.name }}
+  template:
+    metadata:
+      labels:
+        app: nsp-{{ .Values.trench.name }}
+        "spiffe.io/spiffe-id": "true"
+    spec:
+      serviceAccountName: {{ template "meridio.serviceAccount" . }}
+      containers:
+        - name: nsp
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.nsp.image }}:{{ .Values.nsp.version }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          startupProbe:
+{{include "meridio.startupProbe" (dict "component" .Values.nsp "root" $) | indent 12 }}
+          readinessProbe:
+{{include "meridio.readinessProbe" (dict "component" .Values.nsp "root" $) | indent 12 }}
+          livenessProbe:
+{{include "meridio.livenessProbe" (dict "component" .Values.nsp "root" $) | indent 12 }}
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NSP_PORT
+              value: "{{ .Values.nsp.targetPort }}"
+            - name: NSP_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NSP_CONFIG_MAP_NAME
+              value: {{ template "meridio.configuration" . }}
+            - name: NSP_DATASOURCE
+              value: /run/nsp/data/registry.db
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+              - all
+              add:
+              - DAC_OVERRIDE
+              - NET_RAW
+              - SYS_PTRACE
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: nsp-data
+              mountPath: /run/nsp/data
+              readOnly: false
+            - name: tmp
+              mountPath: /tmp
+              readOnly: false
+      securityContext:
+        fsGroup: {{.Values.fsGroup }}
+        fsGroupChangePolicy: "OnRootMismatch"
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory
+        - name: tmp
+          emptyDir:
+            medium: Memory
+  volumeClaimTemplates:
+    - metadata:
+        name: nsp-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
