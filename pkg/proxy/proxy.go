@@ -1,6 +1,6 @@
 /*
 Copyright (c) 2021-2023 Nordix Foundation
-Copyright (c) 2024 OpenInfra Foundation Europe
+Copyright (c) 2024-2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"strings"
 	"sync"
@@ -30,6 +31,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	ipamAPI "github.com/nordix/meridio/api/ipam/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
+	"github.com/nordix/meridio/pkg/kernel"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/retry"
@@ -39,6 +41,8 @@ import (
 
 const dstChildNamePrefix = "-dst"
 const srcChildNamePrefix = "-src"
+
+var once sync.Once
 
 // Proxy -
 type Proxy struct {
@@ -50,7 +54,8 @@ type Proxy struct {
 	mutex                    sync.Mutex
 	netUtils                 networking.Utils
 	nexthops                 map[string]struct{}
-	tableID                  int
+	nexthopRoute             *kernel.NexthopRoute
+	tableID                  int // routing table ID is shared for installing nexthop routes and for VIP src IP rules in source-based routing
 	logger                   logr.Logger
 	connectionToReleaseMap   map[string]context.CancelFunc
 	connectionToReleaseMutex sync.Mutex
@@ -99,11 +104,9 @@ func (p *Proxy) InterfaceCreated(intf networking.Iface) {
 	if intf.GetInterfaceType() == networking.NSC {
 		// 	Add the neighbor IPs of the interface to the nexthops (outgoing traffic)
 		for _, ip := range intf.GetNeighborPrefixes() {
-			for _, vip := range p.vips {
-				err = vip.AddNexthop(ip)
-				if err != nil {
-					p.logger.Error(err, "Adding nexthop")
-				}
+			err = p.nexthopRoute.AddNexthop(ip)
+			if err != nil && !errors.Is(err, fs.ErrExist) {
+				p.logger.Error(err, "Adding nexthop")
 			}
 			// append nexthop if not known
 			p.nexthops[ip] = struct{}{}
@@ -169,11 +172,9 @@ func (p *Proxy) InterfaceDeleted(intf networking.Iface) {
 		// 	Remove the neighbor IPs of the interface from the nexthops (outgoing traffic)
 		for _, ip := range intf.GetNeighborPrefixes() {
 			_, isKnownNexthop := p.nexthops[ip]
-			for _, vip := range p.vips {
-				err = vip.RemoveNexthop(ip)
-				if err != nil && isKnownNexthop {
-					p.logger.Error(err, "Removing nexthop")
-				}
+			err = p.nexthopRoute.RemoveNexthop(ip)
+			if err != nil && isKnownNexthop {
+				p.logger.Error(err, "Removing nexthop")
 			}
 
 			delete(p.nexthops, ip)
@@ -536,7 +537,50 @@ func (p *Proxy) setBridgeIPs() error {
 	return nil
 }
 
+// cleanupRules flushes any potentially lingering IP rules that might remain
+// after a container or process restart.
+// Note: In theory newVirtualIP() could double-check if there was a rule already
+// installed for the particular VIP address but referencing a different table.
+// But due to the dynamic nature of vips (might change during proxy restart),
+// it's safer to flush rules on start.
+func (p *Proxy) cleanupRules(ctx context.Context) {
+	flushCtx, flushCancel := context.WithTimeout(ctx, 10*time.Second)
+	defer flushCancel()
+
+	logger := p.logger.WithValues("func", "cleanupRules")
+	getNetlinkFamily := func(subnet *ipamAPI.Subnet) int {
+		switch subnet.IpFamily {
+		case ipamAPI.IPFamily_IPV4:
+			return netlink.FAMILY_V4
+		case ipamAPI.IPFamily_IPV6:
+			return netlink.FAMILY_V6
+		default:
+			return netlink.FAMILY_ALL
+		}
+	}
+
+	for _, subnet := range p.Subnets {
+		err := kernel.FlushRules(flushCtx, getNetlinkFamily(subnet), kernel.SkipBuiltInRules)
+		if err != nil {
+			logger.Error(err, "Failed to flush rules for subnet", "subnet", subnet)
+		} else {
+			logger.Info("Successfully flushed rules for subnet", "subnet", subnet)
+		}
+	}
+}
+
 func (p *Proxy) SetVIPs(vips []string) {
+	once.Do(func() {
+		// Cleaning up source based routing rules that might have persisted in the
+		// network stack after a container/process restart. Performing the cleanup
+		// here aims to minimize traffic disturbance once NSM datapath monitoring
+		// is enabled (allowing NSM intefaces to survive such events). Currently,
+		// the rule cleanup could be safely executed during NewProxy() call.
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 15*time.Second) // TODO: timeout
+		defer cleanupCancel()
+		p.cleanupRules(cleanupCtx)
+	})
+
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -548,20 +592,13 @@ func (p *Proxy) SetVIPs(vips []string) {
 	for _, vip := range vips {
 		if _, ok := currentVIPs[vip]; !ok {
 			logger.Info("Add VIP", "vip", vip)
-			newVIP, err := newVirtualIP(vip, p.tableID, p.netUtils)
+			newVIP, err := newVirtualIP(vip, p.tableID, p.netUtils) // lookup shared tableID nexthop routes are installed into
 			if err != nil {
 				logger.Error(err, "Adding SourceBaseRoute", "vip", vip, "tableID", p.tableID)
 				continue
 			}
-			p.tableID++
 			p.vips = append(p.vips, newVIP)
-			for nexthop := range p.nexthops {
-				err = newVIP.AddNexthop(nexthop)
-				if err != nil {
-					logger.Error(err, "Adding nexthop", "nexthop", nexthop)
-				}
-			}
-
+			// note: don't add nexthops to vips; the "nexthop" routing table is managed independently
 		}
 		delete(currentVIPs, vip)
 	}
@@ -637,13 +674,15 @@ func NewProxy(conduit *nspAPI.Conduit, nodeName string, ipamClient ipamAPI.IpamC
 	if err != nil {
 		logger.Error(err, "Creating the bridge")
 	}
+	tableID := 1
 	proxy := &Proxy{
 		Bridge:                 bridge,
 		conduit:                conduit,
 		netUtils:               netUtils,
 		nexthops:               map[string]struct{}{},
 		vips:                   []*virtualIP{},
-		tableID:                1,
+		tableID:                tableID,
+		nexthopRoute:           kernel.NewNexthopRoute(tableID),
 		Subnets:                make(map[ipamAPI.IPFamily]*ipamAPI.Subnet),
 		IpamClient:             ipamClient,
 		logger:                 logger,
