@@ -1,6 +1,6 @@
 /*
 Copyright (c) 2021-2023 Nordix Foundation
-Copyright (c) 2024 OpenInfra Foundation Europe
+Copyright (c) 2024-2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -44,6 +44,8 @@ const (
 	srcChildNamePrefix     = "-src"
 	tableID            int = 1 // routing table ID is shared both for installing nexthop routes and for setting up VIP src IP rules as part of source-based routing
 )
+
+var once sync.Once
 
 // Proxy -
 type Proxy struct {
@@ -537,7 +539,45 @@ func (p *Proxy) setBridgeIPs() error {
 	return nil
 }
 
+// cleanupRules flushes any potentially lingering IP rules that might remain
+// after a container or process restart.
+// Note: In theory newVirtualIP() could double-check if there was a rule already
+// installed for the particular VIP address but referencing a different table.
+// But due to the dynamic nature of vips (might change during proxy restart),
+// it's safer to flush rules on start.
+func (p *Proxy) cleanupRules(ctx context.Context) {
+	logger := p.logger.WithValues("func", "cleanupRules")
+	getNetlinkFamily := func(subnet *ipamAPI.Subnet) int {
+		switch subnet.IpFamily {
+		case ipamAPI.IPFamily_IPV4:
+			return netlink.FAMILY_V4
+		case ipamAPI.IPFamily_IPV6:
+			return netlink.FAMILY_V6
+		default:
+			return netlink.FAMILY_ALL
+		}
+	}
+
+	for _, subnet := range p.Subnets {
+		err := flushRules(ctx, getNetlinkFamily(subnet), tableID)
+		if err != nil {
+			logger.Error(err, "Failed to flush rules for subnet", "subnet", subnet)
+		} else {
+			logger.Info("Successfully flushed rules for subnet", "subnet", subnet)
+		}
+	}
+}
+
 func (p *Proxy) SetVIPs(vips []string) {
+	once.Do(func() {
+		// Cleaning up source based routing rules that might have persisted in the
+		// network stack after a container/process restart. Performing the cleanup
+		// here aims to minimize traffic disturbance once NSM datapath monitoring
+		// is enabled (allowing NSM intefaces to survive such events). Currently,
+		// the rule cleanup could be safely executed during NewProxy() call.
+		p.cleanupRules(context.Background())
+	})
+
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -679,4 +719,36 @@ func NewProxy(conduit *nspAPI.Conduit, nodeName string, ipamClient ipamAPI.IpamC
 		logger.Error(err, "Setting the bridge IP")
 	}
 	return proxy
+}
+
+// FlushRules lists and deletes IP rules for the specified family and routing table.
+// Errors encountered during rule deletion are accumulated and returned.
+func flushRules(ctx context.Context, family int, table int) error {
+
+	ruleFilter := &netlink.Rule{Table: table}
+	filterMask := netlink.RT_FILTER_TABLE
+
+	rules, err := netlink.RuleListFiltered(family, ruleFilter, filterMask)
+	if err != nil {
+		return fmt.Errorf("failed to fetch ip rules: %w", err)
+	}
+
+	logger := log.FromContextOrGlobal(ctx).WithName("FlushRules")
+	for _, rule := range rules {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+
+		}
+		if rule.Family == 0 {
+			rule.Family = family // explicitly set family, so that IPv6 "from any" rules can be also removed
+		}
+		logger.V(1).Info("Delete IP rule", "family", rule.Family, "rule", rule)
+		delErr := netlink.RuleDel(&rule)
+		if delErr != nil {
+			err = utils.AppendErr(err, fmt.Errorf("failed to delete ip rule %v, %w", rule, delErr))
+		}
+	}
+	return err
 }
