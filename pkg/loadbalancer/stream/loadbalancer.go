@@ -97,7 +97,7 @@ func New(
 		netUtils:                      netUtils,
 		nfqueue:                       nfqueue,
 		pendingTargets:                make(map[int]types.Target),
-		pendingCh:                     make(chan struct{}, 10),
+		pendingCh:                     make(chan struct{}, 1),
 		logger:                        logger,
 		targetHitsMetrics:             targetHitsMetrics,
 		neighborReachDetector:         neighborReachDetector,
@@ -509,10 +509,14 @@ func (lb *LoadBalancer) processPendingTargets(ctx context.Context) {
 	}
 	drainf := func(ctx context.Context) bool {
 		// drain pendingCh for 100 ms to be protected against bursts
+		timer := time.NewTimer(100 * time.Millisecond)
+		defer timer.Stop()
 		for {
 			select {
 			case <-lb.pendingCh:
-			case <-time.After(100 * time.Millisecond):
+				// keep draining
+			case <-timer.C:
+				// 100ms has elapsed
 				return true
 			case <-ctx.Done():
 				return false
@@ -538,12 +542,16 @@ func (lb *LoadBalancer) processPendingTargets(ctx context.Context) {
 // Sends trigger to processPendingTargets()
 func (lb *LoadBalancer) triggerPendingTargets() {
 	lb.mu.Lock()
+	defer lb.mu.Unlock()
+
 	if !lb.isStreamRunning() {
 		return
 	}
-	lb.mu.Unlock()
 
-	lb.pendingCh <- struct{}{}
+	select {
+	case lb.pendingCh <- struct{}{}:
+	default: // don't block if there's already a buffered notification
+	}
 }
 
 func (lb *LoadBalancer) verifyTargets() {
