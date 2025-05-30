@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021-2023 Nordix Foundation
+Copyright (c) 2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -54,10 +55,18 @@ func (b *Bridge) create() error {
 }
 
 func (b *Bridge) useExistingBridge() error {
-	index, err := GetIndexFromName(b.name)
+	link, err := netlink.LinkByName(b.name)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed getting bridge by name (%s): %w", b.name, err)
 	}
+
+	index := link.Attrs().Index
+	// make sure the link is up
+	err = netlink.LinkSetUp(link)
+	if err != nil {
+		return fmt.Errorf("failed to LinkSetUp existing bridge: %w", err)
+	}
+
 	b.index = index
 	return nil
 }
