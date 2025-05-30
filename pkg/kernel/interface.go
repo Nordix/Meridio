@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021-2023 Nordix Foundation
+Copyright (c) 2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,8 +20,8 @@ package kernel
 import (
 	"errors"
 	"fmt"
-	"os"
 	"sort"
+	"syscall"
 
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/vishvananda/netlink"
@@ -113,7 +114,7 @@ func (intf *Interface) AddLocalPrefix(prefix string) error {
 		return fmt.Errorf("failed getLink (%s) while adding local prefix (%s): %w", intf.GetName(), prefix, err)
 	}
 	err = netlink.AddrAdd(i, addr)
-	if err != nil && errors.Is(err, os.ErrNotExist) {
+	if err != nil && !errors.Is(err, syscall.EEXIST) {
 		return fmt.Errorf("failed AddrAdd (%s) while adding local prefix (%s): %w", intf.GetName(), prefix, err)
 	}
 	return nil

@@ -1,6 +1,6 @@
 /*
 Copyright (c) 2021-2023 Nordix Foundation
-Copyright (c) 2024 OpenInfra Foundation Europe
+Copyright (c) 2024-2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -517,13 +517,13 @@ func (p *Proxy) setBridgeIP(prefix string) error {
 	return nil
 }
 
-func (p *Proxy) setBridgeIPs() error {
+func (p *Proxy) setBridgeIPs(ctx context.Context) error {
 	for _, subnet := range p.Subnets {
 		child := &ipamAPI.Child{
 			Name:   "bridge",
 			Subnet: subnet,
 		}
-		prefix, err := p.IpamClient.Allocate(context.TODO(), child)
+		prefix, err := p.IpamClient.Allocate(ctx, child)
 		if err != nil {
 			return fmt.Errorf("failed to allocate bridge IP for child %v: %w", child, err)
 		}
@@ -631,11 +631,19 @@ func (p *Proxy) Close(ctx context.Context) {
 }
 
 // NewProxy -
-func NewProxy(conduit *nspAPI.Conduit, nodeName string, ipamClient ipamAPI.IpamClient, ipFamily string, netUtils networking.Utils) *Proxy {
+func NewProxy(
+	ctx context.Context,
+	conduit *nspAPI.Conduit,
+	nodeName string,
+	ipamClient ipamAPI.IpamClient,
+	ipFamily string,
+	netUtils networking.Utils,
+) (*Proxy, error) {
 	logger := log.Logger.WithValues("class", "Proxy")
 	bridge, err := netUtils.NewBridge("bridge0")
 	if err != nil {
 		logger.Error(err, "Creating the bridge")
+		return nil, fmt.Errorf("failed to create the bridge: %w", err)
 	}
 	proxy := &Proxy{
 		Bridge:                 bridge,
@@ -678,11 +686,23 @@ func NewProxy(conduit *nspAPI.Conduit, nodeName string, ipamClient ipamAPI.IpamC
 	// During upgrade tests when running with vpp-forwarders where hostPID=false, some
 	// TAPAs seemed to remain connected with some "old" proxy instance (according to the
 	// ARP entries on the TAPA side; ping worked!). If opting for changing the interface
-	// state DOWN, the bridge create function should be modified to make sure the state
-	// is UP in case the bridge exists.)
-	err = proxy.setBridgeIPs()
+	// state DOWN, the bridge create function must ensure the link state is UP in case
+	// the bridge exists.)
+	err = retry.Do(func() error { // make sure bridge IP is allocated and set
+		err = proxy.setBridgeIPs(ctx)
+		if err != nil {
+			logger.Error(err, "Setting the bridge IP")
+		}
+		return err
+	}, retry.WithContext(ctx),
+		retry.WithDelay(200*time.Millisecond))
 	if err != nil {
-		logger.Error(err, "Setting the bridge IP")
+		err = fmt.Errorf("failed to set bridge IP: %w", err)
+		if ctx.Err() != nil {
+			err = fmt.Errorf("%w, %v", err, ctx.Err())
+		}
+		return nil, err
 	}
-	return proxy
+
+	return proxy, nil
 }
