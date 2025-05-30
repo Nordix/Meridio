@@ -1,6 +1,6 @@
 /*
 Copyright (c) 2021-2023 Nordix Foundation
-Copyright (c) 2024 OpenInfra Foundation Europe
+Copyright (c) 2024-2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -209,7 +209,12 @@ func main() {
 			Name: config.Trench,
 		},
 	}
-	p := proxy.NewProxy(conduit, config.Host, ipamClient, config.IPFamily, netUtils)
+	p, err := proxy.NewProxy(signalCtx, conduit, config.Host, ipamClient, config.IPFamily, netUtils)
+	if err != nil {
+		logger.Error(err, "Proxy create")
+		cancelSignalCtx()
+		return
+	}
 	defer func() {
 		closeCtx, closeCancel := context.WithTimeout(ctx, 8*time.Second)
 		p.Close(closeCtx)
