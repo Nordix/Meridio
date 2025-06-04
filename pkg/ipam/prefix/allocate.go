@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +19,7 @@ package prefix
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 
@@ -71,7 +73,12 @@ func AllocateWithBlocklist(ctx context.Context, parent types.Prefix, name string
 		}
 		currentCandidatePrefix = New(name, currentCandidate.String(), parent)
 		err = store.Add(ctx, currentCandidatePrefix)
-		if err != nil {
+		// Similar to the legacy behaviour Add() can be attempted for a CIDR that might
+		// have been taken in the meantime. However, in case the store has support for
+		// "optimistic concurrency control" to resolve such race conditions and returns
+		// ErrCIDRConflict, then do not abort the allocation process.
+		isCIDRConflict := errors.Is(err, ErrCIDRConflict)
+		if err != nil && !isCIDRConflict {
 			return nil, fmt.Errorf("failed to add (%s) to store while allocating prefix (name: %s ; length: %d ; parent: %s): %w", currentCandidatePrefix, name, length, parent.GetName(), err)
 		}
 		childs, err = store.GetChilds(ctx, parent)
@@ -82,6 +89,12 @@ func AllocateWithBlocklist(ctx context.Context, parent types.Prefix, name string
 		collisions := PrefixCollideWith(currentCandidatePrefix, childs)
 		if len(collisions) == 1 && currentCandidatePrefix.Equals(collisions[0]) {
 			break
+		}
+		// It is assumed that if the storage supports ErrCIDRConflict return value,
+		// then upon such error the Add() did not take effect and did not alter the
+		// database, hence no Delete() is required.
+		if isCIDRConflict {
+			continue
 		}
 		err = store.Delete(ctx, currentCandidatePrefix)
 		if err != nil {

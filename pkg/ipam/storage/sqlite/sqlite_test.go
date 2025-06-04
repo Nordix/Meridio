@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021 Nordix Foundation
+Copyright (c) 2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,6 +19,7 @@ package sqlite_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 
@@ -83,9 +85,9 @@ func Test_GetChilds(t *testing.T) {
 	_ = store.Add(context.Background(), p1)
 	p2 := prefix.New("abc", "192.168.0.0/24", p1)
 	_ = store.Add(context.Background(), p2)
-	p3 := prefix.New("def", "192.168.0.0/24", p1)
+	p3 := prefix.New("def", "192.168.1.0/24", p1)
 	_ = store.Add(context.Background(), p3)
-	p4 := prefix.New("def", "192.168.0.0/32", p3)
+	p4 := prefix.New("def", "192.168.1.0/32", p3)
 	_ = store.Add(context.Background(), p4)
 
 	childs, err := store.GetChilds(context.Background(), p1)
@@ -129,4 +131,55 @@ func Test_Delete(t *testing.T) {
 	assert.Nil(t, pGet)
 	pGet, _ = store.Get(context.Background(), "def", p1)
 	assert.Nil(t, pGet)
+}
+
+func Test_CIDR_Uniqueness_Constraint(t *testing.T) {
+	_ = os.Remove(dbFileName)
+	defer os.Remove(dbFileName)
+
+	store, err := sqlite.New(dbFileName)
+	assert.Nil(t, err)
+
+	p1 := prefix.New("abc", "192.168.0.0/16", nil)
+	err = store.Add(context.Background(), p1)
+	assert.Nil(t, err)
+	p2 := prefix.New("abc", "192.168.0.0/24", p1)
+	err = store.Add(context.Background(), p2)
+	assert.Nil(t, err)
+
+	p3 := prefix.New("def", "192.168.0.0/24", p1)
+	err = store.Add(context.Background(), p3)
+	assert.NotNil(t, err, "Should not be possible adding CIDR %s twice for the same parent", p3.GetCidr())
+	assert.True(t, errors.Is(err, sqlite.ErrCIDRConflict))
+	p3Get, _ := store.Get(context.Background(), p3.GetName(), p3.GetParent())
+	assert.Nil(t, p3Get)
+
+	err = store.Update(context.Background(), p3)
+	assert.NotNil(t, err, "Should not be possible adding CIDR %s twice for the same parent by creating a new entry with update", p3.GetCidr())
+	assert.True(t, errors.Is(err, sqlite.ErrCIDRConflict))
+	p3Get, _ = store.Get(context.Background(), p3.GetName(), p3.GetParent())
+	assert.Nil(t, p3Get)
+
+	p4 := prefix.New("def", "192.168.0.0/32", p2)
+	err = store.Add(context.Background(), p4)
+	assert.Nil(t, err)
+
+	p5 := prefix.New("xyz", "192.168.0.1/32", p2)
+	err = store.Add(context.Background(), p5)
+	assert.Nil(t, err)
+	p6 := prefix.New("xyz", "192.168.0.0/32", p2)
+	err = store.Update(context.Background(), p6)
+	assert.NotNil(t, err, "Should not be possible adding CIDR %s twice for the same parent by updating an existing entry", p6.GetCidr())
+	assert.True(t, errors.Is(err, sqlite.ErrCIDRConflict))
+
+	childs, err := store.GetChilds(context.Background(), p1)
+	assert.Nil(t, err)
+	assert.Len(t, childs, 1)
+	assert.Contains(t, childs, p2)
+
+	childs, err = store.GetChilds(context.Background(), p2)
+	assert.Nil(t, err)
+	assert.Len(t, childs, 2)
+	assert.Contains(t, childs, p4)
+	assert.Contains(t, childs, p5)
 }
