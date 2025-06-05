@@ -190,7 +190,7 @@ func listRules() []*Rule {
 		rules = append(rules, &Rule{
 			Table:       r.Table,
 			Priority:    r.Priority,
-			Mark:        r.Mark,
+			Mark:        int(r.Mark), // TODO: revisit why it's an int and if changing to uint32 would be painful
 			Source:      source,
 			Destination: destination,
 		})
