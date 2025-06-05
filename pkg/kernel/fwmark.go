@@ -116,7 +116,7 @@ func (fwmr *FWMarkRoute) configure() error {
 
 	rule := netlink.NewRule()
 	rule.Table = fwmr.tableID
-	rule.Mark = fwmr.fwmark
+	rule.Mark = uint32(fwmr.fwmark)
 	rule.Family = fwmr.family()
 	err := netlink.RuleAdd(rule)
 	if err != nil {
