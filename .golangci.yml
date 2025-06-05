@@ -12,3 +12,9 @@ linters:
   - staticcheck
   - typecheck
   - unused
+
+issues:
+  exclude-rules:
+    - linters:
+        - staticcheck
+      text: 'SA1019: grpc.DialContext|grpc.Dial|grpc.WithBlock'
