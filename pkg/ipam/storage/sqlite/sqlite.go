@@ -1,6 +1,6 @@
 /*
 Copyright (c) 2021 Nordix Foundation
-Copyright (c) 2024 OpenInfra Foundation Europe
+Copyright (c) 2024-2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -33,6 +33,8 @@ import (
 )
 
 const bridgeName = "bridge" // prefix with name "bridge" is special because it's not periodically updated
+
+var ErrCIDRConflict = prefix.ErrCIDRConflict // alias to simplify usage in this package
 
 type SQLiteIPAMStorage struct {
 	DB *gorm.DB
@@ -179,6 +181,10 @@ func (sqlis *SQLiteIPAMStorage) Add(ctx context.Context, prefix types.Prefix) er
 	}
 	model.Expirable = &exp
 	tx := sqlis.DB.Create(model)
+	if isCIDRUniquenessViolation(tx.Error) {
+		return fmt.Errorf("%w: %v", ErrCIDRConflict, tx.Error)
+	}
+
 	return tx.Error
 }
 
@@ -203,6 +209,9 @@ func (sqlis *SQLiteIPAMStorage) Update(ctx context.Context, prefix types.Prefix)
 	}
 	model.Expirable = &exp
 	tx := sqlis.DB.Save(model)
+	if isCIDRUniquenessViolation(tx.Error) {
+		return fmt.Errorf("%w: %v", ErrCIDRConflict, tx.Error)
+	}
 	return tx.Error
 }
 
