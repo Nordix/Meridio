@@ -19,6 +19,7 @@ package prefix_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sync"
 	"testing"
@@ -29,6 +30,9 @@ import (
 	"github.com/nordix/meridio/pkg/ipam/storage/sqlite"
 	"github.com/nordix/meridio/pkg/ipam/types"
 	"github.com/stretchr/testify/assert"
+	sqliteDrv "gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func Test_Prefix_IPv4_Allocate(t *testing.T) {
@@ -169,6 +173,60 @@ func Test_Prefix_Allocate_Concurrency(t *testing.T) {
 		phase1Allocated := executeAndCollectTasks(t, context.TODO(), phase1Tasks, store)
 
 		// No successful allocation is expected. Due to the in-memory store's allowance
+		// of duplicate CIDR adds and the allocate logic's simple collision resolution
+		// (move to next candidate without retry), concurrent attempts lead to constant
+		// add/delete churn without stable allocation.
+		phase1ExpectedCIDRs := map[string]struct{}{}
+		verifyAllocated(t, phase1Allocated, phase1ExpectedCIDRs, "IPv6 Phase-1")
+
+		executeOnConcreteType(
+			t,
+			context.TODO(),
+			store,
+			(*delayedStore)(nil),
+			func(t *testing.T, ctx context.Context, concreteDS *delayedStore) {
+				assertNoChildren(t, ctx, concreteDS, parent)
+			},
+		)
+	})
+
+	t.Run("IPv4_Sqlite_Storage_NoCIDRConstraint_Collision", func(t *testing.T) {
+		parent, store := setupTestEnv(t, "169.16.0.0/24", setupDelayedSqliteStoreWithNoUniquenessConstraint)
+
+		// phase1: try to allocate /25 prefixes in 169.16.0.0/24 as parent relying on
+		// a sqlite database that lacks CIDR uniqeness constraint
+		phase1Children := []string{"child-a", "child-b"}
+		phase1Tasks := prepareAllocationTasks(parent, phase1Children, 25)
+		phase1Allocated := executeAndCollectTasks(t, context.TODO(), phase1Tasks, store)
+
+		// No successful allocation is expected. Due to this sqlite store's allowance
+		// of duplicate CIDR adds and the allocate logic's simple collision resolution
+		// (move to next candidate without retry), concurrent attempts lead to constant
+		// add/delete churn without stable allocation.
+		phase1ExpectedCIDRs := map[string]struct{}{}
+		verifyAllocated(t, phase1Allocated, phase1ExpectedCIDRs, "IPv4 Phase-1")
+
+		executeOnConcreteType(
+			t,
+			context.TODO(),
+			store,
+			(*delayedStore)(nil),
+			func(t *testing.T, ctx context.Context, concreteDS *delayedStore) {
+				assertNoChildren(t, ctx, concreteDS, parent)
+			},
+		)
+	})
+
+	t.Run("IPv6_Sqlite_Storage_NoCIDRConstraint_Collision", func(t *testing.T) {
+		parent, store := setupTestEnv(t, "2001:1::/64", setupDelayedSqliteStoreWithNoUniquenessConstraint)
+
+		// phase1: try to allocate /65 prefixes in 2001:1::/64 as parent relying on
+		// a sqlite database that lacks CIDR uniqeness constraint
+		phase1Children := []string{"child-a", "child-b"}
+		phase1Tasks := prepareAllocationTasks(parent, phase1Children, 65)
+		phase1Allocated := executeAndCollectTasks(t, context.TODO(), phase1Tasks, store)
+
+		// No successful allocation is expected. Due to this sqlite store's allowance
 		// of duplicate CIDR adds and the allocate logic's simple collision resolution
 		// (move to next candidate without retry), concurrent attempts lead to constant
 		// add/delete churn without stable allocation.
@@ -414,7 +472,7 @@ func setupDelayedMemoryStore(t *testing.T) types.Storage {
 	}
 }
 
-/* // setupSqliteStoreWithNoUniquenessConstraint sets up an sqlite database that
+// setupSqliteStoreWithNoUniquenessConstraint sets up an sqlite database that
 // relies on the legacy model not enforcing CIDR uniqueness
 func setupSqliteStoreWithNoUniquenessConstraint(t *testing.T) types.Storage {
 	_ = os.Remove(dbFileName)
@@ -457,6 +515,9 @@ func setupSqliteStoreWithNoUniquenessConstraint(t *testing.T) types.Storage {
 	return sqliteStore
 }
 
+// setupDelayedSqliteStoreWithNoUniquenessConstraint creates a delayed store that can be
+// used to simulate the legacy sqlite model's shortcomings when it comes to concurrent
+// allocation attempts
 func setupDelayedSqliteStoreWithNoUniquenessConstraint(t *testing.T) types.Storage {
 	sqliteStore := setupSqliteStoreWithNoUniquenessConstraint(t)
 	assert.NotNil(t, sqliteStore, "Sqlite store should not be nil")
@@ -465,7 +526,7 @@ func setupDelayedSqliteStoreWithNoUniquenessConstraint(t *testing.T) types.Stora
 		Storage: sqliteStore,
 		delay:   storeDelay,
 	}
-} */
+}
 
 // setupTestEnv sets up the parent prefix, and a delayed store
 func setupTestEnv(t *testing.T, parentCIDR string, setupDelayedStore delayedStoreFunc) (types.Prefix, types.Storage) {
