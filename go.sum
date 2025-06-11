@@ -207,8 +207,6 @@ github.com/networkservicemesh/api v1.14.5 h1:LCuNIX2IxxQ6iFEqn20cf7OnaIT00GKr3uA
 github.com/networkservicemesh/api v1.14.5/go.mod h1:+wUn/OlUyKWLaVoZOsHbiGKe7MPk82CQLGvGyoWULp8=
 github.com/networkservicemesh/sdk v1.14.5 h1:2nWzPgRHMUsZLgVhpU+43a5GaWMFm0A+IE6JhQax9p4=
 github.com/networkservicemesh/sdk v1.14.5/go.mod h1:1pD6mGB6KyFi75FEMaH273LvrtOHsvG0VZ4UIf4gTEM=
-github.com/networkservicemesh/sdk-sriov v1.14.5 h1:eZ+AQzZiSDWlvnTLiYQQs6ZkAw/WVmAze0bXf47OCE0=
-github.com/networkservicemesh/sdk-sriov v1.14.5/go.mod h1:gau7fp5nIK1rdEGvvTQYHYd01iNeJUBtYByuqhWpPew=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/nxadm/tail v1.4.8/go.mod h1:+ncqLTQzXmGhMZNUePPaPqPvBxHAIsmXswZKocGu+AU=

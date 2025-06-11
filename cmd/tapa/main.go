@@ -31,9 +31,6 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
-	vfiomech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/vfio"
-	"github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/mechanisms/vfio"
-	sriovtoken "github.com/networkservicemesh/sdk-sriov/pkg/networkservice/common/token"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms"
@@ -148,9 +145,7 @@ func main() {
 	defer nsmAPIClient.Delete()
 
 	additionalFunctionality := []networkservice.NetworkServiceClient{
-		sriovtoken.NewClient(),
 		mechanisms.NewClient(map[string]networkservice.NetworkServiceClient{
-			vfiomech.MECHANISM:   chain.NewNetworkServiceClient(vfio.NewClient()),
 			kernelmech.MECHANISM: chain.NewNetworkServiceClient(kernel.NewClient()),
 		}),
 		interfacename.NewClient("nsm-", &interfacename.CounterGenerator{}),
