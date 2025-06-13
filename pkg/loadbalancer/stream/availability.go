@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2024 Nordix Foundation
+Copyright (c) 2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -38,20 +39,28 @@ import (
 // Update is performed using a custom loadbalancer Target. There is one common
 // loadbalancer Target for all local forwarding paths. (That is, the forwarding
 // capability is not distinguished on Stream level currently.)
+//
+// Upon Register/Unregister the update of watchers is performed asynchronously
+// not blocking callers. Watch fetches the most recent availability information
+// to be sent to the client.
 type ForwardingAvailabilityService struct {
 	lbAPI.UnimplementedStreamAvailabilityServiceServer
-	ctx             context.Context
-	forwardingPlane map[string]struct{} // available forwarding paths
-	target          *lbAPI.Target
-	watchStream     map[chan<- chan struct{}]struct{} // update channels of watcher streams
-	logger          logr.Logger
-	mu              sync.RWMutex
-	muWatcher       sync.Mutex
+	ctx               context.Context
+	forwardingPlane   map[string]struct{} // available forwarding paths
+	target            *lbAPI.Target
+	unavailableTarget *lbAPI.Target
+	watchStream       map[chan<- chan struct{}]struct{} // update channels of watcher streams
+	logger            logr.Logger
+	mu                sync.RWMutex
+	muWatcher         sync.Mutex
+	targetRetriever   TargetGetter
 }
 
 func (fas *ForwardingAvailabilityService) Watch(_ *emptypb.Empty, watcher lbAPI.StreamAvailabilityService_WatchServer) error {
-	// add update channel to watch Stream availability
-	updateCh := make(chan chan struct{})
+	// Update channel for Stream availability monitoring. Buffered to ensure no changes
+	// go unnoticed. This allows non-blocking writes from Register/Unregister, avoiding
+	// deadlocks.
+	updateCh := make(chan chan struct{}, 1)
 	fas.muWatcher.Lock()
 	fas.watchStream[updateCh] = struct{}{}
 	fas.muWatcher.Unlock()
@@ -81,8 +90,8 @@ func (fas *ForwardingAvailabilityService) Watch(_ *emptypb.Empty, watcher lbAPI.
 			if ok {
 				target := fas.getTarget()
 				fas.logger.V(1).Info("Watch", "target", target)
-				err := watcher.Send(&lbAPI.Response{Targets: []*lbAPI.Target{target}})
-				close(feedbackCh) // indicate Send() has returned if anyone is interested
+				err := watcher.Send(&lbAPI.Response{Targets: []*lbAPI.Target{target}}) // TODO: Avoid duplicate sends: Cache last sent target and compare.
+				close(feedbackCh)                                                      // indicate Send() has returned if anyone is interested
 				if err != nil {
 					fas.logger.Error(err, "sending availability response")
 					fas.muWatcher.Lock()
@@ -178,23 +187,42 @@ func (fas *ForwardingAvailabilityService) Stop() {
 // at a time, so not much point to identify watchers.
 func (fas *ForwardingAvailabilityService) update(ctx context.Context) {
 	fas.logger.V(1).Info("update")
+	var wg sync.WaitGroup
+
 	fas.muWatcher.Lock()
-	defer fas.muWatcher.Unlock()
+	wg.Add(len(fas.watchStream))
+
 	for ch := range fas.watchStream {
-		select {
-		case ch <- make(chan struct{}):
-			fas.logger.V(1).Info("watcher notified")
-		case <-ctx.Done():
-			return
-		}
+		go func(ch chan<- chan struct{}) {
+			defer wg.Done()
+			select {
+			case ch <- make(chan struct{}):
+				fas.logger.V(1).Info("update event sent")
+			case <-ctx.Done():
+				return
+			default:
+				// The channel associated with watchStream must be a buffered one,
+				// so that the watchers would not miss sending out the most recent
+				// availability status.
+				fas.logger.V(1).Info("update event skipped")
+				return
+			}
+		}(ch)
 	}
+
+	fas.muWatcher.Unlock()
+	wg.Wait()
 }
 
 func (fas *ForwardingAvailabilityService) getTarget() *lbAPI.Target {
-	fas.mu.Lock()
-	defer fas.mu.Unlock()
+	return fas.targetRetriever.Get(fas) // Call Get() on the injected interface
+}
+
+func (fas *ForwardingAvailabilityService) coreGetTarget() *lbAPI.Target {
+	fas.mu.RLock()
+	defer fas.mu.RUnlock()
 	if len(fas.forwardingPlane) == 0 {
-		return &lbAPI.Target{}
+		return fas.unavailableTarget
 	}
 	return fas.target
 }
@@ -207,12 +235,75 @@ func NewForwardingAvailabilityService(ctx context.Context,
 	logger := log.Logger.WithValues("class", "ForwardingAvailabilityService")
 	logger.Info("Creating forwarding availability service")
 	fas := &ForwardingAvailabilityService{
-		ctx:             ctx,
-		logger:          logger,
-		forwardingPlane: make(map[string]struct{}),
-		watchStream:     make(map[chan<- chan struct{}]struct{}),
-		target:          target,
+		ctx:               ctx,
+		logger:            logger,
+		forwardingPlane:   make(map[string]struct{}),
+		watchStream:       make(map[chan<- chan struct{}]struct{}),
+		target:            target,
+		unavailableTarget: &lbAPI.Target{},
+		targetRetriever:   &defaultTargetGetter{},
 	}
 
 	return fas
+}
+
+// NewForwardingAvailabilityServiceForTest -
+// Creates a new Test-specific forwarding availability service using a delayed TargetGetter.
+func NewForwardingAvailabilityServiceForTest(
+	ctx context.Context,
+	target *lbAPI.Target,
+	delay time.Duration,
+) *ForwardingAvailabilityService {
+	fas := NewForwardingAvailabilityService(ctx, target)
+	// Decorate the default getter with a delay using the provided test context
+	fas.targetRetriever = newDelayedTargetGetter(&defaultTargetGetter{}, delay, ctx)
+	return fas
+}
+
+// TargetGetter defines the interface for retrieving the current load balancer target
+type TargetGetter interface {
+	// Get retrieves the current target based on the state of the provided ForwardingAvailabilityService.
+	// It takes 'fas' as an argument because it needs to access fas's internal (locked) state.
+	Get(fas *ForwardingAvailabilityService) *lbAPI.Target
+}
+
+// DefaultTargetGetter is the production implementation of the TargetGetter interface
+type defaultTargetGetter struct{}
+
+// Get implements the TargetGetter interface for production environments.
+func (d *defaultTargetGetter) Get(fas *ForwardingAvailabilityService) *lbAPI.Target {
+	return fas.coreGetTarget()
+}
+
+type delayedTargetGetter struct {
+	inner TargetGetter // The actual getter to delegate to
+	delay time.Duration
+	ctx   context.Context // Context to make the delay cancellable
+}
+
+// Get implements the TargetGetter interface by first delaying, then delegating
+func (d *delayedTargetGetter) Get(fas *ForwardingAvailabilityService) *lbAPI.Target {
+	logger := log.FromContextOrGlobal(d.ctx).WithName("delayedTargetGetter")
+	// Perform the delay
+	if d.delay != 0 {
+		logger.V(1).Info("Get", "delay", d.delay)
+		select {
+		case <-d.ctx.Done():
+			logger.V(1).Info("context done")
+		case <-time.After(d.delay):
+			logger.V(1).Info("delay expired")
+		}
+	}
+	// Delegate to the inner (default) getter
+	logger.V(1).Info("Get target")
+	return d.inner.Get(fas)
+}
+
+// newDelayedTargetGetter creates a new delayedTargetGetter
+func newDelayedTargetGetter(inner TargetGetter, delay time.Duration, ctx context.Context) *delayedTargetGetter {
+	return &delayedTargetGetter{
+		inner: inner,
+		delay: delay,
+		ctx:   ctx,
+	}
 }
