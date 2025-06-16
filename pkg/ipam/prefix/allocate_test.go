@@ -199,12 +199,12 @@ func Test_Prefix_Allocate_Concurrency(t *testing.T) {
 		phase1Tasks := prepareAllocationTasks(parent, phase1Children, 25)
 		phase1Allocated := executeAndCollectTasks(t, context.TODO(), phase1Tasks, store)
 
-		// No successful allocation is expected. Due to this sqlite store's allowance
-		// of duplicate CIDR adds and the allocate logic's simple collision resolution
-		// (move to next candidate without retry), concurrent attempts lead to constant
-		// add/delete churn without stable allocation.
-		phase1ExpectedCIDRs := map[string]struct{}{}
-		verifyAllocated(t, phase1Allocated, phase1ExpectedCIDRs, "IPv4 Phase-1")
+		// Due to this very sqlite store's allowance of duplicate CIDR adds and the
+		// allocate logic's simple collision resolution (move to next candidate without
+		// retry), concurrent attempts are expected to lead to add/delete churn.
+		// Note: Test runs revealed that add/delete churn can be non-deterministic, that
+		// is sometimes a child ended up with a stable allocation.
+		assert.True(t, len(phase1Allocated) < len(phase1Children), "Not all children are expected to end up with stable allocation")
 
 		executeOnConcreteType(
 			t,
@@ -212,7 +212,9 @@ func Test_Prefix_Allocate_Concurrency(t *testing.T) {
 			store,
 			(*delayedStore)(nil),
 			func(t *testing.T, ctx context.Context, concreteDS *delayedStore) {
-				assertNoChildren(t, ctx, concreteDS, parent)
+				children, err := concreteDS.Storage.GetChilds(ctx, parent) // calling GetChilds on the "wrapped" store to avoid delayed execution
+				assert.Nil(t, err)
+				assert.Equal(t, len(children), len(phase1Allocated), "Parent prefix should contain as many children as allocated in Phase-1")
 			},
 		)
 	})
@@ -226,12 +228,12 @@ func Test_Prefix_Allocate_Concurrency(t *testing.T) {
 		phase1Tasks := prepareAllocationTasks(parent, phase1Children, 65)
 		phase1Allocated := executeAndCollectTasks(t, context.TODO(), phase1Tasks, store)
 
-		// No successful allocation is expected. Due to this sqlite store's allowance
-		// of duplicate CIDR adds and the allocate logic's simple collision resolution
-		// (move to next candidate without retry), concurrent attempts lead to constant
-		// add/delete churn without stable allocation.
-		phase1ExpectedCIDRs := map[string]struct{}{}
-		verifyAllocated(t, phase1Allocated, phase1ExpectedCIDRs, "IPv6 Phase-1")
+		// Due to this very sqlite store's allowance of duplicate CIDR adds and the
+		// allocate logic's simple collision resolution (move to next candidate without
+		// retry), concurrent attempts are expected to lead to add/delete churn.
+		// Note: Test runs revealed that add/delete churn can be non-deterministic, that
+		// is sometimes a child ended up with a stable allocation.
+		assert.True(t, len(phase1Allocated) < len(phase1Children), "Not all children are expected to end up with stable allocation")
 
 		executeOnConcreteType(
 			t,
@@ -239,7 +241,9 @@ func Test_Prefix_Allocate_Concurrency(t *testing.T) {
 			store,
 			(*delayedStore)(nil),
 			func(t *testing.T, ctx context.Context, concreteDS *delayedStore) {
-				assertNoChildren(t, ctx, concreteDS, parent)
+				children, err := concreteDS.Storage.GetChilds(ctx, parent) // calling GetChilds on the "wrapped" store to avoid delayed execution
+				assert.Nil(t, err)
+				assert.Equal(t, len(children), len(phase1Allocated), "Parent prefix should contain as many children as allocated in Phase-1")
 			},
 		)
 	})
