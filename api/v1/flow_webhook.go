@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/nordix/meridio/pkg/configuration/reader"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -50,7 +51,7 @@ var _ webhook.Validator = &Flow{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Flow) ValidateCreate() (admission.Warnings, error) {
-	flowlog.Info("validate create", "name", r.Name)
+	flowlog.Info("validate create", "name", r.Name, "stream", r.Spec.Stream)
 
 	// Get the trench by the label in stream
 	selector := client.ObjectKey{
@@ -68,7 +69,7 @@ func (r *Flow) ValidateCreate() (admission.Warnings, error) {
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Flow) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
-	flowlog.Info("validate update", "name", r.Name)
+	flowlog.Info("validate update", "name", r.Name, "stream", r.Spec.Stream)
 
 	err := r.validateUpdate(old)
 	if err != nil {
@@ -79,7 +80,7 @@ func (r *Flow) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (r *Flow) ValidateDelete() (admission.Warnings, error) {
-	flowlog.Info("validate delete", "name", r.Name)
+	flowlog.Info("validate delete", "name", r.Name, "stream", r.Spec.Stream)
 
 	return nil, nil
 }
@@ -95,29 +96,29 @@ func (r *Flow) validateFlow() error {
 	for _, protocol := range r.Spec.Protocols {
 		_, exists := protocols[string(protocol)]
 		if exists {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("spec").Child("protocols"), r.Spec.Protocols, "duplicated protocols"))
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("protocols"), r.Spec.Protocols, "duplicated protocols"))
 			break
 		}
 		protocols[string(protocol)] = struct{}{}
 	}
 
 	if n, err := validateSubnets(r.Spec.SourceSubnets); err != nil {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("spec").Child("source-subnets"), n,
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("source-subnets"), n,
 			fmt.Sprintf("source subnet%s", err.Error())))
 	}
 
 	if p, err := validatePorts(r.Spec.SourcePorts); err != nil {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("spec").Child("source-ports"), p,
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("source-ports"), p,
 			fmt.Sprintf("source port%s", err.Error())))
 	}
 
 	if p, err := validatePorts(r.Spec.DestinationPorts); err != nil {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("spec").Child("destination-ports"), p,
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("destination-ports"), p,
 			fmt.Sprintf("destination port%s", err.Error())))
 	}
 
 	if r.Spec.Priority < 0 {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("spec").Child("priority"), r.Spec.Priority,
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("priority"), r.Spec.Priority,
 			"priority must be larger than 0"))
 	}
 
@@ -128,7 +129,8 @@ func (r *Flow) validateFlow() error {
 		Namespace:     r.ObjectMeta.Namespace,
 	})
 	if err != nil {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.Vips, "unable to get flows"))
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.Vips,
+			fmt.Sprintf("unable to get flows for vip validation: %v", err)))
 	} else {
 		sl := &StreamList{}
 		sel := labels.Set{"trench": r.ObjectMeta.Labels["trench"]}
@@ -137,8 +139,11 @@ func (r *Flow) validateFlow() error {
 			Namespace:     r.ObjectMeta.Namespace,
 		})
 		if err != nil {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.Vips, "unable to get flows"))
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.Vips,
+				fmt.Sprintf("unable to get streams for vip validation: %v", err)))
 		} else {
+			vipConflictDetected := false
+			allConflictDetails := []string{}
 			streams := map[string]Stream{}
 			currentConduit := ""
 			for _, stream := range sl.Items {
@@ -155,22 +160,52 @@ func (r *Flow) validateFlow() error {
 				if flow.ObjectMeta.Name == r.ObjectMeta.Name && flow.ObjectMeta.Namespace == r.ObjectMeta.Namespace {
 					continue
 				}
-				stream, exists := streams[flow.Spec.Stream]
-				if exists && stream.Spec.Conduit == currentConduit {
+				stream, otherStreamExists := streams[flow.Spec.Stream]
+				if otherStreamExists && stream.Spec.Conduit == currentConduit {
 					continue
 				}
+
+				conflictingVips := []string{}
+				otherStreamDescription := fmt.Sprintf("stream %q (conduit %q)", flow.Spec.Stream, stream.Spec.Conduit)
+				if !otherStreamExists {
+					otherStreamDescription = fmt.Sprintf("stream %q (not found)", flow.Spec.Stream)
+				}
+
 				for _, vip := range flow.Spec.Vips {
 					_, exists := vips[vip]
 					if exists {
-						allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.Vips, "a vip cannot be shared between 2 conduits in this version"))
+						vipConflictDetected = true
+						conflictingVips = append(conflictingVips, vip)
 					}
 				}
+
+				if len(conflictingVips) > 0 {
+					allConflictDetails = append(allConflictDetails,
+						fmt.Sprintf("flow %q (%s) conflicts on vip(s) [%s]",
+							flow.ObjectMeta.Name, otherStreamDescription, strings.Join(conflictingVips, ", ")))
+				}
+			}
+
+			if vipConflictDetected {
+				myStreamDescription := fmt.Sprintf("%q (conduit %q)", r.Spec.Stream, currentConduit)
+				if currentConduit == "" {
+					myStreamDescription = fmt.Sprintf("%q (not found)", r.Spec.Stream)
+				}
+
+				combinedDetailForUser := fmt.Sprintf("a vip cannot be shared between 2 conduits in this version: %s, %s",
+					fmt.Sprintf("incoming flow %q (%s)", r.Name, myStreamDescription), strings.Join(allConflictDetails, ", "))
+				allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.Vips, combinedDetailForUser))
+
+				flowlog.Info("validate flow: vip conflict detected",
+					"flow", r.Name,
+					"stream", myStreamDescription,
+					"details", strings.Join(allConflictDetails, "; "))
 			}
 		}
 	}
 
 	if p, err := validateByteMatches(r.Spec.ByteMatches); err != nil {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata").Child("spec").Child("byte-matches"), p,
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("byte-matches"), p,
 			fmt.Sprintf("byte matches%s", err.Error())))
 	}
 
