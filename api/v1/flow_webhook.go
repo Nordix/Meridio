@@ -144,8 +144,9 @@ func (r *Flow) validateFlow() error {
 		} else {
 			vipConflictDetected := false
 			allConflictDetails := []string{}
+			hardConflictDetails := []string{}
 			streams := map[string]Stream{}
-			currentConduit := ""
+			currentConduit := "" // conduit of the incoming flow
 			for _, stream := range sl.Items {
 				streams[stream.ObjectMeta.Name] = stream
 				if stream.ObjectMeta.Name == r.Spec.Stream {
@@ -180,9 +181,15 @@ func (r *Flow) validateFlow() error {
 				}
 
 				if len(conflictingVips) > 0 {
-					allConflictDetails = append(allConflictDetails,
-						fmt.Sprintf("flow %q (%s) conflicts on vip(s) [%s]",
-							flow.ObjectMeta.Name, otherStreamDescription, strings.Join(conflictingVips, ", ")))
+					details := fmt.Sprintf("flow %q (%s) conflicts on vip(s) [%s]",
+						flow.ObjectMeta.Name, otherStreamDescription, strings.Join(conflictingVips, ", "))
+					allConflictDetails = append(allConflictDetails, details)
+					if currentConduit != "" && otherStreamExists {
+						// This indicates a "hard conflict": both the incoming Flow's
+						// Stream and the conflicting Flow's Stream were found in the
+						// cluster, allowing a direct comparison of their Conduits.
+						hardConflictDetails = append(hardConflictDetails, details)
+					}
 				}
 			}
 
@@ -192,11 +199,32 @@ func (r *Flow) validateFlow() error {
 					myStreamDescription = fmt.Sprintf("%q (not found)", r.Spec.Stream)
 				}
 
-				combinedDetailForUser := fmt.Sprintf("a vip cannot be shared between 2 conduits in this version: %s, %s",
-					fmt.Sprintf("incoming flow %q (%s)", r.Name, myStreamDescription), strings.Join(allConflictDetails, ", "))
-				allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.Vips, combinedDetailForUser))
+				if len(hardConflictDetails) > 0 {
+					// Issue a user-facing error only for "hard conflicts." A hard conflict occurs when
+					// both the incoming Flow's stream and the conflicting Flow's stream (and their conduits)
+					// are explicitly found in the cluster, indicating a verifiable VIP sharing violation.
+					//
+					// Background: An early design decision was made that Flow create/update validation should not
+					// perform extensive dependency checks towards other associated Custom Resources (like Streams)
+					// for user convenience during complex deployments. Therefore, "soft conflicts" (e.g., those
+					// involving streams that are not yet found or are in an unknown state) are not treated as strict
+					// errors here, preventing spurious validation failures due to transient unsynchronized states
+					// between Flow and Stream objects.
+					//
+					// TODO: Because of the design decision not to perform extensice dependency checks, admission
+					// webhook is not the right place for checking VIP conflicts.
+					combinedDetailForUser := fmt.Sprintf("a vip cannot be shared between 2 conduits in this version: %s, %s",
+						fmt.Sprintf("incoming flow %q (%s)", r.Name, myStreamDescription), strings.Join(hardConflictDetails, ", "))
+					allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.Vips, combinedDetailForUser))
+				}
 
-				flowlog.Info("validate flow: vip conflict detected",
+				logPrefix := ""
+				if len(hardConflictDetails) == 0 {
+					logPrefix = "possible "
+				}
+
+				// Log all conflicts (hard and soft) for full visibility and debugging
+				flowlog.Info(fmt.Sprintf("validate flow: %svip conflict detected", logPrefix),
 					"flow", r.Name,
 					"stream", myStreamDescription,
 					"details", strings.Join(allConflictDetails, "; "))
