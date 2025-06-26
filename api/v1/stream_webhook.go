@@ -47,7 +47,7 @@ var _ webhook.Validator = &Stream{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Stream) ValidateCreate() (admission.Warnings, error) {
-	streamlog.Info("validate create", "name", r.Name)
+	streamlog.Info("validate create", "name", r.Name, "spec", r.Spec)
 
 	// Get the trench by the label in stream
 	selector := client.ObjectKey{
@@ -65,7 +65,7 @@ func (r *Stream) ValidateCreate() (admission.Warnings, error) {
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Stream) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
-	streamlog.Info("validate update", "name", r.Name)
+	streamlog.Info("validate update", "name", r.Name, "spec", r.Spec)
 
 	err := r.validateUpdate(old)
 	if err != nil {
