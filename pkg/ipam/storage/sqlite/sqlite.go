@@ -37,8 +37,9 @@ const bridgeName = "bridge" // prefix with name "bridge" is special because it's
 var ErrCIDRConflict = prefix.ErrCIDRConflict // alias to simplify usage in this package
 
 type SQLiteIPAMStorage struct {
-	DB *gorm.DB
-	mu sync.Mutex
+	DB              *gorm.DB
+	mu              sync.Mutex
+	prefixTableName string
 }
 
 func New(datastore string) (*SQLiteIPAMStorage, error) {
@@ -56,6 +57,8 @@ func New(datastore string) (*SQLiteIPAMStorage, error) {
 	if err != nil {
 		return nil, err
 	}
+	sqlis.prefixTableName = TableNameForModel(sqlis.DB, &Prefix{}) // Infer table name
+	log.Logger.Info("Initialized prefix table name", "table", sqlis.prefixTableName)
 	return sqlis, nil
 }
 
@@ -97,8 +100,9 @@ func (sqlis *SQLiteIPAMStorage) StartGarbageCollector(ctx context.Context, inter
 	}()
 }
 
-// Fetch and delete expirable prefixes whose updatedAt timestamp is considered
-// expired according to the threshold (i.e. was not updated for a long time).
+// Fetch and recursively delete expirable prefixes (and their descendants)
+// whose updatedAt timestamp is considered expired according to the threshold
+// (i.e. was not updated for a "long time").
 // Note: Even though records are processed in batches, no need to use offsets
 // or pagination, because matching records are to be deleted. Thus, eventually
 // there will be no more database records matching the query criteria (no risk
@@ -107,7 +111,7 @@ func (sqlis *SQLiteIPAMStorage) garbageCollector(ctx context.Context, threshold 
 	// Define the batch size
 	batchSize := 50
 	logger := log.Logger.WithValues("func", "garbageCollector")
-	sqlis.mu.Lock()
+	sqlis.mu.Lock() // TODO: Consider moving locking within the for loop
 	defer sqlis.mu.Unlock()
 
 	for {
@@ -118,42 +122,63 @@ func (sqlis *SQLiteIPAMStorage) garbageCollector(ctx context.Context, threshold 
 			// Start a transaction for batch deletion
 			// Note: It's not really expected to have a huge table, yet batch
 			// processing approach was chosen.
-			// Note: Preferred printing entries to be deleted, hence the two
-			// separate actions to fetch and then delete entries.
+			// Note: Preferred printing entries eligible for removal, hence
+			// the two separate actions to fetch and then delete entries.
 			tx := sqlis.DB.Begin()
 			if tx.Error != nil {
 				return tx.Error
 			}
 			entryThreshHold := time.Now().UTC().Add(-threshold)
 
-			// Fetch entries to be deleted
-			var deleteEntries []Prefix
+			// Fetch entries eligible for removal
+			var batchOfEligiblePrefixes []Prefix
 			if err := tx.Where("expirable = true AND (updated_at IS NOT NULL AND updated_at != ? AND updated_at < ?) AND name != ?",
-				time.Time{}, entryThreshHold, bridgeName).Limit(batchSize).Find(&deleteEntries).Error; err != nil {
+				time.Time{}, entryThreshHold, bridgeName).Limit(batchSize).Find(&batchOfEligiblePrefixes).Error; err != nil {
 				tx.Rollback()
 				return err
 			}
 
-			// No more entries to delete
-			if len(deleteEntries) == 0 {
+			// No more entries eligible for removal
+			if len(batchOfEligiblePrefixes) == 0 {
 				tx.Rollback()
 				return nil
 			}
 
-			// Delete the fetched entries
-			idsToDelete := make([]string, len(deleteEntries))
-			for i, entry := range deleteEntries {
-				logger.V(1).Info("Delete prefix", "prefix", entry)
-				idsToDelete[i] = entry.Id
+			// Extract IDs of the entries found in this batch.
+			idsToAnchorCTERecursion := make([]string, len(batchOfEligiblePrefixes))
+			for i, entry := range batchOfEligiblePrefixes {
+				logger.V(1).Info("Prefix identified for GC recursive deletion", "prefix", entry)
+				idsToAnchorCTERecursion[i] = entry.Id
 			}
 
-			if err := tx.Where("id IN ?", idsToDelete).Delete(&Prefix{}).Error; err != nil {
-				if errors.Is(err, gorm.ErrRecordNotFound) {
-					logger.Info("Prefix to delete not found", "err", err)
-				} else {
-					tx.Rollback()
-					return err
-				}
+			// Construct the SQL WITH RECURSIVE Common Table Expression (CTE) for efficient
+			// hierarchical deletion. Pass extracted IDs of eligible entries as anchors for
+			// the CTE in order to identify descendants down the hierarchy well.
+			// (Opted for CTE instead of pure go code based recursive deletion that can have
+			// poor performance for bulk operations due to numerous individual db queries.
+			// Also, did not want to introduce database-level foreign key constraints for
+			// the Delete method to automatically cascade.)
+			sqlQuery := fmt.Sprintf(`
+            WITH RECURSIVE items_to_delete AS (
+                SELECT id
+                FROM "%s"
+                WHERE id IN ?
+
+                UNION ALL
+
+                SELECT child.id
+                FROM "%s" AS child
+                JOIN items_to_delete AS parent ON child.parent_id = parent.id
+            )
+            DELETE FROM "%s"
+            WHERE id IN (SELECT id FROM items_to_delete);
+            `, sqlis.prefixTableName, sqlis.prefixTableName, sqlis.prefixTableName)
+
+			// Execute the recursive DELETE statement within the current transaction
+			execResult := tx.WithContext(ctx).Exec(sqlQuery, idsToAnchorCTERecursion)
+			if execResult.Error != nil {
+				tx.Rollback()
+				return fmt.Errorf("failed to perform recursive batch delete in GC using CTE: %w", execResult.Error)
 			}
 
 			// Commit the transaction
@@ -161,7 +186,13 @@ func (sqlis *SQLiteIPAMStorage) garbageCollector(ctx context.Context, threshold 
 				return err
 			}
 
-			logger.Info("Deleted prefixes in transaction", "count", len(idsToDelete))
+			logger.Info("Recursively deleted prefixes in transaction using CTE",
+				"total_rows_affected", execResult.RowsAffected, "table", sqlis.prefixTableName)
+
+			// No need for a new query if we got less items than the batchSize this round
+			if len(batchOfEligiblePrefixes) < batchSize {
+				return nil
+			}
 		}
 	}
 }

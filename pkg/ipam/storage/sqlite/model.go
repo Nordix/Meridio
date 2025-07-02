@@ -25,6 +25,7 @@ import (
 	"github.com/mattn/go-sqlite3"
 	"github.com/nordix/meridio/pkg/ipam/prefix"
 	"github.com/nordix/meridio/pkg/ipam/types"
+	"gorm.io/gorm"
 )
 
 type Prefix struct {
@@ -85,4 +86,11 @@ func prefixToModel(p types.Prefix) *Prefix {
 		Parent:   parent,
 	}
 	return prefix
+}
+
+// TableNameForModel infers the table name for a given model
+func TableNameForModel(db *gorm.DB, model any) string {
+	stmt := &gorm.Statement{DB: db}
+	_ = stmt.Parse(model)
+	return stmt.Schema.Table
 }
