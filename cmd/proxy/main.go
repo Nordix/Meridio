@@ -209,7 +209,7 @@ func main() {
 			Name: config.Trench,
 		},
 	}
-	p, err := proxy.NewProxy(signalCtx, conduit, config.Host, ipamClient, config.IPFamily, netUtils)
+	p, err := proxy.NewProxy(signalCtx, conduit, config.Host, ipamClient, config.IPFamily, netUtils, config.BridgeIPRenewInterval)
 	if err != nil {
 		logger.Error(err, "Proxy create")
 		cancelSignalCtx()

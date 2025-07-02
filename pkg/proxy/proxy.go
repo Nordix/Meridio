@@ -664,6 +664,41 @@ func (p *Proxy) Close(ctx context.Context) {
 	wg.Wait()
 }
 
+// startBridgeIPAllocationRenewer runs a goroutine that periodically confirms bridge IP
+// allocations by calling p.IpamClient.Allocate. It stops when the provided context is
+// cancelled.
+func (p *Proxy) startBridgeIPAllocationRenewer(ctx context.Context, interval time.Duration) {
+	p.logger.Info("Starting periodic bridge IP allocation renewer", "interval", interval.String())
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop() // Ensure the ticker is stopped when the goroutine exits
+
+		for {
+			select {
+			case <-ctx.Done():
+				p.logger.Info("Stopping periodic bridge IP allocation renewer goroutine")
+				return
+			case <-ticker.C:
+				p.logger.V(1).Info("Attempting periodic bridge IP allocation confirmation...")
+				for _, subnet := range p.Subnets {
+					child := &ipamAPI.Child{
+						Name:   "bridge", // Consistent name for the bridge allocation
+						Subnet: subnet,
+					}
+					// Confirm/renew existing allocations for the IPAM's garbage collection logic
+					_, err := p.IpamClient.Allocate(ctx, child)
+					if err != nil {
+						// Log the error but don't stop the monitor unless the context is done
+						p.logger.Info("Failed periodic bridge IP allocation confirmation", "child", child, "err", err)
+					} else {
+						p.logger.V(1).Info("Successfully confirmed bridge IP allocation", "child", child)
+					}
+				}
+			}
+		}
+	}()
+}
+
 // NewProxy -
 func NewProxy(
 	ctx context.Context,
@@ -672,6 +707,7 @@ func NewProxy(
 	ipamClient ipamAPI.IpamClient,
 	ipFamily string,
 	netUtils networking.Utils,
+	bridgeIPRenewInterval time.Duration,
 ) (*Proxy, error) {
 	logger := log.Logger.WithValues("class", "Proxy")
 	bridge, err := netUtils.NewBridge("bridge0")
@@ -737,6 +773,9 @@ func NewProxy(
 		}
 		return nil, err
 	}
+
+	// Periodicly renew bridge IP allocation
+	proxy.startBridgeIPAllocationRenewer(ctx, bridgeIPRenewInterval)
 
 	return proxy, nil
 }
