@@ -126,7 +126,7 @@ func (is *IpamServer) Allocate(ctx context.Context, child *ipamAPI.Child) (*ipam
 			break
 		}
 	}
-	node, err := conduit.GetNode(ctx, child.GetSubnet().GetNode())
+	node, err := conduit.GetNode(sqlite.WithExpirable(ctx), child.GetSubnet().GetNode()) // Note: refreshes existing node prefix (i.e. the 'updatedAt' timestamp)
 	if err != nil {
 		return nil, fmt.Errorf("failed getting node (%s) while allocating (%s): %w", child.GetSubnet().GetNode(), child.GetName(), err)
 	}
@@ -167,7 +167,10 @@ func (is *IpamServer) Release(ctx context.Context, child *ipamAPI.Child) (*empty
 	if conduit == nil {
 		return &emptypb.Empty{}, nil
 	}
-	node, err := conduit.GetNode(ctx, child.GetSubnet().GetNode())
+	// Note: Currently also refreshes existing node prefix (i.e. the 'updatedAt' timestamp).
+	// Not sure node refresh is needed in case of Release, but errors must be avoided for
+	// sure if node was reaped by a Garbage Collector logic.
+	node, err := conduit.GetNode(sqlite.WithExpirable(ctx), child.GetSubnet().GetNode())
 	if err != nil {
 		return &emptypb.Empty{}, fmt.Errorf("failed getting node (%s) while releasing (%s): %w", child.GetSubnet().GetNode(), child.GetName(), err)
 	}

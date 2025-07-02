@@ -58,6 +58,11 @@ func (c *Conduit) GetNode(ctx context.Context, name string) (types.Node, error) 
 			return nil, err
 		}
 	} else {
+		// Refresh the entry's updatedAt timestamp in storage
+		// TODO: Would be nice if frequent updates could be avoided (e.g. based on UpdatedAt time)
+		if err = c.Store.Update(ctx, p); err != nil {
+			return nil, fmt.Errorf("failed to update node (%s) in conduit prefix (%s): %w", name, c.GetName(), err)
+		}
 		n = node.New(p, c.Store, c.PrefixLengths)
 	}
 	return n, nil
