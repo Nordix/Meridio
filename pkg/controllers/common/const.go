@@ -48,12 +48,15 @@ const (
 	BusyboxImage = "busybox"
 	BusyboxTag   = "1.29"
 
-	SubnetPoolIpv4          = "172.16.0.0/16"
-	SubnetPoolIpv6          = "fd00::/48"
-	ConduitPrefixLengthIpv4 = "20"
-	ConduitPrefixLengthIpv6 = "56"
-	NodePrefixLengthIpv4    = "24"
-	NodePrefixLengthIpv6    = "64"
+	SubnetPoolIpv4                 = "172.16.0.0/16"
+	SubnetPoolIpv6                 = "fd00::/48"
+	ConduitPrefixLengthIpv4        = "20"
+	ConduitPrefixLengthIpv6        = "56"
+	NodePrefixLengthIpv4           = "24"
+	NodePrefixLengthIpv6           = "64"
+	IPAMGarbageCollectionEnabled   = "IPAM_GARBAGE_COLLECTION_ENABLED"
+	IPAMGarbageCollectionInterval  = "IPAM_GARBAGE_COLLECTION_INTERVAL"
+	IPAMGarbageCollectionThreshold = "IPAM_GARBAGE_COLLECTION_THRESHOLD"
 
 	NspPort        = 7778
 	NspTargetPort  = 7778
@@ -214,4 +217,47 @@ func GetConduitUpdateSyncGroupKey() string {
 		return key
 	}
 	return DefaultConduitUpdateSyncGroupKey
+}
+
+// GetIPAMGCEnabled reads the IPAM_GARBAGE_COLLECTION_ENABLED env var
+// from the operator's environment.
+// Returns the string value and true if set, empty string and false otherwise.
+func GetIPAMGCEnabled() (string, bool) {
+	val := os.Getenv(IPAMGarbageCollectionEnabled)
+	if val == "" {
+		return "", false
+	}
+	lowerVal := strings.ToLower(val)
+	if lowerVal != "true" && lowerVal != "false" {
+		return "", false
+	}
+	return val, true
+}
+
+// GetIPAMGCInterval reads the IPAM_GARBAGE_COLLECTION_INTERVAL env var
+// from the operator's environment.
+// Returns the string value and true if set, empty string and false otherwise.
+func GetIPAMGCInterval() (string, bool) {
+	val := os.Getenv(IPAMGarbageCollectionInterval)
+	if val == "" {
+		return "", false
+	}
+	if _, err := time.ParseDuration(val); err != nil {
+		return "", false
+	}
+	return val, true
+}
+
+// GetIPAMGCThreshold reads the IPAM_GARBAGE_COLLECTION_THRESHOLD env var
+// from the operator's environment.
+// Returns the string value and true if set, empty string and false otherwise.
+func GetIPAMGCThreshold() (string, bool) {
+	val := os.Getenv(IPAMGarbageCollectionThreshold)
+	if val == "" {
+		return "", false
+	}
+	if _, err := time.ParseDuration(val); err != nil {
+		return "", false
+	}
+	return val, true
 }

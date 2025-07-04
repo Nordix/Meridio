@@ -50,9 +50,12 @@ FE_SERVICE_ACCOUNT | string | Service Account for the frontend | ""
 IMAGE_PULL_SECRET | string | ImagePullSecrets to be passed to components if set | ""
 WATCH_NAMESPACE | string | Namespace scope of the operator | ""
 GRPC_PROBE_RPC_TIMEOUT | time.Duration | GRPC_PROBE_RPC_TIMEOUT value passed to components if set | ""
-CONDUIT_MTU | int | MTU value for Conduits, passed if set | ""
-PROXY_IP_RELEASE_DELAY | time.Duration | Delay before releasing an NSM connection's IP address, passed to the proxy if set | ""
+CONDUIT_MTU | int | MTU value for Conduits, passed if set | Proxy's internal default: `1500`
+PROXY_IP_RELEASE_DELAY | time.Duration | Delay before releasing an NSM connection's IP address, passed to the proxy if set | Proxy's internal default: `20s`
 CONDUIT_UPDATE_SYNC_GROUP_KEY | string | Annotation key for defining update sync groups in Conduits | update-sync-group
+IPAM_GARBAGE_COLLECTION_ENABLED | bool | Enable IP garbage collection for IPAM | IPAM's internal default: `true`
+IPAM_GARBAGE_COLLECTION_INTERVAL | time.Duration | Interval at which IPAM's IP garbage collection is running | IPAM's internal default: `2h`
+IPAM_GARBAGE_COLLECTION_THRESHOLD | time.Duration | IP record older than threshold is considered stale by IPAM's IP garbage collection | IPAM's internal default: `40m`
 
 ## Command Line 
 

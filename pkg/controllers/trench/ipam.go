@@ -72,6 +72,15 @@ func (i *IpamStatefulSet) getEnvVars(allEnv []corev1.EnvVar) []corev1.EnvVar {
 	if rpcTimeout := common.GetGRPCProbeRPCTimeout(); rpcTimeout != "" {
 		operatorEnv = append(operatorEnv, corev1.EnvVar{Name: "IPAM_GRPC_PROBE_RPC_TIMEOUT", Value: rpcTimeout})
 	}
+	if gcEnabledVal, found := common.GetIPAMGCEnabled(); found {
+		operatorEnv = append(operatorEnv, corev1.EnvVar{Name: "IPAM_GARBAGE_COLLECTION_ENABLED", Value: gcEnabledVal})
+	}
+	if gcIntervalVal, found := common.GetIPAMGCInterval(); found {
+		operatorEnv = append(operatorEnv, corev1.EnvVar{Name: "IPAM_GARBAGE_COLLECTION_INTERVAL", Value: gcIntervalVal})
+	}
+	if gcThresholdVal, found := common.GetIPAMGCThreshold(); found {
+		operatorEnv = append(operatorEnv, corev1.EnvVar{Name: "IPAM_GARBAGE_COLLECTION_THRESHOLD", Value: gcThresholdVal})
+	}
 	return common.CompileEnvironmentVariables(allEnv, operatorEnv)
 }
 
