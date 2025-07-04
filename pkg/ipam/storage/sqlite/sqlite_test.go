@@ -526,3 +526,128 @@ func TestMigrateWithSpecificInitialState(t *testing.T) {
 		}
 	}
 }
+
+func TestGarbageCollectorLogic(t *testing.T) {
+	dbConn, cleanup := setupTestDB(t)
+	defer cleanup()
+	assert.NoError(t, dbConn.AutoMigrate(&sqlite.Prefix{}), "Failed to auto-migrate schema")
+
+	sqlis := newSQLiteIPAMStorageForTest(t, dbConn)
+	ctx := context.Background()
+
+	// Define GC threshold for the test.
+	gcThreshold := 15 * time.Minute // Prefixes older than 15 minutes should be collected
+
+	// Define timestamps relative to the threshold for precise control.
+	now := time.Now().UTC()
+	pastThreshold := now.Add(-gcThreshold - 1*time.Minute) // 1 minute older than the threshold
+	recentTime := now.Add(-1 * time.Minute)                // 1 minute ago, well within the threshold
+
+	falseVal := false
+	trueVal := true
+
+	// Define all prefixes to be seeded, along with their expected state after GC runs.
+	// Order is important: Parents must appear before their children.
+	rawSeedData := []struct {
+		Id              string
+		Name            string
+		Cidr            string
+		ParentID        string
+		Expirable       *bool
+		UpdatedAt       time.Time // Explicitly setting UpdatedAt for the test
+		ExpectedAfterGC bool      // true if prefix should exist after GC, false if deleted
+	}{
+		// --- Trench (Non-Expirable, has no parent) ---
+		{Id: "trench-a-0", Name: "trench-a-0", Cidr: "10.0.0.0/16", ParentID: "", Expirable: &falseVal, UpdatedAt: pastThreshold, ExpectedAfterGC: true},
+
+		// --- Conduit (Non-Expirable, parent Trench) ---
+		{Id: "load-balancer-a1-trench-a-0", Name: "load-balancer-a1", Cidr: "10.0.0.0/20", ParentID: "trench-a-0", Expirable: &falseVal, UpdatedAt: pastThreshold, ExpectedAfterGC: true},
+
+		// --- Scenario 1: Stale Worker (anchor) and its children -> DELETED ---
+		// Worker (Expirable) - Stale, Expirable: Anchor for deletion
+		{Id: "worker1-load-balancer-a1-trench-a-0", Name: "worker1", Cidr: "10.0.1.0/24", ParentID: "load-balancer-a1-trench-a-0", Expirable: &trueVal, UpdatedAt: pastThreshold, ExpectedAfterGC: false},
+		// Connection (Expirable) - Deleted with parent
+		{Id: "connection-1-worker1-load-balancer-a1-trench-a-0", Name: "connection-1", Cidr: "10.0.1.2/32", ParentID: "worker1-load-balancer-a1-trench-a-0", Expirable: &trueVal, UpdatedAt: pastThreshold, ExpectedAfterGC: false},
+		// Bridge (Non-Expirable) - Deleted with parent
+		{Id: "bridge-worker1-load-balancer-a1-trench-a-0", Name: sqlite.BridgeName, Cidr: "10.0.1.1/32", ParentID: "worker1-load-balancer-a1-trench-a-0", Expirable: &falseVal, UpdatedAt: pastThreshold, ExpectedAfterGC: false},
+
+		// --- Scenario 2: Expirable, Recent Worker and its children ---
+		// Worker (Expirable) - Recent, Expirable: Remains
+		{Id: "worker2-load-balancer-a1-trench-a-0", Name: "worker2", Cidr: "10.0.2.0/24", ParentID: "load-balancer-a1-trench-a-0", Expirable: &trueVal, UpdatedAt: recentTime, ExpectedAfterGC: true},
+		// Connection (Expirable) - Recent, Expirable: Remains (both connection and parent are recent)
+		{Id: "connection-2-worker2-load-balancer-a1-trench-a-0", Name: "connection-2", Cidr: "10.0.2.2/32", ParentID: "worker2-load-balancer-a1-trench-a-0", Expirable: &trueVal, UpdatedAt: recentTime, ExpectedAfterGC: true},
+		// Connection (Expirable) - Stale, Expirable: DELETED by GC
+		{Id: "connection-3-worker2-load-balancer-a1-trench-a-0", Name: "connection-3", Cidr: "10.0.2.3/32", ParentID: "worker2-load-balancer-a1-trench-a-0", Expirable: &trueVal, UpdatedAt: pastThreshold, ExpectedAfterGC: false},
+		// Bridge (Non-Expirable) - Remains as worker2 remains
+		{Id: "bridge-worker2-load-balancer-a1-trench-a-0", Name: sqlite.BridgeName, Cidr: "10.0.2.1/32", ParentID: "worker2-load-balancer-a1-trench-a-0", Expirable: &falseVal, UpdatedAt: pastThreshold, ExpectedAfterGC: true},
+
+		// --- Scenario 3: Non-expirable, Stale Worker and its children ---
+		// Worker (Non-Expirable) - Stale, Non-Expirable: Remains
+		{Id: "worker3-load-balancer-a1-trench-a-0", Name: "worker3", Cidr: "10.0.3.0/24", ParentID: "load-balancer-a1-trench-a-0", Expirable: &falseVal, UpdatedAt: pastThreshold, ExpectedAfterGC: true},
+		// Connection (Expirable) - Stale, Expirable: Deleted by GC
+		{Id: "connection-4-worker3-load-balancer-a1-trench-a-0", Name: "connection-4", Cidr: "10.0.3.4/32", ParentID: "worker3-load-balancer-a1-trench-a-0", Expirable: &trueVal, UpdatedAt: pastThreshold, ExpectedAfterGC: false},
+		// Connection (Expirable) - Recent, Expirable: Remains (parent is non-expirable and connection is recent)
+		{Id: "connection-5-worker3-load-balancer-a1-trench-a-0", Name: "connection-5", Cidr: "10.0.3.5/32", ParentID: "worker3-load-balancer-a1-trench-a-0", Expirable: &trueVal, UpdatedAt: recentTime, ExpectedAfterGC: true},
+	}
+
+	// 2. Seed the database using the rawSeedData and the hierarchical approach
+	createdPrefixes := make(map[string]*sqlite.Prefix)
+	for _, seed := range rawSeedData {
+		p := sqlite.Prefix{
+			Id:        seed.Id,
+			Name:      seed.Name,
+			Cidr:      seed.Cidr,
+			Expirable: seed.Expirable,
+			UpdatedAt: seed.UpdatedAt, // GORM will respect this if non-zero
+		}
+
+		if seed.ParentID != "" {
+			parent, ok := createdPrefixes[seed.ParentID]
+			assert.True(t, ok, "Parent with ID '%s' not found for prefix '%s'. Ensure parents are listed before children.", seed.ParentID, p.Id)
+			p.Parent = parent          // Assign the object pointer
+			p.ParentID = seed.ParentID // Keep ParentID populated for the column
+		}
+
+		assert.NoError(t, dbConn.Create(&p).Error, fmt.Sprintf("Failed to create prefix %s", p.Id))
+		createdPrefixes[p.Id] = &p // Store the created object for future children
+	}
+
+	t.Log("--- Initial state before GC ---")
+	var allPrefixesInitial []sqlite.Prefix
+	assert.NoError(t, dbConn.Preload("Parent").Find(&allPrefixesInitial).Error)
+	//assert.NoError(t, dbConn.Find(&allPrefixesInitial).Error)
+	assert.Equal(t, len(allPrefixesInitial), len(createdPrefixes))
+	for _, p := range allPrefixesInitial {
+		t.Logf("  Prefix %s (Name: %s): Expirable=%v, UpdatedAt=%v (IsZero=%v), ParentID=%s, Parent obj: %+v",
+			p.Id, p.Name, p.Expirable, p.UpdatedAt, p.UpdatedAt.IsZero(), p.ParentID, p.Parent)
+		cp, ok := createdPrefixes[p.Id]
+		assert.True(t, ok)
+		assert.Equal(t, cp.UpdatedAt, p.UpdatedAt)
+	}
+
+	// 3. Run the garbage collector method once
+	err := sqlis.RunGarbageCollectorOnceForTest(ctx, gcThreshold)
+	assert.NoError(t, err, "Garbage collector returned an error")
+
+	t.Log("--- Final state after GC ---")
+	var allPrefixesFinal []sqlite.Prefix
+	assert.NoError(t, dbConn.Find(&allPrefixesFinal).Error)
+
+	// Create a map of found IDs for easy lookup
+	foundPrefixes := make(map[string]struct{})
+	for _, p := range allPrefixesFinal {
+		foundPrefixes[p.Id] = struct{}{}
+		t.Logf("  Prefix %s (Name: %s): Expirable=%v, UpdatedAt=%v (IsZero=%v), ParentID=%s",
+			p.Id, p.Name, p.Expirable, p.UpdatedAt, p.UpdatedAt.IsZero(), p.ParentID)
+	}
+
+	// 4. Assertions: Verify the presence/absence of each prefix as expected
+	for _, seed := range rawSeedData {
+		_, found := foundPrefixes[seed.Id] // Use the pre-calculated ID for lookup
+		if seed.ExpectedAfterGC {
+			assert.True(t, found, "Prefix %s was expected to exist after GC but was NOT found", seed.Id)
+		} else {
+			assert.False(t, found, "Prefix %s was expected to be DELETED by GC but was found", seed.Id)
+		}
+	}
+}

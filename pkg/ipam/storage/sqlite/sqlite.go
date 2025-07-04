@@ -463,3 +463,9 @@ func (sqlis *SQLiteIPAMStorage) MigrateForTest(ctx context.Context) error {
 func (sqlis *SQLiteIPAMStorage) GetTableNameForTest() string {
 	return sqlis.prefixTableName
 }
+
+// RunGarbageCollectorOnceForTest is an exported helper for testing
+// internal garbageCollector() logic.
+func (sqlis *SQLiteIPAMStorage) RunGarbageCollectorOnceForTest(ctx context.Context, threshold time.Duration) error {
+	return sqlis.garbageCollector(ctx, threshold)
+}
