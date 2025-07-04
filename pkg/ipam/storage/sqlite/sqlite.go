@@ -32,7 +32,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-const bridgeName = "bridge" // prefix with name "bridge" is special because it's not periodically updated
+const BridgeName = "bridge" // prefix with name "bridge" is special because it's not periodically updated
 
 var ErrCIDRConflict = prefix.ErrCIDRConflict // alias to simplify usage in this package
 
@@ -133,7 +133,7 @@ func (sqlis *SQLiteIPAMStorage) garbageCollector(ctx context.Context, threshold 
 			// Fetch entries eligible for removal
 			var batchOfEligiblePrefixes []Prefix
 			if err := tx.Where("expirable = true AND (updated_at IS NOT NULL AND updated_at != ? AND updated_at < ?) AND name != ?",
-				time.Time{}, entryThreshHold, bridgeName).Limit(batchSize).Find(&batchOfEligiblePrefixes).Error; err != nil {
+				time.Time{}, entryThreshHold, BridgeName).Limit(batchSize).Find(&batchOfEligiblePrefixes).Error; err != nil {
 				tx.Rollback()
 				return err
 			}
@@ -207,7 +207,7 @@ func (sqlis *SQLiteIPAMStorage) Add(ctx context.Context, prefix types.Prefix) er
 		return nil
 	}
 	exp := false
-	if prefix.GetName() != bridgeName && Expirable(ctx) {
+	if prefix.GetName() != BridgeName && Expirable(ctx) {
 		exp = true
 	}
 	model.Expirable = &exp
@@ -235,7 +235,7 @@ func (sqlis *SQLiteIPAMStorage) Update(ctx context.Context, prefix types.Prefix)
 		return nil
 	}
 	exp := false
-	if prefix.GetName() != bridgeName && Expirable(ctx) {
+	if prefix.GetName() != BridgeName && Expirable(ctx) {
 		exp = true
 	}
 	model.Expirable = &exp
@@ -337,129 +337,129 @@ func (sqlis *SQLiteIPAMStorage) delete(prefix types.Prefix) error {
 	return tx.Error
 }
 
-// Migrate aims to find prefixes assocaited with connections but created based
-// on the old model (before the introduction of the garbage collector).
-// Lookup exploits the hierarchy among prefixes of trenches, conduits, worker
-// conduits, and connections to identify the connections.
-// Old connection prefixes are then updated by setting their expirable fields
-// to true, along with implicitly updating their updated_at fields. This way,
-// old leaked connection prefixes could be also reaped by the garbage collector
-// logic.
-// Note: bridge prefixes cannot expire currently
-// Note: custom update of old prefixes will set the updated_at fields
+// migrate aims to find specific prefixes within the IPAM hierarchy that should
+// be subject to garbage collection but currently are not.
+//
+// It identifies these prefixes by traversing the hierarchy:
+// Trenches -> Conduits -> Worker Conduits (nodes) -> Connections.
+//
+// The method targets two types of prefixes for update:
+// 1. Connection prefixes: Children of Worker Conduits, excluding bridge IPs.
+// 2. Worker Conduit (node) prefixes: The encapsulating prefixes for connections.
+//
+// For matching prefixes, their 'expirable' field is set to true. GORM implicitly
+// updates their 'updated_at' timestamp during this operation. This change
+// allows the garbage collection (GC) logic to identify and remove old or stale
+// connection and node prefixes.
+//
+// Note: Bridge prefixes are intentionally excluded and cannot expire via this migration.
+// Note: The 'expirable' field is handled to include prefixes with NULL or false values,
+// ensuring proper migration from older schema versions where it might not have been set.
 func (sqlis *SQLiteIPAMStorage) migrate(ctx context.Context) error {
-	var trenchIds []string
-	var conduitIds []string
-	var workerConduitIds []string
-	var err error
-	batchSize := 50
 	logger := log.Logger.WithValues("func", "migrate")
-
-	findPrefixIds := func(ctx context.Context, query interface{}, args ...interface{}) ([]string, error) {
-		var prefixIds []string
-		logger.V(1).Info("Find prefixes", "query", query, "args", args)
-		select {
-		case <-ctx.Done():
-			return prefixIds, nil
-		default:
-			var prefixes []Prefix
-			// Fetch all prefixes matching the query in one attempt
-			if err := sqlis.DB.Where(query, args...).Find(&prefixes).Error; err != nil {
-				return nil, err
-			}
-
-			// No matching prefixes in the database
-			if len(prefixes) == 0 {
-				return nil, nil
-			}
-
-			// Save IDs of returned prefixes to return once finished
-			for _, prefix := range prefixes {
-				prefixIds = append(prefixIds, prefix.Id)
-			}
-		}
-		return prefixIds, nil
-	}
-
 	sqlis.mu.Lock()
 	defer sqlis.mu.Unlock()
 
-	// Get Trench IDs based on their characteristics not having a parent
-	trenchIds, err = findPrefixIds(ctx, "parent_id = ?", "")
-	if err != nil || len(trenchIds) == 0 {
-		logger.V(1).Info("No Trench IDs retrived", "err", err)
+	// Find Trench IDs
+	var trenchIds []string
+	if err := sqlis.DB.WithContext(ctx).Model(&Prefix{}).Where("parent_id = ?", "").Pluck("id", &trenchIds).Error; err != nil {
 		return err
 	}
-	logger.Info("Retrieved Trenches", "IDs", trenchIds)
+	if len(trenchIds) == 0 {
+		logger.V(1).Info("No Trench IDs retrieved, skipping migration.")
+		return nil // Nothing to do
+	}
+	logger.Info("Retrieved Trenches for migration", "IDs", trenchIds)
 
-	// Get Conduit IDs by parent ID (which should be a trench ID)
-	conduitIds, err = findPrefixIds(ctx, "parent_id IN ?", trenchIds)
-	if err != nil || len(conduitIds) == 0 {
-		logger.V(1).Info("No Conduit IDs retrieved", "err", err)
+	// Find Conduit IDs
+	var conduitIds []string
+	if err := sqlis.DB.WithContext(ctx).Model(&Prefix{}).Where("parent_id IN ?", trenchIds).Pluck("id", &conduitIds).Error; err != nil {
 		return err
 	}
-	logger.Info("Retrieved Conduits", "IDs", conduitIds)
+	if len(conduitIds) == 0 {
+		logger.V(1).Info("No Conduit IDs retrieved based on trenches, skipping migration for remaining hierarchy.")
+		return nil // Nothing to do
+	}
+	logger.Info("Retrieved Conduits for migration", "IDs", conduitIds)
 
-	// Get Worker Conduit IDs by parent ID (which should be a Conduit ID)
-	workerConduitIds, err = findPrefixIds(ctx, "parent_id IN ?", conduitIds)
-	if err != nil || len(workerConduitIds) == 0 {
-		logger.V(1).Info("No worker Conduit IDs retrieved", "err", err)
+	// Find Worker Conduit IDs
+	var workerConduitIds []string
+	if err := sqlis.DB.WithContext(ctx).Model(&Prefix{}).Where("parent_id IN ?", conduitIds).Pluck("id", &workerConduitIds).Error; err != nil {
 		return err
 	}
-	logger.Info("Retrieved worker Conduits", "IDs", workerConduitIds)
-
-	// Update records with parent IDs matching any of the Worker Conduit IDs
-	// to reflect such records can expire and thus can be subject to garbage
-	// collection.
-	// Note: Even though records are processed in batches, no need use offsets
-	// or pagination, because matching entries are to be updated. Thus, there
-	// will be eventually no more records matching the query criteria.
-	for {
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
-			tx := sqlis.DB.Begin()
-			if tx.Error != nil {
-				return tx.Error
-			}
-
-			// Get prefixes created according to the old model whose parent ID
-			// is among the Worker Conduit IDs.
-			// Note: expirable field is not expected to be NULL due to the tag
-			// setting a default value false, but better safe than sorry
-			var updateEntries []Prefix
-			if err := tx.Where("(expirable IS NULL OR expirable = false) AND name != ? AND parent_id IN ?",
-				bridgeName, workerConduitIds).Limit(batchSize).Find(&updateEntries).Error; err != nil {
-				tx.Rollback()
-				return err
-			}
-
-			// No more prefixes to update
-			if len(updateEntries) == 0 {
-				tx.Rollback()
-				return nil
-			}
-
-			// Update old connection prefixes by setting their expirable field
-			// to true, so that the garbage collector apply to them as well.
-			// Note: This shall also update the updated_at field.
-			for _, entry := range updateEntries {
-				logger.V(1).Info("Update prefix", "entry", entry)
-				exp := true
-				entry.Expirable = &exp
-				if err := tx.Save(entry).Error; err != nil {
-					tx.Rollback()
-					return err
-				}
-			}
-
-			// Commit the transaction
-			if err := tx.Commit().Error; err != nil {
-				return err
-			}
-
-			logger.Info("Updated prefixes in transaction", "count", len(updateEntries))
-		}
+	if len(workerConduitIds) == 0 {
+		logger.V(1).Info("No Worker Conduit IDs retrieved based on conduits, skipping migration for remaining hierarchy.")
+		return nil // Nothing to do
 	}
+	logger.Info("Retrieved Worker Conduits for migration", "IDs", workerConduitIds)
+
+	// Update the CHILDREN of worker conduits (the "connection" prefixes) so that
+	// they could become subject to garbage collection.
+	// These are prefixes associated with NSM connections, excluding bridge IPs.
+	// Note: expirable field is not expected to be NULL due to the gorm tag
+	// setting a default value false, but better safe than sorry
+	logger.Info("Updating connection prefixes (children of worker conduits)...")
+	resultConnections := sqlis.DB.WithContext(ctx).Model(&Prefix{}).
+		Where("parent_id IN ?", workerConduitIds).
+		// Exclude bridge prefixes from being marked expirable
+		Where("name != ?", BridgeName).
+		// Ensure old records with NULL or explicit false are caught
+		Where("(expirable IS NULL OR expirable = false)").
+		Update("expirable", true)
+
+	if resultConnections.Error != nil {
+		return fmt.Errorf("failed to bulk update connection prefixes: %w", resultConnections.Error)
+	}
+	logger.Info("Successfully migrated connection prefixes.", "updated_count", resultConnections.RowsAffected)
+
+	// Update the WORKER CONDUITS themselves.
+	// These are the node-level prefixes that encapsulate connections.
+	// Note: expirable field is not expected to be NULL due to the gorm tag
+	// setting a default value false, but better safe than sorry
+	logger.Info("Updating worker conduit prefixes...")
+	resultWorkers := sqlis.DB.WithContext(ctx).Model(&Prefix{}).
+		Where("id IN ?", workerConduitIds).
+		// Ensure old records with NULL or explicit false are caught
+		Where("(expirable IS NULL OR expirable = false)").
+		Update("expirable", true)
+
+	if resultWorkers.Error != nil {
+		return fmt.Errorf("failed to bulk update worker conduit prefixes: %w", resultWorkers.Error)
+	}
+	logger.Info("Successfully migrated worker conduit prefixes.", "updated_count", resultWorkers.RowsAffected)
+
+	return nil
+}
+
+// --- Test-Specific Exported Methods ---
+
+// NewForTest is a constructor for testing purposes.
+// It accepts an already opened *gorm.DB instance. It DOES NOT perform AutoMigrate or
+// run init() automatically. This gives tests explicit control over schema setup and
+// migration steps.
+func NewForTest(db *gorm.DB) (*SQLiteIPAMStorage, error) {
+	if db == nil {
+		return nil, fmt.Errorf("NewForTest: provided gorm.DB instance is nil")
+	}
+	sqlis := &SQLiteIPAMStorage{
+		DB: db,
+	}
+	sqlis.prefixTableName = TableNameForModel(sqlis.DB, &Prefix{})
+	return sqlis, nil
+}
+
+// InitForTest is an exported helper for testing the internal init() logic.
+// It performs AutoMigrate of the current Prefix model and runs the migrate function.
+func (sqlis *SQLiteIPAMStorage) InitForTest() error {
+	return sqlis.init() // Calls the unexported init()
+}
+
+// MigrateForTest is an exported helper for testing the internal migrate() logic.
+// It provides direct access to the migration function.
+func (sqlis *SQLiteIPAMStorage) MigrateForTest(ctx context.Context) error {
+	return sqlis.migrate(ctx) // Calls the unexported migrate()
+}
+
+func (sqlis *SQLiteIPAMStorage) GetTableNameForTest() string {
+	return sqlis.prefixTableName
 }
