@@ -28,6 +28,7 @@ import (
 
 	"github.com/nordix/meridio/pkg/ipam/prefix"
 	"github.com/nordix/meridio/pkg/ipam/storage/sqlite"
+	"github.com/nordix/meridio/pkg/ipam/types"
 	"github.com/stretchr/testify/assert"
 	sqliteDrv "gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -650,4 +651,210 @@ func TestGarbageCollectorLogic(t *testing.T) {
 			assert.False(t, found, "Prefix %s was expected to be DELETED by GC but was found", seed.Id)
 		}
 	}
+}
+
+func TestUpdateDampingUpdatedAt(t *testing.T) {
+	dbConn, cleanup := setupTestDB(t)
+	defer cleanup()
+	assert.NoError(t, dbConn.AutoMigrate(&sqlite.Prefix{}), "Failed to auto-migrate schema")
+
+	sqlis := newSQLiteIPAMStorageForTest(t, dbConn)
+	baseCtx := context.Background()
+
+	// Define common test prefix properties
+	prefixID := "testNode"
+	prefixCidr := "192.168.0.0/24"
+
+	// Helper to create and insert a prefix with a specific UpdatedAt
+	createTestPrefix := func(id string, updatedAt time.Time) types.Prefix {
+		expirableTrue := false // false to avoid the usage of sqlite.WithExpirable for sqlite.Update
+		p := &sqlite.Prefix{
+			ParentID:  "", // no parent so that Prefix Id and Prefix Name could be the same values
+			Id:        id, // mimic prefixToModel()
+			Name:      id, // mimic prefixToModel()
+			Cidr:      prefixCidr,
+			Expirable: &expirableTrue,
+			UpdatedAt: updatedAt,
+		}
+		assert.NoError(t, dbConn.Create(p).Error, fmt.Sprintf("Failed to create initial prefix for test, id: %q, cidr: %q", id, prefixCidr))
+		return prefix.New(p.Name, p.Cidr, nil) // Convert to types.Prefix for storage's Update method
+	}
+
+	// Helper to fetch UpdatedAt directly from DB
+	fetchUpdatedAt := func(id string) time.Time {
+		var p sqlite.Prefix
+		err := dbConn.Select("updated_at").Where("id = ?", id).First(&p).Error
+		assert.NoError(t, err, fmt.Sprintf("Failed to fetch UpdatedAt for ID: %q", id))
+		return p.UpdatedAt
+	}
+
+	deletePrefixById := func(id string) {
+		_ = dbConn.Where("id = ?", id).Delete(&sqlite.Prefix{}).Error
+	}
+
+	dampingThreshold := 1 * time.Minute
+
+	// Scenario 1: Damping enabled, recently updated (within threshold), no other changes -> UpdatedAt should NOT change
+	t.Run("UpdatedAt_Damped", func(t *testing.T) {
+		pID := prefixID + "Damped"
+		defer deletePrefixById(pID)
+		initialUpdatedAt := time.Now().UTC().Add(-30 * time.Second) // 30 seconds ago
+		testPrefix := createTestPrefix(pID, initialUpdatedAt)
+
+		err := sqlis.Update(sqlite.WithUpdateDamping(baseCtx, dampingThreshold), testPrefix)
+		assert.NoError(t, err, "Update should not error when damped")
+
+		finalUpdatedAt := fetchUpdatedAt(pID)
+		assert.True(t, finalUpdatedAt.Equal(initialUpdatedAt), "UpdatedAt should remain unchanged (damped)")
+	})
+
+	// Scenario 2: Damping enabled, updated long ago (older than threshold), no other changes -> UpdatedAt should CHANGE
+	t.Run("UpdatedAt_NotDamped_OldPrefix", func(t *testing.T) {
+		pID := prefixID + "NotDampedOldPrefix"
+		defer deletePrefixById(pID)
+		initialUpdatedAt := time.Now().UTC().Add(-2 * time.Minute) // 2 minutes ago
+		testPrefix := createTestPrefix(pID, initialUpdatedAt)
+
+		err := sqlis.Update(sqlite.WithUpdateDamping(baseCtx, dampingThreshold), testPrefix)
+		assert.NoError(t, err, "Update should not error when not damped")
+
+		finalUpdatedAt := fetchUpdatedAt(pID)
+		assert.True(t, finalUpdatedAt.After(initialUpdatedAt), "UpdatedAt should be newer than initial time")
+	})
+
+	// Scenario 3: Damping disabled (no context), recently updated -> UpdatedAt should CHANGE
+	t.Run("UpdatedAt_NotDamped_Disabled", func(t *testing.T) {
+		pID := prefixID + "NotDampedDisabled"
+		defer deletePrefixById(pID)
+		initialUpdatedAt := time.Now().UTC().Add(-30 * time.Second) // 30 seconds ago
+		testPrefix := createTestPrefix(pID, initialUpdatedAt)
+
+		// No damping context applied
+		err := sqlis.Update(baseCtx, testPrefix)
+		assert.NoError(t, err, "Update should not error when damping is disabled")
+
+		finalUpdatedAt := fetchUpdatedAt(pID)
+		assert.True(t, finalUpdatedAt.After(initialUpdatedAt), "UpdatedAt should be newer than initial time")
+	})
+
+	// Scenario 4: Update a non-existent record (should create it, damping logic won't prevent initial creation)
+	t.Run("UpdatedAt_NonExistentRecord", func(t *testing.T) {
+		pID := prefixID + "NonExistent"
+		defer deletePrefixById(pID)
+		prefixName := pID // prefixToModel() in sqlite.Update() sets ID based on prefix Name
+
+		// Create a types.Prefix representing the new record
+		newPrefix := prefix.New(prefixName, prefixCidr, nil)
+
+		err := sqlis.Update(sqlite.WithUpdateDamping(baseCtx, dampingThreshold), newPrefix)
+		assert.NoError(t, err, "Update should succeed for a non-existent record (effectively a create)")
+
+		// Verify the record was created and UpdatedAt is set
+		var fetchedPrefix sqlite.Prefix
+		err = dbConn.Where("id = ?", pID).First(&fetchedPrefix).Error
+		assert.NoError(t, err, "Failed to fetch newly created prefix")
+		assert.False(t, fetchedPrefix.UpdatedAt.IsZero(), "UpdatedAt should be set for a new record")
+		assert.Equal(t, pID, fetchedPrefix.Id)
+		assert.Equal(t, prefixCidr, fetchedPrefix.Cidr)
+		assert.Equal(t, prefixName, fetchedPrefix.Name)
+	})
+
+	// Scenario 5: Update recent record changing its CIDR (should update it, damping logic won't prevent legitimate update)
+	t.Run("UpdatedAt_NotDamped_RecentPrefixChanged", func(t *testing.T) {
+		pID := prefixID + "RecentPrefixChanged"
+		defer deletePrefixById(pID)
+		prefixName := pID // prefixToModel() in sqlite.Update() sets ID based on prefix Name
+
+		initialUpdatedAt := time.Now().UTC().Add(-30 * time.Second) // 30 seconds ago
+		testPrefix := createTestPrefix(pID, initialUpdatedAt)
+
+		changedPrefixCidr := "192.168.1.0/24"
+		changedTestPrefix := prefix.New(testPrefix.GetName(), changedPrefixCidr, testPrefix.GetParent())
+		err := sqlis.Update(sqlite.WithUpdateDamping(baseCtx, dampingThreshold), changedTestPrefix)
+		assert.NoError(t, err, "Update should not error when damped")
+
+		var fetchedPrefix sqlite.Prefix
+		err = dbConn.Where("id = ?", pID).First(&fetchedPrefix).Error
+		assert.NoError(t, err, "Failed to fetch updated prefix")
+		assert.True(t, fetchedPrefix.UpdatedAt.After(initialUpdatedAt), "UpdatedAt should be newer than initial time")
+		assert.NotEqual(t, fetchedPrefix.Cidr, testPrefix.GetCidr(), "Cidr should be updated")
+		assert.Equal(t, prefixName, fetchedPrefix.Name)
+	})
+}
+
+func TestExpirable(t *testing.T) {
+	dbConn, cleanup := setupTestDB(t)
+	defer cleanup()
+	assert.NoError(t, dbConn.AutoMigrate(&sqlite.Prefix{}), "Failed to auto-migrate schema")
+
+	sqlis := newSQLiteIPAMStorageForTest(t, dbConn)
+	baseCtx := context.Background()
+
+	// Define common test prefix properties
+	commonPrefixName := "testNode"
+	commonPrefixCidr := "192.168.0.0/24"
+	commonParentID := ""
+
+	assertPrefixData := func(t *testing.T, name, expectedCidr, expectedParentID string, expectedExpirable bool, msg string) *sqlite.Prefix {
+		var fetched []sqlite.Prefix
+		err := dbConn.Where("name = ?", name).Find(&fetched).Error
+		assert.NoError(t, err, fmt.Sprintf("%s: Error fetching prefix with Name %q", msg, name))
+		assert.Len(t, fetched, 1, fmt.Sprintf("%s: Expected exactly one prefix with Name %q, but found %d", msg, name, len(fetched)))
+		resultPrefix := fetched[0]
+
+		assert.False(t, resultPrefix.UpdatedAt.IsZero(), fmt.Sprintf("%s: UpdatedAt should be set for prefix with Name %q", msg, name))
+		assert.Equal(t, expectedCidr, resultPrefix.Cidr, fmt.Sprintf("%s: CIDR mismatch for prefix with Name %q", msg, name))
+		assert.Equal(t, expectedParentID, resultPrefix.ParentID, fmt.Sprintf("%s: ParentID mismatch for prefix with Name %q", msg, name))
+		if expectedExpirable {
+			assert.True(t, resultPrefix.Expirable != nil && *resultPrefix.Expirable,
+				fmt.Sprintf("%s: Expirable should be true for prefix with Name %q", msg, name))
+		} else {
+			assert.True(t, resultPrefix.Expirable != nil && !*resultPrefix.Expirable,
+				fmt.Sprintf("%s: Expirable should be false for prefix with Name %q", msg, name))
+		}
+		return &resultPrefix
+	}
+
+	t.Run("InitialCreate_NonExpirable", func(t *testing.T) {
+		testName := commonPrefixName + "InitialNonExpirable"
+		testPrefix := prefix.New(testName, commonPrefixCidr, nil)
+
+		defer func() {
+			_ = sqlis.Delete(baseCtx, testPrefix)
+		}()
+
+		err := sqlis.Add(baseCtx, testPrefix)
+		assert.NoError(t, err, "Add should succeed for initial creation")
+		assertPrefixData(t, testName, commonPrefixCidr, commonParentID, false, "After initial create")
+	})
+
+	t.Run("InitialCreate_Expirable", func(t *testing.T) {
+		testName := commonPrefixName + "InitialExpirable"
+		testPrefix := prefix.New(testName, commonPrefixCidr, nil)
+
+		defer func() {
+			_ = sqlis.Delete(baseCtx, testPrefix)
+		}()
+
+		err := sqlis.Add(sqlite.WithExpirable(baseCtx), testPrefix)
+		assert.NoError(t, err, "Add should succeed for initial creation")
+		assertPrefixData(t, testName, commonPrefixCidr, commonParentID, true, "After initial create")
+	})
+
+	t.Run("UpdateExisting_WithExpirable", func(t *testing.T) {
+		testName := commonPrefixName + "ExpirableUpdate"
+		testPrefix := prefix.New(testName, commonPrefixCidr, nil)
+
+		defer func() {
+			_ = sqlis.Delete(baseCtx, testPrefix)
+		}()
+
+		err := sqlis.Update(baseCtx, testPrefix)
+		assert.NoError(t, err, "Update should succeed for a non-existent record (effectively a create)")
+		assertPrefixData(t, testName, commonPrefixCidr, commonParentID, false, "Before expirable update")
+
+		err = sqlis.Update(sqlite.WithExpirable(baseCtx), testPrefix)
+		assert.NoError(t, err, "Update should succeed with expirable context")
+		assertPrefixData(t, testName, commonPrefixCidr, commonParentID, true, "After expirable update")
+	})
 }

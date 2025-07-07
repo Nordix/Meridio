@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2024 OpenInfra Foundation Europe
+Copyright (c) 2024-2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,10 +16,14 @@ limitations under the License.
 
 package sqlite
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 const (
-	lifetimeKey contextKeyType = "expirable"
+	lifetimeKey      contextKeyType = "expirable"
+	updateDampingKey contextKeyType = "updateDamping"
 )
 
 type contextKeyType string
@@ -38,4 +42,18 @@ func WithExpirable(parent context.Context) context.Context {
 func Expirable(ctx context.Context) bool {
 	_, ok := ctx.Value(lifetimeKey).(struct{})
 	return ok
+}
+
+// WithUpdateDamping -
+// Returns a new context that signals a request for damped updating
+func WithUpdateDamping(ctx context.Context, threshold time.Duration) context.Context {
+	return context.WithValue(ctx, updateDampingKey, threshold)
+}
+
+// getUpdateDampingThreshold -
+// Retrieves the damping threshold from the context. The boolean indicates
+// if the damping logic should be applied at all.
+func getUpdateDampingThreshold(ctx context.Context) (time.Duration, bool) {
+	val, ok := ctx.Value(updateDampingKey).(time.Duration)
+	return val, ok
 }
