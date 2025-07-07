@@ -1,6 +1,6 @@
 /*
 Copyright (c) 2021 Nordix Foundation
-Copyright (c) 2024 OpenInfra Foundation Europe
+Copyright (c) 2024-2025 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,6 +34,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
+
+const nodeUpdateDampingThreshold = 1 * time.Minute // update node prefix if last update older than threshold // TODO: configuration
 
 type IpamServer struct {
 	ctx    context.Context
@@ -94,9 +96,9 @@ func NewServer(
 // allocation, it would make the cluster upgrade problematic due to the possible
 // mix of old and new clients. Hence, IMHO the best approach for now is to let the
 // server decide which prefixes should have their expirable attribute set. Currently,
-// this translates to calls of node.Allocate() (excluding bridges). The information
-// regarding the time scope is passed in context to avoid the need for changing all
-// the API in between.
+// this translates to calls of node.Allocate() (excluding bridges) and conduit.GetNode().
+// The information regarding the time scope is passed in context to avoid the need for
+// changing all the API in between.
 func (is *IpamServer) Allocate(ctx context.Context, child *ipamAPI.Child) (*ipamAPI.Prefix, error) {
 	ctx = logr.NewContext(ctx, is.logger)
 	trench, exists := is.Trenches[child.GetSubnet().GetIpFamily()]
@@ -126,7 +128,8 @@ func (is *IpamServer) Allocate(ctx context.Context, child *ipamAPI.Child) (*ipam
 			break
 		}
 	}
-	node, err := conduit.GetNode(sqlite.WithExpirable(ctx), child.GetSubnet().GetNode()) // Note: refreshes existing node prefix (i.e. the 'updatedAt' timestamp)
+	getNodeCtx := sqlite.WithUpdateDamping(sqlite.WithExpirable(ctx), nodeUpdateDampingThreshold) // Applies damping to reduce frequent DB writes and marks node prefix as expirable
+	node, err := conduit.GetNode(getNodeCtx, child.GetSubnet().GetNode())                         // Note: refreshes existing node prefix (i.e. the 'updatedAt' timestamp)
 	if err != nil {
 		return nil, fmt.Errorf("failed getting node (%s) while allocating (%s): %w", child.GetSubnet().GetNode(), child.GetName(), err)
 	}
@@ -170,7 +173,8 @@ func (is *IpamServer) Release(ctx context.Context, child *ipamAPI.Child) (*empty
 	// Note: Currently also refreshes existing node prefix (i.e. the 'updatedAt' timestamp).
 	// Not sure node refresh is needed in case of Release, but errors must be avoided for
 	// sure if node was reaped by a Garbage Collector logic.
-	node, err := conduit.GetNode(sqlite.WithExpirable(ctx), child.GetSubnet().GetNode())
+	getNodeCtx := sqlite.WithUpdateDamping(sqlite.WithExpirable(ctx), nodeUpdateDampingThreshold)
+	node, err := conduit.GetNode(getNodeCtx, child.GetSubnet().GetNode())
 	if err != nil {
 		return &emptypb.Empty{}, fmt.Errorf("failed getting node (%s) while releasing (%s): %w", child.GetSubnet().GetNode(), child.GetName(), err)
 	}

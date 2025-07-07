@@ -220,7 +220,7 @@ func (sqlis *SQLiteIPAMStorage) Add(ctx context.Context, prefix types.Prefix) er
 }
 
 // Update -
-// Updates or add the database entry.
+// Updates or adds the database entry.
 // Currently, the whole purpose of this function is to update the UpdatedAt
 // field in the database that is used by garbage collector logic to clean up
 // unused entries that haven't been updated for a long time. And to keep the
@@ -239,6 +239,9 @@ func (sqlis *SQLiteIPAMStorage) Update(ctx context.Context, prefix types.Prefix)
 		exp = true
 	}
 	model.Expirable = &exp
+	if ok := sqlis.shouldUpdate(ctx, model); !ok {
+		return nil // Success, but no-op.
+	}
 	tx := sqlis.DB.Save(model)
 	if isCIDRUniquenessViolation(tx.Error) {
 		return fmt.Errorf("%w: %v", ErrCIDRConflict, tx.Error)
@@ -335,6 +338,43 @@ func (sqlis *SQLiteIPAMStorage) delete(prefix types.Prefix) error {
 	model := prefixToModel(prefix)
 	tx := sqlis.DB.Delete(model)
 	return tx.Error
+}
+
+// shouldUpdate determines if update is required based on the damping configuration
+// or lack of it. In case damping is enabled, it tries to fetch the prefix from the
+// db to retrieve its updatedAt timestamp.
+func (sqlis *SQLiteIPAMStorage) shouldUpdate(ctx context.Context, model *Prefix) bool {
+	updateThreshold, ok := getUpdateDampingThreshold(ctx)
+	if !ok {
+		return true // Damping not enabled
+	}
+
+	var result *Prefix
+	// Use Select to specify exactly which fields to load based on ID (due to performance considerations)
+	err := sqlis.DB.Model(&Prefix{}).
+		Select("id", "cidr", "name", "parent_id", "expirable", "updated_at").
+		Where("id = ?", model.Id).
+		First(&result).Error
+	if err != nil {
+		return true // Record might not exist (keep backward compatibility)
+	}
+
+	// Explicitly check for significant data changes
+	modelExpirable := model.Expirable != nil && *model.Expirable
+	resultExpirable := result.Expirable != nil && *result.Expirable
+	if model.ParentID != result.ParentID ||
+		modelExpirable != resultExpirable ||
+		model.Cidr != result.Cidr ||
+		model.Name != result.Name {
+		return true // Legitimate update changing fields
+	}
+
+	// Damping logic
+	if time.Since(result.UpdatedAt) < updateThreshold {
+		return false // Recently updated within updateThreshold period
+	}
+
+	return true
 }
 
 // migrate aims to find specific prefixes within the IPAM hierarchy that should
