@@ -15,7 +15,7 @@ The Meridio IPAM distributes IP/Prefixes (always within the trench subnet define
 
 The first one is at the conduit level. Represented in blue (Conduit-A) and in red (Conduit-B) in the picture below, they are allocated automatically by the IPAM by watching the conduit list via the NSP service. The conduit subnet prefix lengths are defined in the configuration by `IPAM_CONDUIT_PREFIX_LENGTH_IPV4` and `IPAM_CONDUIT_PREFIX_LENGTH_IPV6`.
 
-The second one is at the node level. Represented in black in the picture below (1 per node per conduit), they are allocated when the `Allocate` API function is called (note: there is currently no way to unallocate except if the conduit is removed.). The node subnet prefix lengths are defined in the configuration by `IPAM_NODE_PREFIX_LENGTH_IPV4` and `IPAM_NODE_PREFIX_LENGTH_IPV6`.
+The second one is at the node level. Represented in black in the picture below (1 per node per conduit), they are allocated when the `Allocate` API function is called (note: implicitly unallocated if the conduit is removed.). The node subnet prefix lengths are defined in the configuration by `IPAM_NODE_PREFIX_LENGTH_IPV4` and `IPAM_NODE_PREFIX_LENGTH_IPV6`.
 
 The third (last one) is at the pod level. Each pod will get assigned a unique IP address with `IPAM_NODE_PREFIX_LENGTH_IPV4` or `IPAM_NODE_PREFIX_LENGTH_IPV6` as prefix length.
 
@@ -30,6 +30,12 @@ Picture representing a cluster with 2 nodes (worked-A and worker-B), 2 conduits 
 ### Data persistence
 
 Running as StatefulSet with a single replica, the IPAM handles restarts and pod deletions by saving the data in a local sqlite stored in a persistent volume requested via a volumeClaimTemplates.
+
+### Garbage Collector
+
+Pod-level prefixes might remain in the database without an owner. Moreover, currently there's no explicit way to unallocate a node-level prefix.  
+To prevent premature exhaustion of the associated prefix pools, a Garbage Collector (GC) mechanism was implemented. When enabled, this mechanism periodically checks the last update time of prefixes associated with pods or nodes. (Such prefixes would have their 'updatedAt' timestamp refreshed on `Allocate` or `Release` API function calls.)  
+Based on a configurable threshold, records can be deemed stale and removed by the GC. For node-level prefixes, the descendant prefixes are also reclaimed.
 
 ## Configuration 
 
