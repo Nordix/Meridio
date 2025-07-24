@@ -5,32 +5,108 @@
 
 ## Description
 
-The frontend makes it possible to attract external traffic to Meridio via a secondary network.
+The frontend enables Meridio to attract external traffic through a secondary network.
 
-The external interface to be used for external connectivity must be provided to the frontend.  
-One way to achieve this is to rely on NSM which through a NSC container can install a VLAN capable interface into the particular frontend POD. The master interface residing in the host network namespace, the VLAN ID and the IP network NSM shall use to allocate IP address to the external interface must be configured to get consumed by the Remote VLAN NSE.  
-Alternatively, the external interface can be provided using Multus in which case no NSC or Remote VLAN NSE is required, and IP address allocation can be taken care of by a suitable IPAM CNI plugin (e.g. [whereabouts](https://github.com/k8snetworkplumbingwg/whereabouts)) configured in the Network Attachment Definition
+An external interface must be explicitly provided to the frontend for external connectivity. This interface can be provisioned using Multus, and when Multus is utilized, IP address allocation can be managed by a suitable IPAM CNI plugin (e.g., [whereabouts](https://github.com/k8snetworkplumbingwg/whereabouts)) configured within the Network Attachment Definition.
+
+Upon startup, the frontend performs several crucial actions. It installs source routing rules for each configured VIP address. It configures and launches a [BIRD](https://bird.network.cz/) routing program instance to provide external connectivity. The operations of this BIRD routing suite are specifically restricted to the external interface. For both monitoring and modifying the BIRD configuration, the frontend leverages [birdc](https://bird.network.cz/?get_doc&v=20&f=bird-4.html). Since the frontend relies on `birdc` for monitoring connectivity, any BIRD version update must be executed with special care to maintain compatibility and avoid breaking functionality.
+
+Currently, BGP protocol (with optional BFD supervision) and Static+BFD setups are supported. A key characteristic of these protocols is their lack of inherent neighbor discovery, which means the external gateway IP addresses must be manually configured.
+
+For BGP, the frontend advertises a next-hop route for each VIP address to its external peer, using the frontend's IP as the next-hop. This mechanism directly attracts external traffic to the frontend. Conversely, the external BGP peer is expected to provide at least one next-hop route, which the VIP source routing then utilizes to steer egress traffic. The external BGP peer has the flexibility to announce either a default route or a specific set of network routes.
+
+It's important to note that both ingress and egress traffic will traverse a frontend POD, though not necessarily the same POD for both directions.
+
+Currently, the frontend and load balancer are collocated within the same POD. This collocation is crucial for traffic flow:
+- The load balancer relies on the frontend to forward egress traffic.
+- Conversely, the frontend depends on the load balancer to handle ingress traffic.
+
+Furthermore, the frontend signals its external connectivity status to its local load balancer. In turn, the frontend receives information from the collocated load balancer about its capability to forward ingress traffic to application targets.
+
+This information is particularly vital in a BGP setup. It allows the system to control precisely when to advertise VIP addresses, thereby preventing the attraction of external traffic if ingress forwarding is not yet fully available. This also implies that VIP addresses are not advertised via BGP unless application targets exist (i.e., TAPA users must open Streams for VIP addresses to be announced externally).
+
+To prevent egress VIP traffic from leaking into the primary network, the frontend installs source routing rules with a lower priority. These rules are designed to match and blackhole such traffic whenever there is no external connectivity.
+
+### External Gateway Router
+
+The external peer that a Meridio frontend connects with must be configured separately, as this falls outside the scope of Meridio itself.
+
+Here are some generic pointers for setting up the external router side, with a focus on BGP configuration:
+- The external peer must reside within the same secondary network and subnet as the connected frontend's external interface.
+- Depending on your chosen IPAM CNI plugin, you might need to exclude addresses allocated to external peers from assignment to prevent conflicts.
+- To avoid configuring every possible IP address that frontends might use to connect to an external BGP router, consider enabling passive BGP peering on the router side.
+- By default, Meridio uses BGP Autonomous System (AS) 8103. It expects the gateway router to use AS 4248829953. The default BGP port for both sides is 10179.
+
+### BIRD Router ID
+
+BIRD requires a router ID for its operation. Since the frontend does not currently provide a router ID within the BIRD configuration file it assembles, BIRD determines the ID itself. This determination is based on the interfaces and IPv4 addresses available at its startup.
+
+Typically, this process results in BIRD selecting the primary interface's IPv4 address. However, on an IPv6-only cluster, this automated router ID selection fails, preventing BIRD from successfully starting.
+
+#### Solution for IPv6-Only Clusters
+
+A possible workaround to enable router ID generation on an IPv6-only cluster is to leverage a second Network Attachment Definition (NAD) within the Frontend POD. This NAD can supply an IPv4 address on a dummy interface, allowing BIRD to find a suitable IPv4 address for its Router ID. Alternatively, ensure that the Network Attachment Definition provisioning the external interface also assigns an IPv4 address.
+
+Here's an example configuration:
+
+```yaml
+--- a/config/templates/charts/meridio/deployment/stateless-lb-frontend.yaml
++++ b/config/templates/charts/meridio/deployment/stateless-lb-frontend.yaml
+@@ -22,6 +22,8 @@ spec:
+     type: RollingUpdate
+   template:
+     metadata:
++      annotations:
++        k8s.v1.cni.cncf.io/networks: '[{"name":"bird-router-id-ipv4","namespace":"default","interface":"dummy"}]'
+       labels:
+         app: stateless-lb-frontend
+         app-type: stateless-lb-frontend
+```
+
+```yaml
+apiVersion: "k8s.cni.cncf.io/v1"
+kind: NetworkAttachmentDefinition
+metadata:
+  name: bird-router-id-ipv4
+  namespace: default
+spec:
+  config: |
+    {
+      "cniVersion": "1.0.0",
+      "name": "bird-rid-net",
+      "plugins": [
+        {
+          "type": "dummy",
+          "ipam": {
+            "type": "whereabouts",
+            "range": "10.255.0.0/20"
+          }
+        }
+      ]
+    }
+```
+
+The following logs confirm that BIRD successfully uses the dummy interface's IPv4 address as its router ID, demonstrating the workaround's effectiveness:
+
+```
+kubectl exec -ti stateless-lb-frontend-attr-a1-6c54757d74-m6vh4 -c frontend -- cat /var/log/bird.log
+2025-07-24 15:09:08.815 <INFO> Chosen router ID 10.255.0.2 according to interface dummy
+...
+2025-07-24 15:09:08.820 <INFO> Reconfigured
+2025-07-24 15:09:09.744 <TRACE> NBR-gateway-a2: Incoming connection from 100:100::150 (port 38797) accepted
+2025-07-24 15:09:09.744 <TRACE> NBR-gateway-a2: BGP session established
+2025-07-24 15:09:09.744 <TRACE> NBR-gateway-a2: State changed to up
 
 
-When started, the frontend installs src routing rules for each configured VIP address, then configures and spins off a [BIRD](https://bird.network.cz/) routing program instance providing for external connectivity. The bird routing suite is restricted to the external interface. The frontend uses [birdc](https://bird.network.cz/?get_doc&v=20&f=bird-4.html) for both monitoring and changing BIRD configuration.
+kubectl exec -ti stateless-lb-frontend-attr-a1-6c54757d74-8n67j -c frontend -- cat /var/log/bird.log
+2025-07-24 15:09:09.895 <INFO> Chosen router ID 10.255.0.1 according to interface dummy
+...
+2025-07-24 15:09:09.900 <INFO> Reconfigured
+2025-07-24 15:09:10.383 <TRACE> NBR-gateway-a2: Incoming connection from 100:100::150 (port 56819) accepted
+2025-07-24 15:09:10.383 <TRACE> NBR-gateway-a2: BGP session established
+2025-07-24 15:09:10.383 <TRACE> NBR-gateway-a2: State changed to up
 
-BGP protocol with optional BFD supervision and Static+BFD setup are supported at the moment. Since they lack inherent neighbor discovery mechanism, the external gateway IP addresses must be configured.
-In case of BGP a next-hop route for each VIP address gets announced by the protocol to its external peer advertising the frontend IP as next-hop, thus attracting external traffic to the frontend. While from the external BGP peer at least one next-hop route is expected to be utilized by the VIP src routing to steer egress traffic. The external BGP peer can decide to announce a default route or a set of network routes.
-
-Both ingress and egress traffic traverse a frontend POD (not necessarily the same).
-
-Currently the frontend is collocated with the load balancer, hence reside in the same POD. A load balancer relies on the collocated frontend to forward egress traffic, and the other way around to handle ingress traffic. Also, the frontend signals information about external connectivity to its local load balancer, while the frontend gets information from the collocated load balancer whether it is capable of forwarding incoming traffic towards application targets. The latter is taken into consideration in case of BGP setup to control when to advertise VIP addresses, in order to avoid attracting external traffic if ingress forwarding is not available yet. Which also implies that VIP addresses are not advertised without application targets.
-
-To avoid leaking egress VIP traffic into the primary network, the frontend installs src routing rules with lesser priority upon its startup to match and blackhole such traffic when there's no external connectivity.
-
-#### External gateway router
-
-The external peer a frontend is intended to connect with must be configured separately as it is outside the scope of Meridio.
-
-Some generic pointers to setup the external router side (focusing on BGP):  
-The external peer must be part of the same (secondary) network and subnet as the external interface of the connected frontend. NSM _exclude prefixes_ functionality can be used to prevent the IPAM in Remote VLAN NSE assigning IPs that have been allocated to external peers. (On the other hand, the IPAM starts assigning IPs from the start of the range, thus in development environments it might be sufficent to pick IPs from the end of the range to configure external peers.)  
-To avoid the need of having to configure all the possible IPs the frontends might use to connect to an external BGP router, it's worth considering passive BGP peering on the router side.  
-By default Meridio side uses BGP AS 8103 and assumes AS 4248829953 on the gateway router side, while default BGP port for both side is 10179.
+```
 
 ## Configuration 
 
