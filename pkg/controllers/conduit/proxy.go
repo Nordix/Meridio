@@ -39,8 +39,7 @@ type ProxyModelLoader interface {
 	Load() (*appsv1.DaemonSet, error)
 }
 
-type defaultProxyModelLoader struct {
-}
+type defaultProxyModelLoader struct{}
 
 func (p *defaultProxyModelLoader) Load() (*appsv1.DaemonSet, error) {
 	return common.GetDaemonsetModel("deployment/proxy.yaml")
@@ -114,12 +113,14 @@ func (i *Proxy) insertParameters(init *appsv1.DaemonSet) *appsv1.DaemonSet {
 	}
 
 	// init container
-	if ds.Spec.Template.Spec.InitContainers[0].Image == "" {
-		ds.Spec.Template.Spec.InitContainers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, common.BusyboxImage, common.BusyboxTag)
-	}
-	ds.Spec.Template.Spec.InitContainers[0].Args = []string{
-		"-c",
-		common.GetProxySysCtl(i.trench),
+	if len(ds.Spec.Template.Spec.InitContainers) > 0 {
+		if ds.Spec.Template.Spec.InitContainers[0].Image == "" {
+			ds.Spec.Template.Spec.InitContainers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, common.BusyboxImage, common.BusyboxTag)
+		}
+		ds.Spec.Template.Spec.InitContainers[0].Args = []string{
+			"-c",
+			common.GetProxySysCtl(i.trench),
+		}
 	}
 
 	// check resource requirement annotation update, and save annotation into deployment for visibility

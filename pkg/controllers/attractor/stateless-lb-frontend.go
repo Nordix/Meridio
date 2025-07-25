@@ -198,13 +198,16 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 		}
 	}
 
-	if ret.Spec.Template.Spec.InitContainers[0].Image == "" {
-		ret.Spec.Template.Spec.InitContainers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, common.BusyboxImage, common.BusyboxTag)
-		ret.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullIfNotPresent
-	}
-	ret.Spec.Template.Spec.InitContainers[0].Args = []string{
-		"-c",
-		common.GetLoadBalancerSysCtl(l.trench),
+	// init container
+	if len(ret.Spec.Template.Spec.InitContainers) > 0 {
+		if ret.Spec.Template.Spec.InitContainers[0].Image == "" {
+			ret.Spec.Template.Spec.InitContainers[0].Image = fmt.Sprintf("%s/%s/%s:%s", common.Registry, common.Organization, common.BusyboxImage, common.BusyboxTag)
+			ret.Spec.Template.Spec.InitContainers[0].ImagePullPolicy = corev1.PullIfNotPresent
+		}
+		ret.Spec.Template.Spec.InitContainers[0].Args = []string{
+			"-c",
+			common.GetLoadBalancerSysCtl(l.trench),
+		}
 	}
 
 	// check resource requirement annotation update, and save annotation into deployment for visibility
@@ -222,7 +225,6 @@ func (l *LoadBalancer) insertParameters(dep *appsv1.Deployment) *appsv1.Deployme
 				ret.Spec.Template.Spec.Containers = ret.Spec.Template.Spec.Containers[:clen-1]
 				break
 			}
-
 		}
 	}
 
