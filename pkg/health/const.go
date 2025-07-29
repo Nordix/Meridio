@@ -43,7 +43,6 @@ var LBLivenessServices []string = []string{NSMEndpointSvc}
 var FEReadinessServices []string = []string{NSPCliSvc, EgressSvc}
 var ProxyReadinessServices []string = []string{IPAMCliSvc, NSPCliSvc, NSMEndpointSvc, EgressSvc}
 var ProxyLivenessServices []string = []string{NSMEndpointSvc}
-var IPAMReadinessServices []string = []string{NSPCliSvc}
 var IPAMLivenessServices []string = []string{IPAMSvc}
 var NSPLivenessServices []string = []string{NSPSvc}
 var TAPALivenessServices []string = []string{AmbassadorSvc}

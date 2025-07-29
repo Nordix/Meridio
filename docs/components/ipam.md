@@ -93,7 +93,6 @@ Startup | A unique service to be used by startup probe to return status, can agg
 
 Service | Probe | Description
 --- | --- | ---
-NSPCli | Readiness | Monitor status of the connection to the NSP service
 IPAM | Liveness | Monitor status of the server
 
 ## Privileges
