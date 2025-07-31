@@ -23,6 +23,7 @@ import (
 	"github.com/nordix/meridio/pkg/ipam/conduit"
 	"github.com/nordix/meridio/pkg/ipam/prefix"
 	"github.com/nordix/meridio/pkg/ipam/types"
+	"github.com/nordix/meridio/pkg/log"
 )
 
 type Trench struct {
@@ -79,6 +80,7 @@ func (t *Trench) AddConduit(ctx context.Context, name string) (types.Conduit, er
 	if c != nil {
 		return c, nil
 	}
+	log.FromContextOrGlobal(ctx).Info("AddConduit", "name", name, "trenchPrefixName", t.GetName(), "trenchPrefix", t.GetCidr())
 	newPrefix, err := prefix.Allocate(ctx, t, name, t.PrefixLengths.ConduitLength, t.Store)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add conduit (%s) in trench prefix (%s): %w", name, t.GetName(), err)
@@ -93,6 +95,7 @@ func (t *Trench) RemoveConduit(ctx context.Context, name string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get conduit (%s) from store while removing conduit in trench prefix (%s): %w", name, t.GetName(), err)
 	}
+	log.FromContextOrGlobal(ctx).Info("RemoveConduit", "name", name, "trenchPrefixName", t.GetName(), "trenchPrefix", t.GetCidr())
 	err = t.Store.Delete(ctx, prefix)
 	if err != nil {
 		return fmt.Errorf("failed to delete (%s) from store in trench prefix (%s): %w", name, t.GetName(), err)

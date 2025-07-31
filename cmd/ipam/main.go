@@ -106,7 +106,7 @@ func main() {
 	if err := health.RegisterStartupSubservices(ctx); err != nil {
 		logger.Error(err, "RegisterStartupSubservices")
 	}
-	if err := health.RegisterReadinessSubservices(ctx, health.IPAMReadinessServices...); err != nil {
+	if err := health.RegisterReadinessSubservices(ctx); err != nil {
 		logger.Error(err, "RegisterReadinessSubservices")
 	}
 	if err := health.RegisterLivenessSubservices(ctx, health.IPAMLivenessServices...); err != nil {
