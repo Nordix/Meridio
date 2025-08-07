@@ -20,18 +20,26 @@ import (
 	"context"
 	"fmt"
 	golog "log"
+	"os"
+	"os/signal"
 	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zapr"
 	nsmlog "github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/sirupsen/logrus"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-// Logger The global logger
-var Logger logr.Logger
+var (
+	// Logger The global logger
+	Logger       logr.Logger
+	atomicLevel  zap.AtomicLevel
+	currentLevel string
+	levelMu      sync.RWMutex
+)
 
 // FromContextOrGlobal return a logger from the passed context or the
 // global logger.
@@ -79,6 +87,7 @@ func NSMLogger(logger logr.Logger) nsmlog.Logger {
 
 // Called before "main()". Pre-set a global logger
 func init() {
+	atomicLevel = zap.NewAtomicLevel()
 	Logger = newLogger("").WithName("Meridio")
 }
 
@@ -106,24 +115,17 @@ func levelEncoder(lvl zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {
 }
 
 func newLogger(level string) logr.Logger {
-	var lvl int
-	switch level {
-	case "DEBUG":
-		lvl = -1
-	case "TRACE":
-		lvl = -2
-	default:
-		lvl = 0
-	}
+	setLogLevelByName(level)
+
 	zc := zap.NewProductionConfig()
-	zc.Level = zap.NewAtomicLevelAt(zapcore.Level(lvl))
+	zc.Level = atomicLevel
 	zc.DisableStacktrace = true
 	zc.DisableCaller = true
 	zc.EncoderConfig.NameKey = "service_id"
 	zc.EncoderConfig.LevelKey = "severity"
 	zc.EncoderConfig.TimeKey = "timestamp"
 	zc.EncoderConfig.MessageKey = "message"
-	//zc.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder (almost works)
+	// zc.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder (almost works)
 	zc.EncoderConfig.EncodeTime = timeEncoder
 	zc.EncoderConfig.EncodeLevel = levelEncoder
 	zc.Encoding = "json"
@@ -135,6 +137,91 @@ func newLogger(level string) logr.Logger {
 	}
 	return zapr.NewLogger(z.With(
 		zap.String("version", "1.0.0"), zap.Namespace("extra_data")))
+}
+
+func setLogLevelByName(level string) {
+	var lvl int
+	switch level {
+	case "DEBUG":
+		lvl = -1
+	case "TRACE":
+		lvl = -2
+	default:
+		lvl = 0
+	}
+
+	levelMu.Lock()
+	defer levelMu.Unlock()
+	currentLevel = level
+	atomicLevel.SetLevel(zapcore.Level(lvl))
+}
+
+type Option func(level string)
+
+func WithNSMLogger() Option {
+	return func(level string) {
+		switch level {
+		case "TRACE":
+			nsmlog.EnableTracing(true)
+			// Work-around for hard-coded logrus dependency in NSM
+			logrus.SetLevel(logrus.TraceLevel)
+		case "DEBUG":
+			nsmlog.EnableTracing(false)
+			logrus.SetLevel(logrus.DebugLevel)
+		default:
+			nsmlog.EnableTracing(false)
+			logrus.SetLevel(logrus.InfoLevel)
+		}
+	}
+}
+
+// SetupLevelChangeOnSignal sets the log level dynamically based on incoming OS signals.
+func SetupLevelChangeOnSignal(ctx context.Context, signals map[os.Signal]string, opts ...Option) {
+	levelMu.RLock()
+	defer levelMu.RUnlock()
+
+	// Early exit if all signal levels are already the current level
+	var currentLevelCount int
+	for _, lvlStr := range signals {
+		if lvlStr == currentLevel {
+			currentLevelCount++
+		}
+	}
+	if currentLevelCount == len(signals) {
+		FromContextOrGlobal(ctx).WithValues("logger", "SetupLevelChangeOnSignal").
+			Info("Detected that log level will never change, disabling log level change on signal")
+		return
+	}
+
+	sigChannel := make(chan os.Signal, len(signals))
+	for sig := range signals {
+		signal.Notify(sigChannel, sig)
+	}
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				signal.Stop(sigChannel)
+				close(sigChannel)
+				return
+			case sig := <-sigChannel:
+				levelStr := signals[sig]
+				if levelStr == currentLevel {
+					FromContextOrGlobal(ctx).WithValues("logger", "SetupLevelChangeOnSignal").
+						Info(fmt.Sprintf("Received signal %s but log level is already '%s'; no change", sig, levelStr))
+					continue
+				}
+				FromContextOrGlobal(ctx).WithValues("logger", "SetupLevelChangeOnSignal").
+					Info(fmt.Sprintf("Setting log level to '%s'", levelStr))
+				setLogLevelByName(levelStr)
+				for _, opt := range opts {
+					opt(levelStr)
+				}
+
+			}
+		}
+	}()
 }
 
 // zapLogger returns the underlying zap.Logger.
@@ -157,46 +244,59 @@ type nsmLogger struct {
 func (l *nsmLogger) Info(v ...interface{}) {
 	l.s.Info(v...)
 }
+
 func (l *nsmLogger) Infof(format string, v ...interface{}) {
 	l.s.Infof(format, v...)
 }
+
 func (l *nsmLogger) Warn(v ...interface{}) {
 	l.s.Info(v...)
 }
+
 func (l *nsmLogger) Warnf(format string, v ...interface{}) {
 	l.s.Infof(format, v...)
 }
+
 func (l *nsmLogger) Error(v ...interface{}) {
 	l.s.Error(v...)
 }
+
 func (l *nsmLogger) Errorf(format string, v ...interface{}) {
 	l.s.Errorf(format, v...)
 }
+
 func (l *nsmLogger) Fatal(v ...interface{}) {
 	l.s.Fatal(v...)
 }
+
 func (l *nsmLogger) Fatalf(format string, v ...interface{}) {
 	l.s.Fatalf(format, v...)
 }
+
 func (l *nsmLogger) Debug(v ...interface{}) {
 	l.s.Debug(v...)
 }
+
 func (l *nsmLogger) Debugf(format string, v ...interface{}) {
 	l.s.Debugf(format, v...)
 }
+
 func (l *nsmLogger) Trace(v ...interface{}) {
 	if l.z.Core().Enabled(-2) {
 		l.s.Debug(v...)
 	}
 }
+
 func (l *nsmLogger) Tracef(format string, v ...interface{}) {
 	if l.z.Core().Enabled(-2) {
 		l.s.Debugf(format, v...)
 	}
 }
+
 func (l *nsmLogger) Object(k, v interface{}) {
 	l.z.Info("Object", zap.Any(fmt.Sprintf("%v", k), v))
 }
+
 func (l *nsmLogger) WithField(key, value interface{}) nsmlog.Logger {
 	z := l.z.With(zap.Any(fmt.Sprintf("%v", key), value))
 	return &nsmLogger{
