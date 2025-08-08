@@ -118,6 +118,12 @@ func main() {
 	defer cancel()
 	ctx = nsmlog.WithLog(ctx, nsmlogger)
 
+	// Set up dynamic log level change via signals
+	log.SetupLevelChangeOnSignal(ctx, map[os.Signal]string{
+		syscall.SIGUSR1: config.LogLevel,
+		syscall.SIGUSR2: "TRACE",
+	}, log.WithNSMLogger())
+
 	netUtils := &linuxKernel.KernelUtils{}
 
 	// create and start health server

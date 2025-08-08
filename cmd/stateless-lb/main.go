@@ -137,6 +137,12 @@ func main() {
 	nsmlog.SetGlobalLogger(nsmlogger)
 	ctx = nsmlog.WithLog(ctx, nsmlogger)
 
+	// Set up dynamic log level change via signals
+	log.SetupLevelChangeOnSignal(ctx, map[os.Signal]string{
+		syscall.SIGUSR1: config.LogLevel,
+		syscall.SIGUSR2: "TRACE",
+	}, log.WithNSMLogger())
+
 	netUtils := &linuxKernel.KernelUtils{}
 
 	// create and start health server
@@ -738,7 +744,6 @@ func (sns *SimpleNetworkService) updateStreams(streams []*nspAPI.Stream) error {
 		if err != nil {
 			errFinal = utils.AppendErr(errFinal, fmt.Errorf("deleteStream failed during update (%s): %w",
 				streamName, err)) // todo
-
 		}
 	}
 	// adjust stream service serving status (needs at least 1 stream)
