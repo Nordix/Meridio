@@ -101,6 +101,12 @@ func main() {
 	logger.Info("NSM trace", "enabled", nsmlog.IsTracingEnabled())
 	ctx = nsmlog.WithLog(ctx, log.NSMLogger(logger)) // allow NSM logs
 
+	// Set up dynamic log level change via signals
+	log.SetupLevelChangeOnSignal(ctx, map[os.Signal]string{
+		syscall.SIGUSR1: config.LogLevel,
+		syscall.SIGUSR2: "TRACE",
+	}, log.WithNSMLogger())
+
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
 	if err := health.RegisterReadinessSubservices(ctx); err != nil {
