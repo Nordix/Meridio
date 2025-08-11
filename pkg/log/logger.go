@@ -61,7 +61,7 @@ func New(name, level string) logr.Logger {
 
 var once sync.Once
 
-// Fatal log the message using the passed logger and terminate
+// Fatal log the message using the passed logger and terminate.
 func Fatal(logger logr.Logger, msg string, keysAndValues ...interface{}) {
 	if z := zapLogger(logger); z != nil {
 		z.Sugar().Fatalw(msg, keysAndValues...)
@@ -85,7 +85,7 @@ func NSMLogger(logger logr.Logger) nsmlog.Logger {
 	}
 }
 
-// Called before "main()". Pre-set a global logger
+// Called before "main()". Pre-set a global logger.
 func init() {
 	atomicLevel = zap.NewAtomicLevel()
 	Logger = newLogger("").WithName("Meridio")
@@ -139,6 +139,13 @@ func newLogger(level string) logr.Logger {
 		zap.String("version", "1.0.0"), zap.Namespace("extra_data")))
 }
 
+// GetLogLevel returns the current log level as a string.
+func GetLogLevel() string {
+	levelMu.RLock()
+	defer levelMu.RUnlock()
+	return currentLevel
+}
+
 func setLogLevelByName(level string) {
 	var lvl int
 	switch level {
@@ -148,6 +155,7 @@ func setLogLevelByName(level string) {
 		lvl = -2
 	default:
 		lvl = 0
+		level = "INFO"
 	}
 
 	levelMu.Lock()
