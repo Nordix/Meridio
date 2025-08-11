@@ -27,11 +27,14 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/go-logr/logr"
+	nsmlog "github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/nordix/meridio/pkg/log"
+	"github.com/sirupsen/logrus"
 )
 
 func gattherInfo() string {
@@ -70,7 +73,7 @@ func TestLogger(t *testing.T) {
 		"INVISIBLE DEBUG message", "info", "Some important info")
 	log.Logger.V(2).Info("INVISIBLE TRACE message")
 
-	//log.Fatal(logger, "Can't read crucial data", "error", fmt.Errorf("Not found"))
+	// log.Fatal(logger, "Can't read crucial data", "error", fmt.Errorf("Not found"))
 }
 
 func TestNSMLogger(t *testing.T) {
@@ -116,4 +119,114 @@ func TestPatterns(t *testing.T) {
 	ctx := logr.NewContext(context.TODO(), logger)
 	h := newHandler(ctx, "[1000::]:80")
 	_ = h.connect()
+}
+
+// End-to-End test since there is one global logger
+func TestDynamicLogLevelEndToEnd(t *testing.T) {
+	// This assumes logger is still at default (INFO) at test start
+	if got := log.GetLogLevel(); got != "INFO" {
+		t.Fatalf("expected initial log level INFO, got %q", got)
+	}
+
+	// 1. Explicit set via New
+	log.New("test", "DEBUG")
+	if got := log.GetLogLevel(); got != "DEBUG" {
+		t.Fatalf("expected DEBUG after explicit set, got %q", got)
+	}
+
+	log.New("test", "TRACE")
+	if got := log.GetLogLevel(); got != "TRACE" {
+		t.Fatalf("expected TRACE after explicit set, got %q", got)
+	}
+
+	// 2. Change via signal
+	ctx, cancel := context.WithCancel(context.Background())
+	signals := map[os.Signal]string{
+		syscall.SIGUSR1: "DEBUG",
+		syscall.SIGUSR2: "TRACE",
+	}
+	log.SetupLevelChangeOnSignal(ctx, signals)
+
+	p, _ := os.FindProcess(os.Getpid())
+	if err := p.Signal(syscall.SIGUSR1); err != nil {
+		t.Fatalf("failed to send SIGUSR1: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	if got := log.GetLogLevel(); got != "DEBUG" {
+		t.Fatalf("expected DEBUG after SIGUSR1, got %q", got)
+	}
+
+	// 3. No change if same level
+	if err := p.Signal(syscall.SIGUSR1); err != nil {
+		t.Fatalf("failed to send SIGUSR1: %v", err)
+	}
+	time.Sleep(50 * time.Millisecond)
+	if got := log.GetLogLevel(); got != "DEBUG" {
+		t.Fatalf("expected DEBUG unchanged after same-level signal, got %q", got)
+	}
+	cancel()
+
+	// 4. NSMLogger option effects
+	ctx, cancel = context.WithCancel(context.Background())
+	log.SetupLevelChangeOnSignal(ctx, signals, log.WithNSMLogger())
+	// Send 'TRACE'
+	if err := p.Signal(syscall.SIGUSR2); err != nil {
+		t.Fatalf("failed to send SIGUSR2: %v", err)
+	}
+	time.Sleep(50 * time.Millisecond)
+	if got := log.GetLogLevel(); got != "TRACE" {
+		t.Fatalf("expected TRACE after SIGUSR2, got %q", got)
+	}
+	if logrus.GetLevel() != logrus.TraceLevel {
+		t.Fatalf("expected logrus.TraceLevel, got %v", logrus.GetLevel())
+	}
+	if !nsmlog.IsTracingEnabled() {
+		t.Fatalf("expected NSMLogger tracing enabled for TRACE")
+	}
+	// Send 'DEBUG'
+	if err := p.Signal(syscall.SIGUSR1); err != nil {
+		t.Fatalf("failed to send SIGUSR1: %v", err)
+	}
+	time.Sleep(50 * time.Millisecond)
+	if got := log.GetLogLevel(); got != "DEBUG" {
+		t.Fatalf("expected DEBUG after SIGUSR1, got %q", got)
+	}
+	if logrus.GetLevel() != logrus.DebugLevel {
+		t.Fatalf("did not expect logrus.TraceLevel, got %v", logrus.GetLevel())
+	}
+	if nsmlog.IsTracingEnabled() {
+		t.Fatalf("expected NSMLogger tracing disabled for DEBUG")
+	}
+	// Send 'TRACE'
+	if err := p.Signal(syscall.SIGUSR2); err != nil {
+		t.Fatalf("failed to send SIGUSR2: %v", err)
+	}
+	time.Sleep(50 * time.Millisecond)
+	if got := log.GetLogLevel(); got != "TRACE" {
+		t.Fatalf("expected TRACE after SIGUSR2, got %q", got)
+	}
+	if logrus.GetLevel() != logrus.TraceLevel {
+		t.Fatalf("expected logrus.TraceLevel, got %v", logrus.GetLevel())
+	}
+	if !nsmlog.IsTracingEnabled() {
+		t.Fatalf("expected NSMLogger tracing enabled for TRACE")
+	}
+
+	// 5. Context cancel stops listening
+	cancel()
+	time.Sleep(50 * time.Millisecond)
+	if err := p.Signal(syscall.SIGUSR1); err != nil {
+		t.Fatalf("failed to send SIGUSR1: %v", err)
+	}
+	time.Sleep(50 * time.Millisecond)
+	if got := log.GetLogLevel(); got == "DEBUG" {
+		t.Fatalf("expected no level change after cancel, got %q", got)
+	}
+
+	// 6. Empty signals — just ensure no panic
+	ctx2, cancel2 := context.WithCancel(context.Background())
+	defer cancel2()
+	log.SetupLevelChangeOnSignal(ctx2, nil)
+	log.SetupLevelChangeOnSignal(ctx2, map[os.Signal]string{})
+	time.Sleep(20 * time.Millisecond)
 }
