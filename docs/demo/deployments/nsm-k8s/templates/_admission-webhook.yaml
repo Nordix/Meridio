@@ -1,0 +1,80 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: admission-webhook-sa
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: admission-webhook-role
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+rules:
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources:
+      - "mutatingwebhookconfigurations"
+    verbs: ["*"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: admission-webhook-binding
+subjects:
+  - kind: ServiceAccount
+    name: admission-webhook-sa
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: admission-webhook-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admission-webhook-k8s
+  labels:
+    app: admission-webhook-k8s
+spec:
+  selector:
+    matchLabels:
+      app: admission-webhook-k8s
+  template:
+    metadata:
+      labels:
+        app: admission-webhook-k8s
+    spec:
+      serviceAccount: admission-webhook-sa
+      containers:
+        - name: admission-webhook-k8s
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.admissionWebhookImage }}:{{ .Values.tag }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 443
+              scheme: HTTPS
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NSM_SERVICE_NAME
+              value: admission-webhook-svc
+            - name: NSM_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NSM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NSM_ANNOTATION
+              value: networkservicemesh.io
+            - name: NSM_CONTAINER_IMAGES
+              value: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.nscImage }}:{{ .Values.tag }}
+            - name: NSM_INIT_CONTAINER_IMAGES
+              value: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.nscInitImage }}:{{ .Values.tag }}
+            - name: NSM_LABELS
+              value: spiffe.io/spiffe-id:true
+            - name: NSM_ENVS
+              value: NSM_LOG_LEVEL=TRACE

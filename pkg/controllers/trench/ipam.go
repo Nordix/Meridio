@@ -94,6 +94,7 @@ func (i *IpamStatefulSet) insertParameters(dep *appsv1.StatefulSet) *appsv1.Stat
 	ret.ObjectMeta.Labels["app"] = ipamStatefulSetName
 	ret.Spec.Selector.MatchLabels["app"] = ipamStatefulSetName
 	ret.Spec.Template.ObjectMeta.Labels["app"] = ipamStatefulSetName
+	ret.Spec.Template.Spec.ServiceAccountName = common.IPAMServiceAccountName()
 
 	ret.Spec.ServiceName = ipamStatefulSetName
 

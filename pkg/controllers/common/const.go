@@ -36,6 +36,7 @@ const (
 	LogLevelEnv             = "LOG_LEVEL"
 	NspServiceAccountEnv    = "NSP_SERVICE_ACCOUNT"
 	FeServiceAccountEnv     = "FE_SERVICE_ACCOUNT"
+	IPAMServiceAccountEnv   = "IPAM_SERVICE_ACCOUNT"
 	GRPCHealthRPCTimeoutEnv = "GRPC_PROBE_RPC_TIMEOUT" // RPC timeout of grpc_health_probes run from code
 	ConduitMTU              = "CONDUIT_MTU"            // Control default Conduit MTU
 	ProxyIPReleaseDelayEnv  = "PROXY_IP_RELEASE_DELAY" // Duration how much the IP release of NSM connections in proxy should be delayed by.
@@ -90,6 +91,10 @@ func NSPServiceAccountName() string {
 
 func FEServiceAccountName() string {
 	return os.Getenv(FeServiceAccountEnv)
+}
+
+func IPAMServiceAccountName() string {
+	return os.Getenv(IPAMServiceAccountEnv)
 }
 
 func IPAMServiceName(trench *meridiov1.Trench) string {

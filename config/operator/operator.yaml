@@ -49,6 +49,8 @@ spec:
             value: "meridio-nsp"
           - name: FE_SERVICE_ACCOUNT
             value: "meridio-fes"
+          - name: IPAM_SERVICE_ACCOUNT
+            value: "meridio-ipam"
           - name: IMAGE_PULL_SECRET
             value: "" # multiple secrets supported, use "," as the delimiter
           - name: WATCH_NAMESPACE

@@ -39,4 +39,7 @@ type Config struct {
 	GarbageCollectionEnabled   bool          `default:"true" desc:"IP garbage collection enabled or disabled" split_words:"true"`
 	GarbageCollectionInterval  time.Duration `default:"2h" desc:"Interval at which IP garbage collection is running" split_words:"true"`
 	GarbageCollectionThreshold time.Duration `default:"40m" desc:"IP record older than threshold is considered leftover" split_words:"true"`
+	Name                       string        `default:"ipam" desc:"POD name" split_words:"true"`
+	Namespace                  string        `default:"default" desc:"Namespace the pod is running on" split_words:"true"`
+	LeaseName                  string        `default:"ipam-leader-lease" desc:"The name of the leader lease" split_words:"true"`
 }

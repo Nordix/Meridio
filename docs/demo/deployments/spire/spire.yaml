@@ -497,6 +497,11 @@ spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       serviceAccountName: my-spire-agent
+      tolerations:
+      - key: "dedicated"
+        operator: "Equal"
+        value: "ipam-worker"
+        effect: "NoSchedule"
       securityContext:
         {}
       

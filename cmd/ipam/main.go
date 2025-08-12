@@ -25,7 +25,9 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/kelseyhightower/envconfig"
@@ -45,6 +47,10 @@ import (
 	grpcHealth "google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/leaderelection"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 )
 
 func printHelp() {
@@ -106,11 +112,33 @@ func main() {
 	if err := health.RegisterStartupSubservices(ctx); err != nil {
 		logger.Error(err, "RegisterStartupSubservices")
 	}
-	if err := health.RegisterReadinessSubservices(ctx); err != nil {
+	if err := health.RegisterReadinessSubservices(ctx, health.IPAMReadinessServices...); err != nil {
 		logger.Error(err, "RegisterReadinessSubservices")
 	}
-	if err := health.RegisterLivenessSubservices(ctx, health.IPAMLivenessServices...); err != nil {
+	if err := health.RegisterLivenessSubservices(ctx); err != nil {
 		logger.Error(err, "RegisterLivenessSubservices")
+	}
+
+	restConfig, err := rest.InClusterConfig()
+	if err != nil {
+		log.Fatal(logger, "Failed to build kubeconfig", "error", err)
+	}
+	clientset, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		log.Fatal(logger, "Error building kubernetes clientset", "error", err)
+	}
+	leaseLock, err := resourcelock.New(
+		resourcelock.LeasesResourceLock,
+		config.Namespace,
+		config.LeaseName,
+		clientset.CoreV1(),
+		clientset.CoordinationV1(),
+		resourcelock.ResourceLockConfig{
+			Identity: config.Name,
+		},
+	)
+	if err != nil {
+		log.Fatal(logger, "Error vreating lease lock", "error", err)
 	}
 
 	// connect NSP
@@ -143,6 +171,74 @@ func main() {
 	if err := connection.Monitor(ctx, health.NSPCliSvc, conn); err != nil {
 		logger.Error(err, "NSP connection state monitor")
 	}
+
+	var serviceCancel context.CancelFunc
+	var mu sync.Mutex
+	leaderElector, err := leaderelection.NewLeaderElector(leaderelection.LeaderElectionConfig{
+		Lock:          leaseLock,
+		LeaseDuration: 15 * time.Second,
+		RenewDeadline: 10 * time.Second,
+		RetryPeriod:   2 * time.Second,
+		Callbacks: leaderelection.LeaderCallbacks{
+			OnStartedLeading: func(ctx context.Context) {
+				logger.Info("I'm the leader now", "ID", config.Name)
+				mu.Lock()
+				defer mu.Unlock()
+				serviceCancel = startService(ctx, conn, config, logger)
+			},
+			OnStoppedLeading: func() {
+				logger.Info("No longer the leader, staying inactive")
+				mu.Lock()
+				defer mu.Unlock()
+				if serviceCancel != nil {
+					serviceCancel()
+					serviceCancel = nil
+				}
+			},
+			OnNewLeader: func(currentID string) {
+				if currentID == config.Name {
+					logger.Info("I'm still the leader")
+					return
+				}
+				logger.Info("New/current leader", "ID", currentID)
+			},
+		},
+	})
+	if err != nil {
+		log.Fatal(logger, "Failed to create leader elector", "error", err)
+	}
+
+	// internal probe checking health of IPAM server
+	probe.CreateAndRunGRPCHealthProbe(
+		ctx,
+		health.IPAMSvc,
+		probe.WithAddress(fmt.Sprintf(":%d", config.Port)),
+		probe.WithSpiffe(),
+		probe.WithRPCTimeout(config.GRPCProbeRPCTimeout),
+	)
+
+	go func() {
+		leaderElector.Run(ctx)
+		logger.Info("Leader election loop stopped...")
+	}()
+
+	<-ctx.Done()
+}
+
+func startServer(ctx context.Context, server *grpc.Server, listener net.Listener) error {
+	defer func() {
+		_ = listener.Close()
+	}()
+	// montior context in separate goroutine to be able to stop server
+	go func() {
+		<-ctx.Done()
+		server.Stop()
+	}()
+	return server.Serve(listener)
+}
+
+func startService(ctx context.Context, conn *grpc.ClientConn, config Config, logger logr.Logger) context.CancelFunc {
+	ctx, cancel := context.WithCancel(ctx)
 
 	prefixLengths := make(map[ipamAPI.IPFamily]*types.PrefixLengths)
 	cidrs := make(map[ipamAPI.IPFamily]string)
@@ -188,28 +284,9 @@ func main() {
 		log.Fatal(logger, "Failed to listen", "error", err)
 	}
 
-	// internal probe checking health of IPAM server
-	probe.CreateAndRunGRPCHealthProbe(
-		ctx,
-		health.IPAMSvc,
-		probe.WithAddress(fmt.Sprintf(":%d", config.Port)),
-		probe.WithSpiffe(),
-		probe.WithRPCTimeout(config.GRPCProbeRPCTimeout),
-	)
-
 	if err := startServer(ctx, server, listener); err != nil {
-		logger.Error(err, "IPAM Service: failed to serve: %v")
+		logger.Info("IPAM Service stopped serving", "error", err)
 	}
-}
 
-func startServer(ctx context.Context, server *grpc.Server, listener net.Listener) error {
-	defer func() {
-		_ = listener.Close()
-	}()
-	// montior context in separate goroutine to be able to stop server
-	go func() {
-		<-ctx.Done()
-		server.Stop()
-	}()
-	return server.Serve(listener)
+	return cancel
 }
