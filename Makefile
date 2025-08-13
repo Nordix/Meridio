@@ -298,7 +298,7 @@ mockgen:
 
 .PHONY: ginkgo
 ginkgo:
-	$(call go-get-tool,$(GINKGO),github.com/onsi/ginkgo/v2/ginkgo@v2.14.0)
+	$(call go-get-tool,$(GINKGO),github.com/onsi/ginkgo/v2/ginkgo@v2.22.0)
 
 .PHONY: nancy-tool
 nancy-tool:

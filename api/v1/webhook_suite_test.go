@@ -25,7 +25,7 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
@@ -39,25 +39,24 @@ import (
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
-// http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
+// https://onsi.github.io/ginkgo/ to learn more about Ginkgo.
 
-var k8sClient client.Client
-var testEnv *envtest.Environment
-var ctx context.Context
-var cancel context.CancelFunc
+var (
+	k8sClient client.Client
+	testEnv   *envtest.Environment
+	ctx       context.Context
+	cancel    context.CancelFunc
+)
 
 func TestAPIs(t *testing.T) {
 	if testing.Short() { // TODO
 		t.Skip()
 	}
 	RegisterFailHandler(Fail)
-
-	RunSpecsWithDefaultAndCustomReporters(t,
-		"Webhook Suite",
-		[]Reporter{})
+	RunSpecs(t, "Webhook Suite")
 }
 
-var _ = BeforeSuite(func() {
+var _ = BeforeSuite(func(sctx SpecContext) {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
 
 	ctx, cancel = context.WithCancel(context.TODO())
@@ -96,34 +95,19 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).NotTo(HaveOccurred())
 
-	err = (&Trench{}).SetupWebhookWithManager(mgr)
-	Expect(err).NotTo(HaveOccurred())
-
-	err = (&Vip{}).SetupWebhookWithManager(mgr)
-	Expect(err).NotTo(HaveOccurred())
-
-	err = (&Attractor{}).SetupWebhookWithManager(mgr)
-	Expect(err).NotTo(HaveOccurred())
-
-	err = (&Gateway{}).SetupWebhookWithManager(mgr)
-	Expect(err).NotTo(HaveOccurred())
-
-	err = (&Flow{}).SetupWebhookWithManager(mgr)
-	Expect(err).NotTo(HaveOccurred())
-
-	err = (&Conduit{}).SetupWebhookWithManager(mgr)
-	Expect(err).NotTo(HaveOccurred())
-
-	err = (&Stream{}).SetupWebhookWithManager(mgr)
-	Expect(err).NotTo(HaveOccurred())
+	Expect((&Trench{}).SetupWebhookWithManager(mgr)).To(Succeed())
+	Expect((&Vip{}).SetupWebhookWithManager(mgr)).To(Succeed())
+	Expect((&Attractor{}).SetupWebhookWithManager(mgr)).To(Succeed())
+	Expect((&Gateway{}).SetupWebhookWithManager(mgr)).To(Succeed())
+	Expect((&Flow{}).SetupWebhookWithManager(mgr)).To(Succeed())
+	Expect((&Conduit{}).SetupWebhookWithManager(mgr)).To(Succeed())
+	Expect((&Stream{}).SetupWebhookWithManager(mgr)).To(Succeed())
 
 	//+kubebuilder:scaffold:webhook
 
 	go func() {
 		err = mgr.Start(ctx)
-		if err != nil {
-			Expect(err).NotTo(HaveOccurred())
-		}
+		Expect(err).NotTo(HaveOccurred())
 	}()
 
 	// wait for the webhook server to get ready
@@ -137,8 +121,7 @@ var _ = BeforeSuite(func() {
 		conn.Close()
 		return nil
 	}).Should(Succeed())
-
-}, 60)
+}, NodeTimeout(60*time.Second))
 
 var _ = AfterSuite(func() {
 	cancel()

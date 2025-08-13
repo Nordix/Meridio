@@ -7,7 +7,7 @@ import (
 
 	meridiov1 "github.com/nordix/meridio/api/v1"
 	"github.com/nordix/meridio/pkg/controllers/common"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
