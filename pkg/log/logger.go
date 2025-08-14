@@ -53,6 +53,9 @@ func FromContextOrGlobal(ctx context.Context) logr.Logger {
 // New returns a new logger. The level may be "DEBUG" (V(1)) or "TRACE" (V(2)),
 // any other string (e.g. "") is interpreted as "INFO" (V(0)). On first call
 // the global Logger is set.
+// The log level is stored in a package-level (global) variable. Any call to
+// New(...) updates this shared log level for all loggers, including the
+// initially created global Logger.
 func New(name, level string) logr.Logger {
 	logger := newLogger(level).WithName(name)
 	once.Do(func() { Logger = logger })
@@ -160,8 +163,12 @@ func setLogLevelByName(level string) {
 
 	levelMu.Lock()
 	defer levelMu.Unlock()
-	currentLevel = level
-	atomicLevel.SetLevel(zapcore.Level(lvl))
+	if currentLevel != level {
+		Logger.WithValues("logger", "setLogLevelByName").
+			Info(fmt.Sprintf("Changing log level to '%s' from '%s'", level, currentLevel))
+		currentLevel = level
+		atomicLevel.SetLevel(zapcore.Level(lvl))
+	}
 }
 
 type Option func(level string)
@@ -215,13 +222,6 @@ func SetupLevelChangeOnSignal(ctx context.Context, signals map[os.Signal]string,
 				return
 			case sig := <-sigChannel:
 				levelStr := signals[sig]
-				if levelStr == currentLevel {
-					FromContextOrGlobal(ctx).WithValues("logger", "SetupLevelChangeOnSignal").
-						Info(fmt.Sprintf("Received signal %s but log level is already '%s'; no change", sig, levelStr))
-					continue
-				}
-				FromContextOrGlobal(ctx).WithValues("logger", "SetupLevelChangeOnSignal").
-					Info(fmt.Sprintf("Setting log level to '%s'", levelStr))
 				setLogLevelByName(levelStr)
 				for _, opt := range opts {
 					opt(levelStr)
