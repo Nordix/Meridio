@@ -211,7 +211,7 @@ func (r *Flow) validateFlow() error {
 					// errors here, preventing spurious validation failures due to transient unsynchronized states
 					// between Flow and Stream objects.
 					//
-					// TODO: Because of the design decision not to perform extensice dependency checks, admission
+					// TODO: Because of the design decision not to perform extensive dependency checks, admission
 					// webhook is not the right place for checking VIP conflicts.
 					combinedDetailForUser := fmt.Sprintf("a vip cannot be shared between 2 conduits in this version: %s, %s",
 						fmt.Sprintf("incoming flow %q (%s)", r.Name, myStreamDescription), strings.Join(hardConflictDetails, ", "))
