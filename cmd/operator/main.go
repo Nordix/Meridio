@@ -22,6 +22,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"syscall"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -122,6 +123,10 @@ func (x509Watcher) OnX509ContextWatchError(err error) {
 }
 
 func main() {
+	// Create a context that will be used to stop signal watching when the app exits
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	var metricsAddr, probeAddr string
 	var enableLeaderElection bool
 
@@ -157,6 +162,12 @@ func main() {
 
 	logger := log.New("Operator", os.Getenv(common.LogLevelEnv))
 	ctrl.SetLogger(logger)
+
+	// Set up dynamic log level change via signals
+	log.SetupLevelChangeOnSignal(ctx, map[os.Signal]string{
+		syscall.SIGUSR1: common.LogLevelEnv,
+		syscall.SIGUSR2: "TRACE",
+	})
 
 	// Set operator scope to the namespace where the operator pod exists
 	// An empty value means the operator is running with cluster scope

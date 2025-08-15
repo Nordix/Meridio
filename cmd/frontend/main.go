@@ -96,6 +96,12 @@ func main() {
 	)
 	defer cancel()
 
+	// Set up dynamic log level change via signals
+	log.SetupLevelChangeOnSignal(ctx, map[os.Signal]string{
+		syscall.SIGUSR1: config.LogLevel,
+		syscall.SIGUSR2: "TRACE",
+	})
+
 	hostname, err := os.Hostname()
 	if err != nil {
 		log.Fatal(logger, "Unable to get hostname", "error", err)

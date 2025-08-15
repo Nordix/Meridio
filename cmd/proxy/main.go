@@ -115,6 +115,12 @@ func main() {
 	nsmlog.SetGlobalLogger(nsmlogger)
 	ctx = nsmlog.WithLog(ctx, nsmlogger)
 
+	// Set up dynamic log level change via signals
+	log.SetupLevelChangeOnSignal(ctx, map[os.Signal]string{
+		syscall.SIGUSR1: config.LogLevel,
+		syscall.SIGUSR2: "TRACE",
+	}, log.WithNSMLogger())
+
 	// create and start health server
 	ctx = health.CreateChecker(ctx)
 	if err := health.RegisterReadinessSubservices(ctx, health.ProxyReadinessServices...); err != nil {
