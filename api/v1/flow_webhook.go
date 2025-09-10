@@ -122,115 +122,7 @@ func (r *Flow) validateFlow() error {
 			"priority must be larger than 0"))
 	}
 
-	fl := &FlowList{}
-	sel := labels.Set{"trench": r.ObjectMeta.Labels["trench"]}
-	err := flowClient.List(context.TODO(), fl, &client.ListOptions{
-		LabelSelector: sel.AsSelector(),
-		Namespace:     r.ObjectMeta.Namespace,
-	})
-	if err != nil {
-		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.Vips,
-			fmt.Sprintf("unable to get flows for vip validation: %v", err)))
-	} else {
-		sl := &StreamList{}
-		sel := labels.Set{"trench": r.ObjectMeta.Labels["trench"]}
-		err := flowClient.List(context.TODO(), sl, &client.ListOptions{
-			LabelSelector: sel.AsSelector(),
-			Namespace:     r.ObjectMeta.Namespace,
-		})
-		if err != nil {
-			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.Vips,
-				fmt.Sprintf("unable to get streams for vip validation: %v", err)))
-		} else {
-			vipConflictDetected := false
-			allConflictDetails := []string{}
-			hardConflictDetails := []string{}
-			streams := map[string]Stream{}
-			currentConduit := "" // conduit of the incoming flow
-			for _, stream := range sl.Items {
-				streams[stream.ObjectMeta.Name] = stream
-				if stream.ObjectMeta.Name == r.Spec.Stream {
-					currentConduit = stream.Spec.Conduit
-				}
-			}
-			vips := map[string]struct{}{}
-			for _, vip := range r.Spec.Vips {
-				vips[vip] = struct{}{}
-			}
-			for _, flow := range fl.Items {
-				if flow.ObjectMeta.Name == r.ObjectMeta.Name && flow.ObjectMeta.Namespace == r.ObjectMeta.Namespace {
-					continue
-				}
-				stream, otherStreamExists := streams[flow.Spec.Stream]
-				if otherStreamExists && stream.Spec.Conduit == currentConduit {
-					continue
-				}
-
-				conflictingVips := []string{}
-				otherStreamDescription := fmt.Sprintf("stream %q (conduit %q)", flow.Spec.Stream, stream.Spec.Conduit)
-				if !otherStreamExists {
-					otherStreamDescription = fmt.Sprintf("stream %q (not found)", flow.Spec.Stream)
-				}
-
-				for _, vip := range flow.Spec.Vips {
-					_, exists := vips[vip]
-					if exists {
-						vipConflictDetected = true
-						conflictingVips = append(conflictingVips, vip)
-					}
-				}
-
-				if len(conflictingVips) > 0 {
-					details := fmt.Sprintf("flow %q (%s) conflicts on vip(s) [%s]",
-						flow.ObjectMeta.Name, otherStreamDescription, strings.Join(conflictingVips, ", "))
-					allConflictDetails = append(allConflictDetails, details)
-					if currentConduit != "" && otherStreamExists {
-						// This indicates a "hard conflict": both the incoming Flow's
-						// Stream and the conflicting Flow's Stream were found in the
-						// cluster, allowing a direct comparison of their Conduits.
-						hardConflictDetails = append(hardConflictDetails, details)
-					}
-				}
-			}
-
-			if vipConflictDetected {
-				myStreamDescription := fmt.Sprintf("%q (conduit %q)", r.Spec.Stream, currentConduit)
-				if currentConduit == "" {
-					myStreamDescription = fmt.Sprintf("%q (not found)", r.Spec.Stream)
-				}
-
-				if len(hardConflictDetails) > 0 {
-					// Issue a user-facing error only for "hard conflicts." A hard conflict occurs when
-					// both the incoming Flow's stream and the conflicting Flow's stream (and their conduits)
-					// are explicitly found in the cluster, indicating a verifiable VIP sharing violation.
-					//
-					// Background: An early design decision was made that Flow create/update validation should not
-					// perform extensive dependency checks towards other associated Custom Resources (like Streams)
-					// for user convenience during complex deployments. Therefore, "soft conflicts" (e.g., those
-					// involving streams that are not yet found or are in an unknown state) are not treated as strict
-					// errors here, preventing spurious validation failures due to transient unsynchronized states
-					// between Flow and Stream objects.
-					//
-					// TODO: Because of the design decision not to perform extensive dependency checks, admission
-					// webhook is not the right place for checking VIP conflicts.
-					combinedDetailForUser := fmt.Sprintf("a vip cannot be shared between 2 conduits in this version: %s, %s",
-						fmt.Sprintf("incoming flow %q (%s)", r.Name, myStreamDescription), strings.Join(hardConflictDetails, ", "))
-					allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.Vips, combinedDetailForUser))
-				}
-
-				logPrefix := ""
-				if len(hardConflictDetails) == 0 {
-					logPrefix = "possible "
-				}
-
-				// Log all conflicts (hard and soft) for full visibility and debugging
-				flowlog.Info(fmt.Sprintf("validate flow: %svip conflict detected", logPrefix),
-					"flow", r.Name,
-					"stream", myStreamDescription,
-					"details", strings.Join(allConflictDetails, "; "))
-			}
-		}
-	}
+	allErrs = append(allErrs, r.validateVips()...)
 
 	if p, err := validateByteMatches(r.Spec.ByteMatches); err != nil {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("byte-matches"), p,
@@ -314,6 +206,131 @@ func validateSubnets(subnets []string) (string, error) {
 		allNonOverlappingSubnets = append(allNonOverlappingSubnets, n)
 	}
 	return "", nil
+}
+
+// validateVips performs the complex validation for the Flow's VIPs.
+// It checks for potential conflicts with other existing Flows in the same trench.
+// The function distinguishes between "hard" conflicts (where both the incoming
+// flow and a conflicting flow are found in the cluster with known conduits)
+// and "soft" conflicts (where dependency information is not yet available).
+// Hard conflicts are treated as user-facing validation errors, while all conflicts
+// are logged for debugging and visibility.
+// It requires access to a Kubernetes client to list other Flow and Stream objects.
+//
+// TODO: Because of the design decision not to perform extensive dependency checks,
+// admission webhook is not the right place for checking VIP conflicts.
+func (r *Flow) validateVips() field.ErrorList {
+	var allErrs field.ErrorList
+	fl := &FlowList{}
+	sel := labels.Set{"trench": r.ObjectMeta.Labels["trench"]}
+	err := flowClient.List(context.TODO(), fl, &client.ListOptions{
+		LabelSelector: sel.AsSelector(),
+		Namespace:     r.ObjectMeta.Namespace,
+	})
+	if err != nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.Vips,
+			fmt.Sprintf("unable to get flows for vip validation: %v", err)))
+		return allErrs
+	}
+
+	sl := &StreamList{}
+	sel = labels.Set{"trench": r.ObjectMeta.Labels["trench"]}
+	err = flowClient.List(context.TODO(), sl, &client.ListOptions{
+		LabelSelector: sel.AsSelector(),
+		Namespace:     r.ObjectMeta.Namespace,
+	})
+	if err != nil {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.Vips,
+			fmt.Sprintf("unable to get streams for vip validation: %v", err)))
+		return allErrs
+	}
+
+	vipConflictDetected := false
+	allConflictDetails := []string{}
+	hardConflictDetails := []string{}
+	streams := map[string]Stream{}
+	currentConduit := "" // conduit of the incoming flow
+	for _, stream := range sl.Items {
+		streams[stream.ObjectMeta.Name] = stream
+		if stream.ObjectMeta.Name == r.Spec.Stream {
+			currentConduit = stream.Spec.Conduit
+		}
+	}
+	vips := map[string]struct{}{}
+	for _, vip := range r.Spec.Vips {
+		vips[vip] = struct{}{}
+	}
+	for _, flow := range fl.Items {
+		if flow.ObjectMeta.Name == r.ObjectMeta.Name && flow.ObjectMeta.Namespace == r.ObjectMeta.Namespace {
+			continue
+		}
+		stream, otherStreamExists := streams[flow.Spec.Stream]
+		if otherStreamExists && stream.Spec.Conduit == currentConduit {
+			continue
+		}
+
+		conflictingVips := []string{}
+		otherStreamDescription := fmt.Sprintf("stream %q (conduit %q)", flow.Spec.Stream, stream.Spec.Conduit)
+		if !otherStreamExists {
+			otherStreamDescription = fmt.Sprintf("stream %q (not found)", flow.Spec.Stream)
+		}
+
+		for _, vip := range flow.Spec.Vips {
+			_, exists := vips[vip]
+			if exists {
+				vipConflictDetected = true
+				conflictingVips = append(conflictingVips, vip)
+			}
+		}
+
+		if len(conflictingVips) > 0 {
+			details := fmt.Sprintf("flow %q (%s) conflicts on vip(s) [%s]",
+				flow.ObjectMeta.Name, otherStreamDescription, strings.Join(conflictingVips, ", "))
+			allConflictDetails = append(allConflictDetails, details)
+
+			// This indicates a "hard conflict": both the incoming Flow's
+			// Stream and the conflicting Flow's Stream were found in the
+			// cluster, allowing a direct comparison of their Conduits.
+			if currentConduit != "" && otherStreamExists {
+				hardConflictDetails = append(hardConflictDetails, details)
+			}
+		}
+	}
+
+	if vipConflictDetected {
+		myStreamDescription := fmt.Sprintf("%q (conduit %q)", r.Spec.Stream, currentConduit)
+		if currentConduit == "" {
+			myStreamDescription = fmt.Sprintf("%q (not found)", r.Spec.Stream)
+		}
+
+		// Issue a user-facing error only for "hard conflicts." A hard conflict occurs when
+		// both the incoming Flow's stream and the conflicting Flow's stream (and their conduits)
+		// are explicitly found in the cluster, indicating a verifiable VIP sharing violation.
+		//
+		// Background: An early design decision was made that Flow create/update validation should not
+		// perform extensive dependency checks towards other associated Custom Resources (like Streams)
+		// for user convenience during complex deployments. Therefore, "soft conflicts" (e.g., those
+		// involving streams that are not yet found or are in an unknown state) are not treated as strict
+		// errors here, preventing spurious validation failures due to transient unsynchronized states
+		// between Flow and Stream objects.
+		if len(hardConflictDetails) > 0 {
+			combinedDetailForUser := fmt.Sprintf("a vip cannot be shared between 2 conduits in this version: %s, %s",
+				fmt.Sprintf("incoming flow %q (%s)", r.Name, myStreamDescription), strings.Join(hardConflictDetails, ", "))
+			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("vips"), r.Spec.Vips, combinedDetailForUser))
+		}
+
+		logPrefix := ""
+		if len(hardConflictDetails) == 0 {
+			logPrefix = "possible "
+		}
+
+		// Log all conflicts (hard and soft) for full visibility and debugging
+		flowlog.Info(fmt.Sprintf("validate flow: %svip conflict detected", logPrefix),
+			"flow", r.Name,
+			"stream", myStreamDescription,
+			"details", strings.Join(allConflictDetails, "; "))
+	}
+	return allErrs
 }
 
 func (r *Flow) validateUpdate(oldObj runtime.Object) error {
