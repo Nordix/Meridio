@@ -24,6 +24,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 
 	"github.com/nordix/meridio/pkg/log"
+	"github.com/nordix/meridio/pkg/logutils"
 )
 
 const MAX_INTERFACE_NAME_LENGTH = 15
@@ -122,14 +123,20 @@ func (ins *interfaceNameSetter) setInterfaceNameMechanism(request *networkservic
 					// TAPA the interface should be also present in the POD, so it wouldn't be wise to just release
 					// the name anyways... Overall, probably the timeout based approach would work the best in case
 					// of interface name allocation...
-					log.Logger.Info("setInterfaceNameMechanism", "connection ID", id, "interface", interfaceName, "preferred interface", prefVal)
+					log.Logger.Info("setInterfaceNameMechanism", logutils.ToKV(
+						logutils.ConnectionIDValue(id),
+						logutils.InterfaceNameValue(interfaceName),
+						logutils.PreferredInterfaceNameValue(prefVal),
+					)...)
 					break
 				} else {
 					// If interface name cannot be reused (e.g. because it's already taken by another connection),
 					// then let's ask for a reselect. Otherwise, policy based routes would be a mess (either missing
 					// or scrambled). In my test with reselect the policy based routes ended up correct, although the
 					// connection was first closed and then reopened by NSM due to the reselect.
-					log.Logger.Info("setInterfaceNameMechanism requesting reselect due to interface name update", "connection ID", id)
+					log.Logger.Info("setInterfaceNameMechanism requesting reselect due to interface name update", logutils.ToKV(
+						logutils.ConnectionIDValue(id),
+					)...)
 					request.GetConnection().State = networkservice.State_RESELECT_REQUESTED
 				}
 			}
@@ -146,7 +153,8 @@ func (ins *interfaceNameSetter) setInterfaceNameMechanismPreferences(request *ne
 	if request == nil || request.GetMechanismPreferences() == nil {
 		return
 	}
-	logger := log.Logger.WithValues("func", "setInterfaceNameMechanismPreferences")
+	logger := log.Logger.WithValues(logutils.ToKV(
+		logutils.FunctionValue("setInterfaceNameMechanismPreferences"))...)
 	for _, mechanism := range request.GetMechanismPreferences() {
 		if mechanism.GetParameters() == nil {
 			mechanism.Parameters = map[string]string{}
@@ -183,7 +191,11 @@ func (ins *interfaceNameSetter) setInterfaceNameMechanismPreferences(request *ne
 					// Note: If the request fails to establish connection, the UnsetInterfaceName() called
 					// by the client Request on the error path should release the interface name.
 					if val != interfaceName {
-						logger.Info("Use interface name as preferred", "connection ID", conn.Id, "interface", interfaceName, "preferred interface", val)
+						logger.Info("Use interface name as preferred", logutils.ToKV(
+							logutils.ConnectionIDValue(conn.Id),
+							logutils.InterfaceNameValue(interfaceName),
+							logutils.PreferredInterfaceNameValue(val),
+						)...)
 						val = interfaceName
 					}
 				} else { // cannot use preferred name, clear val so that a new name could be generated

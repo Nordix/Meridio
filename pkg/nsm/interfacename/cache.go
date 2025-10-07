@@ -25,6 +25,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/nordix/meridio/pkg/log"
+	"github.com/nordix/meridio/pkg/logutils"
 )
 
 const defaultReleaseTimeout = 600 * time.Second
@@ -112,15 +113,21 @@ func (inc *InterfaceNameChache) CheckAndReserve(id string, preferredName string,
 	inc.mu.Lock()
 	defer inc.mu.Unlock()
 
-	logger := inc.logger.WithValues("func", "CheckAndReserve", "preferred interface", preferredName, "ID", id)
+	logger := inc.logger.WithValues(logutils.ToKV(
+		logutils.FunctionValue("CheckAndReserve"))...).
+		WithValues("preferred interface", preferredName, "ID", id)
 	cachedInterfaceName, exists := inc.interfaceNames[id]
 	if exists {
 		if cachedInterfaceName.cancelRelease != nil {
-			logger.V(1).Info("cancel pending release", "interface", cachedInterfaceName.name)
+			logger.V(1).Info("cancel pending release", logutils.ToKV(
+				logutils.InterfaceNameValue(cachedInterfaceName.name),
+			)...)
 			cachedInterfaceName.cancelRelease()
 			cachedInterfaceName.cancelRelease = nil
 		}
-		logger.V(1).Info("interface name from cache", "interface", cachedInterfaceName.name)
+		logger.V(1).Info("interface name from cache", logutils.ToKV(
+			logutils.InterfaceNameValue(cachedInterfaceName.name),
+		)...)
 		return cachedInterfaceName.name
 	}
 
@@ -149,22 +156,30 @@ func (inc *InterfaceNameChache) Generate(id string, namePrefix string, maxLength
 	inc.mu.Lock()
 	defer inc.mu.Unlock()
 
-	logger := inc.logger.WithValues("func", "Generate", "ID", id)
+	logger := inc.logger.WithValues(logutils.ToKV(
+		logutils.FunctionValue("Generate"))...).
+		WithValues("ID", id)
 	cachedInterfaceName, exists := inc.interfaceNames[id]
 	if exists {
 		if cachedInterfaceName.cancelRelease != nil {
-			logger.V(1).Info("cancel pending release", "interface", cachedInterfaceName.name)
+			logger.V(1).Info("cancel pending release", logutils.ToKV(
+				logutils.InterfaceNameValue(cachedInterfaceName.name),
+			)...)
 			cachedInterfaceName.cancelRelease()
 			cachedInterfaceName.cancelRelease = nil
 		}
-		logger.V(1).Info("interface name from cache", "interface", cachedInterfaceName.name)
+		logger.V(1).Info("interface name from cache", logutils.ToKV(
+			logutils.InterfaceNameValue(cachedInterfaceName.name),
+		)...)
 		return cachedInterfaceName.name
 	}
 
 	name := inc.nameGenerator.Generate(namePrefix, maxLength)
 	inc.interfaceNames[id] = &interfaceName{name: name}
 	inc.interfaceNamesInUse[name] = id
-	logger.Info("new interface name", "interface", name)
+	logger.Info("new interface name", logutils.ToKV(
+		logutils.InterfaceNameValue(name),
+	)...)
 
 	return name
 }
@@ -177,7 +192,9 @@ func (inc *InterfaceNameChache) Release(id string) {
 	inc.mu.Lock()
 	defer inc.mu.Unlock()
 
-	logger := inc.logger.WithValues("func", "Release", "ID", id)
+	logger := inc.logger.WithValues(logutils.ToKV(
+		logutils.FunctionValue("Release"))...).
+		WithValues("ID", id)
 	cachedInterfaceName, exists := inc.interfaceNames[id]
 	if !exists {
 		logger.Info("no interface name in cache")
@@ -202,14 +219,19 @@ func (inc *InterfaceNameChache) Release(id string) {
 	default:
 		// start delayed release
 		go func() {
-			logger.V(1).Info("schedule release", "interface", name)
+			logger.V(1).Info("schedule release", logutils.ToKV(
+				logutils.InterfaceNameValue(name),
+			)...)
 			inc.pendingRelease(cancelCtx, releaseCh, id, name)
 		}()
 	}
 }
 
 func (inc *InterfaceNameChache) pendingRelease(ctx context.Context, releaseCh <-chan struct{}, id string, name string) {
-	logger := inc.logger.WithValues("func", "pendingRelease", "ID", id, "interface", name)
+	logger := inc.logger.WithValues("ID", id).WithValues(logutils.ToKV(
+		logutils.FunctionValue("pendingRelease"),
+		logutils.InterfaceNameValue(name),
+	)...)
 	select {
 	case _, ok := <-releaseCh:
 		// if closed, do not release
@@ -228,7 +250,10 @@ func (inc *InterfaceNameChache) pendingRelease(ctx context.Context, releaseCh <-
 
 // must be called with lock held
 func (inc *InterfaceNameChache) release(_ context.Context, id string, name string) {
-	logger := inc.logger.WithValues("func", "release", "ID", id, "interface", name)
+	logger := inc.logger.WithValues("ID", id).WithValues(logutils.ToKV(
+		logutils.FunctionValue("release"),
+		logutils.InterfaceNameValue(name),
+	)...)
 	_, exists := inc.interfaceNames[id]
 	if !exists {
 		logger.Info("no interface name in cache")

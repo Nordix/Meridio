@@ -23,6 +23,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 	"github.com/nordix/meridio/pkg/log"
+	"github.com/nordix/meridio/pkg/logutils"
 	"github.com/nordix/meridio/pkg/networking"
 )
 
@@ -98,7 +99,11 @@ func (im *interfaceMonitor) ConnectionClosed(conn *connection, interfaceType net
 			}
 			// log the ID of "nsc" path segment for visibility
 			im.logger.V(1).Info("no interface index on connection close",
-				"id", id, "interfaceType", interfaceType, "err", err)
+				logutils.ToKV(
+					logutils.ConnectionIDValue(id),
+					logutils.InterfaceTypeValue(interfaceType),
+					logutils.ErrorValue(err),
+				)...)
 		}
 		// XXX: Instead of return, maybe consider informing users even without a valid
 		// interface index. (IMHO not needed assuming kernel originated delete event
@@ -168,12 +173,20 @@ func (im *interfaceMonitor) advertiseInterfaceCreation(index int, pendingInterfa
 	newInterface.SetNeighborPrefixes(pendingInterface.neighborIPs)
 	newInterface.SetGatewayPrefixes(pendingInterface.gateways)
 	newInterface.SetInterfaceType(pendingInterface.InterfaceType)
-	im.logger.V(1).Info("advertise created", "interface", newInterface, "index", newInterface.GetIndex())
+	im.logger.V(1).Info("advertise created",
+		logutils.ToKV(
+			logutils.InterfaceObjectValue(newInterface),
+			logutils.InterfaceIndexValue(newInterface.GetIndex()),
+		)...)
 	im.interfaceMonitorSubscriber.InterfaceCreated(newInterface)
 }
 
 func (im *interfaceMonitor) advertiseInterfaceDeletion(intf networking.Iface) {
-	im.logger.V(1).Info("advertise deleted", "interface", intf, "index", intf.GetIndex())
+	im.logger.V(1).Info("advertise deleted",
+		logutils.ToKV(
+			logutils.InterfaceObjectValue(intf),
+			logutils.InterfaceIndexValue(intf.GetIndex()),
+		)...)
 	im.interfaceMonitorSubscriber.InterfaceDeleted(intf)
 }
 

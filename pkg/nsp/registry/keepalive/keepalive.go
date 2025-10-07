@@ -25,6 +25,7 @@ import (
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/log"
+	"github.com/nordix/meridio/pkg/logutils"
 	"github.com/nordix/meridio/pkg/nsp/registry/sqlite"
 	"github.com/nordix/meridio/pkg/nsp/types"
 )
@@ -125,10 +126,12 @@ func (ka *KeepAlive) Get(ctx context.Context, target *nspAPI.Target) ([]*nspAPI.
 func (ka *KeepAlive) add(target *nspAPI.Target) {
 	kaTarget, exists := ka.targets[sqlite.GetTargetID(target)]
 	if exists {
-		log.Logger.Info("Update/refresh", "target", target)
+		log.Logger.Info("Update/refresh", logutils.ToKV(
+			logutils.TargetValue(target))...)
 		kaTarget.contextCancel()
 	} else {
-		log.Logger.Info("Register", "target", target)
+		log.Logger.Info("Register", logutils.ToKV(
+			logutils.TargetValue(target))...)
 	}
 	ctx, cancel := context.WithCancel(context.TODO())
 	ka.targets[sqlite.GetTargetID(target)] = &keepAliveTarget{
@@ -143,7 +146,8 @@ func (ka *KeepAlive) add(target *nspAPI.Target) {
 
 func (ka *KeepAlive) remove(ctx context.Context, target *nspAPI.Target) error {
 	delete(ka.targets, sqlite.GetTargetID(target))
-	log.Logger.Info("Unregister", "target", target)
+	log.Logger.Info("Unregister", logutils.ToKV(
+		logutils.TargetValue(target))...)
 	if ka.TargetRegistry == nil {
 		return nil
 	}

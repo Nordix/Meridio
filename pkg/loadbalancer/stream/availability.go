@@ -28,6 +28,7 @@ import (
 
 	lbAPI "github.com/nordix/meridio/api/loadbalancer/v1"
 	"github.com/nordix/meridio/pkg/log"
+	"github.com/nordix/meridio/pkg/logutils"
 )
 
 // ForwardingAvailabilityService keeps track of forwarding plane availability
@@ -98,14 +99,17 @@ func (fas *ForwardingAvailabilityService) Watch(_ *emptypb.Empty, watcher lbAPI.
 			if ok {
 				var err error
 				target := fas.getTarget()
-				fas.logger.V(1).Info("Watch", "target", target)
+				fas.logger.V(1).Info("Watch", logutils.ToKV(
+					logutils.LbApiTargetValue(target))...)
 				if lastSentTarget == nil || !proto.Equal(lastSentTarget, target) {
 					err = watcher.Send(&lbAPI.Response{Targets: []*lbAPI.Target{target}})
 					if err == nil {
 						lastSentTarget = target // Update lastSentTarget ONLY if send was successful
 					}
 				} else {
-					fas.logger.V(1).Info("Watch skipped duplicate target update", "target", target)
+					fas.logger.V(1).Info("Watch skipped duplicate target update",
+						logutils.ToKV(
+							logutils.LbApiTargetValue(target))...)
 					err = nil
 				}
 				close(feedbackCh) // Signal completion to the `update` caller regardless of send/skip

@@ -30,6 +30,7 @@ import (
 	"github.com/nordix/meridio/pkg/health"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/log"
+	"github.com/nordix/meridio/pkg/logutils"
 	"github.com/nordix/meridio/pkg/retry"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -102,8 +103,8 @@ func (fns *FrontendNetworkService) recv() error {
 		}
 		fns.feAnnounced = currentState
 
-		logger.V(1).Info("received frontend target event", "target", target)
-
+		logger.V(1).Info("received frontend target event", logutils.ToKV(
+			logutils.TargetValue(target))...)
 		if fns.feAnnounced {
 			logger.Info("FE available", "IdentifierKey", target.GetContext()[types.IdentifierKey])
 			// inform controlled services they are allowed to operate:

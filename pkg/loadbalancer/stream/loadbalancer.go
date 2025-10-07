@@ -34,6 +34,7 @@ import (
 	targetMetrics "github.com/nordix/meridio/pkg/loadbalancer/target"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/log"
+	"github.com/nordix/meridio/pkg/logutils"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/retry"
 	"github.com/nordix/meridio/pkg/utils"
@@ -190,7 +191,8 @@ func (lb *LoadBalancer) AddTarget(target types.Target) error {
 	if exists {
 		return errors.New("the target is already registered")
 	}
-	logger := lb.logger.WithValues("func", "AddTarget", "target", target)
+	logger := lb.logger.WithValues(logutils.ToKV(logutils.FunctionValue("AddTarget"),
+		logutils.LBTargetValue(target))...)
 	err := target.Configure() // TODO: avoid multiple identical ip rule entries (e.g. after container crash)
 	if err != nil {
 		lb.addPendingTarget(target)
@@ -231,7 +233,8 @@ func (lb *LoadBalancer) removeTarget(identifier int, doForwardingAvailabilityUpd
 		return errNoTarget
 	}
 	lb.neighborReachDetector.Unregister(target.GetIps()...)
-	logger := lb.logger.WithValues("func", "RemoveTarget", "target", target)
+	logger := lb.logger.WithValues(logutils.ToKV(logutils.FunctionValue("RemoveTarget"),
+		logutils.LBTargetValue(target))...)
 	var errFinal error
 	err := lb.nfqlb.Deactivate(target.GetIdentifier())
 	if err != nil {
@@ -245,7 +248,7 @@ func (lb *LoadBalancer) removeTarget(identifier int, doForwardingAvailabilityUpd
 	if doForwardingAvailabilityUpdate && len(lb.targets) == 0 {
 		lb.forwardingAvailabilityService.Unregister(lb.Name)
 	}
-	logger.Info("Removed target", "target", target)
+	logger.Info("Removed target")
 	return errFinal
 }
 
@@ -358,7 +361,7 @@ func (lb *LoadBalancer) watchTargets(ctx context.Context) error {
 		return fmt.Errorf("failed to create target registry watcher (%s): %w",
 			lb.Stream.Name, err)
 	}
-	logger := lb.logger.WithValues("func", "watchTargets")
+	logger := lb.logger.WithValues(logutils.ToKV(logutils.FunctionValue("watchTargets"))...)
 	for {
 		targetResponse, err := watchTarget.Recv()
 		if err == io.EOF {
@@ -371,7 +374,7 @@ func (lb *LoadBalancer) watchTargets(ctx context.Context) error {
 		logger.V(2).Info("recv", "response", targetResponse)
 		err = lb.setTargets(targetResponse.GetTargets())
 		if err != nil {
-			logger.Error(err, "setTargets", "targets", targetResponse.GetTargets())
+			logger.Error(err, "setTargets", logutils.ToKV(logutils.TargetsValue(targetResponse.GetTargets()))...)
 		}
 	}
 	return nil
@@ -405,7 +408,11 @@ func (lb *LoadBalancer) setTargets(targets []*nspAPI.Target) error {
 	logIncomingTargets := func() {
 		if !update {
 			update = true
-			lb.logger.V(1).Info("change in configuration", "func", "setTargets", "inTargets", targets)
+			lb.logger.V(1).Info("change in configuration",
+				logutils.ToKV(
+					logutils.FunctionValue("setTargets"),
+					logutils.TargetsValue(targets),
+				)...)
 		}
 	}
 	if len(targets) != (len(lb.targets) + len(lb.pendingTargets)) {
@@ -559,12 +566,12 @@ func (lb *LoadBalancer) verifyTargets() {
 		if target.Verify() {
 			continue
 		}
-		lb.logger.Info("removing target after verification", "target", target)
+		lb.logger.Info("removing target after verification", logutils.ToKV(logutils.LBTargetValue(target))...)
 		err := lb.removeTarget(target.GetIdentifier(), false) // do not update forwarding availability here, let the caller handle it
 		if err != nil {
 			// note: currently verification checks route availability,
 			// thus RemoveTarget shall probably fail with no route error
-			lb.logger.Error(err, "delete target after verification", "target", target)
+			lb.logger.Error(err, "delete target after verification", logutils.ToKV(logutils.LBTargetValue(target))...)
 		}
 		lb.addPendingTarget(target)
 	}
@@ -587,7 +594,9 @@ func (lb *LoadBalancer) addPendingTarget(target types.Target) {
 	if exists {
 		return
 	}
-	lb.logger.Info("add pending target", "func", "addPendingTarget", "target", target)
+	lb.logger.Info("add pending target", logutils.ToKV(
+		logutils.FunctionValue("addPendingTarget"),
+		logutils.LBTargetValue(target))...)
 	lb.pendingTargets[target.GetIdentifier()] = target
 }
 
@@ -596,7 +605,9 @@ func (lb *LoadBalancer) removeFromPendingTarget(target types.Target) {
 	if !exists {
 		return
 	}
-	lb.logger.Info("remove pending target", "func", "removeFromPendingTarget", "target", target)
+	lb.logger.Info("remove pending target", logutils.ToKV(
+		logutils.FunctionValue("removeFromPendingTarget"),
+		logutils.LBTargetValue(target))...)
 	delete(lb.pendingTargets, target.GetIdentifier())
 }
 
@@ -605,7 +616,7 @@ func (lb *LoadBalancer) removeFromPendingTargetByIdentifier(identifier int) {
 	if !exists {
 		return
 	}
-	lb.logger.Info("remove pending target by identifier", "target", target)
+	lb.logger.Info("remove pending target by identifier", logutils.ToKV(logutils.LBTargetValue(target))...)
 	delete(lb.pendingTargets, identifier)
 }
 
@@ -618,7 +629,7 @@ func (lb *LoadBalancer) isStreamRunning() bool {
 // to attempt configuring pending Targets (missing route could have become available)
 func (lb *LoadBalancer) InterfaceCreated(intf networking.Iface) {
 	if strings.HasPrefix(intf.GetName(), GetInterfaceNamePrefix()) { // load-balancer NSE interface
-		lb.logger.V(2).Info("InterfaceCreated", "interface", intf.GetName())
+		lb.logger.V(2).Info("InterfaceCreated", logutils.ToKV(logutils.InterfaceNameValue(intf.GetName()))...)
 		lb.triggerPendingTargets()
 	}
 }
@@ -628,7 +639,7 @@ func (lb *LoadBalancer) InterfaceCreated(intf networking.Iface) {
 // to verify if configured Targets still have working routes
 func (lb *LoadBalancer) InterfaceDeleted(intf networking.Iface) {
 	if strings.HasPrefix(intf.GetName(), GetInterfaceNamePrefix()) { // load-balancer NSE interface
-		lb.logger.V(2).Info("InterfaceDeleted", "interface", intf.GetName())
+		lb.logger.V(2).Info("InterfaceDeleted", logutils.ToKV(logutils.InterfaceNameValue(intf.GetName()))...)
 		lb.triggerPendingTargets()
 	}
 }

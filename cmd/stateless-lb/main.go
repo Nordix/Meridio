@@ -56,6 +56,7 @@ import (
 	"github.com/nordix/meridio/pkg/loadbalancer/target"
 	"github.com/nordix/meridio/pkg/loadbalancer/types"
 	"github.com/nordix/meridio/pkg/log"
+	"github.com/nordix/meridio/pkg/logutils"
 	"github.com/nordix/meridio/pkg/metrics"
 	"github.com/nordix/meridio/pkg/nat"
 	"github.com/nordix/meridio/pkg/networking"
@@ -112,8 +113,7 @@ func main() {
 		panic(err)
 	}
 	logger := log.New("Meridio-LB", config.LogLevel)
-	logger.Info("Configuration read", "config", config)
-
+	logger.Info("Configuration read", "LB config", config)
 	ctx, cancel := signal.NotifyContext(
 		logr.NewContext(context.Background(), logger),
 		os.Interrupt,
@@ -524,9 +524,9 @@ func newSimpleNetworkService(
 	streamFwdAvailabilityService *stream.ForwardingAvailabilityService,
 ) *SimpleNetworkService {
 	identifierOffsetGenerator := NewIdentifierOffsetGenerator(identifierOffsetStart)
-	logger := log.FromContextOrGlobal(ctx).WithValues("class", "SimpleNetworkService",
-		"conduit", conduit,
-	)
+	logger := log.FromContextOrGlobal(ctx).WithValues(logutils.ToKV(
+		logutils.ConduitValue(conduit),
+	)...).WithValues("class", "SimpleNetworkService")
 	nh, err := nat.NewNatHandler()
 	if err != nil {
 		log.Fatal(logger, "Unable to init NAT", "error", err)
@@ -551,7 +551,7 @@ func newSimpleNetworkService(
 		neighborMonitor:              neighborMonitor,
 		streamFwdAvailabilityService: streamFwdAvailabilityService,
 	}
-	logger.Info("Created LB service", "conduit", conduit)
+	logger.Info("Created LB service")
 	return simpleNetworkService
 }
 
@@ -633,7 +633,7 @@ func (sns *SimpleNetworkService) InterfaceCreated(intf networking.Iface) {
 	}
 	_ = intf.GetName() // fills the Name field of the interface if necessary
 	if _, ok := sns.interfaces.Load(intf.GetIndex()); !ok {
-		sns.logger.Info("InterfaceCreated", "interface", intf)
+		sns.logger.Info("InterfaceCreated", logutils.ToKV(logutils.InterfaceObjectValue(intf))...)
 	}
 	if sns.serviceBlocked() {
 		// if service blocked, do not process new interface events (which
@@ -688,7 +688,7 @@ func sameSubnet(if1, if2 networking.Iface) bool {
 
 // InterfaceDeleted -
 func (sns *SimpleNetworkService) InterfaceDeleted(intf networking.Iface) {
-	sns.logger.Info("InterfaceDeleted", "interface", intf)
+	sns.logger.Info("InterfaceDeleted", logutils.ToKV(logutils.InterfaceObjectValue(intf))...)
 	sns.interfaces.Delete(intf.GetIndex())
 }
 
@@ -753,7 +753,8 @@ func (sns *SimpleNetworkService) updateStreams(streams []*nspAPI.Stream) error {
 
 func (sns *SimpleNetworkService) addStream(strm *nspAPI.Stream) error {
 	// verify if stream belongs to this conduit and trench
-	logger := sns.logger.WithValues("func", "addStream", "stream", strm.String())
+	logger := sns.logger.WithValues(logutils.ToKV(logutils.FunctionValue("addStream"))...).
+		WithValues("stream", strm.String())
 	_, exists := sns.streams[strm.GetName()]
 	if exists {
 		return errors.New("this stream already exists")
@@ -837,7 +838,7 @@ func (sns *SimpleNetworkService) evictStreams() {
 // operations. Meaning old interfaces not yet removed by NSM must not get
 // associated with routes inserted for Targets after the block is lifted.
 func (sns *SimpleNetworkService) disableInterfaces() {
-	sns.logger.Info("Disable interfaces", "func", "disableInterfaces")
+	sns.logger.Info("Disable interfaces", logutils.ToKV(logutils.FunctionValue("disableInterfaces"))...)
 	sns.interfaces.Range(func(key interface{}, value interface{}) bool {
 		sns.disableInterface(value.(networking.Iface))
 		sns.interfaces.Delete(key)
@@ -848,7 +849,9 @@ func (sns *SimpleNetworkService) disableInterfaces() {
 // disableInterface -
 // Set interface state down
 func (sns *SimpleNetworkService) disableInterface(intf networking.Iface) {
-	sns.logger.V(1).Info("Disable interface", "func", "disableInterface", "interface", intf)
+	sns.logger.V(1).Info("Disable interface", logutils.ToKV(
+		logutils.FunctionValue("disableInterface"),
+		logutils.InterfaceObjectValue(intf))...)
 	la := netlink.NewLinkAttrs()
 	la.Index = intf.GetIndex()
 	err := netlink.LinkSetDown(&netlink.Dummy{LinkAttrs: la})
@@ -860,7 +863,7 @@ func (sns *SimpleNetworkService) disableInterface(intf networking.Iface) {
 // watchVips -
 // Monitors VIP changes in Trench via NSP
 func (sns *SimpleNetworkService) watchVips(ctx context.Context) {
-	logger := sns.logger.WithValues("func", "watchVips")
+	logger := sns.logger.WithValues(logutils.ToKV(logutils.FunctionValue("watchVips"))...)
 	logger.Info("Watch VIPs")
 	defer logger.Info("Stopped watching VIPs")
 
@@ -897,7 +900,10 @@ func (sns *SimpleNetworkService) watchVips(ctx context.Context) {
 
 // watchConduit -
 func (sns *SimpleNetworkService) watchConduit(ctx context.Context) {
-	logger := sns.logger.WithValues("func", "watchConduit", "conduit", sns.Conduit)
+	logger := sns.logger.WithValues(logutils.ToKV(
+		logutils.FunctionValue("watchConduit"),
+		logutils.ConduitValue(sns.Conduit),
+	)...)
 	logger.Info("Start watching conduit")
 	defer logger.Info("Stopped watching conduit")
 
@@ -937,7 +943,11 @@ func (sns *SimpleNetworkService) watchConduit(ctx context.Context) {
 // updateVips -
 // Sends list of VIPs to Netfilter Adaptor to adjust kerner based rules
 func (sns *SimpleNetworkService) updateVips(vips []*nspAPI.Vip) error {
-	sns.logger.V(1).Info("Updating VIPs", "func", "updateVips", "vips", vips)
+	sns.logger.V(1).Info("Updating VIPs",
+		logutils.ToKV(
+			logutils.FunctionValue("updateVips"),
+			logutils.VipsValue(vips),
+		)...)
 	if err := sns.nfa.SetDestinationIPs(vips); err != nil {
 		return fmt.Errorf("failed to set destination IPs during update VIPs (%v): %w", vips, err)
 	}
