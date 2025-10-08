@@ -32,6 +32,7 @@ import (
 	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	registrychain "github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/nordix/meridio/pkg/log"
+	"github.com/nordix/meridio/pkg/logutils"
 	"github.com/nordix/meridio/pkg/retry"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -60,10 +61,12 @@ func (fmnsc *FullMeshNetworkServiceClient) Request(request *networkservice.Netwo
 	if !fmnsc.requestIsValid(request) {
 		return errors.New("request is not valid")
 	}
-	logger := fmnsc.logger.WithValues("func", "Request")
+	logger := fmnsc.logger.WithValues(logutils.ToKV(
+		logutils.FunctionValue("Request"))...)
 	fmnsc.baseRequest = request
 	query := fmnsc.prepareQuery()
-	logger.V(1).Info("Start network service endpoint discovery", "query", query)
+	logger.V(1).Info("Start network service endpoint discovery", logutils.ToKV(
+		logutils.QueryValue(query))...)
 	defer logger.Info("Stopped network service endpoint discovery")
 
 	err := retry.Do(func() error {
@@ -74,13 +77,15 @@ func (fmnsc *FullMeshNetworkServiceClient) Request(request *networkservice.Netwo
 		networkServiceDiscoveryStream, err := fmnsc.networkServiceEndpointRegistryClient.Find(fmnsc.ctx, query)
 		if err != nil {
 			if status.Code(err) != codes.Canceled {
-				fmnsc.logger.V(1).Info("Failed to create network service endpoint registry find client", "error", err)
+				fmnsc.logger.V(1).Info("Failed to create network service endpoint registry find client", logutils.ToKV(
+					logutils.ErrorValue(err))...)
 			}
 			return fmt.Errorf("failed to create network service endpoint registry find client: %w", err)
 		}
 		err = fmnsc.recv(networkServiceDiscoveryStream)
 		if err != nil {
-			fmnsc.logger.Info("NetworkServiceEndpointRegistry_FindClient recv failed", "err", err)
+			fmnsc.logger.Info("NetworkServiceEndpointRegistry_FindClient recv failed", logutils.ToKV(
+				logutils.ErrorValue(err))...)
 		}
 
 		// Because a new Find stream must be opened periodically, there can be gaps
@@ -104,12 +109,14 @@ func (fmnsc *FullMeshNetworkServiceClient) Request(request *networkservice.Netwo
 // Note: adding further clients once closed must be avoided
 // TODO: improve code to support parallel closing of connections (seems to require a lot of redesign)
 func (fmnsc *FullMeshNetworkServiceClient) Close() error {
-	logger := fmnsc.logger.WithValues("func", "Close")
+	logger := fmnsc.logger.WithValues(logutils.ToKV(
+		logutils.FunctionValue("Close"))...)
 	fmnsc.mu.Lock()
 	fmnsc.serviceClosed = true
 	fmnsc.mu.Unlock()
 
-	logger.Info("Close and delete discovered network service endpoints", "num", len(fmnsc.networkServiceClients))
+	logger.Info("Close and delete discovered network service endpoints", logutils.ToKV(
+		logutils.NumEndpointsValue(len(fmnsc.networkServiceClients)))...)
 	for networkServiceEndpointName := range fmnsc.networkServiceClients {
 		fmnsc.deleteNetworkServiceClient(networkServiceEndpointName)
 	}
@@ -132,8 +139,9 @@ func (fmnsc *FullMeshNetworkServiceClient) recv(networkServiceDiscoveryStream re
 		if !expirationTimeIsNull(networkServiceEndpoint.ExpirationTime) && !resp.Deleted {
 			fmnsc.addNetworkServiceEndpoint(networkServiceEndpoint)
 		} else {
-			fmnsc.logger.Info("Network service endpoint deleted or expired",
-				"name", networkServiceEndpoint.Name, "resp", resp)
+			fmnsc.logger.Info("Network service endpoint deleted or expired", logutils.ToKV(
+				logutils.EndpointNameValue(networkServiceEndpoint.Name),
+				logutils.ResponseValue(resp))...)
 			fmnsc.deleteNetworkServiceEndpoint(networkServiceEndpoint)
 		}
 	}
@@ -164,7 +172,8 @@ func (fmnsc *FullMeshNetworkServiceClient) deleteNetworkServiceEndpoint(endpoint
 // This periodic check merely stands to ensure the proxy won't keep spamming NSM
 // "forever" with requests for which the endpoint is long gone.
 func (fmnsc *FullMeshNetworkServiceClient) checkEndpointExpiration() {
-	logger := fmnsc.logger.WithValues("func", "checkEndpointExpiration")
+	logger := fmnsc.logger.WithValues(logutils.ToKV(
+		logutils.FunctionValue("checkEndpointExpiration"))...)
 	for name, endpoint := range fmnsc.networkServiceEndpoints {
 		if fmnsc.ctx.Err() != nil {
 			// If context is closed FullMeshNetworkServiceClient.Close() is expected anyways to clean up...
@@ -179,7 +188,9 @@ func (fmnsc *FullMeshNetworkServiceClient) checkEndpointExpiration() {
 		// So, the additional MaxTokenLifetime/2 delay is an overkill.
 		if endpoint.ExpirationTime != nil &&
 			endpoint.ExpirationTime.AsTime().Local().Add(fmnsc.config.MaxTokenLifetime/2).Before(time.Now()) {
-			logger.Info("Network service endpoint expired", "name", name, "endpoint", endpoint)
+			logger.Info("Network service endpoint expired", logutils.ToKV(
+				logutils.EndpointNameValue(name),
+				logutils.EndpointValue(endpoint))...)
 			fmnsc.deleteNetworkServiceEndpoint(endpoint)
 		}
 	}
@@ -212,11 +223,11 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 		request.Connection.NetworkServiceEndpointName,
 	)
 	request.Connection.Id = id
-	logger := fmnsc.logger.WithValues("func", "addNetworkServiceClient",
-		"name", networkServiceEndpointName,
-		"service", request.Connection.NetworkService,
-		"id", request.Connection.Id,
-	)
+	logger := fmnsc.logger.WithValues(logutils.ToKV(
+		logutils.FunctionValue("addNetworkServiceClient"),
+		logutils.EndpointNameValue(networkServiceEndpointName),
+		logutils.NetworkServiceValue(request.Connection.NetworkService),
+		logutils.ConnectionIDValue(request.Connection.Id))...)
 	logger.Info("Add network service endpoint")
 
 	// Check if NSM already tracks a connection with the same ID, if it does
@@ -252,7 +263,8 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 	for _, conn := range monitoredConnections {
 		path := conn.GetPath()
 		if path != nil && path.Index == 1 && path.PathSegments[0].Id == id && conn.Mechanism.Type == request.MechanismPreferences[0].Type {
-			logger.Info("Recovered connection", "connection", conn)
+			logger.Info("Recovered connection", logutils.ToKV(
+				logutils.ConnectionValue(conn))...)
 			// TODO: consider merging any possible labels from baseRequest
 			request.Connection = conn
 			request.Connection.Path.Index = 0
@@ -299,10 +311,10 @@ func (fmnsc *FullMeshNetworkServiceClient) deleteNetworkServiceClient(networkSer
 	if !exists {
 		return
 	}
-	logger := fmnsc.logger.WithValues("func", "deleteNetworkServiceClient",
-		"name", networkServiceEndpointName,
-		"service", fmnsc.baseRequest.Connection.NetworkService,
-	)
+	logger := fmnsc.logger.WithValues(logutils.ToKV(
+		logutils.FunctionValue("deleteNetworkServiceClient"),
+		logutils.EndpointNameValue(networkServiceEndpointName),
+		logutils.NetworkServiceValue(fmnsc.baseRequest.Connection.NetworkService))...)
 	logger.Info("Delete network service endpoint")
 	err := networkServiceClient.Close()
 	delete(fmnsc.networkServiceClients, networkServiceEndpointName)

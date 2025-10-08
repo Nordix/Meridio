@@ -29,6 +29,7 @@ import (
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/ambassador/tap/types"
 	"github.com/nordix/meridio/pkg/log"
+	"github.com/nordix/meridio/pkg/logutils"
 	"github.com/nordix/meridio/pkg/networking"
 	"github.com/nordix/meridio/pkg/nsp"
 	"github.com/nordix/meridio/pkg/security/credentials"
@@ -80,7 +81,11 @@ func New(trench *ambassadorAPI.Trench,
 	timeout time.Duration,
 	netUtils networking.Utils) (*Trench, error) {
 
-	logger := log.Logger.WithValues("class", "Trench", "trench", trench.GetName())
+	logger := log.Logger.WithValues(logutils.ToKV(
+		logutils.ClassValue("Trench"),
+		logutils.TrenchNameValue(trench.GetName()),
+	)...)
+
 	logger.Info("Create trench")
 
 	t := &Trench{
@@ -114,7 +119,7 @@ func New(trench *ambassadorAPI.Trench,
 		t.StreamRegistry,
 		t.NetUtils,
 		nspEntryTimeout)
-	t.logger.Info("Created trench", "object", t)
+	t.logger.Info("Created trench", "types.Trench", t)
 	return t, nil
 }
 
@@ -130,7 +135,9 @@ func (t *Trench) Delete(ctx context.Context) error {
 	if err != nil {
 		errFinal = fmt.Errorf("failure during close streams: %w", err) // todo
 	}
-	t.logger.Info("Streams closed", "error", err)
+	t.logger.Info("Streams closed", logutils.ToKV(
+		logutils.ErrorValue(err),
+	)...)
 	streamsCancel()
 
 	// disconnect conduits
@@ -140,7 +147,9 @@ func (t *Trench) Delete(ctx context.Context) error {
 		errFinal = fmt.Errorf("%w; failure during disconnect conduits: %w", errFinal, err) // todo
 	}
 	t.conduits = []*conduitConnect{}
-	t.logger.Info("Conduits disconnected", "error", err)
+	t.logger.Info("Conduits disconnected", logutils.ToKV(
+		logutils.ErrorValue(err),
+	)...)
 	conduitsCancel()
 
 	// disconnect trench related services (connection to NSP)
@@ -148,7 +157,9 @@ func (t *Trench) Delete(ctx context.Context) error {
 	if err != nil {
 		errFinal = fmt.Errorf("%w; failure during nsp connection close: %w", errFinal, err) // todo
 	}
-	t.logger.Info("NSP connection closed", "error", err)
+	t.logger.Info("NSP connection closed", logutils.ToKV(
+		logutils.ErrorValue(err),
+	)...)
 	t.ConfigurationManagerClient = nil
 	t.TargetRegistryClient = nil
 	t.nspConn = nil
@@ -163,7 +174,9 @@ func (t *Trench) AddConduit(ctx context.Context, cndt *ambassadorAPI.Conduit) (t
 	if c != nil {
 		return c, nil
 	}
-	t.logger.Info("Add conduit", "conduit", cndt)
+	t.logger.Info("Add conduit", logutils.ToKV(
+		logutils.AmbassadorConduitValue(cndt),
+	)...)
 	c, err := t.ConduitFactory.New(cndt)
 	if err != nil {
 		return nil, fmt.Errorf("conduit create failed: %w", err)
@@ -185,7 +198,9 @@ func (t *Trench) RemoveConduit(ctx context.Context, cndt *ambassadorAPI.Conduit)
 	if index < 0 {
 		return nil
 	}
-	t.logger.Info("Remove conduit", "conduit", cndt)
+	t.logger.Info("Remove conduit", logutils.ToKV(
+		logutils.AmbassadorConduitValue(cndt),
+	)...)
 	c := t.conduits[index]
 	err := c.disconnect(ctx)
 	t.conduits = append(t.conduits[:index], t.conduits[index+1:]...)
@@ -224,7 +239,9 @@ func (t *Trench) connectNSPService(ctx context.Context,
 	nspServicePort int,
 	grpcMaxBackoff time.Duration) (*grpc.ClientConn, error) {
 	service := nsp.GetService(nspServiceName, t.Trench.GetName(), t.Namespace, nspServicePort)
-	t.logger.Info("Connect to NSP Service", "service", service)
+	t.logger.Info("Connect to NSP Service", logutils.ToKV(
+		logutils.ServiceValue(service),
+	)...)
 	// Allow changing max backoff delay from gRPC default 120s to limit reconnect interval.
 	// Thus, allow faster reconnect if NSP has been unavailable. Otherwise gRPC might
 	// wait up to 2 minutes to attempt reconnect due to the default backoff algorithm.

@@ -1,6 +1,7 @@
 package logutils
 
 import (
+	"github.com/networkservicemesh/api/pkg/api/registry"
 	ambassadorAPI "github.com/nordix/meridio/api/ambassador/v1"
 	lbAPI "github.com/nordix/meridio/api/loadbalancer/v1"
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
@@ -65,7 +66,7 @@ func InterfaceNameValue(name string) LogValue {
 	}
 }
 
-// PreferredInterfaceValue returns a preferred interface name as a structured log value
+// PreferredInterfaceNameValue returns a preferred interface name as a structured log value
 func PreferredInterfaceNameValue(name string) LogValue {
 	return LogValue{
 		Key:   PreferredInterface,
@@ -174,5 +175,93 @@ func ClientTargetValue(target string) LogValue {
 	return LogValue{
 		Key:   ClientTarget,
 		Value: target,
+	}
+}
+
+// ClassValue returns a class name as a structured log value
+func ClassValue(class string) LogValue {
+	return LogValue{
+		Key:   Class,
+		Value: class,
+	}
+}
+
+// ServiceValue returns a service details as a structured log value
+func ServiceValue(service string) LogValue {
+	return LogValue{
+		Key:   Service,
+		Value: service,
+	}
+}
+
+// ConduitValue returns a conduit as a structured log value
+func AmbassadorConduitValue(conduit *ambassadorAPI.Conduit) LogValue {
+	return LogValue{
+		Key:   AmbassadorConduitName,
+		Value: conduit,
+	}
+}
+
+// TrenchNameValue returns a trench name as a structured log value
+func TrenchNameValue(name string) LogValue {
+	return LogValue{
+		Key:   TrenchName,
+		Value: name,
+	}
+}
+
+// QueryValue returns a query as a structured log value
+func QueryValue(query *registry.NetworkServiceEndpointQuery) LogValue {
+	return LogValue{
+		Key:   Query,
+		Value: query,
+	}
+}
+
+// NumEndpointsValue returns number of endpoints as a structured log value
+func NumEndpointsValue(num int) LogValue {
+	return LogValue{
+		Key:   NumEndpoints,
+		Value: num,
+	}
+}
+
+// EndpointNameValue returns an endpoint name as a structured log value
+func EndpointNameValue(name string) LogValue {
+	return LogValue{
+		Key:   EndpointName,
+		Value: name,
+	}
+}
+
+// EndpointValue returns an endpoint as a structured log value
+func EndpointValue(endpoint *registry.NetworkServiceEndpoint) LogValue {
+	return LogValue{
+		Key:   Endpoint,
+		Value: endpoint,
+	}
+}
+
+// NetworkServiceValue returns a network service name as a structured log value
+func NetworkServiceValue(service string) LogValue {
+	return LogValue{
+		Key:   NetworkService,
+		Value: service,
+	}
+}
+
+// ResponseValue returns a response as a structured log value
+func ResponseValue(resp *registry.NetworkServiceEndpointResponse) LogValue {
+	return LogValue{
+		Key:   Response,
+		Value: resp,
+	}
+}
+
+// ConnectionValue returns a connection as a structured log value
+func ConnectionValue(conn interface{}) LogValue {
+	return LogValue{
+		Key:   Connection,
+		Value: conn,
 	}
 }

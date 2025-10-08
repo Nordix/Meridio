@@ -106,7 +106,7 @@ func NewFrontEndService(ctx context.Context, c *feConfig.Config, gatewayMetrics 
 
 	gatewayMetrics.RoutingService = frontEndService.routingService
 
-	logger.Info("Created", "object", frontEndService)
+	logger.Info("Created", "frontEndService", frontEndService)
 	return frontEndService
 }
 
@@ -566,7 +566,7 @@ func (fes *FrontEndService) writeConfig() error {
 	routingConfig := bird.NewRoutingConfig(fes.birdConfFile)
 	routingConfig.Append(conf)
 	fes.logger.Info("routing configuration generated")
-	fes.logger.V(1).Info("config", "config", strings.Split(routingConfig.String(), "\n"))
+	fes.logger.V(1).Info("config", "routingConfig", strings.Split(routingConfig.String(), "\n"))
 
 	return routingConfig.Apply()
 }

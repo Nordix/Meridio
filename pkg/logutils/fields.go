@@ -58,4 +58,37 @@ const (
 
 	// ClientTarget represents a client connection target
 	ClientTarget = "clientTarget"
+
+	// Class represents a class/type name
+	Class = "class"
+
+	// Service represents a service name/endpoint
+	Service = "service"
+
+	// ConduitName represents a conduit name
+	AmbassadorConduitName = "ambassadorConduit"
+
+	// TrenchName represents a trench name
+	TrenchName = "trenchName"
+
+	// Query represents a query object
+	Query = "query"
+
+	// NumEndpoints represents number of endpoints
+	NumEndpoints = "num"
+
+	// EndpointName represents an endpoint name
+	EndpointName = "endpointName"
+
+	// Endpoint represents an endpoint object
+	Endpoint = "networkserviceEndpoint"
+
+	// NetworkService represents a network service name
+	NetworkService = "networkserviceName"
+
+	// Response represents a response object
+	Response = "resp"
+
+	// Connection represents a connection object
+	Connection = "connection"
 )

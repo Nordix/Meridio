@@ -96,10 +96,10 @@ func (e *Executor) RunActions() error {
 	for _, action := range e.actions {
 		action, name, err := action.Run(e)
 		if err != nil {
-			e.log.Error(err, "execute action", "action", action, "object", name, "result", "failure")
+			e.log.Error(err, "execute action", "action", action, "objectName", name, "result", "failure")
 			return fmt.Errorf("failed to run action for obj (%s): %w", name, err)
 		}
-		e.log.Info("execute action", "action", action, "object", name, "result", "success")
+		e.log.Info("execute action", "action", action, "objectName", name, "result", "success")
 	}
 	return nil
 }
@@ -205,19 +205,19 @@ func (e *Executor) SetOwnerReference(obj client.Object, owners ...client.Object)
 
 func (e *Executor) AddCreateAction(obj client.Object) {
 	name := obj.GetName()
-	e.log.Info("add action", "action", "create", "object", name, "kind", obj.GetObjectKind().GroupVersionKind())
+	e.log.Info("add action", "action", "create", "objectName", name, "objectKind", obj.GetObjectKind().GroupVersionKind())
 	e.appendActions(createAction{obj: obj, action: "create"})
 }
 
 func (e *Executor) AddUpdateAction(obj client.Object) {
 	name := obj.GetName()
-	e.log.Info("add action", "action", "update", "object", name, "kind", obj.GetObjectKind().GroupVersionKind())
+	e.log.Info("add action", "action", "update", "objectName", name, "objectKind", obj.GetObjectKind().GroupVersionKind())
 	e.appendActions(updateAction{obj: obj, action: "update"})
 }
 
 func (e *Executor) AddUpdateStatusAction(obj client.Object) {
 	name := obj.GetName()
-	e.log.Info("add action", "action", "update status", "object", name, "kind", obj.GetObjectKind().GroupVersionKind())
+	e.log.Info("add action", "action", "update status", "objectName", name, "objectKind", obj.GetObjectKind().GroupVersionKind())
 	e.appendActions(updateStatusAction{obj: obj, action: "update status"})
 }
 

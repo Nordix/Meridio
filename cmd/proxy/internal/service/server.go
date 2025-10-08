@@ -32,6 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	endpointOld "github.com/nordix/meridio/pkg/endpoint"
 	"github.com/nordix/meridio/pkg/log"
+	"github.com/nordix/meridio/pkg/logutils"
 	"github.com/nordix/meridio/pkg/nsm"
 	"github.com/nordix/meridio/pkg/nsm/endpoint"
 	"github.com/nordix/meridio/pkg/nsm/ipcontext"
@@ -46,10 +47,11 @@ func StartNSE(ctx context.Context,
 	p *proxy.Proxy,
 	interfaceMonitorServer networkservice.NetworkServiceServer) (*endpoint.Endpoint, error) {
 
-	logger := log.FromContextOrGlobal(ctx).WithValues("func", "StartNSE",
-		"name", config.Name,
-		"service", config.ServiceName,
-	)
+	logger := log.FromContextOrGlobal(ctx).WithValues(logutils.ToKV(
+		logutils.FunctionValue("StartNSE"),
+		logutils.EndpointNameValue(config.Name),
+		logutils.NetworkServiceValue(config.ServiceName),
+	)...)
 	logger.Info("Start NSE")
 	additionalFunctionality := []networkservice.NetworkServiceServer{
 		// Note: naming the interface is left to NSM (refer to getNameFromConnection())
@@ -98,7 +100,7 @@ func StartNSE(ctx context.Context,
 			},
 		},
 	}
-	logger.V(1).Info("Create NSE", "nse", nse)
+	logger.V(1).Info("Create NSE", logutils.ToKV(logutils.EndpointValue(nse))...)
 	endpoint, err := endpoint.New(config.MaxTokenLifetime,
 		nsmAPIClient.NetworkServiceEndpointRegistryClient,
 		nse,
@@ -114,6 +116,6 @@ func StartNSE(ctx context.Context,
 		return nil, fmt.Errorf("failed to register NSE: %w", err)
 	}
 
-	logger.V(1).Info("Started NSE", "endpoint", endpoint.NSE)
+	logger.V(1).Info("Started NSE", logutils.ToKV(logutils.EndpointValue(endpoint.NSE))...)
 	return endpoint, nil
 }
