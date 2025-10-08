@@ -815,7 +815,7 @@ func (na *netfilterAdaptor) configureLocalChainAndRules() error {
 // Update nftables Set based on the VIPs so that all traffic with VIP destination
 // could be handled by the user space application connected to the configured queue(s)
 func (na *netfilterAdaptor) SetDestinationIPs(vips []*nspAPI.Vip) error {
-	na.logger.V(2).Info("Update destination IPs", "func", "SetDestinationIPs", "vips", vips)
+	na.logger.V(2).Info("Update destination IPs", "func", "SetDestinationIPs", "nspAPI-Vips", vips)
 	ips := []string{}
 	for _, vip := range vips {
 		ips = append(ips, vip.Address)

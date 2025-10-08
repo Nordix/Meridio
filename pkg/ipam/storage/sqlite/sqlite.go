@@ -147,7 +147,7 @@ func (sqlis *SQLiteIPAMStorage) garbageCollector(ctx context.Context, threshold 
 			// Extract IDs of the entries found in this batch.
 			idsToAnchorCTERecursion := make([]string, len(batchOfEligiblePrefixes))
 			for i, entry := range batchOfEligiblePrefixes {
-				logger.V(1).Info("Prefix identified for GC recursive deletion", "prefix", entry)
+				logger.V(1).Info("Prefix identified for GC recursive deletion", "prefixObject", entry)
 				idsToAnchorCTERecursion[i] = entry.Id
 			}
 

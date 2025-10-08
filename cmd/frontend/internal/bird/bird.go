@@ -164,7 +164,7 @@ func (b *RoutingService) monitorOutput(ctx context.Context, r io.Reader) error {
 		if ok := regexError.MatchString(scanner.Text()); ok {
 			b.logger.Error(fmt.Errorf("BIRD error log"), "monitor output", "out", scanner.Text())
 		} else if ok := regexInfo.MatchString(scanner.Text()); ok {
-			b.logger.Info("monitor output", "out", scanner.Text())
+			b.logger.Info("monitor output", "birdc-command-output", scanner.Text())
 		}
 	}
 	if err := scanner.Err(); err != nil {

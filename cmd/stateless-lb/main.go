@@ -525,7 +525,7 @@ func newSimpleNetworkService(
 ) *SimpleNetworkService {
 	identifierOffsetGenerator := NewIdentifierOffsetGenerator(identifierOffsetStart)
 	logger := log.FromContextOrGlobal(ctx).WithValues("class", "SimpleNetworkService",
-		"conduit", conduit,
+		"nspAPI-Conduit", conduit,
 	)
 	nh, err := nat.NewNatHandler()
 	if err != nil {
@@ -551,7 +551,7 @@ func newSimpleNetworkService(
 		neighborMonitor:              neighborMonitor,
 		streamFwdAvailabilityService: streamFwdAvailabilityService,
 	}
-	logger.Info("Created LB service", "conduit", conduit)
+	logger.Info("Created LB service")
 	return simpleNetworkService
 }
 
@@ -937,7 +937,7 @@ func (sns *SimpleNetworkService) watchConduit(ctx context.Context) {
 // updateVips -
 // Sends list of VIPs to Netfilter Adaptor to adjust kerner based rules
 func (sns *SimpleNetworkService) updateVips(vips []*nspAPI.Vip) error {
-	sns.logger.V(1).Info("Updating VIPs", "func", "updateVips", "vips", vips)
+	sns.logger.V(1).Info("Updating VIPs", "func", "updateVips", "nspAPI-Vips", vips)
 	if err := sns.nfa.SetDestinationIPs(vips); err != nil {
 		return fmt.Errorf("failed to set destination IPs during update VIPs (%v): %w", vips, err)
 	}
