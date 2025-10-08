@@ -106,7 +106,7 @@ func NewFrontEndService(ctx context.Context, c *feConfig.Config, gatewayMetrics 
 
 	gatewayMetrics.RoutingService = frontEndService.routingService
 
-	logger.Info("Created", "object", frontEndService)
+	logger.Info("Created", "frontEndServiceObject", frontEndService)
 	return frontEndService
 }
 

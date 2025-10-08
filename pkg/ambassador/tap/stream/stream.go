@@ -86,7 +86,7 @@ func (s *Stream) Open(ctx context.Context, nspStream *nspAPI.Stream) error {
 	if err != nil {
 		return err
 	}
-	s.logger.Info("Stream opened", "identifier", s.identifier, "target", s.getTarget())
+	s.logger.Info("Stream opened", "identifier", s.identifier, "nspAPI-Target", s.getTarget())
 	return nil
 }
 
@@ -236,7 +236,7 @@ func (s *Stream) open(ctx context.Context, nspStream *nspAPI.Stream) error {
 		// Unregister target with identifier collision (release the offending identifier)
 		collidingTarget := s.getTarget()
 		if err := s.TargetRegistry.Unregister(ctx, collidingTarget); err != nil {
-			s.logger.Info("Did not manage to unregister colliding target", "error", err, "target", collidingTarget)
+			s.logger.Info("Did not manage to unregister colliding target", "error", err, "nspAPI-Target", collidingTarget)
 		}
 		// Update the target with a new available identifier
 		// (Remember, there was a collision yet the number of other identifiers
@@ -294,7 +294,7 @@ func (s *Stream) refresh(ctx context.Context, nspStream *nspAPI.Stream) error {
 	if err := s.open(ctx, nspStream); err != nil {
 		return fmt.Errorf("refresh failed to re-open stream: %w", err)
 	}
-	s.logger.Info("Stream re-opened during refresh", "identifier", s.identifier, "target", s.getTarget())
+	s.logger.Info("Stream re-opened during refresh", "identifier", s.identifier, "nspAPI-Target", s.getTarget())
 	return nil
 }
 

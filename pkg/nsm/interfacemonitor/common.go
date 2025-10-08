@@ -168,12 +168,12 @@ func (im *interfaceMonitor) advertiseInterfaceCreation(index int, pendingInterfa
 	newInterface.SetNeighborPrefixes(pendingInterface.neighborIPs)
 	newInterface.SetGatewayPrefixes(pendingInterface.gateways)
 	newInterface.SetInterfaceType(pendingInterface.InterfaceType)
-	im.logger.V(1).Info("advertise created", "interface", newInterface, "index", newInterface.GetIndex())
+	im.logger.V(1).Info("advertise created", "networkingIface", newInterface, "index", newInterface.GetIndex())
 	im.interfaceMonitorSubscriber.InterfaceCreated(newInterface)
 }
 
 func (im *interfaceMonitor) advertiseInterfaceDeletion(intf networking.Iface) {
-	im.logger.V(1).Info("advertise deleted", "interface", intf, "index", intf.GetIndex())
+	im.logger.V(1).Info("advertise deleted", "networkingIface", intf, "index", intf.GetIndex())
 	im.interfaceMonitorSubscriber.InterfaceDeleted(intf)
 }
 

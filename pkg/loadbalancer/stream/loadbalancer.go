@@ -618,7 +618,7 @@ func (lb *LoadBalancer) isStreamRunning() bool {
 // to attempt configuring pending Targets (missing route could have become available)
 func (lb *LoadBalancer) InterfaceCreated(intf networking.Iface) {
 	if strings.HasPrefix(intf.GetName(), GetInterfaceNamePrefix()) { // load-balancer NSE interface
-		lb.logger.V(2).Info("InterfaceCreated", "interface", intf.GetName())
+		lb.logger.V(2).Info("InterfaceCreated", "interfaceName", intf.GetName())
 		lb.triggerPendingTargets()
 	}
 }
@@ -628,7 +628,7 @@ func (lb *LoadBalancer) InterfaceCreated(intf networking.Iface) {
 // to verify if configured Targets still have working routes
 func (lb *LoadBalancer) InterfaceDeleted(intf networking.Iface) {
 	if strings.HasPrefix(intf.GetName(), GetInterfaceNamePrefix()) { // load-balancer NSE interface
-		lb.logger.V(2).Info("InterfaceDeleted", "interface", intf.GetName())
+		lb.logger.V(2).Info("InterfaceDeleted", "interfaceName", intf.GetName())
 		lb.triggerPendingTargets()
 	}
 }
