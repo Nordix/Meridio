@@ -1187,6 +1187,7 @@ func (fes *FrontEndService) setGateways(gateways interface{}, change *bool) erro
 	switch gateways := gateways.(type) {
 	case []*nspAPI.Gateway:
 		list := utils.ConvertGateways(gateways)
+		fes.logger.V(1).Info("setGateways", "got Gateways", list, "have", fes.gateways)
 		if utils.DiffGateways(list, fes.gateways) {
 			fes.gateways = list
 			*change = true
