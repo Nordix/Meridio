@@ -102,7 +102,7 @@ func (fns *FrontendNetworkService) recv() error {
 		}
 		fns.feAnnounced = currentState
 
-		logger.V(1).Info("received frontend target event", "target", target)
+		logger.V(1).Info("received frontend target event", "nspAPI-Target", target)
 
 		if fns.feAnnounced {
 			logger.Info("FE available", "IdentifierKey", target.GetContext()[types.IdentifierKey])

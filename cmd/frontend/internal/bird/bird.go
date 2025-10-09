@@ -162,9 +162,9 @@ func (b *RoutingService) monitorOutput(ctx context.Context, r io.Reader) error {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		if ok := regexError.MatchString(scanner.Text()); ok {
-			b.logger.Error(fmt.Errorf("BIRD error log"), "monitor output", "out", scanner.Text())
+			b.logger.Error(fmt.Errorf("BIRD error log"), "monitor output", "text", scanner.Text())
 		} else if ok := regexInfo.MatchString(scanner.Text()); ok {
-			b.logger.Info("monitor output", "out", scanner.Text())
+			b.logger.Info("monitor output", "text", scanner.Text())
 		}
 	}
 	if err := scanner.Err(); err != nil {

@@ -51,7 +51,7 @@ var _ webhook.Validator = &Flow{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *Flow) ValidateCreate() (admission.Warnings, error) {
-	flowlog.Info("validate create", "name", r.Name, "stream", r.Spec.Stream)
+	flowlog.Info("validate create", "flowName", r.Name, "streamName", r.Spec.Stream)
 
 	// Get the trench by the label in stream
 	selector := client.ObjectKey{
@@ -69,7 +69,7 @@ func (r *Flow) ValidateCreate() (admission.Warnings, error) {
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
 func (r *Flow) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
-	flowlog.Info("validate update", "name", r.Name, "stream", r.Spec.Stream)
+	flowlog.Info("validate update", "flowName", r.Name, "streamName", r.Spec.Stream)
 
 	err := r.validateUpdate(old)
 	if err != nil {
@@ -80,7 +80,7 @@ func (r *Flow) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
 func (r *Flow) ValidateDelete() (admission.Warnings, error) {
-	flowlog.Info("validate delete", "name", r.Name, "stream", r.Spec.Stream)
+	flowlog.Info("validate delete", "flowName", r.Name, "streamName", r.Spec.Stream)
 
 	return nil, nil
 }

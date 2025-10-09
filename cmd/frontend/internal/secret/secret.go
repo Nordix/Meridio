@@ -105,7 +105,7 @@ func (db *Database) Handle(ctx context.Context, event *watch.Event) {
 func (db *Database) End(ctx context.Context, namespace, name string) {
 	dbKey := databaseKey{name: name, namespace: namespace}
 	ok := false
-	db.logger.V(1).Info("End", "key", dbKey)
+	db.logger.V(1).Info("End", "dbKey", dbKey)
 
 	db.rm.Lock()
 	if _, ok = db.storage[dbKey]; ok {
@@ -123,7 +123,7 @@ func (db *Database) End(ctx context.Context, namespace, name string) {
 func (db *Database) update(secret *corev1.Secret) {
 	dbVal := make(map[string][]byte)
 	dbKey := databaseKey{name: secret.Name, namespace: secret.Namespace}
-	db.logger.V(1).Info("update", "key", dbKey)
+	db.logger.V(1).Info("update", "dbKey", dbKey)
 
 	for key, val := range secret.Data {
 		dbVal[key] = val
@@ -141,7 +141,7 @@ func (db *Database) update(secret *corev1.Secret) {
 func (db *Database) delete(secret *corev1.Secret) {
 	dbKey := databaseKey{name: secret.Name, namespace: secret.Namespace}
 	ok := false
-	db.logger.V(1).Info("delete", "key", dbKey)
+	db.logger.V(1).Info("delete", "dbKey", dbKey)
 
 	db.rm.Lock()
 	if _, ok = db.storage[dbKey]; ok {

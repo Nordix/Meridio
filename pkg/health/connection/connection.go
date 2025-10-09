@@ -48,7 +48,7 @@ func Monitor(ctx context.Context, healthService string, cc interface{}) error {
 			for {
 				s := m.GetState()
 				health.SetServingStatus(ctx, m.healthService, s == connectivity.Ready)
-				log.Logger.V(2).Info("Connection", "service", m.healthService, "state", s, "target", m.Target())
+				log.Logger.V(2).Info("Connection", "service", m.healthService, "state", s, "ClientConn-Target", m.Target())
 
 				// Note: gRPC will NOT establish underlying transport connection except for the
 				// initial "dial" or unless the user tries to send sg and there's no backing connection.
