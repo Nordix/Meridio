@@ -354,13 +354,13 @@ func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 			// These errors may be temporary, so don't denounce immediately
 			protocolOut, err := fes.routingService.ShowProtocolSessions(ctx, lp, `NBR-*`)
 			if err != nil {
-				logger.Error(err, "protocol output", "birdc-out", strings.Split(protocolOut, "\n"))
+				logger.Error(err, "protocol output", "out", strings.Split(protocolOut, "\n"))
 				sessionErrors++
 				continue
 			}
 			bfdOut, err := fes.routingService.ShowBfdSessions(ctx, lp, `NBR-BFD`)
 			if err != nil {
-				logger.Error(err, "BFD output", "birdc-out", strings.Split(bfdOut, "\n"))
+				logger.Error(err, "BFD output", "out", strings.Split(bfdOut, "\n"))
 				sessionErrors++
 				continue
 			}
@@ -428,9 +428,9 @@ func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 			fes.monitorMu.Unlock()
 			if logForced || !reflect.DeepEqual(lastStatusMap, status.StatusMap()) {
 				if status.AnyGatewayDown() {
-					logger.Error(fmt.Errorf("gateway down"), "connectivity", "status", status.ToString(), "birdc-out", strings.Split(status.Log(), "\n"))
+					logger.Error(fmt.Errorf("gateway down"), "connectivity", "status", status.ToString(), "out", strings.Split(status.Log(), "\n"))
 				} else {
-					logger.Info("connectivity", "status", status.ToString(), "birdc-out", strings.Split(status.Log(), "\n"))
+					logger.Info("connectivity", "status", status.ToString(), "out", strings.Split(status.Log(), "\n"))
 				}
 
 			}
@@ -513,7 +513,7 @@ func (fes *FrontEndService) VerifyConfig(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("%v; %v", err, stringOut)
 		} else {
-			logger.V(1).Info("OK", "birdc-out", strings.Split(stringOut, "\n"))
+			logger.V(1).Info("OK", "out", strings.Split(stringOut, "\n"))
 			return nil
 		}
 	}
@@ -1085,7 +1085,7 @@ func (fes *FrontEndService) reconfigure(ctx context.Context, path string) error 
 	if err != nil {
 		return fmt.Errorf("%v; %v", err, stringOut)
 	} else {
-		fes.logger.V(1).Info("routing service reconfigured", "birdc-out", strings.Split(stringOut, "\n"))
+		fes.logger.V(1).Info("routing service reconfigured", "out", strings.Split(stringOut, "\n"))
 		fes.logger.Info("routing service configuration applied")
 		return nil
 	}

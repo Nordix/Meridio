@@ -633,7 +633,7 @@ func (sns *SimpleNetworkService) InterfaceCreated(intf networking.Iface) {
 	}
 	_ = intf.GetName() // fills the Name field of the interface if necessary
 	if _, ok := sns.interfaces.Load(intf.GetIndex()); !ok {
-		sns.logger.Info("InterfaceCreated", "networkingIface", intf)
+		sns.logger.Info("InterfaceCreated", "networking-Iface", intf)
 	}
 	if sns.serviceBlocked() {
 		// if service blocked, do not process new interface events (which
@@ -688,7 +688,7 @@ func sameSubnet(if1, if2 networking.Iface) bool {
 
 // InterfaceDeleted -
 func (sns *SimpleNetworkService) InterfaceDeleted(intf networking.Iface) {
-	sns.logger.Info("InterfaceDeleted", "networkingIface", intf)
+	sns.logger.Info("InterfaceDeleted", "networking-Iface", intf)
 	sns.interfaces.Delete(intf.GetIndex())
 }
 
@@ -848,7 +848,7 @@ func (sns *SimpleNetworkService) disableInterfaces() {
 // disableInterface -
 // Set interface state down
 func (sns *SimpleNetworkService) disableInterface(intf networking.Iface) {
-	sns.logger.V(1).Info("Disable interface", "func", "disableInterface", "networkingIface", intf)
+	sns.logger.V(1).Info("Disable interface", "func", "disableInterface", "networking-Iface", intf)
 	la := netlink.NewLinkAttrs()
 	la.Index = intf.GetIndex()
 	err := netlink.LinkSetDown(&netlink.Dummy{LinkAttrs: la})
