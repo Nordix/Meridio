@@ -1,0 +1,15 @@
+---
+# Default values for nsm.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+tag: v1.11.2
+pullPolicy: IfNotPresent
+
+registry: ghcr.io
+organization: networkservicemesh
+
+forwarderVPPImage: cmd-forwarder-vpp
+registryK8sImage: cmd-registry-k8s
+nsmgrImage: cmd-nsmgr
+excludePrefixesImage: cmd-exclude-prefixes-k8s

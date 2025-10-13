@@ -21,11 +21,11 @@ help: ## Display this help.
 
 STEPS ?= clean kind-create kind-network multus cni-plugins whereabouts kind-gateways install-metrics-server install-spire wait wait-spire install-nsm wait wait-nsm
 
-KUBERNETES_VERSION ?= "v1.25"
+KUBERNETES_VERSION ?= "v1.31"
 KUBERNETES_IP_FAMILY ?= "dualstack"
 KUBERNETES_WORKERS ?= 2
 
-NSM_VERSION ?= "v1.6.0"
+NSM_VERSION ?= "v1.14.5"
 
 # Tools
 export PATH := $(shell pwd)/bin:$(PATH)
@@ -61,6 +61,62 @@ nodes:
 endef
 export KIND_CONFIG_NO_NODE
 
+define KIND_CONFIG_CONTAINERD_PATCH
+containerdConfigPatches:
+- |-
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."docker.io"]
+      endpoint = ["http://registry:5000"]
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."registry-1.docker.io"]
+      endpoint = ["http://registry:5000"]
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."k8s.gcr.io"]
+      endpoint = ["http://registry:5000"]
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."gcr.io"]
+      endpoint = ["http://registry:5000"]
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."registry.nordix.org"]
+      endpoint = ["http://registry:5000"]
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."quay.io"]
+      endpoint = ["http://registry:5000"]
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."ghcr.io"]
+      endpoint = ["http://registry:5000"]
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."projects.registry.vmware.com"]
+      endpoint = ["http://registry:5000"]
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."registry.k8s.io"]
+      endpoint = ["http://registry:5000"]
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."cr.fluentbit.io"]
+      endpoint = ["http://registry:5000"]
+    [plugins."io.containerd.grpc.v1.cri".registry.configs."docker.io".tls]
+      insecure_skip_verify = true
+    [plugins."io.containerd.grpc.v1.cri".registry.configs."registry-1.docker.io".tls]
+      insecure_skip_verify = true
+    [plugins."io.containerd.grpc.v1.cri".registry.configs."k8s.gcr.io".tls]
+      insecure_skip_verify = true
+    [plugins."io.containerd.grpc.v1.cri".registry.configs."gcr.io".tls]
+      insecure_skip_verify = true
+    [plugins."io.containerd.grpc.v1.cri".registry.configs."registry.nordix.org".tls]
+      insecure_skip_verify = true
+    [plugins."io.containerd.grpc.v1.cri".registry.configs."quay.io".tls]
+      insecure_skip_verify = true
+    [plugins."io.containerd.grpc.v1.cri".registry.configs."ghcr.io".tls]
+      insecure_skip_verify = true
+    [plugins."io.containerd.grpc.v1.cri".registry.configs."projects.registry.vmware.com".tls]
+      insecure_skip_verify = true
+    [plugins."io.containerd.grpc.v1.cri".registry.configs."registry.k8s.io".tls]
+      insecure_skip_verify = true
+    [plugins."io.containerd.grpc.v1.cri".registry.configs."cr.fluentbit.io".tls]
+      insecure_skip_verify = true
+endef
+export KIND_CONFIG_CONTAINERD_PATCH
+
+define KIND_CONFIG_KUBEADM_PATCH
+  kubeadmConfigPatches:
+  - |
+    kind: JoinConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        container-log-max-size: "100Mi"
+endef
+export KIND_CONFIG_KUBEADM_PATCH
+
 define KIND_CONFIG
 version="kindest/node:v1.31.0@sha256:53df588e04085fd41ae12de0c3fe4c72f7013bba32a20e7325357a1ac94ba865" ; \
 if [ $(KUBERNETES_VERSION) = "v1.30" ]; then \
@@ -94,7 +150,13 @@ echo "  image: $$version" ; \
 for number in `seq 1 $(KUBERNETES_WORKERS)` ; do \
 	echo "- role: worker" ; \
 	echo "  image: $$version" ; \
-done
+	if [ "$(KIND_CONFIG_LOCAL)" = "true" ]; then \
+		echo "$$KIND_CONFIG_KUBEADM_PATCH" ; \
+	fi ; \
+done ; \
+if [ "$(KIND_CONFIG_LOCAL)" = "true" ]; then \
+	echo "$$KIND_CONFIG_CONTAINERD_PATCH" ; \
+fi
 endef
 
 #############################################################################
@@ -129,9 +191,9 @@ kind-config: ## Print the Kind cluster config
 
 .PHONY: kind-create
 kind-create: temp-dir kind kind-delete ## Create the Kind cluster
-	$(MAKE) -s kind-config > $(TEMP_DIR)/kind-config.yaml ; \
-	$(KIND) create cluster --config $(TEMP_DIR)/kind-config.yaml ; \
-	rm $(TEMP_DIR)/kind-config.yaml
+	KIND_CONFIG_LOCAL="$(KIND_CONFIG_LOCAL)" $(MAKE) -s kind-config > $(TEMP_DIR)/kind-config.yaml ; \
+	$(KIND) create cluster --config $(TEMP_DIR)/kind-config.yaml ; ##\
+## rm $(TEMP_DIR)/kind-config.yaml
 
 .PHONY: whereabouts
 whereabouts: ## Install whereabouts IPAM CNI plugin
@@ -139,20 +201,20 @@ whereabouts: ## Install whereabouts IPAM CNI plugin
 	-f https://raw.githubusercontent.com/k8snetworkplumbingwg/whereabouts/master/doc/crds/daemonset-install.yaml \
 	-f https://raw.githubusercontent.com/k8snetworkplumbingwg/whereabouts/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml \
 	-f https://raw.githubusercontent.com/k8snetworkplumbingwg/whereabouts/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml && \
-	kubectl rollout status daemonset whereabouts -n kube-system --timeout 300s || \
+	kubectl rollout status daemonset whereabouts -n kube-system --timeout $(WAIT_TIMEOUT) || \
 	{ echo >&2 "Error: Failed to install Whereabouts"; exit 1; }
 
 .PHONY: multus
 multus: ## Install multus
 	kubectl apply -f https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/master/deployments/multus-daemonset.yml && \
-	kubectl rollout status daemonset kube-multus-ds -n kube-system --timeout 300s || { echo >&2 "Error: Failed to install Multus"; exit 1; }
+	kubectl rollout status daemonset kube-multus-ds -n kube-system --timeout $(WAIT_TIMEOUT) || { echo >&2 "Error: Failed to install Multus"; exit 1; }
 
 .PHONY: cni-plugins
 cni-plugins: ## Install CNI plugins (add recovery option by failing cni install container if wget fails)
 	curl -sL https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/master/e2e/templates/cni-install.yml.j2 | \
 	sed '/^\s*wget / s/$$/ || { echo "wget failed"; exit 1; }/' | \
 	kubectl apply -f - && \
-	kubectl rollout status daemonset install-cni-plugins -n kube-system --timeout 300s || \
+	kubectl rollout status daemonset install-cni-plugins -n kube-system --timeout $(WAIT_TIMEOUT) || \
 	{ echo >&2 "Error: Failed to install CNI plugins"; exit 1; }
 
 .PHONY: kind-network
@@ -210,13 +272,13 @@ wait-spire: ## Wait for spire to be ready
 
 .PHONY: install-nsm
 install-nsm: ## Install nsm
-	helm install nsm ../../deployments/nsm --create-namespace --namespace nsm --set tag=$(NSM_VERSION)
+	helm install nsm ../../deployments/nsm-k8s --create-namespace --namespace nsm --set tag=$(NSM_VERSION)
 
 .PHONY: wait-nsm
 wait-nsm: ## Wait for NSM to be ready
 	kubectl wait -n nsm --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=nsmgr ; \
 	kubectl wait -n nsm --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=forwarder-vpp ; \
-	kubectl wait -n nsm --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=nsm-registry
+	kubectl wait -n nsm --timeout=$(WAIT_TIMEOUT) --for=condition=ready pod -l app=registry-k8s
 
 #############################################################################
 ##@ Observability
