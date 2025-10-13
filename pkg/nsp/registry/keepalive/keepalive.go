@@ -125,10 +125,10 @@ func (ka *KeepAlive) Get(ctx context.Context, target *nspAPI.Target) ([]*nspAPI.
 func (ka *KeepAlive) add(target *nspAPI.Target) {
 	kaTarget, exists := ka.targets[sqlite.GetTargetID(target)]
 	if exists {
-		log.Logger.Info("Update/refresh", "target", target)
+		log.Logger.Info("Update/refresh", "nspAPI-Target", target)
 		kaTarget.contextCancel()
 	} else {
-		log.Logger.Info("Register", "target", target)
+		log.Logger.Info("Register", "nspAPI-Target", target)
 	}
 	ctx, cancel := context.WithCancel(context.TODO())
 	ka.targets[sqlite.GetTargetID(target)] = &keepAliveTarget{
@@ -143,7 +143,7 @@ func (ka *KeepAlive) add(target *nspAPI.Target) {
 
 func (ka *KeepAlive) remove(ctx context.Context, target *nspAPI.Target) error {
 	delete(ka.targets, sqlite.GetTargetID(target))
-	log.Logger.Info("Unregister", "target", target)
+	log.Logger.Info("Unregister", "nspAPI-Target", target)
 	if ka.TargetRegistry == nil {
 		return nil
 	}

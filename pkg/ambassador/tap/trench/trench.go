@@ -114,7 +114,7 @@ func New(trench *ambassadorAPI.Trench,
 		t.StreamRegistry,
 		t.NetUtils,
 		nspEntryTimeout)
-	t.logger.Info("Created trench", "object", t)
+	t.logger.Info("Created", "TrenchObject", t)
 	return t, nil
 }
 

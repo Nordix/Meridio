@@ -301,7 +301,7 @@ func (sr *streamRetry) Close(ctx context.Context) error {
 
 func (sr *streamRetry) setStatus(status ambassadorAPI.StreamStatus_Status) {
 	if status != sr.currentStatus {
-		log.Logger.Info("ambassadorAPI stream status changed", "status", status, "stream", sr.Stream.GetStream())
+		log.Logger.Info("ambassadorAPI stream status changed", "streamStatus", status, "stream", sr.Stream.GetStream())
 	}
 	sr.currentStatus = status
 	if sr.StreamRegistry == nil {

@@ -106,7 +106,7 @@ func NewFrontEndService(ctx context.Context, c *feConfig.Config, gatewayMetrics 
 
 	gatewayMetrics.RoutingService = frontEndService.routingService
 
-	logger.Info("Created", "object", frontEndService)
+	logger.Info("Created", "frontEndServiceObject", frontEndService)
 	return frontEndService
 }
 
@@ -208,7 +208,7 @@ func (fes *FrontEndService) WaitStart(ctx context.Context) error {
 			if i <= 10 {
 				timeoutScale += 10000000 // 10 ms
 			}
-			logger.V(1).Info("not ready yet", "out", err)
+			logger.V(1).Info("not ready yet", "error", err)
 		} else {
 			break
 		}
@@ -367,7 +367,7 @@ func (fes *FrontEndService) Monitor(ctx context.Context, errCh chan<- error) {
 			sessionErrors = 0
 
 			if strings.Contains(protocolOut, bird.NoProtocolsLog) {
-				logger.Info("protocol output", "out", protocolOut)
+				logger.Info("protocol output", "protocolOut", protocolOut)
 				denounce = true
 				continue
 			}
@@ -566,7 +566,7 @@ func (fes *FrontEndService) writeConfig() error {
 	routingConfig := bird.NewRoutingConfig(fes.birdConfFile)
 	routingConfig.Append(conf)
 	fes.logger.Info("routing configuration generated")
-	fes.logger.V(1).Info("config", "config", strings.Split(routingConfig.String(), "\n"))
+	fes.logger.V(1).Info("config", "routingConfig", strings.Split(routingConfig.String(), "\n"))
 
 	return routingConfig.Apply()
 }
@@ -1164,7 +1164,7 @@ func (fes *FrontEndService) setVIPs(vips interface{}, change *bool) error {
 			list = append(list, vip.GetAddress())
 		}
 		added, removed = utils.Difference(fes.vips, list)
-		fes.logger.V(1).Info("setVIPs", "got", vips, "added", added, "removed", removed)
+		fes.logger.V(1).Info("setVIPs", "got Vips", vips, "added", added, "removed", removed)
 		fes.vips = list
 	default:
 		fes.logger.Info("VIP configuration format not supported")
@@ -1187,7 +1187,7 @@ func (fes *FrontEndService) setGateways(gateways interface{}, change *bool) erro
 	switch gateways := gateways.(type) {
 	case []*nspAPI.Gateway:
 		list := utils.ConvertGateways(gateways)
-		fes.logger.V(1).Info("setGateways", "got", list, "have", fes.gateways)
+		fes.logger.V(1).Info("setGateways", "got Gateways", list, "have", fes.gateways)
 		if utils.DiffGateways(list, fes.gateways) {
 			fes.gateways = list
 			*change = true
