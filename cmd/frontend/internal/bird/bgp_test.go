@@ -27,7 +27,7 @@ import (
 	"github.com/nordix/meridio/cmd/frontend/internal/connectivity"
 )
 
-var extInterface string = `ext-vlan`
+var extInterface string = `eth0.100`
 
 type testGateway struct {
 	ip  string
@@ -73,26 +73,24 @@ func check(protocolOutput, bfdOutput string, cs *connectivity.ConnectivityStatus
 }
 
 // TestParseProtocols -
-// 2 IPv4 and 2 IPv6 BGP protocol sessions are present in the output. All the sessions are up.
-// Only 1 IPv4 and 1 IPv6 sessions are known to the configuration. BFD is not configured.
+// 1 IPv4 and 1 IPv6 BGP protocol sessions are present in the output. All the sessions are up.
+// All sessions are known to the configuration. BFD is not configured.
 //
 // After parsing:
 // External connectivity must be OK.
 // All BGP sessions known to configuration must be up.
-// Logs collected by the parser must contain all 4 BGP sessions.
+// Logs collected by the parser must contain all BGP sessions.
 func TestParseProtocols(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	cs := connectivity.NewConnectivityStatus()
 	configuredGatewayNamesByFamily = map[string]*testGateway{
-		`NBR-gateway3`: {ip: `169.254.100.253`, af: syscall.AF_INET, bfd: false},
-		`NBR-gateway4`: {ip: `100:100::253`, af: syscall.AF_INET6, bfd: false},
+		`NBR-gateway1`: {ip: `169.254.100.150`, af: syscall.AF_INET, bfd: true},
+		`NBR-gateway2`: {ip: `100:100::150`, af: syscall.AF_INET6, bfd: true},
 	}
-	expectedLog := `BIRD 2.0.7 ready.` + "\n" +
+	expectedLog := `BIRD 3.1.4 ready.` + "\n" +
 		`Name       Proto      Table      State  Since         Info` + "\n" +
-		`NBR-gateway1 BGP        ---        up     16:03:22.388  Established    Neighbor address: 169.254.100.254%ext-vlan` + "\n" +
-		`NBR-gateway2 BGP        ---        up     17:53:39.604  Established    Neighbor address: 100:100::254%ext-vlan` + "\n" +
-		`NBR-gateway3 BGP        ---        up     17:18:30.468  Established    Neighbor address: 169.254.100.253%ext-vlan` + "\n" +
-		`NBR-gateway4 BGP        ---        up     17:53:40.211  Established    Neighbor address: 100:100::253%ext-vlan` + "\n"
+		`NBR-gateway1 BGP        ---        up     12:17:33.417  Established       Neighbor address: 169.254.100.150%eth0.100` + "\n" +
+		`NBR-gateway2 BGP        ---        up     12:17:34.062  Established       Neighbor address: 100:100::150%eth0.100` + "\n"
 
 	assert.NotNil(t, cs)
 	assert.Equal(t, "", cs.Log())
@@ -106,9 +104,8 @@ func TestParseProtocols(t *testing.T) {
 }
 
 // TestParseProtocolsWithBfd -
-// 2 IPv4 and 2 IPv6 (link-local addr) BGP protocol sessions are present in the output.
-// Only 1 IPv4 and 1 IPv6 sessions are known to the configuration (configuredGatewayNamesByFamily).
-// The IPv4 session not known to the config (NBR-gateway3) is down.
+// 1 IPv4 and 1 IPv6 (link-local addr) BGP protocol sessions are present in the output.
+// All sessions are known to the configuration (configuredGatewayNamesByFamily).
 // BFD is configured for all the neighbors, and all are up.
 //
 // After parsing:
@@ -118,17 +115,15 @@ func TestParseProtocolsWithBfd(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	cs := connectivity.NewConnectivityStatus()
 	configuredGatewayNamesByFamily = map[string]*testGateway{
-		`NBR-gateway1`: {ip: `169.254.100.254`, af: syscall.AF_INET, bfd: true},
-		`NBR-gateway2`: {ip: `fe80::beef`, af: syscall.AF_INET6, bfd: true},
+		`NBR-gateway1`: {ip: `169.254.100.150`, af: syscall.AF_INET, bfd: true},
+		`NBR-gateway2`: {ip: `fe80::98c6:29ff:fe52:ccb5`, af: syscall.AF_INET6, bfd: true},
 	}
 	bfdOutput := `
-		BIRD 2.0.7 ready.
-		NBR-BFD:
-		IP address                Interface  State      Since         Interval  Timeout
-		fe80::beef                ext-vlan   Up         16:03:25.387    0.100    0.500
-		fe80::beee                ext-vlan   Up         16:03:25.943    0.100    0.500
-		169.254.100.253           ext-vlan   Up         16:03:18.349    0.100    0.500
-		169.254.100.254           ext-vlan   Up         16:03:18.349    0.100    0.500
+		BIRD 3.1.4 ready.
+    NBR-BFD:
+    IP address                Interface  State      Since         Interval  Timeout
+    169.254.100.150           eth0.100   Up         14:34:31.904    0.300    1.500
+    fe80::98c6:29ff:fe52:ccb5 eth0.100   Up         14:34:27.614    0.300    1.500
 	`
 
 	assert.NotNil(t, cs)
@@ -142,19 +137,19 @@ func TestParseProtocolsWithBfd(t *testing.T) {
 }
 
 var bgpLinkLocalOutput string = `
-BIRD 2.0.7 ready.
+BIRD 3.1.4 ready.
 Name       Proto      Table      State  Since         Info
-NBR-BFD    BFD        ---        up     16:03:17.278  
-
-NBR-gateway1 BGP        ---        up     16:03:22.388  Established   
+NBR-gateway1 BGP        ---        up     14:34:31.904  Established   
+  Created:            14:34:27.614
   BGP state:          Established
-    Neighbor address: 169.254.100.254%ext-vlan
+    Neighbor address: 169.254.100.150%eth0.100
+    Neighbor port:    10179
     Neighbor AS:      4248829953
     Local AS:         8103
-    Neighbor ID:      11.0.0.1
+    Neighbor ID:      169.254.100.150
     Local capabilities
       Multiprotocol
-        AF announced: ipv4 ipv6
+        AF announced: ipv4
       Route refresh
       4-octet AS numbers
       Enhanced refresh
@@ -165,45 +160,39 @@ NBR-gateway1 BGP        ---        up     16:03:22.388  Established
       4-octet AS numbers
       Enhanced refresh
     Session:          external AS4
-    Source address:   169.254.100.3
-    Hold timer:       2.270/3
-    Keepalive timer:  0.556/1
+    Source address:   169.254.100.2
+    Hold timer:       2.089/3
+    Keepalive timer:  0.448/1
+    TX pending:       0 bytes
+    Send hold timer:  4.863/6
   Channel ipv4
     State:          UP
+    Import state:   UP
+    Export state:   READY
     Table:          master4
     Preference:     100
     Input filter:   cluster_breakout
     Output filter:  cluster_access
-    Routes:         1 imported, 2 exported, 1 preferred
-    Route change stats:     received   rejected   filtered    ignored   accepted
-      Import updates:              1          0          0          0          1
-      Import withdraws:            0          0        ---          0          0
-      Export updates:              4          2          0        ---          2
-      Export withdraws:            0        ---        ---        ---          0
-    BGP Next hop:   169.254.100.3
-  Channel ipv6
-    State:          UP
-    Table:          master6
-    Preference:     100
-    Input filter:   REJECT
-    Output filter:  REJECT
-    Routes:         0 imported, 0 exported, 0 preferred
-    Route change stats:     received   rejected   filtered    ignored   accepted
-      Import updates:              0          0          0          0          0
-      Import withdraws:            0          0        ---          0          0
-      Export updates:              3          0          3        ---          0
-      Export withdraws:            0        ---        ---        ---          0
-    BGP Next hop:   100:100::3 fe80::200:ff:fe01:102
-        
-NBR-gateway2 BGP        ---        up     16:03:25.264  Established   
+    Routes:         1 imported, 0 exported, 1 preferred
+    Route change stats:     received   rejected   filtered    ignored   RX limit      limit   accepted
+      Import updates:              1          0          0          0          0          0          1
+      Import withdraws:            0          0        ---          0        ---        ---          0
+      Export updates:              1          1          0          0        ---          0          0
+      Export withdraws:            0        ---        ---          0        ---        ---          0
+    BGP Next hop:   169.254.100.2
+    Pending 0 attribute sets with total 0 prefixes to send
+
+NBR-gateway2 BGP        ---        up  14:34:27.614  Established
+  Created:            14:34:27.614
   BGP state:          Established
-    Neighbor address: fe80::beef%ext-vlan
+    Neighbor address: fe80::98c6:29ff:fe52:ccb5%eth0.100
     Neighbor AS:      4248829953
     Local AS:         8103
-    Neighbor ID:      11.0.0.1
-    Local capabilities
+    Connect delay:    3.942/5
+    Last error:       Socket: Connection reset by peer
+      Local capabilities
       Multiprotocol
-        AF announced: ipv4 ipv6
+        AF announced: ipv6
       Route refresh
       4-octet AS numbers
       Enhanced refresh
@@ -214,121 +203,46 @@ NBR-gateway2 BGP        ---        up     16:03:25.264  Established
       4-octet AS numbers
       Enhanced refresh
     Session:          external AS4
-    Source address:   fe80::200:ff:fe01:102
-    Hold timer:       2.242/3
-    Keepalive timer:  0.635/1
-  Channel ipv4
-    State:          UP
-    Table:          master4
-    Preference:     100
-    Input filter:   REJECT
-    Output filter:  REJECT
-    Routes:         0 imported, 0 exported, 0 preferred
-    Route change stats:     received   rejected   filtered    ignored   accepted
-      Import updates:              0          0          0          0          0
-      Import withdraws:            0          0        ---          0          0
-      Export updates:              3          0          3        ---          0
-      Export withdraws:            0        ---        ---        ---          0
-    BGP Next hop:   169.254.100.3
+    Source address:   100:100::2
+    Hold timer:       1.736/3
+    Keepalive timer:  0.394/1
+    TX pending:       0 bytes
+    Send hold timer:  4.870/6
   Channel ipv6
     State:          UP
+    Import state:   UP
+    Export state:   READY
     Table:          master6
     Preference:     100
     Input filter:   cluster_breakout
     Output filter:  cluster_access
     Routes:         1 imported, 1 exported, 1 preferred
-    Route change stats:     received   rejected   filtered    ignored   accepted
-      Import updates:              1          0          0          0          1
-      Import withdraws:            0          0        ---          0          0
-      Export updates:              3          1          1        ---          1
-      Export withdraws:            0        ---        ---        ---          0
-    BGP Next hop:   :: fe80::200:ff:fe01:102
-
-NBR-gateway3 BGP        ---        start  17:17:33.913  Idle          Received: Hold timer expired
-  BGP state:          Idle
-    Neighbor address: 169.254.100.253%ext-vlan
-    Neighbor AS:      4248829953
-    Local AS:         8103
-    Error wait:       43.061/60
-    Last error:       Received: Hold timer expired
-  Channel ipv4
-    State:          DOWN
-    Table:          master4
-    Preference:     100
-    Input filter:   cluster_breakout
-    Output filter:  cluster_access
-  Channel ipv6
-    State:          DOWN
-    Table:          master6
-    Preference:     100
-    Input filter:   REJECT
-    Output filter:  REJECT
-        
-NBR-gateway4 BGP        ---        up     16:03:25.204  Established   
-  BGP state:          Established
-    Neighbor address: fe80::beee%ext-vlan
-    Neighbor AS:      4248829953
-    Local AS:         8103
-    Neighbor ID:      11.0.0.2
-    Local capabilities
-      Multiprotocol
-        AF announced: ipv4 ipv6
-      Route refresh
-      4-octet AS numbers
-      Enhanced refresh
-    Neighbor capabilities
-      Multiprotocol
-        AF announced: ipv4 ipv6
-      Route refresh
-      4-octet AS numbers
-      Enhanced refresh
-    Session:          external AS4
-    Source address:   fe80::200:ff:fe01:102
-    Hold timer:       2.527/3
-    Keepalive timer:  0.774/1
-  Channel ipv4
-    State:          UP
-    Table:          master4
-    Preference:     100
-    Input filter:   REJECT
-    Output filter:  REJECT
-    Routes:         0 imported, 0 exported, 0 preferred
-    Route change stats:     received   rejected   filtered    ignored   accepted
-      Import updates:              0          0          0          0          0
-      Import withdraws:            0          0        ---          0          0
-      Export updates:              3          0          3        ---          0
-      Export withdraws:            0        ---        ---        ---          0
-    BGP Next hop:   169.254.100.3
-  Channel ipv6
-    State:          UP
-    Table:          master6
-    Preference:     100
-    Input filter:   cluster_breakout
-    Output filter:  cluster_access
-    Routes:         1 imported, 1 exported, 0 preferred
-    Route change stats:     received   rejected   filtered    ignored   accepted
-      Import updates:              1          0          0          0          1
-      Import withdraws:            0          0        ---          0          0
-      Export updates:              3          1          1        ---          1
-      Export withdraws:            0        ---        ---        ---          0
-    BGP Next hop:   :: fe80::200:ff:fe01:102
-
+    Route change stats:     received   rejected   filtered    ignored   RX limit      limit   accepted
+      Import updates:              1          0          0          0          0          0          1
+      Import withdraws:            0          0        ---          0        ---        ---          0
+      Export updates:              2          1          0          0        ---          0          1
+      Export withdraws:            0        ---        ---          0        ---        ---          0
+    BGP Next hop:   100:100::2 fe80::70bd:69ff:fe9f:8f00
+    Pending 0 attribute sets with total 0 prefixes to send
+    
+NBR-BFD    BFD        ---        up     14:34:17.713  
+  Created:            14:34:17.713
 `
 
 var bgpOutput string = `
-BIRD 2.0.7 ready.
+BIRD 3.1.4 ready.
 Name       Proto      Table      State  Since         Info
-NBR-BFD    BFD        ---        up     16:03:17.278
-
-NBR-gateway1 BGP        ---        up     16:03:22.388  Established
+NBR-gateway1 BGP        ---        up     12:17:33.417  Established   
+  Created:            12:17:29.169
   BGP state:          Established
-    Neighbor address: 169.254.100.254%ext-vlan
+    Neighbor address: 169.254.100.150%eth0.100
+    Neighbor port:    10179
     Neighbor AS:      4248829953
     Local AS:         8103
-    Neighbor ID:      11.0.0.1
+    Neighbor ID:      169.254.100.150
     Local capabilities
       Multiprotocol
-        AF announced: ipv4 ipv6
+        AF announced: ipv4
       Route refresh
       4-octet AS numbers
       Enhanced refresh
@@ -339,45 +253,39 @@ NBR-gateway1 BGP        ---        up     16:03:22.388  Established
       4-octet AS numbers
       Enhanced refresh
     Session:          external AS4
-    Source address:   169.254.100.3
-    Hold timer:       1.915/3
-    Keepalive timer:  0.117/1
+    Source address:   169.254.100.2
+    Hold timer:       2.715/3
+    Keepalive timer:  0.391/1
+    TX pending:       0 bytes
+    Send hold timer:  4.428/6
   Channel ipv4
     State:          UP
+    Import state:   UP
+    Export state:   READY
     Table:          master4
     Preference:     100
     Input filter:   cluster_breakout
     Output filter:  cluster_access
     Routes:         1 imported, 2 exported, 1 preferred
-    Route change stats:     received   rejected   filtered    ignored   accepted
-      Import updates:              1          0          0          0          1
-      Import withdraws:            0          0        ---          0          0
-      Export updates:              6          2          0        ---          4
-      Export withdraws:            2        ---        ---        ---          2
-    BGP Next hop:   169.254.100.3
-  Channel ipv6
-    State:          UP
-    Table:          master6
-    Preference:     100
-    Input filter:   REJECT
-    Output filter:  REJECT
-    Routes:         0 imported, 0 exported, 0 preferred
-    Route change stats:     received   rejected   filtered    ignored   accepted
-      Import updates:              0          0          0          0          0
-      Import withdraws:            0          0        ---          0          0
-      Export updates:              6          0          6        ---          0
-      Export withdraws:            2        ---        ---        ---          0
-    BGP Next hop:   100:100::3 fe80::200:ff:fe01:102
+    Route change stats:     received   rejected   filtered    ignored   RX limit      limit   accepted
+      Import updates:              1          0          0          0          0          0          1
+      Import withdraws:            0          0        ---          0        ---        ---          0
+      Export updates:              3          1          0          0        ---          0          2
+      Export withdraws:            0        ---        ---          0        ---        ---          0
+    BGP Next hop:   169.254.100.2
+    Pending 0 attribute sets with total 0 prefixes to send
 
-NBR-gateway2 BGP        ---        up     17:53:39.604  Established
+NBR-gateway2 BGP        ---        up     12:17:34.062  Established   
+  Created:            12:17:29.169
   BGP state:          Established
-    Neighbor address: 100:100::254%ext-vlan
+    Neighbor address: 100:100::150%eth0.100
+    Neighbor port:    10179
     Neighbor AS:      4248829953
     Local AS:         8103
-    Neighbor ID:      11.0.0.1
+    Neighbor ID:      169.254.100.150
     Local capabilities
       Multiprotocol
-        AF announced: ipv4 ipv6
+        AF announced: ipv6
       Route refresh
       4-octet AS numbers
       Enhanced refresh
@@ -388,132 +296,28 @@ NBR-gateway2 BGP        ---        up     17:53:39.604  Established
       4-octet AS numbers
       Enhanced refresh
     Session:          external AS4
-    Source address:   100:100::3
-    Hold timer:       2.224/3
-    Keepalive timer:  0.775/1
-  Channel ipv4
-    State:          UP
-    Table:          master4
-    Preference:     100
-    Input filter:   REJECT
-    Output filter:  REJECT
-    Routes:         0 imported, 0 exported, 0 preferred
-    Route change stats:     received   rejected   filtered    ignored   accepted
-      Import updates:              0          0          0          0          0
-      Import withdraws:            0          0        ---          0          0
-      Export updates:              3          0          3        ---          0
-      Export withdraws:            0        ---        ---        ---          0
-    BGP Next hop:   169.254.100.3
+    Source address:   100:100::2
+    Hold timer:       1.736/3
+    Keepalive timer:  0.394/1
+    TX pending:       0 bytes
+    Send hold timer:  4.870/6
   Channel ipv6
     State:          UP
+    Import state:   UP
+    Export state:   READY
     Table:          master6
     Preference:     100
     Input filter:   cluster_breakout
     Output filter:  cluster_access
     Routes:         1 imported, 1 exported, 1 preferred
-    Route change stats:     received   rejected   filtered    ignored   accepted
-      Import updates:              1          0          0          0          1
-      Import withdraws:            0          0        ---          0          0
-      Export updates:              3          2          0        ---          1
-      Export withdraws:            0        ---        ---        ---          0
-    BGP Next hop:   100:100::3 fe80::200:ff:fe01:102
+    Route change stats:     received   rejected   filtered    ignored   RX limit      limit   accepted
+      Import updates:              1          0          0          0          0          0          1
+      Import withdraws:            0          0        ---          0        ---        ---          0
+      Export updates:              2          1          0          0        ---          0          1
+      Export withdraws:            0        ---        ---          0        ---        ---          0
+    BGP Next hop:   100:100::2 fe80::70bd:69ff:fe9f:8f00
+    Pending 0 attribute sets with total 0 prefixes to send
 
-NBR-gateway3 BGP        ---        up     17:18:30.468  Established
-  BGP state:          Established
-    Neighbor address: 169.254.100.253%ext-vlan
-    Neighbor AS:      4248829953
-    Local AS:         8103
-    Neighbor ID:      11.0.0.2
-    Local capabilities
-      Multiprotocol
-        AF announced: ipv4 ipv6
-      Route refresh
-      4-octet AS numbers
-      Enhanced refresh
-    Neighbor capabilities
-      Multiprotocol
-        AF announced: ipv4 ipv6
-      Route refresh
-      4-octet AS numbers
-      Enhanced refresh
-    Session:          external AS4
-    Source address:   169.254.100.3
-    Hold timer:       2.120/3
-    Keepalive timer:  0.005/1
-  Channel ipv4
-    State:          UP
-    Table:          master4
-    Preference:     100
-    Input filter:   cluster_breakout
-    Output filter:  cluster_access
-    Routes:         1 imported, 2 exported, 0 preferred
-    Route change stats:     received   rejected   filtered    ignored   accepted
-      Import updates:              1          0          0          0          1
-      Import withdraws:            0          0        ---          0          0
-      Export updates:              5          0          1        ---          4
-      Export withdraws:            2        ---        ---        ---          2
-    BGP Next hop:   169.254.100.3
-  Channel ipv6
-    State:          UP
-    Table:          master6
-    Preference:     100
-    Input filter:   REJECT
-    Output filter:  REJECT
-    Routes:         0 imported, 0 exported, 0 preferred
-    Route change stats:     received   rejected   filtered    ignored   accepted
-      Import updates:              0          0          0          0          0
-      Import withdraws:            0          0        ---          0          0
-      Export updates:              5          0          5        ---          0
-      Export withdraws:            2        ---        ---        ---          0
-    BGP Next hop:   100:100::3 fe80::200:ff:fe01:102
-
-NBR-gateway4 BGP        ---        up     17:53:40.211  Established
-  BGP state:          Established
-    Neighbor address: 100:100::253%ext-vlan
-    Neighbor AS:      4248829953
-    Local AS:         8103
-    Neighbor ID:      11.0.0.2
-    Local capabilities
-      Multiprotocol
-        AF announced: ipv4 ipv6
-      Route refresh
-      4-octet AS numbers
-      Enhanced refresh
-    Neighbor capabilities
-      Multiprotocol
-        AF announced: ipv4 ipv6
-      Route refresh
-      4-octet AS numbers
-      Enhanced refresh
-    Session:          external AS4
-    Source address:   100:100::3
-    Hold timer:       2.564/3
-    Keepalive timer:  0.261/1
-  Channel ipv4
-    State:          UP
-    Table:          master4
-    Preference:     100
-    Input filter:   REJECT
-    Output filter:  REJECT
-    Routes:         0 imported, 0 exported, 0 preferred
-    Route change stats:     received   rejected   filtered    ignored   accepted
-      Import updates:              0          0          0          0          0
-      Import withdraws:            0          0        ---          0          0
-      Export updates:              3          0          3        ---          0
-      Export withdraws:            0        ---        ---        ---          0
-    BGP Next hop:   169.254.100.3
-  Channel ipv6
-    State:          UP
-    Table:          master6
-    Preference:     100
-    Input filter:   cluster_breakout
-    Output filter:  cluster_access
-    Routes:         1 imported, 1 exported, 0 preferred
-    Route change stats:     received   rejected   filtered    ignored   accepted
-      Import updates:              1          0          0          0          1
-      Import withdraws:            0          0        ---          0          0
-      Export updates:              2          0          1        ---          1
-      Export withdraws:            0        ---        ---        ---          0
-    BGP Next hop:   100:100::3 fe80::200:ff:fe01:102
-
+NBR-BFD    BFD        ---        up     12:17:19.296  
+  Created:            12:17:19.296
 `
