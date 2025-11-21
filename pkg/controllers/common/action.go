@@ -17,10 +17,10 @@ limitations under the License.
 package common
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/go-logr/logr"
-	"golang.org/x/net/context"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
