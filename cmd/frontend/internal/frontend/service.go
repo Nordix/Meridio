@@ -838,6 +838,7 @@ func (fes *FrontEndService) writeConfigKernel(conf *string, hasVIP4, hasVIP6 boo
 	*conf += "\t\timport none;\n"
 	*conf += "\t\texport " + eFilter + ";\n"
 	*conf += "\t};\n"
+	*conf += "\tscan time 10;\n"
 	*conf += "\tkernel table " + strconv.FormatInt(int64(fes.kernelTableId), 10) + ";\n"
 	if fes.ecmp {
 		*conf += "\tmerge paths on;\n"
@@ -855,6 +856,7 @@ func (fes *FrontEndService) writeConfigKernel(conf *string, hasVIP4, hasVIP6 boo
 	*conf += "\t\timport none;\n"
 	*conf += "\t\texport " + eFilter + ";\n"
 	*conf += "\t};\n"
+	*conf += "\tscan time 10;\n"
 	*conf += "\tkernel table " + strconv.FormatInt(int64(fes.kernelTableId), 10) + ";\n"
 	if fes.ecmp {
 		*conf += "\tmerge paths on;\n"
