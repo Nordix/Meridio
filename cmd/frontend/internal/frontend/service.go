@@ -72,6 +72,7 @@ func NewFrontEndService(ctx context.Context, c *feConfig.Config, gatewayMetrics 
 		birdConfFile:             birdConfFile,
 		birdCommSocket:           c.BirdCommunicationSock,
 		birdLogFileSize:          c.BirdLogFileSize,
+		birdKernelScanTime:       c.BirdKernelScanTime,
 		kernelTableId:            c.TableID,
 		extInterface:             c.ExternalInterface,
 		localASN:                 c.LocalAS,
@@ -123,6 +124,7 @@ type FrontEndService struct {
 	birdConfFile             string
 	birdCommSocket           string
 	birdLogFileSize          int
+	birdKernelScanTime       int
 	kernelTableId            int
 	extInterface             string
 	localASN                 string
@@ -838,7 +840,7 @@ func (fes *FrontEndService) writeConfigKernel(conf *string, hasVIP4, hasVIP6 boo
 	*conf += "\t\timport none;\n"
 	*conf += "\t\texport " + eFilter + ";\n"
 	*conf += "\t};\n"
-	*conf += "\tscan time 10;\n"
+	*conf += "\tscan time " + strconv.FormatInt(int64(fes.birdKernelScanTime), 10) + ";\n"
 	*conf += "\tkernel table " + strconv.FormatInt(int64(fes.kernelTableId), 10) + ";\n"
 	if fes.ecmp {
 		*conf += "\tmerge paths on;\n"
@@ -856,7 +858,7 @@ func (fes *FrontEndService) writeConfigKernel(conf *string, hasVIP4, hasVIP6 boo
 	*conf += "\t\timport none;\n"
 	*conf += "\t\texport " + eFilter + ";\n"
 	*conf += "\t};\n"
-	*conf += "\tscan time 10;\n"
+	*conf += "\tscan time " + strconv.FormatInt(int64(fes.birdKernelScanTime), 10) + ";\n"
 	*conf += "\tkernel table " + strconv.FormatInt(int64(fes.kernelTableId), 10) + ";\n"
 	if fes.ecmp {
 		*conf += "\tmerge paths on;\n"

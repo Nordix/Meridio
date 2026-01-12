@@ -27,6 +27,7 @@ type Config struct {
 	BirdConfigPath        string        `default:"/etc/bird" desc:"Path to place bird config files" split_words:"true"`
 	BirdCommunicationSock string        `default:"/var/run/bird/bird.ctl" desc:"Use given filename for a socket to communicate with birdc" split_words:"true"`
 	BirdLogFileSize       int           `default:"20000" desc:"File size in bytes of the local BIRD log file (and log backup file)" split_words:"true"`
+	BirdKernelScanTime    int           `default:"10" desc:"Interval in seconds for scanning kernel routing table for changes" split_words:"true"`
 	LocalAS               string        `default:"8103" desc:"Local BGP AS number" envconfig:"LOCAL_AS"`
 	RemoteAS              string        `default:"4248829953" desc:"Local BGP AS number" envconfig:"REMOTE_AS"`
 	BGPLocalPort          string        `default:"10179" desc:"Local BGP server port" envconfig:"BGP_LOCAL_PORT"`
