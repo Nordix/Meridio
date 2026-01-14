@@ -122,6 +122,7 @@ NFE_REMOTE_AS | string | Local BGP AS number | 4248829953
 NFE_BGP_LOCAL_PORT | string | Local BGP server port | 10179
 NFE_BGP_REMOTE_PORT | string | Remote BGP server port | 10179
 NFE_BGP_HOLD_TIME | string | Seconds to wait for a Keepalive message from peer before considering the connection stale | 3
+NFE_BIRD_SCAN_TIME | Interval in seconds for scanning kernel routing table for changes | 10
 NFE_TABLE_ID | int | Start ID of the two consecutive OS Kernel routing tables BIRD syncs the routes with | 4096
 NFE_ECMP | bool | Enable ECMP towards next-hops of avaialble gateways | false
 NFE_DROP_IF_NO_PEER | bool | Install default blackhole route with high metric into routing table TableID | true
