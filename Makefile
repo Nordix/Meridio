@@ -54,6 +54,8 @@ NANCY = $(shell pwd)/bin/nancy
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 KUSTOMIZE_VERSION ?= v5.4.3
+HELM = $(shell pwd)/bin/helm
+HELM_VERSION ?= v3.15.4
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 
 BUILD_DIR ?= build
@@ -228,7 +230,7 @@ generate-controller: controller-gen ## Generate code containing DeepCopy, DeepCo
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 .PHONY: generate-helm-chart
-generate-helm-chart: output-dir ## Generate Meridio, CRDs and target helm charts.
+generate-helm-chart: output-dir kustomize helm ## Generate Meridio, CRDs and target helm charts.
 	@REGISTRY="$(shell echo ${REGISTRY} | cut -d "/" -f 1)" \
 	REPOSITORY="$(shell echo ${REGISTRY} | cut -d "/" -f 2-)" \
 	NSM_REPOSITORY="$(NSM_REPOSITORY)" \
@@ -240,13 +242,13 @@ generate-helm-chart: output-dir ## Generate Meridio, CRDs and target helm charts
 #############################################################################
 
 .PHONY: deploy
-deploy: manifests kustomize namespace set-templates-values ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+deploy: manifests kustomize helm namespace set-templates-values ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/operator && $(KUSTOMIZE) edit set image operator=${REGISTRY}/operator:${VERSION_OPERATOR}
-	$(KUSTOMIZE) build config/default --enable-helm | kubectl apply -f -
+	PATH=$(PROJECT_DIR)/bin:$$PATH $(KUSTOMIZE) build config/default --enable-helm | kubectl apply -f -
 
 .PHONY: undeploy
-undeploy: namespace ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/default --enable-helm | kubectl delete -f - --ignore-not-found=true
+undeploy: namespace helm ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
+	PATH=$(PROJECT_DIR)/bin:$$PATH $(KUSTOMIZE) build config/default --enable-helm | kubectl delete -f - --ignore-not-found=true
 
 .PHONY: set-templates-values
 set-templates-values: # Set the values in the templates helm chart
@@ -260,9 +262,9 @@ namespace: # Edit the namespace of operator to be deployed
 	cd config/default && $(KUSTOMIZE) edit set namespace ${OPERATOR_NAMESPACE}
 
 .PHONY: print-manifests
-print-manifests: manifests kustomize namespace set-templates-values # Generate manifests to be deployed in the cluster
+print-manifests: manifests kustomize helm namespace set-templates-values # Generate manifests to be deployed in the cluster
 	cd config/operator && $(KUSTOMIZE) edit set image operator=${REGISTRY}/operator:${VERSION_OPERATOR}
-	$(KUSTOMIZE) build config/default --enable-helm
+	PATH=$(PROJECT_DIR)/bin:$$PATH $(KUSTOMIZE) build config/default --enable-helm
 
 #############################################################################
 # Tools
@@ -312,6 +314,15 @@ controller-gen:
 .PHONY: kustomize
 kustomize:
 	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
+
+.PHONY: helm
+helm:
+	@[ -f $(HELM) ] && $(HELM) version --short | grep -q $(HELM_VERSION) || { \
+		set -e ;\
+		echo "Downloading helm $(HELM_VERSION)" ;\
+		rm -f $(HELM) ;\
+		curl -sSL https://get.helm.sh/helm-$(HELM_VERSION)-linux-amd64.tar.gz | tar xz -C $(PROJECT_DIR)/bin --strip-components=1 linux-amd64/helm ;\
+	}
 
 .PHONY: print-e2e-skip-focus
 print-e2e-skip-focus:
