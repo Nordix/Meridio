@@ -6,45 +6,10 @@ metadata:
   namespace: system
 rules:
 - apiGroups:
-  - apps
-  resources:
-  - daemonsets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - apps
-  resources:
-  - deployments
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - apps
-  resources:
-  - statefulsets
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
   - ""
   resources:
   - configmaps
+  - services
   verbs:
   - create
   - delete
@@ -54,9 +19,11 @@ rules:
   - update
   - watch
 - apiGroups:
-  - ""
+  - apps
   resources:
-  - services
+  - daemonsets
+  - deployments
+  - statefulsets
   verbs:
   - create
   - delete
@@ -69,59 +36,11 @@ rules:
   - meridio.nordix.org
   resources:
   - attractors
-  verbs:
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - meridio.nordix.org
-  resources:
   - conduits
-  verbs:
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - meridio.nordix.org
-  resources:
   - flows
-  verbs:
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - meridio.nordix.org
-  resources:
   - gateways
-  verbs:
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - meridio.nordix.org
-  resources:
   - streams
-  verbs:
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - meridio.nordix.org
-  resources:
   - trenches
-  verbs:
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
-  - meridio.nordix.org
-  resources:
   - vips
   verbs:
   - get
