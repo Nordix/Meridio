@@ -53,6 +53,7 @@ PROTOC_GEN_GO_GRPC = $(shell pwd)/bin/protoc-gen-go-grpc
 NANCY = $(shell pwd)/bin/nancy
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 KUSTOMIZE = $(shell pwd)/bin/kustomize
+KUSTOMIZE_VERSION ?= v5.4.3
 PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
 
 BUILD_DIR ?= build
@@ -310,7 +311,7 @@ controller-gen:
 
 .PHONY: kustomize
 kustomize:
-	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@v4.5.2)
+	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
 
 .PHONY: print-e2e-skip-focus
 print-e2e-skip-focus:
@@ -340,4 +341,21 @@ echo "Downloading $(2)" ;\
 GOBIN=$(PROJECT_DIR)/bin go install $(2) ;\
 rm -rf $$TMP_DIR ;\
 }
+endef
+
+# go-install-tool will 'go install' any package with custom target and name of binary.
+# Uses versioned binary names with symlinks to detect stale versions.
+# $1 - target path with name of binary
+# $2 - package url which can be installed
+# $3 - specific version of package
+define go-install-tool
+@[ -f "$(1)-$(3)" ] && [ "$$(readlink -- "$(1)" 2>/dev/null)" = "$(1)-$(3)" ] || { \
+set -e; \
+package=$(2)@$(3) ;\
+echo "Downloading $${package}" ;\
+rm -f "$(1)" ;\
+GOBIN="$(PROJECT_DIR)/bin" go install $${package} ;\
+mv "$(PROJECT_DIR)/bin/$$(basename "$(1)")" "$(1)-$(3)" ;\
+} ;\
+ln -sf "$$(realpath "$(1)-$(3)")" "$(1)"
 endef
