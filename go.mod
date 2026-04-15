@@ -1,6 +1,6 @@
 module github.com/nordix/meridio
 
-go 1.24.0
+go 1.26.2
 
 require (
 	github.com/edwarnicke/grpcfd v1.1.4

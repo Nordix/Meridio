@@ -3,7 +3,7 @@ ARG USER=meridio
 ARG UID=10005
 ARG HOME=/home/${USER}
 
-FROM golang:1.24 as build
+FROM golang:1.26.2 as build
 ARG LDFLAGS
 
 WORKDIR /workspace
