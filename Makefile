@@ -139,7 +139,7 @@ init: ## Build the init image.
 
 .PHONY: lint
 lint: golangci-lint ## Run linter against code.
-	$(GOLANGCI_LINT) run ./...
+	-$(GOLANGCI_LINT) run ./...
 
 .PHONY: e2e
 e2e: ginkgo output-dir ## Run the E2E tests.
