@@ -321,8 +321,9 @@ func Test_Manager_Close_While_Opening(t *testing.T) {
 	streamFactory.EXPECT().New(gomock.Any()).Return(streamA, nil)
 	streamA.EXPECT().GetStream().Return(s).AnyTimes()
 	// Check Open (Stream) has been called
+	var openOnce sync.Once
 	streamA.EXPECT().Open(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, nspStream *nspAPI.Stream) error {
-		wg.Done()
+		openOnce.Do(func() { wg.Done() })
 		<-ctx.Done()
 		return fmt.Errorf("streamA Open DoAndReturn: %w", ctx.Err())
 	}).AnyTimes()
