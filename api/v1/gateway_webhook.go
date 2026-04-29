@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2021-2022 Nordix Foundation
+Copyright (c) 2026 OpenInfra Foundation Europe
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -130,8 +131,8 @@ func (r *Gateway) validateSpec() field.ErrorList {
 		}
 	// if protocol is static
 	case Static:
-		emp := BgpSpec{}
-		if r.Spec.Bgp != emp {
+		if r.Spec.Bgp.RemoteASN != nil || r.Spec.Bgp.LocalASN != nil ||
+			r.Spec.Bgp.HoldTime != "" || r.Spec.Bgp.Auth != nil {
 			allErrs = append(allErrs, field.Invalid(field.NewPath("spec").Child("bgp"), r.Spec.Bgp, "must be empty when protocol is static"))
 		}
 		if r.Spec.Static.BFD != bfdEmty {
