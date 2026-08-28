@@ -89,8 +89,10 @@ func setupTLSCert(socket string) error {
 
 	go func() {
 		defer client.Close()
+		// WatchX509Context only returns once its internal retry loop gives
+		// up, so the returned error is never nil.
 		err := client.WatchX509Context(ctx, &x509Watcher{CertDir: certDir})
-		if err != nil && status.Code(err) != codes.Canceled {
+		if status.Code(err) != codes.Canceled {
 			log.Fatal(setupLog, "error watching X.509 context", "error", err)
 		}
 	}()
