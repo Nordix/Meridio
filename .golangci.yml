@@ -1,20 +1,39 @@
-run:
-  deadline: 5m
-  timeout: 5m
-
+version: "2"
 linters:
-  disable-all: true
+  default: none
   enable:
-  - errcheck
-  - gosimple
-  - govet
-  - ineffassign
-  - staticcheck
-  - typecheck
-  - unused
-
-issues:
-  exclude-rules:
-    - linters:
-        - staticcheck
-      text: 'SA1019: grpc.DialContext|grpc.Dial|grpc.WithBlock'
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+  settings:
+    staticcheck:
+      # Restrict to the SA (staticcheck) and S (gosimple) check groups to
+      # match the linter set previously enabled under golangci-lint v1
+      # (staticcheck + gosimple), excluding stylecheck (ST) and quickfix (QF).
+      checks:
+        - SA*
+        - S*
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - staticcheck
+        text: 'SA1019: grpc.DialContext|grpc.Dial|grpc.WithBlock'
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
