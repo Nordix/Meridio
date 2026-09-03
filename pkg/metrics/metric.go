@@ -37,6 +37,13 @@ func Init(ctx context.Context) (*sdkmetric.MeterProvider, error) {
 
 	exporter, err := prometheus.New(
 		prometheus.WithAggregationSelector(sdkmetric.DefaultAggregationSelector),
+		// WithoutUnits has no full-parity replacement: WithTranslationStrategy cannot
+		// decouple unit suffixes from type/counter suffixes (see
+		// otlptranslator.MetricNamer.WithMetricSuffixes), and we need to keep the
+		// counter "_total" suffix while dropping unit suffixes for backward
+		// compatibility with pre-uplift metric names.
+		//nolint:staticcheck // SA1019: no alternative preserves counter suffixes without unit suffixes
+		prometheus.WithoutUnits(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create metric exporter: %w", err)

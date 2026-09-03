@@ -25,7 +25,7 @@ linters:
     rules:
       - linters:
           - staticcheck
-        text: 'SA1019: grpc.DialContext|grpc.Dial|grpc.WithBlock'
+        text: 'SA1019: grpc.DialContext|grpc.Dial|grpc.WithBlock|prometheus.WithoutUnits'
     paths:
       - third_party$
       - builtin$
