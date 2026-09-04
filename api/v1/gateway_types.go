@@ -49,9 +49,25 @@ type GatewaySpec struct {
 // BgpSpec defines the parameters to set up a BGP session
 type BgpSpec struct {
 	// The ASN number of the Gateway Router
+	//
+	// Note: Format="" suppresses the default int32 format that kubebuilder generates
+	// for uint32 fields. Without it, 4-byte ASNs (> 2147483647) would be rejected
+	// by the CRD schema validation. The explicit Maximum/Minimum enforce the full
+	// uint32 range at the API level.
+	// +kubebuilder:validation:Format=""
+	// +kubebuilder:validation:Maximum=4294967295
+	// +kubebuilder:validation:Minimum=0
 	RemoteASN *uint32 `json:"remote-asn,omitempty"`
 
 	// The ASN number of the system where the Attractor FrontEnds locates
+	//
+	// Note: Format="" suppresses the default int32 format that kubebuilder generates
+	// for uint32 fields. Without it, 4-byte ASNs (> 2147483647) would be rejected
+	// by the CRD schema validation. The explicit Maximum/Minimum enforce the full
+	// uint32 range at the API level.
+	// +kubebuilder:validation:Format=""
+	// +kubebuilder:validation:Maximum=4294967295
+	// +kubebuilder:validation:Minimum=0
 	LocalASN *uint32 `json:"local-asn,omitempty"`
 
 	// BFD monitoring of BGP session.
