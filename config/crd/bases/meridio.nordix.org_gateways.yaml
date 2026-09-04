@@ -119,9 +119,15 @@ spec:
                       Minimum duration is 3s.
                     type: string
                   local-asn:
-                    description: The ASN number of the system where the Attractor
-                      FrontEnds locates
-                    format: int32
+                    description: |-
+                      The ASN number of the system where the Attractor FrontEnds locates
+
+                      Note: Format="" suppresses the default int32 format that kubebuilder generates
+                      for uint32 fields. Without it, 4-byte ASNs (> 2147483647) would be rejected
+                      by the CRD schema validation. The explicit Maximum/Minimum enforce the full
+                      uint32 range at the API level.
+                    maximum: 4294967295
+                    minimum: 0
                     type: integer
                   local-port:
                     default: 179
@@ -130,8 +136,15 @@ spec:
                     minimum: 1
                     type: integer
                   remote-asn:
-                    description: The ASN number of the Gateway Router
-                    format: int32
+                    description: |-
+                      The ASN number of the Gateway Router
+
+                      Note: Format="" suppresses the default int32 format that kubebuilder generates
+                      for uint32 fields. Without it, 4-byte ASNs (> 2147483647) would be rejected
+                      by the CRD schema validation. The explicit Maximum/Minimum enforce the full
+                      uint32 range at the API level.
+                    maximum: 4294967295
+                    minimum: 0
                     type: integer
                   remote-port:
                     default: 179
@@ -300,16 +313,29 @@ spec:
                       Minimum duration is 3s.
                     type: string
                   local-asn:
-                    description: The ASN number of the system where the Attractor
-                      FrontEnds locates
-                    format: int32
+                    description: |-
+                      The ASN number of the system where the Attractor FrontEnds locates
+
+                      Note: Format="" suppresses the default int32 format that kubebuilder generates
+                      for uint32 fields. Without it, 4-byte ASNs (> 2147483647) would be rejected
+                      by the CRD schema validation. The explicit Maximum/Minimum enforce the full
+                      uint32 range at the API level.
+                    maximum: 4294967295
+                    minimum: 0
                     type: integer
                   local-port:
                     description: BGP listening port of the Attractor FrontEnds.
                     type: integer
                   remote-asn:
-                    description: The ASN number of the Gateway Router
-                    format: int32
+                    description: |-
+                      The ASN number of the Gateway Router
+
+                      Note: Format="" suppresses the default int32 format that kubebuilder generates
+                      for uint32 fields. Without it, 4-byte ASNs (> 2147483647) would be rejected
+                      by the CRD schema validation. The explicit Maximum/Minimum enforce the full
+                      uint32 range at the API level.
+                    maximum: 4294967295
+                    minimum: 0
                     type: integer
                   remote-port:
                     description: BGP listening port of the Gateway Router.
