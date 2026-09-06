@@ -1,0 +1,98 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ipam-{{ .Values.trench.name }}
+  labels:
+    app: ipam-{{ .Values.trench.name }}
+spec:
+  replicas: 1
+  serviceName: ipam-{{ .Values.trench.name }}
+  selector:
+    matchLabels:
+      app: ipam-{{ .Values.trench.name }}
+  template:
+    metadata:
+      labels:
+        app: ipam-{{ .Values.trench.name }}
+        "spiffe.io/spiffe-id": "true"
+    spec:
+      containers:
+        - name: ipam
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.ipam.image }}:{{ .Values.ipam.version }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          startupProbe:
+{{include "meridio.startupProbe" (dict "component" .Values.ipam "root" $) | indent 12 }}
+          readinessProbe:
+{{include "meridio.readinessProbe" (dict "component" .Values.ipam "root" $) | indent 12 }}
+          livenessProbe:
+{{include "meridio.livenessProbe" (dict "component" .Values.ipam "root" $) | indent 12 }}
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: IPAM_PORT
+              value: "{{ .Values.ipam.targetPort }}"
+            - name: IPAM_DATASOURCE
+              value: /run/ipam/data/registry.db
+            - name: IPAM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: IPAM_TRENCH_NAME
+              value: {{ .Values.trench.name }}
+            - name: IPAM_NSP_SERVICE
+              value: {{ template "meridio.nsp.serviceName" . }}:{{ .Values.nsp.targetPort }}
+            - name: IPAM_PREFIX_IPV4
+              value: "{{ .Values.subnetPool.ipv4 }}"
+            - name: IPAM_PREFIX_IPV6
+              value: "{{ .Values.subnetPool.ipv6 }}"
+            - name: IPAM_CONDUIT_PREFIX_LENGTH_IPV4
+              value: "{{ .Values.subnetPool.conduitPrefixLength.ipv4 }}"
+            - name: IPAM_CONDUIT_PREFIX_LENGTH_IPV6
+              value: "{{ .Values.subnetPool.conduitPrefixLength.ipv6 }}"
+            - name: IPAM_NODE_PREFIX_LENGTH_IPV4
+              value: "{{ .Values.subnetPool.nodePrefixLength.ipv4}}"
+            - name: IPAM_NODE_PREFIX_LENGTH_IPV6
+              value: "{{ .Values.subnetPool.nodePrefixLength.ipv6 }}"
+            - name: IPAM_IP_FAMILY
+              value: "{{ .Values.ipFamily }}"
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+              - all
+              add:
+              - DAC_OVERRIDE
+              - NET_RAW
+              - SYS_PTRACE
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: ipam-data
+              mountPath: /run/ipam/data
+              readOnly: false
+            - name: tmp
+              mountPath: /tmp
+              readOnly: false
+      securityContext:
+        fsGroup: {{.Values.fsGroup }}
+        fsGroupChangePolicy: "OnRootMismatch"
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory
+        - name: tmp
+          emptyDir:
+            medium: Memory
+  volumeClaimTemplates:
+    - metadata:
+        name: ipam-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi

@@ -1,0 +1,111 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: proxy-{{ .Values.trench.name }}
+  labels:
+    app: proxy-{{ .Values.trench.name }}
+spec:
+  selector:
+    matchLabels:
+      app: proxy-{{ .Values.trench.name }}
+  template:
+    metadata:
+      labels:
+        app: proxy-{{ .Values.trench.name }}
+        "spiffe.io/spiffe-id": "true"
+    spec:
+      initContainers:
+        - name: sysctl-init
+          image: {{ .Values.registry }}/{{ .Values.organization }}/busybox:1.29
+          securityContext:
+            privileged: true
+          command: ["/bin/sh"]
+          args:
+            - -c
+            - {{ template "meridio.proxy.sysctls" . }}
+      containers:
+        - name: proxy
+          image: {{ .Values.registry }}/{{ .Values.organization }}/{{ .Values.proxy.image }}:{{ .Values.proxy.version }}
+          imagePullPolicy: {{ .Values.pullPolicy }}
+          startupProbe:
+{{include "meridio.startupProbe" (dict "component" .Values.proxy "root" $) | indent 12 }}
+          readinessProbe:
+{{include "meridio.readinessProbe" (dict "component" .Values.proxy "root" $) | indent 12 }}
+          livenessProbe:
+{{include "meridio.livenessProbe" (dict "component" .Values.proxy "root" $) | indent 12 }}
+          env:
+            - name: SPIFFE_ENDPOINT_SOCKET
+              value: unix:///run/spire/sockets/agent.sock
+            - name: NSM_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: NSM_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: NSM_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NSM_CONNECT_TO
+              value: unix:///var/lib/networkservicemesh/nsm.io.sock
+            - name: NSM_SERVICE_NAME
+              value: {{ template "meridio.proxy.networkServiceName" . }}
+            - name: NSM_IPAM_SERVICE
+              value: {{ template "meridio.ipam.serviceName" . }}:{{ .Values.ipam.targetPort }}
+            - name: NSM_NETWORK_SERVICE_NAME
+              value: {{ template "meridio.loadBalancer.networkServiceName" . }}
+            - name: NSM_IP_FAMILY
+              value: {{ .Values.ipFamily }}
+            - name: NSM_TRENCH
+              value: {{ .Values.trench.name }}
+            - name: NSM_CONDUIT
+              value: {{ .Values.loadBalancer.networkServiceName }}
+            - name: NSM_NSP_SERVICE_NAME
+              value: {{ .Values.nsp.serviceName }}
+            - name: NSM_NSP_SERVICE_PORT
+              value: "{{ .Values.nsp.targetPort }}"
+            - name: NSM_MAX_TOKEN_LIFETIME
+              value: {{ .Values.maxTokenLifetime }}
+            - name: NSM_LOG_LEVEL
+              value: "DEBUG"
+            - name: NSM_MTU
+              value: "1500"
+          volumeMounts:
+            - name: spire-agent-socket
+              mountPath: /run/spire/sockets
+              readOnly: true
+            - name: nsm-socket
+              mountPath: /var/lib/networkservicemesh
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+              readOnly: false
+          securityContext:
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+              - all
+              add:
+              - NET_ADMIN
+              - DAC_OVERRIDE
+              - NET_RAW
+              - SYS_PTRACE
+      securityContext:
+        fsGroup: {{.Values.fsGroup }}
+        fsGroupChangePolicy: "OnRootMismatch"
+      volumes:
+        - name: spire-agent-socket
+          hostPath:
+            path: /run/spire/sockets
+            type: Directory
+        - name: nsm-socket
+          hostPath:
+            path: /var/lib/networkservicemesh
+            type: DirectoryOrCreate
+        - name: tmp
+          emptyDir:
+            medium: Memory
