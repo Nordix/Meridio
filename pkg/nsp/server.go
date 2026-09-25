@@ -58,11 +58,19 @@ func (s *Server) Unregister(ctx context.Context, target *nspAPI.Target) (*emptyp
 
 func (s *Server) Watch(t *nspAPI.Target, watcher nspAPI.TargetRegistry_WatchServer) error {
 	targetWatcher, err := s.TargetRegistry.Watch(context.TODO(), t)
+	// The registry may return a non-nil watcher even alongside an error (e.g.
+	// the sqlite registry registers the watcher before its initial read can
+	// fail). Ensure Stop() runs on every exit path so such a watcher is not
+	// left registered (which would keep receiving fan-out notifications with no
+	// reader). The nil-check is required because other registry layers (e.g.
+	// keepalive with no backing registry) might return a nil watcher on error.
+	if targetWatcher != nil {
+		defer targetWatcher.Stop()
+	}
 	if err != nil {
 		return fmt.Errorf("failed getting target watcher (%s): %w", t.String(), err)
 	}
 	s.watcher(watcher, targetWatcher.ResultChan())
-	targetWatcher.Stop()
 	return nil
 }
 
@@ -70,11 +78,24 @@ func (s *Server) watcher(watcher nspAPI.TargetRegistry_WatchServer, ch <-chan []
 	for {
 		select {
 		case event := <-ch:
-			err := watcher.Send(&nspAPI.TargetResponse{
+			// Per the grpc.ServerStream.SendMsg contract ("On error, SendMsg
+			// aborts the stream and the error is returned directly"), a non-nil
+			// Send error means this watch stream is aborted and unusable. Return
+			// to tear the watcher down promptly (the deferred Stop() in Watch()
+			// deregisters it) instead of looping and re-sending on a dead stream.
+			// The client wraps its Watch in a retry loop and will reconnect,
+			// obtaining a fresh full target set from the registry's initial read.
+			//
+			// TODO: Send has no deadline. A slow or half-open consumer can block
+			// this goroutine (and thus the drain of ch) until the stream context
+			// is cancelled, which for a half-open connection may take until the
+			// transport keepalive/timeout fires. Consider bounding Send with a
+			// timeout and treating a timeout as stream death (return) as well.
+			if err := watcher.Send(&nspAPI.TargetResponse{
 				Targets: event,
-			})
-			if err != nil {
-				log.Logger.Error(err, "Sending TrenchResponse")
+			}); err != nil {
+				log.Logger.Error(err, "Sending TargetResponse, closing watch stream")
+				return
 			}
 		case <-watcher.Context().Done():
 			return
