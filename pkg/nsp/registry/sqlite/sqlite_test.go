@@ -20,9 +20,11 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/nsp/registry/sqlite"
+	"github.com/nordix/meridio/pkg/nsp/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 )
@@ -159,4 +161,81 @@ func TestTargetRegistrySQLite_Set(t *testing.T) {
 	targets, err = db.Get(ctx, &nspAPI.Target{Status: nspAPI.Target_ANY, Type: nspAPI.Target_DEFAULT})
 	assert.Nil(t, err)
 	assert.Len(t, targets, 0)
+}
+
+// drainNotification returns true if a watcher notification is received within a
+// short window, false otherwise. The registry watcher uses a buffered channel of
+// size 1 with drop-and-replace, so a single receive reflects the latest state
+// pushed since the previous drain.
+func drainNotification(w types.TargetWatcher) bool {
+	select {
+	case <-w.ResultChan():
+		return true
+	case <-time.After(100 * time.Millisecond):
+		return false
+	}
+}
+
+// TestTargetRegistrySQLite_Set_SkipsUnchanged verifies the no-op fast path in
+// Set(): an update whose stored row already matches the incoming target must not
+// re-broadcast to watchers, while a genuine change must.
+func TestTargetRegistrySQLite_Set_SkipsUnchanged(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	dbFile := "test_skip.db"
+	os.Remove(dbFile)
+	db, err := sqlite.New(dbFile)
+	assert.Nil(t, err)
+	defer func() {
+		db.Close()
+		os.Remove(dbFile)
+	}()
+
+	ctx := context.Background()
+
+	target := &nspAPI.Target{
+		Ips:     []string{"172.16.0.1/32"},
+		Context: map[string]string{"identifier": "32"},
+		Status:  nspAPI.Target_ENABLED,
+		Type:    nspAPI.Target_DEFAULT,
+		Stream: &nspAPI.Stream{
+			Name: "stream-a",
+			Conduit: &nspAPI.Conduit{
+				Name:   "conduit-a",
+				Trench: &nspAPI.Trench{Name: "trench-a"},
+			},
+		},
+	}
+
+	// Seed the target before watching so the watcher's initial snapshot is stable.
+	assert.Nil(t, db.Set(ctx, target))
+
+	watcher, err := db.Watch(ctx, &nspAPI.Target{Status: nspAPI.Target_ANY, Type: nspAPI.Target_DEFAULT})
+	assert.Nil(t, err)
+	defer watcher.Stop()
+
+	// Watch queues an initial full snapshot; drain it so the channel is empty.
+	assert.True(t, drainNotification(watcher), "expected initial snapshot on Watch")
+
+	// Re-Set the identical target: the fast path must skip the fan-out entirely.
+	assert.Nil(t, db.Set(ctx, target))
+	assert.False(t, drainNotification(watcher),
+		"unchanged Set must not notify watchers")
+
+	// A real change (Context) must go through Save + notifyAllWatchers.
+	target.Context["identifier"] = "99"
+	assert.Nil(t, db.Set(ctx, target))
+	assert.True(t, drainNotification(watcher),
+		"changed Set must notify watchers")
+
+	// A status change must also notify.
+	target.Status = nspAPI.Target_DISABLED
+	assert.Nil(t, db.Set(ctx, target))
+	assert.True(t, drainNotification(watcher),
+		"status change must notify watchers")
+
+	// Another identical Set is skipped again.
+	assert.Nil(t, db.Set(ctx, target))
+	assert.False(t, drainNotification(watcher),
+		"second unchanged Set must not notify watchers")
 }

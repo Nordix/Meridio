@@ -32,6 +32,48 @@ type Target struct {
 	Stream     Stream `gorm:"foreignKey:StreamName"`
 }
 
+// Equals reports whether two target rows are identical in their persisted
+// payload. Unlike nspAPI.Target.Equals (a loose selector match that wildcards
+// status and ignores Ips/Context), this is a strict comparison used to detect
+// whether a Set() actually changes the stored row.
+//
+// The comparison is intentionally defensive: it compares all persisted scalar
+// columns of Target, including Ips and Type which are already components of the
+// primary key (see GetTargetID). Comparing them is redundant while the ID
+// matches, but keeps the check correct if the ID definition ever changes.
+//
+// StreamName is deliberately excluded. NSPTargetToSQLTarget populates only the
+// nested Stream association, not the top-level StreamName column (GORM derives
+// that column from the association on write), so a freshly converted incoming
+// model always has StreamName == "" while a row loaded from the DB has it set.
+// Including it would make Equals always report inequality and defeat the fast
+// path.
+//
+// The nested Stream association is not compared either, and this is safe only
+// because every field it carries — Stream.Name, Conduit.Name, Trench.Name — is a
+// component of the ID. An equal ID therefore already implies an identical
+// stream/conduit/trench chain, so no persisted change there can be missed.
+// CAUTION: if Stream, Conduit or Trench ever gain a persisted attribute that is
+// NOT part of the ID (e.g. a stored setting on the stream), that attribute could
+// change under a stable ID and would be silently skipped here — Equals (and the
+// association write path) would then need to account for it.
+//
+// Ips is an order-sensitive join of the address list (SerializeIPs does not
+// sort). Because Ips is part of the primary key, a reordered address list yields
+// a different ID and is handled as a distinct row upstream (Create path) rather
+// than reaching an ID-matched equality check here, so the ordering does not
+// cause false inequality in practice.
+func (t *Target) Equals(t2 *Target) bool {
+	if t == nil || t2 == nil {
+		return t == t2
+	}
+	return t.ID == t2.ID &&
+		t.Ips == t2.Ips &&
+		t.Context == t2.Context &&
+		t.Status == t2.Status &&
+		t.Type == t2.Type
+}
+
 type Stream struct {
 	Name        string `gorm:"primaryKey"`
 	ConduitName string
