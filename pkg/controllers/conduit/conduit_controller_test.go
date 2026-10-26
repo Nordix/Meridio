@@ -102,6 +102,11 @@ func newProxyDaemonSet(conduit *meridiov1.Conduit, desiredNumberScheduled int32)
 }
 
 func setupReconciler(t *testing.T, objects ...client.Object) (*conduit.ConduitReconciler, client.Client) {
+	// Test Loader bypasses normal operation by not reading the proxy model from template file
+	return setupReconcilerWithLoader(t, &TestProxyModelLoader{}, objects...)
+}
+
+func setupReconcilerWithLoader(t *testing.T, loader conduit.ProxyModelLoader, objects ...client.Object) (*conduit.ConduitReconciler, client.Client) {
 	fakeClient := fake.NewClientBuilder().WithScheme(newScheme()).WithObjects(objects...).Build()
 	logger := testr.New(t)
 
@@ -110,7 +115,7 @@ func setupReconciler(t *testing.T, objects ...client.Object) (*conduit.ConduitRe
 		APIReader:        fakeClient,
 		Scheme:           newScheme(),
 		Log:              logger.WithName("test"),
-		ProxyModelLoader: &TestProxyModelLoader{}, // Test Loader bypasses normal operation by not reading the proxy model from template file
+		ProxyModelLoader: loader,
 	}, fakeClient
 }
 
@@ -790,14 +795,57 @@ func TestConduitReconciler_Reconcile(t *testing.T) {
 		assert.Equal(t, 0, len(reconciler.GetUpdateLocks()))
 	})
 
+	// Verifies that the POD level security context of the model (e.g. sysctls) is
+	// applied when updating an already existing proxy DaemonSet lacking it.
+	t.Run("UpdateConduit_ModelPodSecurityContext_UpdatesProxyDaemonSet", func(t *testing.T) {
+		sysctls := []v1.Sysctl{
+			{Name: "net.ipv4.conf.all.forwarding", Value: "1"},
+			{Name: "net.ipv6.conf.all.forwarding", Value: "1"},
+		}
+		c := newConduit("test-conduit-A", "test-trench", "")
+		// DaemonSet created by an earlier version of the operator, thus having
+		// no POD level security context at all
+		old := newProxyDaemonSet(c, 0)
+		assert.Nil(t, old.Spec.Template.Spec.SecurityContext)
+
+		reconciler, fakeClient := setupReconcilerWithLoader(t, &TestProxyModelLoader{sysctls: sysctls}, c, old)
+
+		cs := assertDaemonSet(t, fakeClient, c)
+		request := reconcile.Request{NamespacedName: types.NamespacedName{Name: c.Name, Namespace: c.Namespace}}
+		result, err := reconciler.Reconcile(context.Background(), request)
+		assert.NoError(t, err)
+		assert.Equal(t, ctrl.Result{}, result)
+
+		ds := assertDaemonSet(t, fakeClient, c)
+		assert.False(t, equality.Semantic.DeepEqual(ds.Spec, cs.Spec)) // ds update executed
+		if assert.NotNil(t, ds.Spec.Template.Spec.SecurityContext) {
+			assert.Equal(t, sysctls, ds.Spec.Template.Spec.SecurityContext.Sysctls)
+			assert.Equal(t, int64(2000), *ds.Spec.Template.Spec.SecurityContext.FSGroup)
+		}
+
+		// Reconciling again must not trigger a new update (no endless update loop)
+		cs = assertDaemonSet(t, fakeClient, c)
+		result, err = reconciler.Reconcile(context.Background(), request)
+		assert.NoError(t, err)
+		assert.Equal(t, ctrl.Result{}, result)
+		ds = assertDaemonSet(t, fakeClient, c)
+		assert.True(t, equality.Semantic.DeepEqual(ds.Spec, cs.Spec)) // ds update not executed
+	})
+
 }
 
 // TestProxyModelLoader loads a proxy model for testing purposes
 type TestProxyModelLoader struct {
+	// sysctls, if set, are added to the POD level security context of the model
+	sysctls []v1.Sysctl
 }
 
 func (t *TestProxyModelLoader) Load() (*appsv1.DaemonSet, error) {
-	return t.getTestDaemonSet(), nil
+	ds := t.getTestDaemonSet()
+	if len(t.sysctls) > 0 {
+		ds.Spec.Template.Spec.SecurityContext.Sysctls = t.sysctls
+	}
+	return ds, nil
 }
 
 func (t *TestProxyModelLoader) getTestDaemonSet() *appsv1.DaemonSet {

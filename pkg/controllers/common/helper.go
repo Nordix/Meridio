@@ -16,6 +16,40 @@ limitations under the License.
 
 package common
 
+import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
+)
+
+// GetDesiredPodSecurityContext returns the POD level security context (sysctls,
+// fsGroup, seccomp/AppArmor profile, ...) to be set in a POD template based on
+// the desired (model) and the current (live) security context.
+//
+// The desired security context takes precedence, thus changes introduced by the
+// model are not lost upon updates of already existing objects.
+//
+// A nil security context is semantically the same as an empty one. Yet, the
+// operator relies on equality.Semantic.DeepEqual to tell whether an update is
+// required, which considers nil and empty different. Therefore, if both the
+// desired and the current security context are empty, then the current value is
+// kept to avoid needless updates (POD restarts), while an empty security
+// context is returned instead of nil if only the desired one is empty to avoid
+// an endless update loop (the API server returns an empty security context for
+// objects written with an empty one).
+func GetDesiredPodSecurityContext(desired, current *corev1.PodSecurityContext) *corev1.PodSecurityContext {
+	if isPodSecurityContextEmpty(desired) && isPodSecurityContextEmpty(current) {
+		return current
+	}
+	if desired == nil {
+		return &corev1.PodSecurityContext{}
+	}
+	return desired
+}
+
+func isPodSecurityContextEmpty(sc *corev1.PodSecurityContext) bool {
+	return sc == nil || equality.Semantic.DeepEqual(sc, &corev1.PodSecurityContext{})
+}
+
 // MergeMapsInPlace returns a merged map based on the existing map extended or
 // overwritten based on the desired map.
 // This function can be used for both labels and annotations.
