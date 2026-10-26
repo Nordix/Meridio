@@ -1,0 +1,40 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: debug-meridio-daemonset
+  labels:
+    app: debug-meridio-daemonset
+spec:
+  selector:
+    matchLabels:
+      app: debug-meridio-daemonset
+  template:
+    metadata:
+      labels:
+        app: debug-meridio-daemonset
+    spec:
+      hostNetwork: true
+      containers:
+        - name: debug
+          image: registry.nordix.org/cloud-native/meridio/debug-meridio:latest
+          imagePullPolicy: Always
+          securityContext:
+            capabilities:
+              add:
+              - NET_ADMIN
+              - SYS_ADMIN
+          volumeMounts:
+          - mountPath: /run/netns
+            name: netns-volume
+          - mountPath: /run/containerd
+            name: containerd-volume
+      volumes:
+      - name: netns-volume # To access the network namespaces
+        hostPath:
+          path: /run/netns
+          type: Directory
+      - name: containerd-volume # To use crictl
+        hostPath:
+          path: /run/containerd
+          type: Directory
