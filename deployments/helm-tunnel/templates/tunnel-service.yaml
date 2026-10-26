@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tunnel-{{.Values.trench.name}}
+spec:
+  selector:
+    app: load-balancer-{{.Values.trench.name}}
+  externalTrafficPolicy: Local
+  publishNotReadyAddresses: true
+  ports:
+  - port: 5533
+    name: vxlan
+    protocol: UDP
+  type: LoadBalancer
