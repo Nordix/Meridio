@@ -47,7 +47,13 @@ type FullMeshNetworkServiceClient struct {
 	networkServiceEndpointRegistryClient registry.NetworkServiceEndpointRegistryClient
 	mu                                   sync.Mutex
 	serviceClosed                        bool
-	logger                               logr.Logger
+	// closeWG tracks the detached connection-teardown goroutines started by
+	// deleteNetworkServiceClient. Teardown runs asynchronously so a slow/stuck
+	// Close() can never block the recv() event loop or be held under mu (see
+	// deleteNetworkServiceClient and issue #628); Close() waits on this WaitGroup
+	// so process shutdown still accounts for in-flight teardown.
+	closeWG sync.WaitGroup
+	logger  logr.Logger
 }
 
 // Request -
@@ -107,12 +113,21 @@ func (fmnsc *FullMeshNetworkServiceClient) Close() error {
 	logger := fmnsc.logger.WithValues("func", "Close")
 	fmnsc.mu.Lock()
 	fmnsc.serviceClosed = true
+	// Snapshot the endpoint names under the lock rather than ranging the live map
+	// while deleteNetworkServiceClient mutates it.
+	names := make([]string, 0, len(fmnsc.networkServiceClients))
+	for name := range fmnsc.networkServiceClients {
+		names = append(names, name)
+	}
 	fmnsc.mu.Unlock()
 
-	logger.Info("Close and delete discovered network service endpoints", "num", len(fmnsc.networkServiceClients))
-	for networkServiceEndpointName := range fmnsc.networkServiceClients {
+	logger.Info("Close and delete discovered network service endpoints", "num", len(names))
+	for _, networkServiceEndpointName := range names {
 		fmnsc.deleteNetworkServiceClient(networkServiceEndpointName)
 	}
+	// deleteNetworkServiceClient tears each connection down in its own goroutine so
+	// the recv loop is never blocked; at shutdown we still wait for those to finish.
+	fmnsc.closeWG.Wait()
 	return nil
 }
 
@@ -290,27 +305,43 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 }
 
 // deleteNetworkServiceClient -
-// Deletes client and closes connection towards Network Service Endpoint
+// Removes the client for the given endpoint and tears its connection down.
+//
+// The client is removed from the map under fmnsc.mu, but Close() is called OUTSIDE
+// the lock and in its own goroutine. This is deliberate (issue #628): Close() may
+// block for a long time — it cancels any in-flight Request() and then waits on the
+// client's own mutex, which a retry against a vanished NSE (e.g. after a node
+// reboot) can hold until its context unwinds. Calling Close() synchronously under
+// fmnsc.mu would let that stall the recv() event loop and freeze the whole
+// full-mesh client. Teardown goroutines are tracked by closeWG so shutdown
+// (Close()) can wait for them.
 func (fmnsc *FullMeshNetworkServiceClient) deleteNetworkServiceClient(networkServiceEndpointName string) {
 	fmnsc.mu.Lock()
-	defer fmnsc.mu.Unlock()
-
 	networkServiceClient, exists := fmnsc.networkServiceClients[networkServiceEndpointName]
+	if exists {
+		delete(fmnsc.networkServiceClients, networkServiceEndpointName)
+	}
+	fmnsc.mu.Unlock()
+
 	if !exists {
 		return
 	}
+
 	logger := fmnsc.logger.WithValues("func", "deleteNetworkServiceClient",
 		"name", networkServiceEndpointName,
 		"service", fmnsc.baseRequest.Connection.NetworkService,
 	)
 	logger.Info("Delete network service endpoint")
-	err := networkServiceClient.Close()
-	delete(fmnsc.networkServiceClients, networkServiceEndpointName)
-	if err != nil {
-		logger.Error(err, "Failed to close network service endpoint")
-	} else {
+
+	fmnsc.closeWG.Add(1)
+	go func() {
+		defer fmnsc.closeWG.Done()
+		if err := networkServiceClient.Close(); err != nil {
+			logger.Error(err, "Failed to close network service endpoint")
+			return
+		}
 		logger.Info("Closed network service endpoint")
-	}
+	}()
 }
 
 func (fmnsc *FullMeshNetworkServiceClient) networkServiceClientExists(networkServiceEndpointName string) bool {
