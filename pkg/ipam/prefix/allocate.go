@@ -73,10 +73,26 @@ func AllocateWithBlocklist(ctx context.Context, parent types.Prefix, name string
 		}
 		currentCandidatePrefix = New(name, currentCandidate.String(), parent)
 		err = store.Add(ctx, currentCandidatePrefix)
-		// Similar to the legacy behaviour Add() can be attempted for a CIDR that might
-		// have been taken in the meantime. However, in case the store has support for
-		// "optimistic concurrency control" to resolve such race conditions and returns
-		// ErrCIDRConflict, then do not abort the allocation process.
+		// Same name already allocated (by a concurrent or earlier attempt):
+		// return the stored prefix idempotently instead of failing.
+		if errors.Is(err, ErrPrimaryIDConflict) {
+			existing, getErr := store.Get(ctx, name, parent)
+			if getErr != nil {
+				return nil, fmt.Errorf("failed to get existing prefix (name: %s ; length: %d ; parent: %s) after primary ID conflict: %w", name, length, parent.GetName(), getErr)
+			}
+			if existing == nil {
+				// The same-name row was deleted between the failed Add and this
+				// Get (a concurrent release). Re-run the loop to attempt the
+				// allocation again (using the same candidate).
+				continue
+			}
+			return existing, nil
+		}
+		// A candidate CIDR may be taken concurrently. The check below re-reads
+		// the children to detect a duplicate-CIDR race and, if found, deletes our
+		// entry and retries. A store with optimistic concurrency control instead
+		// reports the clash up front via ErrCIDRConflict, reusing that retry
+		// without the Delete. In neither case abort the allocation.
 		isCIDRConflict := errors.Is(err, ErrCIDRConflict)
 		if err != nil && !isCIDRConflict {
 			return nil, fmt.Errorf("failed to add (%s) to store while allocating prefix (name: %s ; length: %d ; parent: %s): %w", currentCandidatePrefix, name, length, parent.GetName(), err)
@@ -90,9 +106,8 @@ func AllocateWithBlocklist(ctx context.Context, parent types.Prefix, name string
 		if len(collisions) == 1 && currentCandidatePrefix.Equals(collisions[0]) {
 			break
 		}
-		// It is assumed that if the storage supports ErrCIDRConflict return value,
-		// then upon such error the Add() did not take effect and did not alter the
-		// database, hence no Delete() is required.
+		// On ErrCIDRConflict the Add() did not alter the database, so no Delete()
+		// is required before retrying.
 		if isCIDRConflict {
 			continue
 		}
