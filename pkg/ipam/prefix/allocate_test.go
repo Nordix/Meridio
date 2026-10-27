@@ -502,8 +502,13 @@ func setupSqliteStoreWithNoUniquenessConstraint(t *testing.T) types.Storage {
 		if err != nil {
 			return nil, fmt.Errorf("failed to open db session: %w", err)
 		}
-		sqlis := &sqlite.SQLiteIPAMStorage{
-			DB: db,
+		// Use NewForTest so the store is constructed through the real
+		// constructor (initializing its internal lock) without running the
+		// production init()/migrate, then migrate the legacy Prefix schema
+		// (which lacks the CIDR uniqueness index) to exercise the old model.
+		sqlis, err := sqlite.NewForTest(db)
+		if err != nil {
+			return nil, err
 		}
 
 		err = sqlis.DB.AutoMigrate(Prefix{})
