@@ -34,7 +34,11 @@ import (
 
 const BridgeName = "bridge" // prefix with name "bridge" is special because it's not periodically updated
 
-var ErrCIDRConflict = prefix.ErrCIDRConflict // alias to simplify usage in this package
+// aliases to simplify usage in this package
+var (
+	ErrCIDRConflict      = prefix.ErrCIDRConflict
+	ErrPrimaryIDConflict = prefix.ErrPrimaryIDConflict
+)
 
 type SQLiteIPAMStorage struct {
 	DB *gorm.DB
@@ -226,6 +230,9 @@ func (sqlis *SQLiteIPAMStorage) Add(ctx context.Context, prefix types.Prefix) er
 	tx := sqlis.DB.Create(model)
 	if isCIDRUniquenessViolation(tx.Error) {
 		return fmt.Errorf("%w: %v", ErrCIDRConflict, tx.Error)
+	}
+	if isPrimaryIDUniquenessViolation(tx.Error) {
+		return fmt.Errorf("%w: %v", ErrPrimaryIDConflict, tx.Error)
 	}
 
 	return tx.Error
