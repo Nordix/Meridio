@@ -181,9 +181,16 @@ func main() {
 		logger.Error(err, "Unable to create ipam server")
 	}
 
-	server := grpc.NewServer(grpc.Creds(
-		credentials.GetServer(ctx),
-	))
+	server := grpc.NewServer(
+		grpc.Creds(credentials.GetServer(ctx)),
+		// Accept client keepalive pings at the interval the clients use. Without
+		// an enforcement policy the server only tolerates a ping every 5 minutes
+		// and closes connections of clients pinging more often with GOAWAY
+		// ENHANCE_YOUR_CALM (too_many_pings).
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime: config.GRPCKeepaliveMinTime,
+		}),
+	)
 	ipamAPI.RegisterIpamServer(server, ipamServer)
 	healthServer := grpcHealth.NewServer()
 	grpc_health_v1.RegisterHealthServer(server, healthServer)

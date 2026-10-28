@@ -81,7 +81,7 @@ func (t *Trench) AddConduit(ctx context.Context, name string) (types.Conduit, er
 		return c, nil
 	}
 	log.FromContextOrGlobal(ctx).Info("AddConduit", "name", name, "trenchPrefixName", t.GetName(), "trenchPrefix", t.GetCidr())
-	newPrefix, err := prefix.Allocate(ctx, t, name, t.PrefixLengths.ConduitLength, t.Store)
+	newPrefix, err := prefix.AllocateWithParentLock(ctx, t, name, t.PrefixLengths.ConduitLength, t.Store, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add conduit (%s) in trench prefix (%s): %w", name, t.GetName(), err)
 	}
