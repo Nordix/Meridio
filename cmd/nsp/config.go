@@ -20,11 +20,12 @@ import "time"
 
 // Config for the NSP
 type Config struct {
-	Namespace           string        `default:"default" desc:"Namespace the pod is running on" split_words:"true"`
-	Port                string        `default:"7778" desc:"Trench the pod is running on" split_words:"true"`
-	ConfigMapName       string        `default:"meridio-configuration" desc:"Name of the ConfigMap containing the configuration" split_words:"true"`
-	Datasource          string        `default:"/run/nsp/data/registry.db" desc:"Path and file name of the sqlite database" split_words:"true"`
-	LogLevel            string        `default:"DEBUG" desc:"Log level" split_words:"true"`
-	EntryTimeout        time.Duration `default:"60s" desc:"Timeout of the entries" split_words:"true"`
-	GRPCProbeRPCTimeout time.Duration `default:"1s" desc:"RPC timeout of internal gRPC health probe" envconfig:"grpc_probe_rpc_timeout"`
+	Namespace            string        `default:"default" desc:"Namespace the pod is running on" split_words:"true"`
+	Port                 string        `default:"7778" desc:"Trench the pod is running on" split_words:"true"`
+	ConfigMapName        string        `default:"meridio-configuration" desc:"Name of the ConfigMap containing the configuration" split_words:"true"`
+	Datasource           string        `default:"/run/nsp/data/registry.db" desc:"Path and file name of the sqlite database" split_words:"true"`
+	LogLevel             string        `default:"DEBUG" desc:"Log level" split_words:"true"`
+	EntryTimeout         time.Duration `default:"60s" desc:"Timeout of the entries" split_words:"true"`
+	GRPCProbeRPCTimeout  time.Duration `default:"1s" desc:"RPC timeout of internal gRPC health probe" envconfig:"grpc_probe_rpc_timeout"`
+	GRPCKeepaliveMinTime time.Duration `default:"15s" desc:"Minimum interval between client keepalive pings accepted by the gRPC server" envconfig:"grpc_keepalive_min_time"`
 }
