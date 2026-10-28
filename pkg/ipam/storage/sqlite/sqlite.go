@@ -53,7 +53,18 @@ type SQLiteIPAMStorage struct {
 	prefixTableName string
 }
 
-func New(datastore string) (*SQLiteIPAMStorage, error) {
+// Option configures a SQLiteIPAMStorage created by New.
+type Option func(*SQLiteIPAMStorage)
+
+// WithLockStats records the acquisitions of the storage lock while sw is
+// enabled.
+func WithLockStats(sw *ctxlock.StatsSwitch) Option {
+	return func(sqlis *SQLiteIPAMStorage) {
+		sqlis.mu = ctxlock.NewWithStats(sw)
+	}
+}
+
+func New(datastore string, opts ...Option) (*SQLiteIPAMStorage, error) {
 	db, err := gorm.Open(sqlite.Open(datastore), &gorm.Config{
 		Logger:  logger.Default.LogMode(logger.Silent),
 		NowFunc: func() time.Time { return time.Now().UTC() },
@@ -64,6 +75,9 @@ func New(datastore string) (*SQLiteIPAMStorage, error) {
 	sqlis := &SQLiteIPAMStorage{
 		DB: db,
 		mu: ctxlock.New(),
+	}
+	for _, opt := range opts {
+		opt(sqlis)
 	}
 	err = sqlis.init()
 	if err != nil {
