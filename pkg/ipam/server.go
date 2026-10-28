@@ -37,6 +37,12 @@ import (
 
 const nodeUpdateDampingThreshold = 1 * time.Minute // update node prefix if last update older than threshold // TODO: configuration
 
+// conduitPollInterval is the wait between lookups while an Allocate request
+// waits for its conduit prefix, which is created asynchronously from the NSP
+// configuration. Without it, a waiting request would repeat the lookup (a
+// store operation) in a tight loop.
+const conduitPollInterval = 100 * time.Millisecond
+
 type IpamServer struct {
 	ctx    context.Context
 	logger logr.Logger
@@ -126,6 +132,12 @@ func (is *IpamServer) Allocate(ctx context.Context, child *ipamAPI.Child) (*ipam
 		}
 		if conduit != nil {
 			break
+		}
+		// Not created yet; wait before looking it up again. A done ctx ends the
+		// wait early and is reported by the check at the top of the loop.
+		select {
+		case <-ctx.Done():
+		case <-time.After(conduitPollInterval):
 		}
 	}
 	getNodeCtx := sqlite.WithUpdateDamping(sqlite.WithExpirable(ctx), nodeUpdateDampingThreshold) // Applies damping to reduce frequent DB writes and marks node prefix as expirable
