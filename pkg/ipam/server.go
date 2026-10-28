@@ -29,6 +29,7 @@ import (
 	"github.com/nordix/meridio/pkg/ipam/prefix"
 	"github.com/nordix/meridio/pkg/ipam/storage/logger"
 	"github.com/nordix/meridio/pkg/ipam/storage/sqlite"
+	"github.com/nordix/meridio/pkg/ipam/storage/stats"
 	"github.com/nordix/meridio/pkg/ipam/trench"
 	"github.com/nordix/meridio/pkg/ipam/types"
 	"google.golang.org/grpc"
@@ -61,14 +62,15 @@ func NewServer(
 	prefixLengths map[ipamAPI.IPFamily]*types.PrefixLengths,
 	garbageCollectionEnabled bool,
 	garbageCollectionInterval time.Duration,
-	garbageCollectionThreshold time.Duration) (ipamAPI.IpamServer, error) {
+	garbageCollectionThreshold time.Duration,
+	storageStats *stats.Collector) (ipamAPI.IpamServer, error) {
 	is := &IpamServer{
 		ctx:           ctx,
 		logger:        logr.FromContextOrDiscard(ctx).WithValues("class", "IpamServer"),
 		Trenches:      make(map[ipamAPI.IPFamily]types.Trench),
 		PrefixLengths: prefixLengths,
 	}
-	store, err := sqlite.New(datastore)
+	store, err := sqlite.New(datastore, sqlite.WithLockStats(storageStats.LockSwitch()))
 	if err != nil {
 		return nil, fmt.Errorf("failed creating new sqlite store (%s): %w", datastore, err)
 	}
@@ -76,7 +78,7 @@ func NewServer(
 		store.StartGarbageCollector(ctx, garbageCollectionInterval, garbageCollectionThreshold)
 	}
 	logStore := &logger.Store{
-		Store: store,
+		Store: stats.NewStore(store, storageStats.StoreSwitch()),
 	}
 
 	trenchWatchers := []trench.TrenchWatcher{}

@@ -40,4 +40,6 @@ type Config struct {
 	GarbageCollectionEnabled   bool          `default:"true" desc:"IP garbage collection enabled or disabled" split_words:"true"`
 	GarbageCollectionInterval  time.Duration `default:"2h" desc:"Interval at which IP garbage collection is running" split_words:"true"`
 	GarbageCollectionThreshold time.Duration `default:"40m" desc:"IP record older than threshold is considered leftover" split_words:"true"`
+	StorageStatsEnabled        bool          `default:"false" desc:"Storage statistics enabled at start (toggled at runtime by SIGWINCH)" split_words:"true"`
+	StorageStatsInterval       time.Duration `default:"30s" desc:"Interval at which storage statistics are logged while enabled" split_words:"true"`
 }

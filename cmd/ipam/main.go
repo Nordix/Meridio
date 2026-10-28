@@ -36,6 +36,7 @@ import (
 	"github.com/nordix/meridio/pkg/health/connection"
 	"github.com/nordix/meridio/pkg/health/probe"
 	"github.com/nordix/meridio/pkg/ipam"
+	"github.com/nordix/meridio/pkg/ipam/storage/stats"
 	"github.com/nordix/meridio/pkg/ipam/types"
 	"github.com/nordix/meridio/pkg/log"
 	"github.com/nordix/meridio/pkg/security/credentials"
@@ -165,6 +166,19 @@ func main() {
 		cidrs[ipamAPI.IPFamily_IPV6] = config.PrefixIPv6
 	}
 
+	// Storage statistics, enabled at start by config and toggled by SIGWINCH.
+	storageStats, err := stats.NewCollector(logger, config.StorageStatsInterval)
+	if err != nil {
+		log.Fatal(logger, "Invalid storage statistics configuration", "error", err)
+	}
+	statsToggle := make(chan os.Signal, 1)
+	signal.Notify(statsToggle, syscall.SIGWINCH)
+	statsDone := make(chan struct{})
+	go func() {
+		storageStats.Run(ctx, config.StorageStatsEnabled, statsToggle)
+		close(statsDone)
+	}()
+
 	// cteate IPAM server
 	ipamServer, err := ipam.NewServer(
 		ctx,
@@ -176,6 +190,7 @@ func main() {
 		config.GarbageCollectionEnabled,
 		config.GarbageCollectionInterval,
 		config.GarbageCollectionThreshold,
+		storageStats,
 	)
 	if err != nil {
 		logger.Error(err, "Unable to create ipam server")
@@ -213,6 +228,9 @@ func main() {
 	if err := startServer(ctx, server, listener); err != nil {
 		logger.Error(err, "IPAM Service: failed to serve: %v")
 	}
+	// Let the storage statistics log their final report before exiting.
+	cancel()
+	<-statsDone
 }
 
 func startServer(ctx context.Context, server *grpc.Server, listener net.Listener) error {
