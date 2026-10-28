@@ -35,6 +35,11 @@ import (
 // 6. Save in with the store
 // 7. Gets the childs
 // 8. Checks if only 1 collision (the one we just added)
+//
+// Allocate is AllocateWithBlocklist with an empty blocklist. It does not
+// serialize same-parent allocations; production paths use
+// AllocateWithParentLock instead. It is kept as a convenient entry point for
+// tests exercising the unlocked allocator, and as part of the exported API.
 func Allocate(ctx context.Context, parent types.Prefix, name string, length int, store types.Storage) (types.Prefix, error) {
 	return AllocateWithBlocklist(ctx, parent, name, length, store, []string{})
 }

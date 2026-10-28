@@ -83,7 +83,7 @@ func (c *Conduit) RemoveNode(ctx context.Context, name string) error {
 }
 
 func (c *Conduit) addNode(ctx context.Context, name string) (types.Node, error) {
-	newPrefix, err := prefix.Allocate(ctx, c, name, c.PrefixLengths.NodeLength, c.Store)
+	newPrefix, err := prefix.AllocateWithParentLock(ctx, c, name, c.PrefixLengths.NodeLength, c.Store, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add node (%s) in conduit prefix (%s): %w", name, c.GetName(), err)
 	}
