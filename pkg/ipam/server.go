@@ -177,7 +177,7 @@ func (is *IpamServer) Release(ctx context.Context, child *ipamAPI.Child) (*empty
 	}
 	conduit, err := trench.GetConduit(ctx, child.GetSubnet().GetConduit().GetName())
 	if err != nil {
-		return &emptypb.Empty{}, fmt.Errorf("failed getting conduit (%s) while releasing (%s): %w", child.GetSubnet().GetNode(), child.GetName(), err)
+		return &emptypb.Empty{}, fmt.Errorf("failed getting conduit (%s) while releasing (%s): %w", child.GetSubnet().GetConduit().GetName(), child.GetName(), err)
 	}
 	if conduit == nil {
 		return &emptypb.Empty{}, nil
