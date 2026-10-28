@@ -57,6 +57,7 @@ IPAM_IP_FAMILY | string | IP family (ipv4, ipv6, dualstack) | dualstack
 IPAM_LOG_LEVEL | string | Log level (TRACE, DEBUG, INFO, WARNING, ERROR, FATAL, PANIC) | DEBUG
 IPAM_GRPC_KEEPALIVE_TIME | time.Duration | gRPC keepalive timeout | 30s
 IPAM_GRPC_PROBE_RPC_TIMEOUT | time.Duration | RPC timeout of internal gRPC health probe | 1s
+IPAM_GRPC_KEEPALIVE_MIN_TIME | time.Duration | Minimum interval between client keepalive pings accepted by the gRPC server | 15s
 IPAM_GRPC_MAX_BACKOFF | time.Duration | Upper bound on gRPC connection backoff delay | 5s
 IPAM_GARBAGE_COLLECTION_ENABLED | bool | IP garbage collection enabled or disabled | true
 IPAM_GARBAGE_COLLECTION_INTERVAL | time.Duration | Interval at which IP garbage collection is running | 2h

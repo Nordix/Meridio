@@ -42,6 +42,7 @@ NSM_DATASOURCE | string | Path and file name of the sqlite database | /run/nsp/d
 NSM_LOG_LEVEL | string | Log level | DEBUG
 NSM_ENTRY_TIMEOUT | time.Duration | Timeout of the entries | 60s
 NSM_GRPC_PROBE_RPC_TIMEOUT | time.Duration | RPC timeout of internal gRPC health probe | 1s
+NSP_GRPC_KEEPALIVE_MIN_TIME | time.Duration | Minimum interval between client keepalive pings accepted by the gRPC server | 15s
 
 ## Command Line 
 

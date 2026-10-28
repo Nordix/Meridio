@@ -35,6 +35,7 @@ type Config struct {
 	LogLevel                   string        `default:"DEBUG" desc:"Log level" split_words:"true"`
 	GRPCKeepaliveTime          time.Duration `default:"30s" desc:"gRPC keepalive timeout" envconfig:"grpc_keepalive_time"`
 	GRPCProbeRPCTimeout        time.Duration `default:"1s" desc:"RPC timeout of internal gRPC health probe" envconfig:"grpc_probe_rpc_timeout"`
+	GRPCKeepaliveMinTime       time.Duration `default:"15s" desc:"Minimum interval between client keepalive pings accepted by the gRPC server" envconfig:"grpc_keepalive_min_time"`
 	GRPCMaxBackoff             time.Duration `default:"5s" desc:"Upper bound on gRPC connection backoff delay" envconfig:"grpc_max_backoff"`
 	GarbageCollectionEnabled   bool          `default:"true" desc:"IP garbage collection enabled or disabled" split_words:"true"`
 	GarbageCollectionInterval  time.Duration `default:"2h" desc:"Interval at which IP garbage collection is running" split_words:"true"`

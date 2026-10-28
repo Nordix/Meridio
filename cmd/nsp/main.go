@@ -45,6 +45,7 @@ import (
 	"google.golang.org/grpc"
 	grpcHealth "google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/keepalive"
 )
 
 func printHelp() {
@@ -142,9 +143,16 @@ func main() {
 	}
 	targetRegistryServer := nsp.NewServer(keepAliveRegistry)
 
-	server := grpc.NewServer(grpc.Creds(
-		credentials.GetServer(context.Background()),
-	))
+	server := grpc.NewServer(
+		grpc.Creds(credentials.GetServer(context.Background())),
+		// Accept client keepalive pings at the interval the clients use. Without
+		// an enforcement policy the server only tolerates a ping every 5 minutes
+		// and closes connections of clients pinging more often with GOAWAY
+		// ENHANCE_YOUR_CALM (too_many_pings).
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime: config.GRPCKeepaliveMinTime,
+		}),
+	)
 	nspAPI.RegisterTargetRegistryServer(server, targetRegistryServer)
 	nspAPI.RegisterConfigurationManagerServer(server, configurationManagerServer)
 	healthServer := grpcHealth.NewServer()
