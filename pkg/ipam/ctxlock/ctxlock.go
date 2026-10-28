@@ -50,12 +50,19 @@ import (
 //
 // A Mutex is a plain one-holder-at-a-time lock. It is not reentrant.
 type Mutex struct {
-	sem *semaphore.Weighted
+	sem   *semaphore.Weighted
+	stats *StatsSwitch // nil if statistics are never collected
 }
 
 // New returns a ready-to-use, unlocked Mutex.
 func New() *Mutex {
 	return &Mutex{sem: semaphore.NewWeighted(1)}
+}
+
+// NewWithStats returns a ready-to-use, unlocked Mutex that records its
+// acquisitions while stats is enabled. A nil stats is the same as New.
+func NewWithStats(stats *StatsSwitch) *Mutex {
+	return &Mutex{sem: semaphore.NewWeighted(1), stats: stats}
 }
 
 // Lock acquires the mutex, blocking until it is available or ctx is done.
@@ -69,8 +76,30 @@ func New() *Mutex {
 // acquiring, so an already-abandoned request performs no work. While waiting,
 // Lock preserves FIFO order, and a cancelled waiter removes itself from the
 // queue so it stops blocking those behind it.
+//
+// If the Mutex was created with a StatsSwitch, a call is recorded in the
+// LockStats installed when it starts. A call that starts while statistics are
+// disabled records nothing, even if they are enabled before it returns.
 func (m *Mutex) Lock(ctx context.Context) error {
-	return m.sem.Acquire(ctx, 1)
+	var s *LockStats
+	if m.stats != nil {
+		s = m.stats.Stats()
+	}
+	if s == nil {
+		return m.sem.Acquire(ctx, 1)
+	}
+	// Uncontended: the lock is free and nobody is queued. TryAcquire never
+	// overtakes queued waiters, so FIFO order is preserved.
+	if ctx.Err() == nil && m.sem.TryAcquire(1) {
+		s.acquired.Add(1)
+		return nil
+	}
+	// Otherwise queue in FIFO order. Acquire fails at once if ctx is already
+	// done, or later if ctx ends while waiting; endWait counts the outcome.
+	start := s.startWait()
+	err := m.sem.Acquire(ctx, 1)
+	s.endWait(start, err)
+	return err
 }
 
 // Unlock releases the mutex. It must be called only by a goroutine that
