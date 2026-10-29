@@ -29,6 +29,7 @@ import (
 	"github.com/nordix/meridio/pkg/ipam/prefix"
 	"github.com/nordix/meridio/pkg/ipam/storage/logger"
 	"github.com/nordix/meridio/pkg/ipam/storage/sqlite"
+	"github.com/nordix/meridio/pkg/ipam/storage/stats"
 	"github.com/nordix/meridio/pkg/ipam/trench"
 	"github.com/nordix/meridio/pkg/ipam/types"
 	"google.golang.org/grpc"
@@ -36,6 +37,12 @@ import (
 )
 
 const nodeUpdateDampingThreshold = 1 * time.Minute // update node prefix if last update older than threshold // TODO: configuration
+
+// conduitPollInterval is the wait between lookups while an Allocate request
+// waits for its conduit prefix, which is created asynchronously from the NSP
+// configuration. Without it, a waiting request would repeat the lookup (a
+// store operation) in a tight loop.
+const conduitPollInterval = 100 * time.Millisecond
 
 type IpamServer struct {
 	ctx    context.Context
@@ -55,14 +62,15 @@ func NewServer(
 	prefixLengths map[ipamAPI.IPFamily]*types.PrefixLengths,
 	garbageCollectionEnabled bool,
 	garbageCollectionInterval time.Duration,
-	garbageCollectionThreshold time.Duration) (ipamAPI.IpamServer, error) {
+	garbageCollectionThreshold time.Duration,
+	storageStats *stats.Collector) (ipamAPI.IpamServer, error) {
 	is := &IpamServer{
 		ctx:           ctx,
 		logger:        logr.FromContextOrDiscard(ctx).WithValues("class", "IpamServer"),
 		Trenches:      make(map[ipamAPI.IPFamily]types.Trench),
 		PrefixLengths: prefixLengths,
 	}
-	store, err := sqlite.New(datastore)
+	store, err := sqlite.New(datastore, sqlite.WithLockStats(storageStats.LockSwitch()))
 	if err != nil {
 		return nil, fmt.Errorf("failed creating new sqlite store (%s): %w", datastore, err)
 	}
@@ -70,7 +78,7 @@ func NewServer(
 		store.StartGarbageCollector(ctx, garbageCollectionInterval, garbageCollectionThreshold)
 	}
 	logStore := &logger.Store{
-		Store: store,
+		Store: stats.NewStore(store, storageStats.StoreSwitch()),
 	}
 
 	trenchWatchers := []trench.TrenchWatcher{}
@@ -127,6 +135,12 @@ func (is *IpamServer) Allocate(ctx context.Context, child *ipamAPI.Child) (*ipam
 		if conduit != nil {
 			break
 		}
+		// Not created yet; wait before looking it up again. A done ctx ends the
+		// wait early and is reported by the check at the top of the loop.
+		select {
+		case <-ctx.Done():
+		case <-time.After(conduitPollInterval):
+		}
 	}
 	getNodeCtx := sqlite.WithUpdateDamping(sqlite.WithExpirable(ctx), nodeUpdateDampingThreshold) // Applies damping to reduce frequent DB writes and marks node prefix as expirable
 	node, err := conduit.GetNode(getNodeCtx, child.GetSubnet().GetNode())                         // Note: refreshes existing node prefix (i.e. the 'updatedAt' timestamp)
@@ -165,7 +179,7 @@ func (is *IpamServer) Release(ctx context.Context, child *ipamAPI.Child) (*empty
 	}
 	conduit, err := trench.GetConduit(ctx, child.GetSubnet().GetConduit().GetName())
 	if err != nil {
-		return &emptypb.Empty{}, fmt.Errorf("failed getting conduit (%s) while releasing (%s): %w", child.GetSubnet().GetNode(), child.GetName(), err)
+		return &emptypb.Empty{}, fmt.Errorf("failed getting conduit (%s) while releasing (%s): %w", child.GetSubnet().GetConduit().GetName(), child.GetName(), err)
 	}
 	if conduit == nil {
 		return &emptypb.Empty{}, nil

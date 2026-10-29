@@ -57,9 +57,9 @@ func (n *Node) Allocate(ctx context.Context, name string) (types.Prefix, error) 
 		if err != nil {
 			return nil, err
 		}
-		p, err = prefix.AllocateWithBlocklist(ctx, n, name, n.PrefixLengths.ChildLength, n.Store, blocklist)
+		p, err = prefix.AllocateWithParentLock(ctx, n, name, n.PrefixLengths.ChildLength, n.Store, blocklist)
 		if err != nil {
-			return nil, fmt.Errorf("failed to AllocateWithBlocklist (%s) while allocating in node prefix (%s): %w", name, n.GetName(), err)
+			return nil, fmt.Errorf("failed to AllocateWithParentLock (%s) while allocating in node prefix (%s): %w", name, n.GetName(), err)
 		}
 	} else {
 		// Refresh the entry's updatedAt timestamp in storage

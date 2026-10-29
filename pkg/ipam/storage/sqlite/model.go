@@ -55,6 +55,25 @@ func isCIDRUniquenessViolation(err error) bool {
 	return false
 }
 
+// isPrimaryIDUniquenessViolation checks if the error reports a primary-key
+// uniqueness violation, i.e. an insert of a prefix whose primary ID (name
+// chained with parent IDs) already exists. SQLite reports this with the
+// ErrConstraintPrimaryKey extended code, which is distinct from the
+// ErrConstraintUnique code used for the (cidr, parent_id) index.
+func isPrimaryIDUniquenessViolation(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	var sqliteErr sqlite3.Error
+	if errors.As(err, &sqliteErr) {
+		if sqliteErr.ExtendedCode == sqlite3.ErrConstraintPrimaryKey {
+			return true
+		}
+	}
+	return false
+}
+
 func modelToPrefix(p *Prefix, parent types.Prefix) types.Prefix {
 	if p == nil {
 		return nil

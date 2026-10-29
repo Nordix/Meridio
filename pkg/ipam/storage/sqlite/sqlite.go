@@ -21,9 +21,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
 
+	"github.com/nordix/meridio/pkg/ipam/ctxlock"
 	"github.com/nordix/meridio/pkg/ipam/prefix"
 	"github.com/nordix/meridio/pkg/ipam/types"
 	"github.com/nordix/meridio/pkg/log"
@@ -34,15 +34,37 @@ import (
 
 const BridgeName = "bridge" // prefix with name "bridge" is special because it's not periodically updated
 
-var ErrCIDRConflict = prefix.ErrCIDRConflict // alias to simplify usage in this package
+// aliases to simplify usage in this package
+var (
+	ErrCIDRConflict      = prefix.ErrCIDRConflict
+	ErrPrimaryIDConflict = prefix.ErrPrimaryIDConflict
+)
 
 type SQLiteIPAMStorage struct {
-	DB              *gorm.DB
-	mu              sync.Mutex
+	DB *gorm.DB
+	// mu serializes access to the database. It is context-aware: a caller whose
+	// context is already done, or becomes done while waiting, returns without
+	// acquiring and without performing any database work. This prevents requests
+	// that the client has already abandoned (e.g. after a deadline) from piling
+	// up behind the lock and running pointless work, so the wait queue drains
+	// under load instead of filling with abandoned waiters. The store must
+	// therefore be created with New (or NewForTest); the zero value is not usable.
+	mu              *ctxlock.Mutex
 	prefixTableName string
 }
 
-func New(datastore string) (*SQLiteIPAMStorage, error) {
+// Option configures a SQLiteIPAMStorage created by New.
+type Option func(*SQLiteIPAMStorage)
+
+// WithLockStats records the acquisitions of the storage lock while sw is
+// enabled.
+func WithLockStats(sw *ctxlock.StatsSwitch) Option {
+	return func(sqlis *SQLiteIPAMStorage) {
+		sqlis.mu = ctxlock.NewWithStats(sw)
+	}
+}
+
+func New(datastore string, opts ...Option) (*SQLiteIPAMStorage, error) {
 	db, err := gorm.Open(sqlite.Open(datastore), &gorm.Config{
 		Logger:  logger.Default.LogMode(logger.Silent),
 		NowFunc: func() time.Time { return time.Now().UTC() },
@@ -52,6 +74,10 @@ func New(datastore string) (*SQLiteIPAMStorage, error) {
 	}
 	sqlis := &SQLiteIPAMStorage{
 		DB: db,
+		mu: ctxlock.New(),
+	}
+	for _, opt := range opts {
+		opt(sqlis)
 	}
 	err = sqlis.init()
 	if err != nil {
@@ -111,7 +137,9 @@ func (sqlis *SQLiteIPAMStorage) garbageCollector(ctx context.Context, threshold 
 	// Define the batch size
 	batchSize := 50
 	logger := log.Logger.WithValues("func", "garbageCollector")
-	sqlis.mu.Lock() // TODO: Consider moving locking within the for loop
+	if err := sqlis.mu.Lock(ctx); err != nil { // TODO: Consider moving locking within the for loop
+		return err
+	}
 	defer sqlis.mu.Unlock()
 
 	for {
@@ -200,7 +228,9 @@ func (sqlis *SQLiteIPAMStorage) garbageCollector(ctx context.Context, threshold 
 // Add adds prefix to database.
 // Also sets the expirable field based on the context.
 func (sqlis *SQLiteIPAMStorage) Add(ctx context.Context, prefix types.Prefix) error {
-	sqlis.mu.Lock()
+	if err := sqlis.mu.Lock(ctx); err != nil {
+		return err
+	}
 	defer sqlis.mu.Unlock()
 	model := prefixToModel(prefix)
 	if model == nil {
@@ -215,6 +245,9 @@ func (sqlis *SQLiteIPAMStorage) Add(ctx context.Context, prefix types.Prefix) er
 	if isCIDRUniquenessViolation(tx.Error) {
 		return fmt.Errorf("%w: %v", ErrCIDRConflict, tx.Error)
 	}
+	if isPrimaryIDUniquenessViolation(tx.Error) {
+		return fmt.Errorf("%w: %v", ErrPrimaryIDConflict, tx.Error)
+	}
 
 	return tx.Error
 }
@@ -228,7 +261,9 @@ func (sqlis *SQLiteIPAMStorage) Add(ctx context.Context, prefix types.Prefix) er
 // Save() considers unset entries as well to update the record, thus expirable
 // field must be set to either false or true.)
 func (sqlis *SQLiteIPAMStorage) Update(ctx context.Context, prefix types.Prefix) error {
-	sqlis.mu.Lock()
+	if err := sqlis.mu.Lock(ctx); err != nil {
+		return err
+	}
 	defer sqlis.mu.Unlock()
 	model := prefixToModel(prefix)
 	if model == nil {
@@ -250,7 +285,9 @@ func (sqlis *SQLiteIPAMStorage) Update(ctx context.Context, prefix types.Prefix)
 }
 
 func (sqlis *SQLiteIPAMStorage) Delete(ctx context.Context, prefix types.Prefix) error {
-	sqlis.mu.Lock()
+	if err := sqlis.mu.Lock(ctx); err != nil {
+		return err
+	}
 	defer sqlis.mu.Unlock()
 	if prefix == nil {
 		return nil
@@ -261,7 +298,9 @@ func (sqlis *SQLiteIPAMStorage) Delete(ctx context.Context, prefix types.Prefix)
 // Get finds and returns the first database record matching the given prefix.
 // Note: default or unset fields are ignored by the GORM query
 func (sqlis *SQLiteIPAMStorage) Get(ctx context.Context, name string, parent types.Prefix) (types.Prefix, error) {
-	sqlis.mu.Lock()
+	if err := sqlis.mu.Lock(ctx); err != nil {
+		return nil, err
+	}
 	defer sqlis.mu.Unlock()
 	prefix := prefix.New(name, "", parent)
 	model := prefixToModel(prefix)
@@ -278,7 +317,9 @@ func (sqlis *SQLiteIPAMStorage) Get(ctx context.Context, name string, parent typ
 }
 
 func (sqlis *SQLiteIPAMStorage) GetChilds(ctx context.Context, prefix types.Prefix) ([]types.Prefix, error) {
-	sqlis.mu.Lock()
+	if err := sqlis.mu.Lock(ctx); err != nil {
+		return nil, err
+	}
 	defer sqlis.mu.Unlock()
 	return sqlis.getChilds(prefix)
 }
@@ -397,7 +438,9 @@ func (sqlis *SQLiteIPAMStorage) shouldUpdate(ctx context.Context, model *Prefix)
 // ensuring proper migration from older schema versions where it might not have been set.
 func (sqlis *SQLiteIPAMStorage) migrate(ctx context.Context) error {
 	logger := log.Logger.WithValues("func", "migrate")
-	sqlis.mu.Lock()
+	if err := sqlis.mu.Lock(ctx); err != nil {
+		return err
+	}
 	defer sqlis.mu.Unlock()
 
 	// Find Trench IDs
@@ -483,6 +526,7 @@ func NewForTest(db *gorm.DB) (*SQLiteIPAMStorage, error) {
 	}
 	sqlis := &SQLiteIPAMStorage{
 		DB: db,
+		mu: ctxlock.New(),
 	}
 	sqlis.prefixTableName = TableNameForModel(sqlis.DB, &Prefix{})
 	return sqlis, nil

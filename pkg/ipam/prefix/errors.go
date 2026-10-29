@@ -19,3 +19,8 @@ package prefix
 import "errors"
 
 var ErrCIDRConflict = errors.New("CIDR uniqueness violation")
+
+// ErrPrimaryIDConflict indicates that a prefix with the same primary ID already
+// exists in the store. It mirrors the primary-key uniqueness constraint on the
+// prefix model.
+var ErrPrimaryIDConflict = errors.New("primary ID uniqueness violation")
