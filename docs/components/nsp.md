@@ -25,6 +25,77 @@ The NSP Service allows targets to notify their availability or unavailability by
 
 In order to avoid "ghost" targets if a target cannot unregister itself from the NSP service (Node crash, ungraceful terminaison of a target...), the target registry removes the targets which are not refreshing their registration. To do so, a target has to update its entry by calling the Register function regularly.
 
+### Target Registry internals
+
+#### Layers
+
+The target registry is built from three layers (wired in [cmd/nsp/main.go](https://github.com/Nordix/Meridio/blob/master/cmd/nsp/main.go)). Each layer only calls the one below it:
+
+Layer | Package | Role | Lock
+--- | --- | --- | ---
+gRPC server | [pkg/nsp](https://github.com/Nordix/Meridio/tree/master/pkg/nsp) | gRPC handlers for Register, Unregister and Watch | none
+Keepalive | [pkg/nsp/registry/keepalive](https://github.com/Nordix/Meridio/tree/master/pkg/nsp/registry/keepalive) | Removes targets that are not refreshed within `NSP_ENTRY_TIMEOUT` | keepalive lock
+SQLite registry | [pkg/nsp/registry/sqlite](https://github.com/Nordix/Meridio/tree/master/pkg/nsp/registry/sqlite) | Stores the targets and keeps the list of watchers | registry lock
+
+A watcher ([pkg/nsp/registry/common](https://github.com/Nordix/Meridio/tree/master/pkg/nsp/registry/common)) belongs to one Watch call. It holds the client's target selector and a mailbox with a single slot, protected by its own watcher lock.
+
+gRPC runs every call in its own goroutine, so Register, Unregister and Watch calls run in parallel. The locks serialize them.
+
+#### Clients
+
+* Targets (TAPA) register their target and refresh it periodically. After each refresh, they open a short Watch to verify that the registry holds the target as enabled, read one target list, and close the Watch.
+* Frontends register themselves as frontend targets.
+* Load balancers keep long-lived Watches: one per stream for the enabled targets of that stream, and one for the frontend targets.
+
+#### Register and Unregister
+
+Register and Unregister are synchronous: the reply is sent after the whole call has completed.
+
+```
+Register
+ └ keepalive: holds the keepalive lock for the whole call
+    ├ a target that was not registered before is stored as disabled
+    └ sqlite: holds the registry lock
+       ├ new target:             store it, remove conflicting targets, broadcast
+       ├ unchanged refresh:      return (no write, no broadcast)
+       └ changed target:         store it, remove conflicting targets, broadcast
+ └ keepalive: (re)arm the target's expiry timer
+```
+
+A broadcast reads all targets from the database and puts the current target list into the mailbox of every watcher. It runs inside the write, under the registry lock. Putting a list into a mailbox never blocks: a newer list replaces an older one that was not yet sent, and each watcher filters the list with its own selector.
+
+An unchanged refresh skips the broadcast, since the watchers already have the same target list. If a write succeeded but no broadcast has succeeded since (for example because of a database error), the next refresh broadcasts even if unchanged.
+
+When an expiry timer fires, the keepalive layer takes the keepalive lock and removes the target, which broadcasts like Unregister.
+
+#### Watch
+
+Watch is a long-running server-streaming call:
+
+```
+Watch
+ └ keepalive: passes the call through, no lock
+    └ sqlite: holds the registry lock briefly:
+         create a watcher, add it to the watcher list,
+         put the current target list into its mailbox
+ loop, holding no registry lock:
+    mailbox has a target list → send it to the client
+ until the client goes away or a send fails
+ stop the watcher: close its mailbox, remove it from the watcher list
+```
+
+Sending to the client is asynchronous to the broadcast: each Watch sends from its own goroutine. A slow client only delays its own stream. Since the mailbox keeps only the latest list, a slow client skips intermediate lists but always gets the newest one.
+
+#### Lock order
+
+Lock | Taken by | Order
+--- | --- | ---
+Keepalive lock | Register, Unregister, expiry | 1
+Registry lock | Database access, watcher list | 2
+Watcher lock | Putting a list into a mailbox, stopping the watcher | 3
+
+The locks are always taken in this order, never in reverse. Watch and stopping a watcher do not take the keepalive lock. Stopping a watcher takes the watcher lock and releases it before taking the registry lock to remove the watcher from the list.
+
 ### Data persistence
 
 Running as StatefulSet with a single replica, the NSP handles restarts and pod deletions by saving the data in a local sqlite stored in a persistent volume requested via a volumeClaimTemplates.

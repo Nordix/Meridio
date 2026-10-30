@@ -32,6 +32,38 @@ type Target struct {
 	Stream     Stream `gorm:"foreignKey:StreamName"`
 }
 
+// Equals reports whether a stored target matches an incoming one. Set uses it
+// to skip refreshes that change nothing.
+//
+// It compares the columns of the targets table: ID, Ips, Context, Status and
+// Type. ID is built from the IPs, type, stream, conduit and trench names, so
+// equal IDs mean the same stream, conduit and trench names were requested.
+//
+// Two fields are not compared:
+//   - StreamName: it is only filled in when the target is written to the DB,
+//     so it is always empty on the incoming target and would never match.
+//   - Stream: the stream's conduit and trench are stored in the streams table,
+//     not in the targets table, and Set does not load them.
+//
+// Limitation: the streams table has one row per stream name, shared by all
+// targets of that stream. Another target's write can change that row's conduit
+// (see clearConflicts). Equals does not notice, because it does not read the
+// streams row. If the streams, conduits or trenches tables gain a column that is
+// not part of the ID, Equals must compare it.
+//
+// Ips is compared as stored, without sorting. A reordered IP list gives a
+// different ID, so it never reaches this comparison.
+func (t *Target) Equals(t2 *Target) bool {
+	if t == nil || t2 == nil {
+		return t == t2
+	}
+	return t.ID == t2.ID &&
+		t.Ips == t2.Ips &&
+		t.Context == t2.Context &&
+		t.Status == t2.Status &&
+		t.Type == t2.Type
+}
+
 type Stream struct {
 	Name        string `gorm:"primaryKey"`
 	ConduitName string
