@@ -34,7 +34,10 @@ const (
 	defaultTimeout = 60 * time.Second
 )
 
-type TimeoutTrigger func() <-chan struct{}
+// TimeoutTrigger returns a channel that receives a value when an entry
+// expires. ctx is the entry's context, cancelled when the entry is refreshed;
+// the trigger should then release its resources.
+type TimeoutTrigger func(ctx context.Context) <-chan struct{}
 
 // KeepAlive is a middleware for the Target registry.
 // It will monitor each target and check if they receive refresh
@@ -56,8 +59,8 @@ type keepAliveTarget struct {
 func New(options ...Option) (*KeepAlive, error) {
 	ka := &KeepAlive{
 		TargetRegistry: nil,
-		Timeout: func() <-chan struct{} {
-			return delay(defaultTimeout)
+		Timeout: func(ctx context.Context) <-chan struct{} {
+			return delay(ctx, defaultTimeout)
 		},
 		targets: map[string]*keepAliveTarget{},
 	}
@@ -152,7 +155,7 @@ func (ka *KeepAlive) remove(ctx context.Context, target *nspAPI.Target) error {
 
 func (ka *KeepAlive) timeout(ctx context.Context, target *nspAPI.Target) {
 	select {
-	case <-ka.Timeout():
+	case <-ka.Timeout(ctx):
 		// no refresh
 		ka.mu.Lock()
 		defer ka.mu.Unlock()

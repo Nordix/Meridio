@@ -33,23 +33,25 @@ func WithRegistry(registry types.TargetRegistry) Option {
 
 func WithContextTimeout(ctx context.Context) Option {
 	return func(ka *KeepAlive) {
-		ka.Timeout = ctx.Done
+		ka.Timeout = func(context.Context) <-chan struct{} { return ctx.Done() }
 	}
 }
 
 func WithTimeout(delayTime time.Duration) Option {
 	return func(ka *KeepAlive) {
-		ka.Timeout = func() <-chan struct{} {
-			return delay(delayTime)
+		ka.Timeout = func(ctx context.Context) <-chan struct{} {
+			return delay(ctx, delayTime)
 		}
 	}
 }
 
-func delay(d time.Duration) <-chan struct{} {
-	channel := make(chan struct{}, 1)
-	go func() {
-		<-time.After(d)
-		channel <- struct{}{}
-	}()
+// delay returns a channel that receives a value after d. The timer is stopped
+// when ctx is done (the entry was refreshed), so nothing waits out the full
+// delay. time.AfterFunc and context.AfterFunc start a goroutine only when they
+// fire; until then only a runtime timer and a context registration exist.
+func delay(ctx context.Context, d time.Duration) <-chan struct{} {
+	channel := make(chan struct{}, 1) // buffered, so the timer callback never blocks
+	timer := time.AfterFunc(d, func() { channel <- struct{}{} })
+	context.AfterFunc(ctx, func() { timer.Stop() })
 	return channel
 }
