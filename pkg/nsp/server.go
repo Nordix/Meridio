@@ -70,11 +70,13 @@ func (s *Server) Watch(t *nspAPI.Target, watcher nspAPI.TargetRegistry_WatchServ
 	if err != nil {
 		return fmt.Errorf("failed getting target watcher (%s): %w", t.String(), err)
 	}
-	s.watcher(watcher, targetWatcher.ResultChan())
-	return nil
+	return s.watcher(watcher, targetWatcher.ResultChan())
 }
 
-func (s *Server) watcher(watcher nspAPI.TargetRegistry_WatchServer, ch <-chan []*nspAPI.Target) {
+// watcher sends every target list from ch to the client. It returns nil when
+// the client goes away, and the error when a send fails, so the stream ends
+// with that error's status instead of OK.
+func (s *Server) watcher(watcher nspAPI.TargetRegistry_WatchServer, ch <-chan []*nspAPI.Target) error {
 	for {
 		select {
 		case event := <-ch:
@@ -94,11 +96,15 @@ func (s *Server) watcher(watcher nspAPI.TargetRegistry_WatchServer, ch <-chan []
 			if err := watcher.Send(&nspAPI.TargetResponse{
 				Targets: event,
 			}); err != nil {
+				if watcher.Context().Err() != nil {
+					return nil // client went away during the send: normal end of the stream
+				}
+				// gRPC does not log errors returned by handlers, so log it here.
 				log.Logger.Error(err, "Sending TargetResponse, closing watch stream")
-				return
+				return fmt.Errorf("failed sending target response: %w", err)
 			}
 		case <-watcher.Context().Done():
-			return
+			return nil // client went away: normal end of the stream
 		}
 	}
 }
