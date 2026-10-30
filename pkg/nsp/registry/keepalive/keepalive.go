@@ -83,6 +83,11 @@ func New(options ...Option) (*KeepAlive, error) {
 func (ka *KeepAlive) Set(ctx context.Context, target *nspAPI.Target) error {
 	ka.mu.Lock()
 	defer ka.mu.Unlock()
+	// Skip calls the client abandoned while waiting for the lock. Checked
+	// before any write; nothing may fail between the registry Set and add().
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	_, exists := ka.targets[sqlite.GetTargetID(target)]
 	// a target cannot register as enabled if it was not previously registered.
 	if !exists {
@@ -104,6 +109,8 @@ func (ka *KeepAlive) Set(ctx context.Context, target *nspAPI.Target) error {
 func (ka *KeepAlive) Remove(ctx context.Context, target *nspAPI.Target) error {
 	ka.mu.Lock()
 	defer ka.mu.Unlock()
+	// ctx is not checked, unlike in Set: the TAPA does not retry Unregister,
+	// so a skipped one would leave the target in place until it expires.
 	return ka.remove(ctx, target)
 }
 

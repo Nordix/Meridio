@@ -195,3 +195,18 @@ func TestWatch_ConcurrentStopAndBroadcast(t *testing.T) {
 	readers.Wait()
 	assert.Equal(t, 0, watcherCount(trsql))
 }
+
+// TestWatch_AbandonedCall verifies that a Watch whose context is already done
+// returns its error and registers no watcher.
+func TestWatch_AbandonedCall(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	trsql := newWatcherTestRegistry(t, "test_watcher_abandoned_internal.db")
+
+	abandoned, cancel := context.WithCancel(context.Background())
+	cancel()
+	w, err := trsql.Watch(abandoned, nil)
+
+	assert.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, w)
+	assert.Equal(t, 0, watcherCount(trsql))
+}

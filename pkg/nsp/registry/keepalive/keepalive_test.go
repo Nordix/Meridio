@@ -133,3 +133,50 @@ func Test_Get(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Empty(t, targets)
 }
+
+// Test_Set_AbandonedCall verifies that a Set whose context is already done
+// returns its error without touching the registry or the keepalive entries.
+// The mock registry has no Set expectation for that call, so a registry Set
+// would fail the test.
+func Test_Set_AbandonedCall(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	target := &nspAPI.Target{
+		Ips:     []string{"192.168.1.1/32"},
+		Status:  nspAPI.Target_ENABLED,
+		Context: map[string]string{"identifier": "1"},
+		Type:    nspAPI.Target_DEFAULT,
+	}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	targetRegistry := mocks.NewMockTargetRegistry(ctrl)
+	targetRegistry.EXPECT().Get(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes() // constructor restore
+	// The later, live Set is the first one that reaches the registry, so the
+	// target is stored as disabled: the abandoned call left no keepalive entry.
+	targetRegistry.EXPECT().Set(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, trgt *nspAPI.Target) error {
+		assert.Equal(t, nspAPI.Target_DISABLED, trgt.Status)
+		return nil
+	})
+	targetRegistry.EXPECT().Remove(gomock.Any(), gomock.Any()).Return(nil)
+
+	// Expiry is triggered by cancelling timeoutCtx, so the test controls it.
+	timeoutCtx, cancelTimeout := context.WithCancel(context.TODO())
+	keepAliveRegistry, err := keepAliveRegistry.New(keepAliveRegistry.WithRegistry(targetRegistry), keepAliveRegistry.WithContextTimeout(timeoutCtx))
+	assert.Nil(t, err)
+
+	// Step 1: the client already gave up.
+	abandoned, cancel := context.WithCancel(context.TODO())
+	cancel()
+	err = keepAliveRegistry.Set(abandoned, target)
+	assert.ErrorIs(t, err, context.Canceled)
+
+	// Step 2: a live Set. If step 1 had added a keepalive entry, this would be
+	// a refresh and keep the status ENABLED.
+	assert.Nil(t, keepAliveRegistry.Set(context.TODO(), &nspAPI.Target{
+		Ips: target.Ips, Status: nspAPI.Target_ENABLED, Context: target.Context, Type: target.Type,
+	}))
+	assert.Nil(t, keepAliveRegistry.Remove(context.TODO(), target))
+	// End the entry's expiry goroutine: it finds the entry removed and returns.
+	cancelTimeout()
+}

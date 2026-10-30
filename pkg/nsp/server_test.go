@@ -18,11 +18,13 @@ package nsp_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	nspAPI "github.com/nordix/meridio/api/nsp/v1"
 	"github.com/nordix/meridio/pkg/nsp"
 	memory "github.com/nordix/meridio/pkg/nsp/registry/memory"
+	"github.com/nordix/meridio/pkg/nsp/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
@@ -99,4 +101,32 @@ func TestServer_Watch_ClientGoneDuringSend(t *testing.T) {
 	}
 
 	assert.NoError(t, server.Watch(&nspAPI.Target{}, stream))
+}
+
+// watchRecorder is a target registry whose Watch records the context it gets
+// and fails, ending the server's Watch at once.
+type watchRecorder struct {
+	types.TargetRegistry
+	ctx context.Context
+}
+
+func (r *watchRecorder) Watch(ctx context.Context, _ *nspAPI.Target) (types.TargetWatcher, error) {
+	r.ctx = ctx
+	return nil, errors.New("recorded")
+}
+
+// TestServer_Watch_PassesStreamContext verifies that the server passes the
+// stream's context to the registry, so the registry can skip a Watch whose
+// client already gave up.
+func TestServer_Watch_PassesStreamContext(t *testing.T) {
+	registry := &watchRecorder{}
+	server := nsp.NewServer(registry)
+	// A cancellable context is a unique object, so the registry can only have
+	// received it from the stream.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stream := &fakeWatchServer{ctx: ctx}
+
+	assert.Error(t, server.Watch(&nspAPI.Target{}, stream))
+	assert.Equal(t, stream.ctx, registry.ctx)
 }

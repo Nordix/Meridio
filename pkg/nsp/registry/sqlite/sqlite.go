@@ -75,6 +75,10 @@ func (trsql *TargetRegistrySQLite) Close() error {
 func (trsql *TargetRegistrySQLite) Set(ctx context.Context, target *nspAPI.Target) error {
 	trsql.mu.Lock()
 	defer trsql.mu.Unlock()
+	// Skip calls the client abandoned while waiting for the lock, before any write.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	var t Target
 	targetModel := NSPTargetToSQLTarget(target)
 	tx := trsql.DB.First(&t, "ID", targetModel.ID)
@@ -124,6 +128,9 @@ func (trsql *TargetRegistrySQLite) Set(ctx context.Context, target *nspAPI.Targe
 	return trsql.notifyAllWatchers()
 }
 
+// Remove does not check ctx: keepalive expiry calls it after deleting the
+// target from its own map, and failing here would leave the target in the
+// database, untracked by keepalive until the next NSP restart.
 func (trsql *TargetRegistrySQLite) Remove(ctx context.Context, target *nspAPI.Target) error {
 	trsql.mu.Lock()
 	defer trsql.mu.Unlock()
@@ -142,6 +149,11 @@ func (trsql *TargetRegistrySQLite) remove(ctx context.Context, target *Target) e
 func (trsql *TargetRegistrySQLite) Watch(ctx context.Context, target *nspAPI.Target) (types.TargetWatcher, error) {
 	trsql.mu.Lock()
 	defer trsql.mu.Unlock()
+	// Skip calls the client abandoned while waiting for the lock, before the
+	// watcher is registered.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	trsql.setWatchersIfNil()
 	watcher := common.NewRegistryWatcher(target)
 	trsql.watchers[watcher] = target.GetStream().GetName()

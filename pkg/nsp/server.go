@@ -57,7 +57,7 @@ func (s *Server) Unregister(ctx context.Context, target *nspAPI.Target) (*emptyp
 }
 
 func (s *Server) Watch(t *nspAPI.Target, watcher nspAPI.TargetRegistry_WatchServer) error {
-	targetWatcher, err := s.TargetRegistry.Watch(context.TODO(), t)
+	targetWatcher, err := s.TargetRegistry.Watch(watcher.Context(), t)
 	// The registry may return a non-nil watcher even alongside an error (e.g.
 	// the sqlite registry registers the watcher before its initial read can
 	// fail). Ensure Stop() runs on every exit path so such a watcher is not

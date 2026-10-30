@@ -483,3 +483,31 @@ func TestTargetRegistrySQLite_Broadcast_StreamGrouping(t *testing.T) {
 		})
 	}
 }
+
+// TestTargetRegistrySQLite_Set_AbandonedCall verifies that a Set whose context
+// is already done returns its error and writes nothing.
+func TestTargetRegistrySQLite_Set_AbandonedCall(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	dbFile := "test_set_abandoned.db"
+	os.Remove(dbFile)
+	db, err := sqlite.New(dbFile)
+	assert.Nil(t, err)
+	defer func() {
+		db.Close()
+		os.Remove(dbFile)
+	}()
+
+	abandoned, cancel := context.WithCancel(context.Background())
+	cancel()
+	err = db.Set(abandoned, &nspAPI.Target{
+		Ips:    []string{"172.16.0.1/32"},
+		Status: nspAPI.Target_ENABLED,
+		Type:   nspAPI.Target_DEFAULT,
+	})
+	assert.ErrorIs(t, err, context.Canceled)
+
+	targets, err := db.Get(context.Background(), &nspAPI.Target{Status: nspAPI.Target_ANY, Type: nspAPI.Target_DEFAULT})
+	assert.Nil(t, err)
+	assert.Empty(t, targets, "an abandoned Set must not write")
+}
