@@ -62,7 +62,7 @@ Register
  └ keepalive: (re)arm the target's expiry timer
 ```
 
-A broadcast reads all targets from the database and puts the current target list into the mailbox of every watcher. It runs inside the write, under the registry lock. Putting a list into a mailbox never blocks: a newer list replaces an older one that was not yet sent, and each watcher filters the list with its own selector.
+A broadcast reads all targets from the database and puts a target list into each watcher's mailbox: the targets of that watcher's stream, or all targets if it watches no specific stream. It runs inside the write, under the registry lock. Putting a list into a mailbox never blocks: a newer list replaces an older one that was not yet sent, and each watcher filters the list with its own selector.
 
 An unchanged refresh skips the broadcast, since the watchers already have the same target list. If a write succeeded but no broadcast has succeeded since (for example because of a database error), the next refresh broadcasts even if unchanged.
 
@@ -106,13 +106,13 @@ https://github.com/Nordix/Meridio/blob/master/cmd/nsp/config.go
 
 Environment variable | Type | Description | Default
 --- | --- | --- | ---
-NSM_NAMESPACE | string | Namespace the pod is running on | default
-NSM_PORT | string | Trench the pod is running on | 7778
-NSM_CONFIG_MAP_NAME | string | Name of the ConfigMap containing the configuration | meridio-configuration
-NSM_DATASOURCE | string | Path and file name of the sqlite database | /run/nsp/data/registry.db
-NSM_LOG_LEVEL | string | Log level | DEBUG
-NSM_ENTRY_TIMEOUT | time.Duration | Timeout of the entries | 60s
-NSM_GRPC_PROBE_RPC_TIMEOUT | time.Duration | RPC timeout of internal gRPC health probe | 1s
+NSP_NAMESPACE | string | Namespace the pod is running on | default
+NSP_PORT | string | Trench the pod is running on | 7778
+NSP_CONFIG_MAP_NAME | string | Name of the ConfigMap containing the configuration | meridio-configuration
+NSP_DATASOURCE | string | Path and file name of the sqlite database | /run/nsp/data/registry.db
+NSP_LOG_LEVEL | string | Log level | DEBUG
+NSP_ENTRY_TIMEOUT | time.Duration | Timeout of the entries | 60s
+NSP_GRPC_PROBE_RPC_TIMEOUT | time.Duration | RPC timeout of internal gRPC health probe | 1s
 
 ## Command Line 
 

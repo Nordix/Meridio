@@ -31,9 +31,12 @@ import (
 )
 
 type TargetRegistrySQLite struct {
-	DB       *gorm.DB
-	mu       sync.Mutex
-	watchers map[*common.RegistryWatcher]struct{}
+	DB *gorm.DB
+	mu sync.Mutex
+	// watchers maps each watcher to the stream name of its selector ("" if the
+	// selector names no stream), so a broadcast can give a stream-scoped
+	// watcher only its stream's targets.
+	watchers map[*common.RegistryWatcher]string
 	// notifyDirty is true when watchers may be behind the DB: a write succeeded
 	// but no broadcast has succeeded since. Set then re-notifies instead of
 	// taking the fast path. Guarded by mu. False at startup is correct: watchers
@@ -51,7 +54,7 @@ func New(datastore string) (*TargetRegistrySQLite, error) {
 	}
 	targetRegistrySQLite := &TargetRegistrySQLite{
 		DB:       db,
-		watchers: make(map[*common.RegistryWatcher]struct{}),
+		watchers: make(map[*common.RegistryWatcher]string),
 	}
 	err = targetRegistrySQLite.init()
 	if err != nil {
@@ -141,8 +144,8 @@ func (trsql *TargetRegistrySQLite) Watch(ctx context.Context, target *nspAPI.Tar
 	defer trsql.mu.Unlock()
 	trsql.setWatchersIfNil()
 	watcher := common.NewRegistryWatcher(target)
-	trsql.watchers[watcher] = struct{}{}
-	targets, err := trsql.getAll()
+	trsql.watchers[watcher] = target.GetStream().GetName()
+	targets, err := trsql.getForSelector(target)
 	watcher.Notify(targets)
 	return &sqliteWatcher{RegistryWatcher: watcher, registry: trsql}, err
 }
@@ -160,8 +163,21 @@ func (trsql *TargetRegistrySQLite) notifyAllWatchers() error {
 		trsql.notifyDirty = true // watchers stay behind the DB
 		return err
 	}
-	for watcher := range trsql.watchers {
-		watcher.Notify(targets) // no-op if stopped; sqliteWatcher.Stop removes it
+	// Group the targets by stream once, so a stream-scoped watcher filters only
+	// its stream's targets instead of the whole list. Every target its selector
+	// keeps has that stream name, so the delivered list is the same.
+	byStream := map[string][]*nspAPI.Target{}
+	for _, target := range targets {
+		name := target.GetStream().GetName()
+		byStream[name] = append(byStream[name], target)
+	}
+	for watcher, streamName := range trsql.watchers {
+		// No-op if stopped; sqliteWatcher.Stop removes it.
+		if streamName == "" {
+			watcher.Notify(targets)
+		} else {
+			watcher.Notify(byStream[streamName])
+		}
 	}
 	trsql.notifyDirty = false // watchers now match the DB
 	return nil
@@ -169,7 +185,7 @@ func (trsql *TargetRegistrySQLite) notifyAllWatchers() error {
 
 func (trsql *TargetRegistrySQLite) setWatchersIfNil() {
 	if trsql.watchers == nil {
-		trsql.watchers = make(map[*common.RegistryWatcher]struct{})
+		trsql.watchers = make(map[*common.RegistryWatcher]string)
 	}
 }
 
@@ -189,9 +205,28 @@ func (trsql *TargetRegistrySQLite) get(ctx context.Context, target *nspAPI.Targe
 }
 
 func (trsql *TargetRegistrySQLite) getAll() ([]*nspAPI.Target, error) {
+	return trsql.find(trsql.DB)
+}
+
+// getForSelector returns at least the targets the selector can match. If the
+// selector names a stream, only that stream's rows are read: TAPA opens a
+// stream-scoped Watch on every refresh, and reading the whole table for each
+// would cost O(targets) per refresh. Callers still filter with the selector;
+// every target it keeps has that stream name, so the filtered result is the
+// same as filtering getAll.
+func (trsql *TargetRegistrySQLite) getForSelector(selector *nspAPI.Target) ([]*nspAPI.Target, error) {
+	streamName := selector.GetStream().GetName() // nil-safe protobuf getters
+	if streamName == "" {
+		return trsql.getAll()
+	}
+	return trsql.find(trsql.DB.Where("stream_name = ?", streamName))
+}
+
+// find runs query on the targets table and converts the rows.
+func (trsql *TargetRegistrySQLite) find(query *gorm.DB) ([]*nspAPI.Target, error) {
 	nspTargets := []*nspAPI.Target{}
 	var targets []Target
-	tx := trsql.DB.Preload("Stream.Conduit.Trench").Find(&targets)
+	tx := query.Preload("Stream.Conduit.Trench").Find(&targets)
 	if tx.Error != nil {
 		return nspTargets, tx.Error
 	}
