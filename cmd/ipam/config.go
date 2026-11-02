@@ -17,7 +17,10 @@ limitations under the License.
 
 package main
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // Config for the ipam
 type Config struct {
@@ -41,5 +44,15 @@ type Config struct {
 	GarbageCollectionInterval  time.Duration `default:"2h" desc:"Interval at which IP garbage collection is running" split_words:"true"`
 	GarbageCollectionThreshold time.Duration `default:"40m" desc:"IP record older than threshold is considered leftover" split_words:"true"`
 	StorageStatsEnabled        bool          `default:"false" desc:"Storage statistics enabled at start (toggled at runtime by SIGWINCH)" split_words:"true"`
-	StorageStatsInterval       time.Duration `default:"30s" desc:"Interval at which storage statistics are logged while enabled" split_words:"true"`
+	StorageStatsInterval       time.Duration `default:"30s" desc:"Interval at which storage statistics are logged while enabled; must be positive (use IPAM_STORAGE_STATS_ENABLED to turn statistics off)" split_words:"true"`
+}
+
+// IsValid checks if the configuration is valid
+func (c *Config) IsValid() error {
+	// Validated even when statistics are disabled at start, since SIGWINCH
+	// can enable them at runtime.
+	if c.StorageStatsInterval <= 0 {
+		return fmt.Errorf("storage statistics interval must be positive: %s", c.StorageStatsInterval)
+	}
+	return nil
 }

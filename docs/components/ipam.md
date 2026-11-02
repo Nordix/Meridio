@@ -188,7 +188,7 @@ IPAM_GARBAGE_COLLECTION_ENABLED | bool | IP garbage collection enabled or disabl
 IPAM_GARBAGE_COLLECTION_INTERVAL | time.Duration | Interval at which IP garbage collection is running | 2h
 IPAM_GARBAGE_COLLECTION_THRESHOLD | time.Duration | IP record older than threshold is considered leftover | 40m
 IPAM_STORAGE_STATS_ENABLED | bool | Storage statistics enabled at start (toggled at runtime by SIGWINCH) | false
-IPAM_STORAGE_STATS_INTERVAL | time.Duration | Interval at which storage statistics are logged while enabled | 30s
+IPAM_STORAGE_STATS_INTERVAL | time.Duration | Interval at which storage statistics are logged while enabled. Must be positive, IPAM does not start otherwise; use `IPAM_STORAGE_STATS_ENABLED` to turn statistics off | 30s
 
 ## Command Line 
 

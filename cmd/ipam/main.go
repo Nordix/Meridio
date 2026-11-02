@@ -84,6 +84,9 @@ func main() {
 	}
 	logger := log.New("Meridio-ipam", config.LogLevel)
 	logger.Info("Configuration read", "config", config)
+	if err := config.IsValid(); err != nil {
+		log.Fatal(logger, "config.IsValid", "error", err)
+	}
 
 	ctx, cancel := signal.NotifyContext(
 		logr.NewContext(context.Background(), logger),
@@ -193,7 +196,7 @@ func main() {
 		storageStats,
 	)
 	if err != nil {
-		logger.Error(err, "Unable to create ipam server")
+		log.Fatal(logger, "Unable to create ipam server", "error", err)
 	}
 
 	server := grpc.NewServer(
