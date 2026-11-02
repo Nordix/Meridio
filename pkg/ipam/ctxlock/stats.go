@@ -69,7 +69,8 @@ type LockSnapshot struct {
 	// Abandoned counts Lock calls that returned a context error, whether the
 	// context was done on entry or while waiting.
 	Abandoned int64
-	// TotalWait is the time spent waiting, including abandoned waits.
+	// TotalWait is the time spent waiting, including waits abandoned because
+	// the context ended. Calls abandoned on entry add nothing.
 	TotalWait time.Duration
 	// Waiters is the number of callers waiting at the time of the snapshot.
 	Waiters int64

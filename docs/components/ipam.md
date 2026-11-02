@@ -124,7 +124,7 @@ Field | Description
 `acquired` | Number of times the lock was acquired, with or without waiting. Includes garbage collector runs, so it can be slightly higher than `read.count + write.count`
 `contended` | Acquisitions where the lock was busy (or others were already queued) and the caller had to wait. A subset of `acquired`
 `abandoned` | Lock attempts that gave up because the request context was done, either on entry or while waiting. Not part of `acquired`
-`wait` | Sum of the time callers spent waiting for the lock, over all `contended` and `abandoned` attempts. Uncontended acquisitions add nothing. Like `time`, concurrent waits each add their full duration
+`wait` | Sum of the time callers spent waiting for the lock, over all `contended` attempts and attempts abandoned while waiting. Uncontended acquisitions and attempts abandoned on entry add nothing. Like `time`, concurrent waits each add their full duration
 
 `peak`:
 

@@ -81,7 +81,12 @@ func Test_Stats_DoneOnEntry(t *testing.T) {
 	snap := s.Snapshot()
 	assert.Equal(t, int64(1), snap.Abandoned)
 	assert.Equal(t, int64(0), snap.Acquired)
+	assert.Equal(t, int64(0), snap.Contended)
 	assert.Equal(t, int64(0), snap.Waiters)
+	// It never queued, so it must not show up as queue depth or wait time.
+	assert.Equal(t, int64(0), snap.PeakWaiters)
+	assert.Equal(t, time.Duration(0), snap.TotalWait)
+	assert.Equal(t, time.Duration(0), snap.PeakWait)
 }
 
 // Test_Stats_Contended verifies the counters and peaks of a wait that ends with

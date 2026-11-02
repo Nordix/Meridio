@@ -88,14 +88,20 @@ func (m *Mutex) Lock(ctx context.Context) error {
 	if s == nil {
 		return m.sem.Acquire(ctx, 1)
 	}
+	// Already done: abandoned without ever queuing, so it must not count as a
+	// waiter nor add wait time.
+	if err := ctx.Err(); err != nil {
+		s.abandoned.Add(1)
+		return err
+	}
 	// Uncontended: the lock is free and nobody is queued. TryAcquire never
 	// overtakes queued waiters, so FIFO order is preserved.
-	if ctx.Err() == nil && m.sem.TryAcquire(1) {
+	if m.sem.TryAcquire(1) {
 		s.acquired.Add(1)
 		return nil
 	}
-	// Otherwise queue in FIFO order. Acquire fails at once if ctx is already
-	// done, or later if ctx ends while waiting; endWait counts the outcome.
+	// Otherwise queue in FIFO order. Acquire fails if ctx ends while waiting;
+	// endWait counts the outcome.
 	start := s.startWait()
 	err := m.sem.Acquire(ctx, 1)
 	s.endWait(start, err)
