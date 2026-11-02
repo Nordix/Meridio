@@ -34,8 +34,12 @@ import (
 // desired and the current security context are empty, then the current value is
 // kept to avoid needless updates (POD restarts), while an empty security
 // context is returned instead of nil if only the desired one is empty to avoid
-// an endless update loop (the API server returns an empty security context for
-// objects written with an empty one).
+// an endless update loop.
+//
+// Note that the API server defaults a nil POD security context to an empty one,
+// thus objects read back from a real cluster report an empty security context
+// rather than nil. The fake client used in the unit tests applies no such
+// defaulting, so there a nil security context stays nil.
 func GetDesiredPodSecurityContext(desired, current *corev1.PodSecurityContext) *corev1.PodSecurityContext {
 	if isPodSecurityContextEmpty(desired) && isPodSecurityContextEmpty(current) {
 		return current
