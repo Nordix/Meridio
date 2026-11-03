@@ -166,8 +166,16 @@ func (trsql *TargetRegistrySQLite) Watch(ctx context.Context, target *nspAPI.Tar
 	watcher := common.NewRegistryWatcher(target)
 	trsql.watchers[watcher] = target.GetStream().GetName()
 	targets, err := trsql.getForSelector(target)
+	if err != nil {
+		// The caller ends the stream on error, so the watcher has no use:
+		// deregister it here instead of returning it with the error.
+		// removeWatcher would take the registry lock again, so delete directly.
+		watcher.Stop()
+		delete(trsql.watchers, watcher)
+		return nil, err
+	}
 	watcher.Notify(targets)
-	return &sqliteWatcher{RegistryWatcher: watcher, registry: trsql}, err
+	return &sqliteWatcher{RegistryWatcher: watcher, registry: trsql}, nil
 }
 
 func (trsql *TargetRegistrySQLite) Get(ctx context.Context, target *nspAPI.Target) ([]*nspAPI.Target, error) {

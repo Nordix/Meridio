@@ -19,6 +19,7 @@ package sqlite
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"sync"
@@ -29,6 +30,7 @@ import (
 	"github.com/nordix/meridio/pkg/nsp/types"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/goleak"
+	"gorm.io/gorm"
 )
 
 func newWatcherTestRegistry(t *testing.T, dbFile string) *TargetRegistrySQLite {
@@ -207,6 +209,27 @@ func TestWatch_AbandonedCall(t *testing.T) {
 	w, err := trsql.Watch(abandoned, nil)
 
 	assert.ErrorIs(t, err, context.Canceled)
+	assert.Nil(t, w)
+	assert.Equal(t, 0, watcherCount(trsql))
+}
+
+// TestWatch_ReadFailure verifies that a Watch whose initial read fails returns
+// no watcher and leaves none registered. The failure is injected with a GORM
+// query callback.
+func TestWatch_ReadFailure(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	trsql := newWatcherTestRegistry(t, "test_watcher_read_failure_internal.db")
+
+	err := trsql.DB.Callback().Query().Before("gorm:query").Register("test:fail_query", func(tx *gorm.DB) {
+		if tx.Statement.Table == "targets" {
+			_ = tx.AddError(errors.New("injected query failure"))
+		}
+	})
+	assert.Nil(t, err)
+
+	w, err := trsql.Watch(context.Background(), nil)
+
+	assert.Error(t, err)
 	assert.Nil(t, w)
 	assert.Equal(t, 0, watcherCount(trsql))
 }

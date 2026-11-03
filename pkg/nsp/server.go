@@ -58,12 +58,10 @@ func (s *Server) Unregister(ctx context.Context, target *nspAPI.Target) (*emptyp
 
 func (s *Server) Watch(t *nspAPI.Target, watcher nspAPI.TargetRegistry_WatchServer) error {
 	targetWatcher, err := s.TargetRegistry.Watch(watcher.Context(), t)
-	// The registry may return a non-nil watcher even alongside an error (e.g.
-	// the sqlite registry registers the watcher before its initial read can
-	// fail). Ensure Stop() runs on every exit path so such a watcher is not
-	// left registered (which would keep receiving fan-out notifications with no
-	// reader). The nil-check is required because other registry layers (e.g.
-	// keepalive with no backing registry) might return a nil watcher on error.
+	// Stop() runs on every exit path. The registry returns no watcher on error
+	// today, so the nil check and stopping on the error path are defensive:
+	// they keep a registry that returns both from leaving a registered watcher
+	// that receives notifications with no reader.
 	if targetWatcher != nil {
 		defer targetWatcher.Stop()
 	}
