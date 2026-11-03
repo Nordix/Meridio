@@ -33,6 +33,12 @@ type Config struct {
 	MaxTokenLifetime        time.Duration
 	APIClient               *nsm.APIClient
 	MonitorConnectionClient networkservice.MonitorConnectionClient
+	// TeardownWaitTimeout bounds how long addNetworkServiceClient waits for an
+	// in-flight teardown of the same endpoint to finish before skipping the
+	// re-add. A fresh client must not be registered while the previous client's
+	// Close() is still running (the NSM connection id is deterministic). 0 means
+	// do not wait: skip immediately (legacy behavior).
+	TeardownWaitTimeout time.Duration
 }
 
 // IsValid - check if configuration is valid

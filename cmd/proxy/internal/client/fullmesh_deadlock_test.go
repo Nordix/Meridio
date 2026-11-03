@@ -377,6 +377,9 @@ func TestReAddSameID_DoesNotRunConcurrentlyWithTeardown(t *testing.T) {
 	// teardownInFlight for the duration of the test.
 	leaf := newWedgeableNSClient(true)
 	fmnsc, nseName := newFullMeshForTest(t, ctx, leaf)
+	// TeardownWaitTimeout == 0 is the documented disable (skip-immediately) path.
+	// Make it explicit rather than relying on the zero value.
+	fmnsc.config.TeardownWaitTimeout = 0
 
 	// Start teardown; it returns promptly (detached) but leaves teardown in flight.
 	returned := completesWithin(2*time.Second, func() {
@@ -390,12 +393,13 @@ func TestReAddSameID_DoesNotRunConcurrentlyWithTeardown(t *testing.T) {
 	fmnsc.mu.Unlock()
 	require.True(t, inFlight, "teardown of the endpoint should be in flight")
 
-	// A re-add of the same name must be skipped (no new client) while teardown runs,
-	// and must not block the caller (recv loop).
-	addReturned := completesWithin(2*time.Second, func() {
+	// With the wait disabled (timeout 0), a re-add of the same name must skip
+	// *immediately* (no new client) while teardown runs, and must not block. A tight
+	// bound asserts it does not fall through to any wait path.
+	addReturned := completesWithin(50*time.Millisecond, func() {
 		fmnsc.addNetworkServiceClient(nseName)
 	})
-	require.True(t, addReturned, "re-add must not block while teardown is in flight")
+	require.True(t, addReturned, "with timeout 0, re-add must skip immediately, not block")
 
 	fmnsc.mu.Lock()
 	_, registered := fmnsc.networkServiceClients[nseName]
@@ -434,4 +438,135 @@ func TestDeleteNetworkServiceClient_DoubleDeleteAndUnknown(t *testing.T) {
 	}
 	require.True(t, completesWithin(2*time.Second, func() { _ = fmnsc.Close() }),
 		"Close() must drain the single in-flight teardown")
+}
+
+// gatedCloseNSClient connects immediately but blocks its Close() until gate is
+// closed, so a test can control exactly when a teardown finishes. Used to prove
+// the block-with-timeout re-add path: a re-add that enters waitForTeardown wakes
+// and registers once teardown completes within the timeout.
+type gatedCloseNSClient struct {
+	requestEntered     chan struct{}
+	requestEnteredOnce sync.Once
+	gate               chan struct{}
+}
+
+func newGatedCloseNSClient(gate chan struct{}) *gatedCloseNSClient {
+	return &gatedCloseNSClient{requestEntered: make(chan struct{}), gate: gate}
+}
+
+func (g *gatedCloseNSClient) Request(
+	_ context.Context, request *networkservice.NetworkServiceRequest, _ ...grpc.CallOption,
+) (*networkservice.Connection, error) {
+	g.requestEnteredOnce.Do(func() { close(g.requestEntered) })
+	return request.GetConnection(), nil
+}
+
+func (g *gatedCloseNSClient) Close(
+	_ context.Context, _ *networkservice.Connection, _ ...grpc.CallOption,
+) (*emptypb.Empty, error) {
+	<-g.gate
+	return &emptypb.Empty{}, nil
+}
+
+// registerGatedClient mirrors addNetworkServiceClient's registration, backed by a
+// gated leaf so the test controls teardown completion.
+func registerGatedClient(t *testing.T, ctx context.Context, fmnsc *FullMeshNetworkServiceClient, name string, gate chan struct{}) {
+	t.Helper()
+	leaf := newGatedCloseNSClient(gate)
+	snsc := NewSimpleNetworkServiceClient(ctx, fmnsc.config, leaf)
+	fmnsc.mu.Lock()
+	fmnsc.networkServiceClients[name] = snsc
+	fmnsc.mu.Unlock()
+	req := validBaseRequest()
+	req.Connection.NetworkServiceEndpointName = name
+	go func() { _ = snsc.Request(req) }()
+	select {
+	case <-leaf.requestEntered:
+	case <-time.After(3 * time.Second):
+		t.Fatalf("precondition not met: Request for %s never reached the leaf", name)
+	}
+}
+
+// TestReAddSameID_WaitsThenRegistersWhenTeardownFinishes is the guard for the
+// block-with-timeout behavior: when a teardown of the same endpoint finishes
+// within TeardownWaitTimeout, a concurrent re-add must WAIT for it and then
+// register a fresh client (not skip). This is the behavioral change vs the
+// skip-only variant.
+func TestReAddSameID_WaitsThenRegistersWhenTeardownFinishes(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	fmnsc, _ := newFullMeshForTest(t, ctx, newWedgeableNSClient(false))
+	fmnsc.config.TeardownWaitTimeout = 3 * time.Second
+
+	const name = "lb-nse-gated"
+	gate := make(chan struct{})
+	registerGatedClient(t, ctx, fmnsc, name, gate)
+
+	// Start teardown; its Close() blocks on the gate, so the name stays in
+	// teardownInFlight until we release it.
+	fmnsc.deleteNetworkServiceClient(name)
+	fmnsc.mu.Lock()
+	_, inFlight := fmnsc.teardownInFlight[name]
+	fmnsc.mu.Unlock()
+	require.True(t, inFlight, "teardown should be in flight (gated Close not released)")
+
+	// Concurrently re-add the same name: it must enter waitForTeardown and block.
+	addDone := make(chan struct{})
+	go func() {
+		fmnsc.addNetworkServiceClient(name)
+		close(addDone)
+	}()
+
+	// The re-add must NOT complete while teardown is still in flight.
+	select {
+	case <-addDone:
+		t.Fatal("re-add returned before teardown finished; it should have waited")
+	case <-time.After(300 * time.Millisecond):
+		// still waiting — expected
+	}
+
+	// Release teardown: Close() returns, the detached goroutine clears the mark and
+	// broadcasts, waking the waiting re-add.
+	close(gate)
+
+	select {
+	case <-addDone:
+	case <-time.After(3 * time.Second):
+		t.Fatal("re-add did not complete after teardown finished within the timeout")
+	}
+
+	fmnsc.mu.Lock()
+	_, registered := fmnsc.networkServiceClients[name]
+	_, stillInFlight := fmnsc.teardownInFlight[name]
+	fmnsc.mu.Unlock()
+	require.True(t, registered, "re-add must register a fresh client after teardown finished within timeout")
+	require.False(t, stillInFlight, "teardown mark must be cleared after Close() finished")
+}
+
+// TestReAddSameID_TimesOutAndSkipsWhenTeardownWedged is the guard for the bounded
+// fallback: if teardown is stuck past TeardownWaitTimeout, the re-add must time
+// out and skip (no new client registered), keeping the recv loop from stalling
+// indefinitely (issue #628 guarantee).
+func TestReAddSameID_TimesOutAndSkipsWhenTeardownWedged(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	leaf := newWedgeableNSClient(true) // wedged: teardown Close() never finishes
+	fmnsc, nseName := newFullMeshForTest(t, ctx, leaf)
+	fmnsc.config.TeardownWaitTimeout = 200 * time.Millisecond
+
+	fmnsc.deleteNetworkServiceClient(nseName)
+
+	// Re-add must return within a bounded time (timeout + slack), having skipped.
+	addReturned := completesWithin(2*time.Second, func() {
+		fmnsc.addNetworkServiceClient(nseName)
+	})
+	require.True(t, addReturned, "re-add must return after the wait times out (recv loop must not stall)")
+
+	fmnsc.mu.Lock()
+	_, registered := fmnsc.networkServiceClients[nseName]
+	fmnsc.mu.Unlock()
+	require.False(t, registered,
+		"re-add must skip (no new client) when teardown is still in flight after the timeout")
 }
