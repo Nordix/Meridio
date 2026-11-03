@@ -52,6 +52,7 @@ func Test_WithParentLock_SameParent_Serialized(t *testing.T) {
 		inFlight.Add(-1)
 		return prefix.New(name, "10.10.0.0/24", parent), nil
 	})
+	store := prefix.NewParentLockingStore(nil)
 
 	const workers = 10
 	var wg sync.WaitGroup
@@ -59,7 +60,7 @@ func Test_WithParentLock_SameParent_Serialized(t *testing.T) {
 	for i := 0; i < workers; i++ {
 		go func() {
 			defer wg.Done()
-			_, err := allocate(context.Background(), parent, "child", 24, nil, nil)
+			_, err := allocate(context.Background(), parent, "child", 24, store, nil)
 			assert.NoError(t, err)
 		}()
 	}
@@ -68,15 +69,14 @@ func Test_WithParentLock_SameParent_Serialized(t *testing.T) {
 	assert.Equal(t, int32(1), maxInFlight.Load(), "same-parent allocations must be serialized")
 }
 
-// Test_WithParentLock_DifferentParents_Concurrent verifies that allocations
-// under different parents are not serialized. Each allocation signals that it
-// is running (holding its parent's lock) and then waits for the other one to be
-// running too. Both can only succeed if the two run at the same time; if the
-// parents were serialized, whichever ran first would wait in vain and time out.
-func Test_WithParentLock_DifferentParents_Concurrent(t *testing.T) {
-	parentA := prefix.New("parent-a", "10.11.0.0/16", nil)
-	parentB := prefix.New("parent-b", "10.12.0.0/16", nil)
-
+// assertConcurrent runs a decorated allocation under parentA with storeA and
+// one under parentB with storeB, and verifies that they run at the same time.
+// Each allocation signals that it is running (holding its lock, if any) and
+// then waits for the other one to be running too. Both can only succeed if the
+// two run concurrently; if they were serialized, whichever ran first would wait
+// in vain and time out.
+func assertConcurrent(t *testing.T, parentA types.Prefix, storeA types.Storage, parentB types.Prefix, storeB types.Storage) {
+	t.Helper()
 	aEntered := make(chan struct{})
 	bEntered := make(chan struct{})
 
@@ -90,29 +90,54 @@ func Test_WithParentLock_DifferentParents_Concurrent(t *testing.T) {
 			return ctx.Err()
 		}
 	}
-	allocate := prefix.WithParentLock(func(ctx context.Context, parent types.Prefix, name string, length int, store types.Storage, blocklist []string) (types.Prefix, error) {
-		self, other := aEntered, bEntered
-		if parent.Equals(parentB) {
-			self, other = bEntered, aEntered
-		}
-		if err := rendezvous(ctx, self, other); err != nil {
-			return nil, err
-		}
-		return prefix.New(name, parent.GetCidr(), parent), nil
-	})
+	allocate := func(self, other chan struct{}) prefix.AllocateFunc {
+		return prefix.WithParentLock(func(ctx context.Context, parent types.Prefix, name string, length int, store types.Storage, blocklist []string) (types.Prefix, error) {
+			if err := rendezvous(ctx, self, other); err != nil {
+				return nil, err
+			}
+			return prefix.New(name, parent.GetCidr(), parent), nil
+		})
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), parentLockTestTimeout)
 	defer cancel()
 
 	errA := make(chan error, 1)
 	go func() {
-		_, err := allocate(ctx, parentA, "child", 24, nil, nil)
+		_, err := allocate(aEntered, bEntered)(ctx, parentA, "child-a", 24, storeA, nil)
 		errA <- err
 	}()
-	_, errB := allocate(ctx, parentB, "child", 24, nil, nil)
+	_, errB := allocate(bEntered, aEntered)(ctx, parentB, "child-b", 24, storeB, nil)
 
-	require.NoError(t, errB, "allocation under parent B must run concurrently with parent A")
-	require.NoError(t, <-errA, "allocation under parent A must run concurrently with parent B")
+	require.NoError(t, errB, "allocation B must run concurrently with allocation A")
+	require.NoError(t, <-errA, "allocation A must run concurrently with allocation B")
+}
+
+// Test_WithParentLock_DifferentParents_Concurrent verifies that allocations
+// under different parents of the same store are not serialized.
+func Test_WithParentLock_DifferentParents_Concurrent(t *testing.T) {
+	store := prefix.NewParentLockingStore(nil)
+	assertConcurrent(t,
+		prefix.New("parent-a", "10.11.0.0/16", nil), store,
+		prefix.New("parent-b", "10.12.0.0/16", nil), store)
+}
+
+// Test_WithParentLock_DifferentStores_Concurrent verifies that the locks
+// belong to the store: allocations under equal parents of different stores are
+// not serialized.
+func Test_WithParentLock_DifferentStores_Concurrent(t *testing.T) {
+	parent := prefix.New("parent", "10.14.0.0/16", nil)
+	assertConcurrent(t,
+		parent, prefix.NewParentLockingStore(nil),
+		parent, prefix.NewParentLockingStore(nil))
+}
+
+// Test_WithParentLock_WithoutParentLocker_NotSerialized verifies that a store
+// that does not implement ParentLocker runs allocations unlocked, even under
+// the same parent.
+func Test_WithParentLock_WithoutParentLocker_NotSerialized(t *testing.T) {
+	parent := prefix.New("parent", "10.15.0.0/16", nil)
+	assertConcurrent(t, parent, nil, parent, nil)
 }
 
 // Test_WithParentLock_CancelWhileWaiting verifies that waiting for a parent
@@ -120,9 +145,14 @@ func Test_WithParentLock_DifferentParents_Concurrent(t *testing.T) {
 // and its allocation is never executed.
 func Test_WithParentLock_CancelWhileWaiting(t *testing.T) {
 	parent := prefix.New("parent", "10.13.0.0/16", nil)
+	store := prefix.NewParentLockingStore(nil)
 
 	holding := make(chan struct{}) // closed once the first allocation holds the lock
 	release := make(chan struct{})
+	// Release the first allocation even if an assertion below fails, so it
+	// does not keep holding the lock.
+	releaseFirst := sync.OnceFunc(func() { close(release) })
+	defer releaseFirst()
 	var calls atomic.Int32
 	allocate := prefix.WithParentLock(func(ctx context.Context, parent types.Prefix, name string, length int, store types.Storage, blocklist []string) (types.Prefix, error) {
 		if calls.Add(1) == 1 {
@@ -134,7 +164,7 @@ func Test_WithParentLock_CancelWhileWaiting(t *testing.T) {
 
 	firstDone := make(chan error, 1)
 	go func() {
-		_, err := allocate(context.Background(), parent, "first", 24, nil, nil)
+		_, err := allocate(context.Background(), parent, "first", 24, store, nil)
 		firstDone <- err
 	}()
 
@@ -146,12 +176,12 @@ func Test_WithParentLock_CancelWhileWaiting(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
-	_, err := allocate(ctx, parent, "second", 24, nil, nil)
+	_, err := allocate(ctx, parent, "second", 24, store, nil)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
 	assert.Equal(t, int32(1), calls.Load(), "a cancelled waiter must not run its allocation")
 
-	close(release)
+	releaseFirst()
 	require.NoError(t, <-firstDone)
 }
 
@@ -182,7 +212,8 @@ func (s *countingStore) Delete(ctx context.Context, p types.Prefix) error {
 // exactly one Add per contender and no Delete (no collision rollback).
 func Test_AllocateWithParentLock_ConcurrentSameParent_MemoryStore(t *testing.T) {
 	parent, delayed := setupTestEnv(t, "169.17.0.0/24", setupDelayedMemoryStore)
-	store := &countingStore{Storage: delayed}
+	counting := &countingStore{Storage: delayed}
+	store := prefix.NewParentLockingStore(counting)
 
 	const contenders = 16 // number of /28 subnets in a /24
 	expected := map[string]struct{}{}
@@ -213,6 +244,6 @@ func Test_AllocateWithParentLock_ConcurrentSameParent_MemoryStore(t *testing.T) 
 	for cidr := range expected {
 		assert.Contains(t, allocated, cidr)
 	}
-	assert.Equal(t, int32(contenders), store.adds.Load(), "each contender should succeed on its first candidate")
-	assert.Equal(t, int32(0), store.deletes.Load(), "no collision rollback expected")
+	assert.Equal(t, int32(contenders), counting.adds.Load(), "each contender should succeed on its first candidate")
+	assert.Equal(t, int32(0), counting.deletes.Load(), "no collision rollback expected")
 }

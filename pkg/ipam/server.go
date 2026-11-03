@@ -75,15 +75,18 @@ func NewServer(
 	if garbageCollectionEnabled {
 		store.StartGarbageCollector(ctx, garbageCollectionInterval, garbageCollectionThreshold)
 	}
-	logStore := &logger.Store{
+	// The parent-locking wrapper must stay outermost: the allocator finds the
+	// per-parent allocation locks by asserting the store it is given (see
+	// prefix.ParentLockingStore).
+	allocStore := prefix.NewParentLockingStore(&logger.Store{
 		Store: store,
-	}
+	})
 
 	trenchWatchers := []trench.TrenchWatcher{}
 	for ipFamily, cidr := range cidrs {
 		name := getTrenchName(trenchName, ipFamily)
 		p := prefix.New(name, cidr, nil)
-		newTrench, err := trench.New(ctx, p, logStore, is.PrefixLengths[ipFamily])
+		newTrench, err := trench.New(ctx, p, allocStore, is.PrefixLengths[ipFamily])
 		if err != nil {
 			return nil, fmt.Errorf("failed creating new trench prefix (%s): %w", p.GetName(), err)
 		}
