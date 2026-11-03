@@ -160,9 +160,7 @@ func Test_Set_AbandonedCall(t *testing.T) {
 	})
 	targetRegistry.EXPECT().Remove(gomock.Any(), gomock.Any()).Return(nil)
 
-	// Expiry is triggered by cancelling timeoutCtx, so the test controls it.
-	timeoutCtx, cancelTimeout := context.WithCancel(context.TODO())
-	keepAliveRegistry, err := keepAliveRegistry.New(keepAliveRegistry.WithRegistry(targetRegistry), keepAliveRegistry.WithContextTimeout(timeoutCtx))
+	keepAliveRegistry, err := keepAliveRegistry.New(keepAliveRegistry.WithRegistry(targetRegistry), keepAliveRegistry.WithTimeout(time.Hour))
 	assert.Nil(t, err)
 
 	// Step 1: the client already gave up.
@@ -177,6 +175,31 @@ func Test_Set_AbandonedCall(t *testing.T) {
 		Ips: target.Ips, Status: nspAPI.Target_ENABLED, Context: target.Context, Type: target.Type,
 	}))
 	assert.Nil(t, keepAliveRegistry.Remove(context.TODO(), target))
-	// End the entry's expiry goroutine: it finds the entry removed and returns.
-	cancelTimeout()
+}
+
+// Test_Remove_StopsExpiry verifies that Unregister ends the entry's expiry
+// goroutine and stops its timer instead of leaving them until the timeout.
+// goleak at cleanup fails the test if the goroutine is still running.
+func Test_Remove_StopsExpiry(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	target := &nspAPI.Target{
+		Ips:     []string{"192.168.1.1/32"},
+		Context: map[string]string{"identifier": "1"},
+		Type:    nspAPI.Target_DEFAULT,
+	}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	targetRegistry := mocks.NewMockTargetRegistry(ctrl)
+	targetRegistry.EXPECT().Get(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes() // constructor restore
+	targetRegistry.EXPECT().Set(gomock.Any(), gomock.Any()).Return(nil)
+	targetRegistry.EXPECT().Remove(gomock.Any(), gomock.Any()).Return(nil)
+
+	// A timeout far beyond the test: only Remove can end the expiry goroutine.
+	keepAliveRegistry, err := keepAliveRegistry.New(keepAliveRegistry.WithRegistry(targetRegistry), keepAliveRegistry.WithTimeout(time.Hour))
+	assert.Nil(t, err)
+
+	assert.Nil(t, keepAliveRegistry.Set(context.TODO(), target))
+	assert.Nil(t, keepAliveRegistry.Remove(context.TODO(), target))
 }

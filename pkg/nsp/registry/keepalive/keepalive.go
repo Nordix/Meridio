@@ -152,7 +152,15 @@ func (ka *KeepAlive) add(target *nspAPI.Target) {
 }
 
 func (ka *KeepAlive) remove(ctx context.Context, target *nspAPI.Target) error {
-	delete(ka.targets, sqlite.GetTargetID(target))
+	id := sqlite.GetTargetID(target)
+	if kaTarget, exists := ka.targets[id]; exists {
+		// End the entry's expiry goroutine and stop its timer. On the expiry
+		// path this cancels the calling goroutine's own context, which is safe:
+		// it is past its select, and the registry Remove below uses ctx, not the
+		// entry's context.
+		kaTarget.contextCancel()
+	}
+	delete(ka.targets, id)
 	log.Logger.Info("Unregister", "nspAPI-Target", target)
 	if ka.TargetRegistry == nil {
 		return nil
