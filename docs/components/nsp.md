@@ -57,7 +57,8 @@ Register
     ├ a target that was not registered before is stored as disabled
     └ sqlite: holds the registry lock
        ├ new target:             store it, remove conflicting targets, broadcast
-       ├ unchanged refresh:      return (no write, no broadcast)
+       ├ unchanged refresh (row and stream association unchanged):
+       │                         return (no write, no broadcast)
        └ changed target:         store it, remove conflicting targets, broadcast
  └ keepalive: (re)arm the target's expiry timer
 ```
