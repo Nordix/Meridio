@@ -37,13 +37,14 @@ limitations under the License.
 //
 // The injected client's Request models the two regimes the issue distinguishes:
 //   - wedged  (ignoreCancel=true):  retry loop never unwinds on ctx cancellation,
-//                                   so snsc.mu stays held -> Close() blocks on (B).
+//     so snsc.mu stays held -> Close() blocks on (B).
 //   - healthy (ignoreCancel=false): retry loop returns on cancellation, releasing
-//                                   snsc.mu so Close() can proceed (control case).
+//     snsc.mu so Close() can proceed (control case).
 package client
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -63,14 +64,22 @@ type wedgeableNSClient struct {
 	// deterministically wait until the real SimpleNetworkServiceClient.Request has
 	// taken snsc.mu (B) before triggering the delete — the exact precondition for
 	// the deadlock, established without sleeps.
-	requestEntered chan struct{}
+	requestEntered     chan struct{}
+	requestEnteredOnce sync.Once
 
 	// ignoreCancel selects the regime. true => Request blocks forever regardless of
-	// context cancellation (the "does not unwind promptly" case from #628). false =>
-	// Request returns when its context is cancelled (healthy retry client).
+	// context cancellation (the "does not unwind promptly" case). false => Request
+	// returns when its context is cancelled (healthy retry client that never
+	// connected). See connectImmediately for the connected regime.
 	ignoreCancel bool
 
-	closed chan struct{}
+	// connectImmediately => Request returns a valid connection right away, so the
+	// real SimpleNetworkServiceClient stores it and a later Close() reaches this
+	// leaf's Close(). Used to observe teardown actually closing the connection.
+	connectImmediately bool
+
+	closed     chan struct{}
+	closedOnce sync.Once
 }
 
 func newWedgeableNSClient(ignoreCancel bool) *wedgeableNSClient {
@@ -81,13 +90,22 @@ func newWedgeableNSClient(ignoreCancel bool) *wedgeableNSClient {
 	}
 }
 
+func newConnectedNSClient() *wedgeableNSClient {
+	return &wedgeableNSClient{
+		requestEntered:     make(chan struct{}),
+		connectImmediately: true,
+		closed:             make(chan struct{}),
+	}
+}
+
 func (w *wedgeableNSClient) Request(
-	ctx context.Context, _ *networkservice.NetworkServiceRequest, _ ...grpc.CallOption,
+	ctx context.Context, request *networkservice.NetworkServiceRequest, _ ...grpc.CallOption,
 ) (*networkservice.Connection, error) {
-	select {
-	case <-w.requestEntered:
-	default:
-		close(w.requestEntered)
+	w.requestEnteredOnce.Do(func() { close(w.requestEntered) })
+	if w.connectImmediately {
+		// Healthy + connected: return the request's connection so the real
+		// SimpleNetworkServiceClient stores it and Close() later reaches this leaf.
+		return request.GetConnection(), nil
 	}
 	if w.ignoreCancel {
 		// Wedged: block forever, ignoring cancellation — the real SimpleNetwork-
@@ -103,11 +121,7 @@ func (w *wedgeableNSClient) Request(
 func (w *wedgeableNSClient) Close(
 	_ context.Context, _ *networkservice.Connection, _ ...grpc.CallOption,
 ) (*emptypb.Empty, error) {
-	select {
-	case <-w.closed:
-	default:
-		close(w.closed)
-	}
+	w.closedOnce.Do(func() { close(w.closed) })
 	return &emptypb.Empty{}, nil
 }
 
@@ -127,12 +141,14 @@ func newFullMeshForTest(t *testing.T, ctx context.Context, leaf *wedgeableNSClie
 	fmnsc := &FullMeshNetworkServiceClient{
 		networkServiceClients:   map[string]NetworkServiceClient{},
 		networkServiceEndpoints: map[string]*registry.NetworkServiceEndpoint{},
+		teardownInFlight:        map[string]struct{}{},
 		client:                  leaf,
 		config:                  cfg,
 		ctx:                     ctx,
 		logger:                  logr.Discard(),
 		baseRequest:             validBaseRequest(),
 	}
+	fmnsc.teardownCond = sync.NewCond(&fmnsc.mu)
 
 	const nseName = "lb-nse-1"
 
@@ -247,4 +263,175 @@ func TestDeleteNetworkServiceClient_CompletesWhenRequestUnwinds(t *testing.T) {
 	require.True(t, returned,
 		"with a Request that unwinds on cancellation, Close() should complete and the delete "+
 			"path should return; a stall here indicates a harness error, not the #628 bug.")
+}
+
+// registerHealthyClient registers a real SimpleNetworkServiceClient for name over
+// a fresh healthy leaf (unwinds on cancel), mirroring addNetworkServiceClient, and
+// waits until its Request is in flight. Returns the leaf so the test can observe
+// Close().
+func registerHealthyClient(t *testing.T, ctx context.Context, fmnsc *FullMeshNetworkServiceClient, name string) *wedgeableNSClient {
+	t.Helper()
+	leaf := newConnectedNSClient()
+	snsc := NewSimpleNetworkServiceClient(ctx, fmnsc.config, leaf)
+
+	fmnsc.mu.Lock()
+	fmnsc.networkServiceClients[name] = snsc
+	fmnsc.mu.Unlock()
+
+	req := validBaseRequest()
+	req.Connection.NetworkServiceEndpointName = name
+	go func() { _ = snsc.Request(req) }()
+
+	select {
+	case <-leaf.requestEntered:
+	case <-time.After(3 * time.Second):
+		t.Fatalf("precondition not met: Request for %s never reached the leaf", name)
+	}
+	return leaf
+}
+
+// TestClose_DrainsTeardown verifies the shutdown path: Close() snapshots the
+// clients, tears each down in its own goroutine, and returns only after every
+// teardown finished. With healthy leaves, each leaf's Close() must have run.
+func TestClose_DrainsTeardown(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	fmnsc, _ := newFullMeshForTest(t, ctx, newWedgeableNSClient(false))
+	// newFullMeshForTest already registered "lb-nse-1" over a healthy leaf; add two more.
+	leafA := registerHealthyClient(t, ctx, fmnsc, "lb-nse-A")
+	leafB := registerHealthyClient(t, ctx, fmnsc, "lb-nse-B")
+
+	returned := completesWithin(5*time.Second, func() { _ = fmnsc.Close() })
+	require.True(t, returned, "Close() must return after all teardown goroutines finish")
+
+	// Both teardowns must have actually invoked the leaf Close().
+	for name, leaf := range map[string]*wedgeableNSClient{"lb-nse-A": leafA, "lb-nse-B": leafB} {
+		select {
+		case <-leaf.closed:
+		case <-time.After(time.Second):
+			t.Fatalf("Close() returned but teardown never closed leaf %s", name)
+		}
+	}
+
+	// No clients and no in-flight teardown remain.
+	fmnsc.mu.Lock()
+	nClients := len(fmnsc.networkServiceClients)
+	nTeardown := len(fmnsc.teardownInFlight)
+	fmnsc.mu.Unlock()
+	require.Equal(t, 0, nClients, "all clients should be removed after Close()")
+	require.Equal(t, 0, nTeardown, "no teardown should remain in flight after Close()")
+}
+
+// TestClose_ConcurrentDeleteDoesNotPanicWaitGroup is the regression guard for the
+// "WaitGroup is reused before previous Wait has returned" panic. The recv loop
+// stays live during Close() (shutdown cancels the context after Close() in
+// production), so deletes can start new teardown while Close() is waiting. The
+// teardown accounting must tolerate that without panicking.
+func TestClose_ConcurrentDeleteDoesNotPanicWaitGroup(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	fmnsc, _ := newFullMeshForTest(t, ctx, newWedgeableNSClient(false))
+
+	// Pre-register many healthy clients.
+	names := make([]string, 0, 50)
+	for i := 0; i < 50; i++ {
+		name := "lb-nse-" + string(rune('a'+i%26)) + string(rune('0'+i/26))
+		registerHealthyClient(t, ctx, fmnsc, name)
+		names = append(names, name)
+	}
+
+	// Concurrently: Close() (drains teardown) and a recv-like deleter hammering
+	// deleteNetworkServiceClient. Pre-fix this panics in Close()'s WaitGroup.Wait.
+	done := completesWithin(10*time.Second, func() {
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for _, name := range names {
+				fmnsc.deleteNetworkServiceClient(name)
+			}
+		}()
+		_ = fmnsc.Close()
+		wg.Wait()
+	})
+	require.True(t, done, "Close() racing concurrent deletes must not block or panic")
+
+	fmnsc.mu.Lock()
+	nTeardown := len(fmnsc.teardownInFlight)
+	fmnsc.mu.Unlock()
+	require.Equal(t, 0, nTeardown, "no teardown should remain in flight")
+}
+
+// TestReAddSameID_DoesNotRunConcurrentlyWithTeardown is the regression guard for
+// the detached-teardown-vs-readd race. While a wedged Close() for an endpoint is
+// in flight, a re-add of the same name (same deterministic NSM connection id) must
+// NOT register a new client — otherwise its Request() would act on the same
+// connection concurrently with the old Close().
+func TestReAddSameID_DoesNotRunConcurrentlyWithTeardown(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Wedged leaf: its teardown Close() will not finish, so the name stays in
+	// teardownInFlight for the duration of the test.
+	leaf := newWedgeableNSClient(true)
+	fmnsc, nseName := newFullMeshForTest(t, ctx, leaf)
+
+	// Start teardown; it returns promptly (detached) but leaves teardown in flight.
+	returned := completesWithin(2*time.Second, func() {
+		fmnsc.deleteNetworkServiceClient(nseName)
+	})
+	require.True(t, returned, "delete must return promptly even with a wedged Close()")
+
+	// The name must be marked in-flight.
+	fmnsc.mu.Lock()
+	_, inFlight := fmnsc.teardownInFlight[nseName]
+	fmnsc.mu.Unlock()
+	require.True(t, inFlight, "teardown of the endpoint should be in flight")
+
+	// A re-add of the same name must be skipped (no new client) while teardown runs,
+	// and must not block the caller (recv loop).
+	addReturned := completesWithin(2*time.Second, func() {
+		fmnsc.addNetworkServiceClient(nseName)
+	})
+	require.True(t, addReturned, "re-add must not block while teardown is in flight")
+
+	fmnsc.mu.Lock()
+	_, registered := fmnsc.networkServiceClients[nseName]
+	fmnsc.mu.Unlock()
+	require.False(t, registered,
+		"re-add must not register a new client while the old one's Close() is still in flight "+
+			"(same deterministic connection id)")
+}
+
+// TestDeleteNetworkServiceClient_DoubleDeleteAndUnknown verifies the delete path is
+// idempotent: deleting an unknown name is a no-op, and deleting the same name twice
+// spawns exactly one teardown (the second call finds it already removed).
+func TestDeleteNetworkServiceClient_DoubleDeleteAndUnknown(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	fmnsc, _ := newFullMeshForTest(t, ctx, newWedgeableNSClient(false))
+	leaf := registerHealthyClient(t, ctx, fmnsc, "lb-nse-X")
+
+	// Unknown name: no panic, no teardown.
+	fmnsc.deleteNetworkServiceClient("does-not-exist")
+	fmnsc.mu.Lock()
+	_, unknownInFlight := fmnsc.teardownInFlight["does-not-exist"]
+	fmnsc.mu.Unlock()
+	require.False(t, unknownInFlight, "deleting an unknown endpoint must not create teardown")
+
+	// First delete tears down; second finds nothing.
+	fmnsc.deleteNetworkServiceClient("lb-nse-X")
+	fmnsc.deleteNetworkServiceClient("lb-nse-X")
+
+	// Exactly one teardown ran: the leaf Close() fires once and drains.
+	select {
+	case <-leaf.closed:
+	case <-time.After(2 * time.Second):
+		t.Fatal("first delete should have torn the connection down")
+	}
+	require.True(t, completesWithin(2*time.Second, func() { _ = fmnsc.Close() }),
+		"Close() must drain the single in-flight teardown")
 }
