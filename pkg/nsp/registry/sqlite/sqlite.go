@@ -81,7 +81,8 @@ func (trsql *TargetRegistrySQLite) Set(ctx context.Context, target *nspAPI.Targe
 	}
 	var t Target
 	targetModel := NSPTargetToSQLTarget(target)
-	tx := trsql.DB.First(&t, "ID", targetModel.ID)
+	// Load the stream chain too, so the fast path can check it.
+	tx := trsql.DB.Preload("Stream.Conduit.Trench").First(&t, "ID", targetModel.ID)
 	if tx.Error != nil {
 		if errors.Is(tx.Error, gorm.ErrRecordNotFound) { // Create
 			tx = trsql.DB.Create(targetModel)
@@ -110,7 +111,14 @@ func (trsql *TargetRegistrySQLite) Set(ctx context.Context, target *nspAPI.Targe
 	// Skipping loses nothing: a broadcast sends the full target list, and watchers
 	// already got it. A watcher whose Send failed reconnects and gets a fresh full
 	// list from Watch.
-	if t.Equals(targetModel) {
+	//
+	// The fast path also requires the target's shared streams row to still agree
+	// with its ID. Another target's write can repoint that row (see
+	// clearConflicts); then the slow path below repoints it back and clears
+	// conflicts, as every refresh did before the fast path existed. Without this,
+	// a failed clearConflicts could leave a valid target under the wrong conduit
+	// for as long as it keeps refreshing.
+	if t.Equals(targetModel) && t.ID == GetTargetID(SQLTargetToNSPTarget(&t)) {
 		if !trsql.notifyDirty {
 			return nil
 		}

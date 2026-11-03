@@ -48,8 +48,8 @@ type Target struct {
 // Limitation: the streams table has one row per stream name, shared by all
 // targets of that stream. Another target's write can change that row's conduit
 // (see clearConflicts). Equals does not notice, because it does not read the
-// streams row. If the streams, conduits or trenches tables gain a column that is
-// not part of the ID, Equals must compare it.
+// streams row; Set checks that separately. If the streams, conduits or trenches
+// tables gain a column that is not part of the ID, Equals must compare it.
 //
 // Ips is compared as stored, without sorting. A reordered IP list gives a
 // different ID, so it never reaches this comparison.

@@ -166,3 +166,86 @@ func TestSet_ReNotifiesAfterClearConflictsFailure(t *testing.T) {
 	assert.True(t, drainWatcher(watcher), "unchanged refresh while dirty must re-notify")
 	assert.False(t, trsql.notifyDirty, "successful re-broadcast must clear the flag")
 }
+
+// TestSet_RepairsStaleAssociation verifies that an unchanged refresh repairs a
+// valid target whose shared streams row was repointed by another target's
+// write, and left that way because clearConflicts failed.
+//
+// Sequence, as when a stream moves from conduit c1 to c2: U (stream s, c2) is
+// registered. An outdated target (s, c1) is then created; its write repoints
+// the shared streams row s to c1, and its clearConflicts fails, so U survives
+// but resolves to c1. The outdated target goes away. U's next, unchanged
+// refresh must take the slow path and repoint s to c2. The failure is injected
+// with a GORM query callback.
+func TestSet_RepairsStaleAssociation(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	dbFile := "test_stale_association_internal.db"
+	os.Remove(dbFile)
+	trsql, err := New(dbFile)
+	assert.Nil(t, err)
+	defer func() {
+		trsql.Close()
+		os.Remove(dbFile)
+	}()
+
+	// failAt counts down queries on the targets table; the one reaching zero fails.
+	var failAt atomic.Int32
+	err = trsql.DB.Callback().Query().Before("gorm:query").Register("test:fail_query", func(tx *gorm.DB) {
+		if tx.Statement.Table == "targets" && failAt.Load() > 0 && failAt.Add(-1) == 0 {
+			_ = tx.AddError(errors.New("injected query failure"))
+		}
+	})
+	assert.Nil(t, err)
+
+	newTarget := func(ip string, conduit string) *nspAPI.Target {
+		return &nspAPI.Target{
+			Ips:     []string{ip},
+			Context: map[string]string{"identifier": "1"},
+			Status:  nspAPI.Target_ENABLED,
+			Type:    nspAPI.Target_DEFAULT,
+			Stream: &nspAPI.Stream{
+				Name: "stream-a",
+				Conduit: &nspAPI.Conduit{
+					Name:   conduit,
+					Trench: &nspAPI.Trench{Name: "trench-a"},
+				},
+			},
+		}
+	}
+	ctx := context.Background()
+	valid := newTarget("172.16.0.1/32", "conduit-2")
+	outdated := newTarget("172.16.0.2/32", "conduit-1")
+
+	// conduitOfValid returns the conduit the registry reports for the valid target.
+	conduitOfValid := func() string {
+		t.Helper()
+		targets, err := trsql.Get(ctx, &nspAPI.Target{Status: nspAPI.Target_ANY, Type: nspAPI.Target_DEFAULT})
+		assert.Nil(t, err)
+		for _, target := range targets {
+			if target.GetIps()[0] == valid.GetIps()[0] {
+				return target.GetStream().GetConduit().GetName()
+			}
+		}
+		t.Fatal("valid target not found")
+		return ""
+	}
+
+	// Step 1: the valid target is registered under conduit-2.
+	assert.Nil(t, trsql.Set(ctx, valid))
+	assert.Equal(t, "conduit-2", conduitOfValid())
+
+	// Step 2: the outdated target is created. Queries on targets: 1 First,
+	// 2 clearConflicts Find; fail the second, so the valid target survives.
+	failAt.Store(2)
+	assert.NotNil(t, trsql.Set(ctx, outdated))
+	assert.Equal(t, "conduit-1", conduitOfValid(), "the repointed streams row now resolves the valid target to conduit-1")
+
+	// Step 3: the outdated target goes away. The streams row is not touched.
+	assert.Nil(t, trsql.Remove(ctx, outdated))
+	assert.Equal(t, "conduit-1", conduitOfValid())
+
+	// Step 4: the valid target's unchanged refresh repairs the association.
+	assert.Nil(t, trsql.Set(ctx, valid))
+	assert.Equal(t, "conduit-2", conduitOfValid())
+}

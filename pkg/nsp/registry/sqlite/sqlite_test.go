@@ -511,3 +511,36 @@ func TestTargetRegistrySQLite_Set_AbandonedCall(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Empty(t, targets, "an abandoned Set must not write")
 }
+
+// TestTargetRegistrySQLite_Set_SkipsUnchangedWithoutStream verifies that the
+// fast path also applies to targets without a stream, as frontends register:
+// their ID and the one recomputed from the stored row must agree, otherwise
+// every refresh would take the slow path and broadcast.
+func TestTargetRegistrySQLite_Set_SkipsUnchangedWithoutStream(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	dbFile := "test_skip_no_stream.db"
+	os.Remove(dbFile)
+	db, err := sqlite.New(dbFile)
+	assert.Nil(t, err)
+	defer func() {
+		db.Close()
+		os.Remove(dbFile)
+	}()
+
+	ctx := context.Background()
+	target := &nspAPI.Target{
+		Ips:     []string{"frontend-a"},
+		Context: map[string]string{"identifier": "frontend-a"},
+		Type:    nspAPI.Target_FRONTEND,
+	}
+	assert.Nil(t, db.Set(ctx, target))
+
+	watcher, err := db.Watch(ctx, &nspAPI.Target{Status: nspAPI.Target_ANY, Type: nspAPI.Target_FRONTEND})
+	assert.Nil(t, err)
+	defer watcher.Stop()
+	assert.True(t, drainNotification(watcher), "expected initial snapshot on Watch")
+
+	assert.Nil(t, db.Set(ctx, target))
+	assert.False(t, drainNotification(watcher), "unchanged Set without stream must not notify watchers")
+}
