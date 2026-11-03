@@ -273,7 +273,11 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 	// then re-use the connection
 	if fmnsc.config.MonitorConnectionClient != nil {
 		monitorCli := fmnsc.config.MonitorConnectionClient
-		monitorCtx, cancelMonitor := context.WithCancel(fmnsc.ctx) // dedicated context when cancelled ensures closing the stream opened by MonitorConnections
+		// Bound the monitor lookup: MonitorConnections + stream.Recv() run under
+		// fmnsc.mu, so a hung stream (e.g. half-open socket after a node reboot)
+		// would otherwise freeze the recv loop indefinitely. Timeout → treat as "no
+		// recovered connection" and continue. cancel on return also closes the stream.
+		monitorCtx, cancelMonitor := context.WithTimeout(fmnsc.ctx, fmnsc.config.RequestTimeout)
 		stream, err := monitorCli.MonitorConnections(monitorCtx, &networkservice.MonitorScopeSelector{
 			PathSegments: []*networkservice.PathSegment{
 				{
