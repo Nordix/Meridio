@@ -64,7 +64,7 @@ func Test_Allocate_SameName_ReleasedMeanwhile_RefreshesChildren(t *testing.T) {
 	parent := prefix.New("parent", "169.18.0.0/24", nil)
 	store := &releaseRaceStore{Storage: memory.New(), parent: parent}
 
-	p, err := prefix.Allocate(context.TODO(), parent, "child", 25, store)
+	p, err := prefix.Allocate(context.TODO(), parent, "child", 25, store, nil)
 	require.NoError(t, err)
 	assert.Equal(t, "169.18.0.128/25", p.GetCidr())
 	assert.Equal(t, 2, store.adds, "the retry should succeed on its first candidate")
@@ -82,13 +82,13 @@ func Test_Allocate_SameName_Idempotent(t *testing.T) {
 	parent := prefix.New("parent", "169.16.0.0/16", nil)
 
 	// First allocation establishes the prefix for "child-a".
-	first, err := prefix.Allocate(context.TODO(), parent, "child-a", 24, store)
+	first, err := prefix.Allocate(context.TODO(), parent, "child-a", 24, store, nil)
 	require.NoError(t, err)
 	require.NotNil(t, first)
 
 	// A second allocation for the same name must not fail on the primary-ID
 	// conflict; it must return the already-stored prefix (same CIDR, same name).
-	second, err := prefix.Allocate(context.TODO(), parent, "child-a", 24, store)
+	second, err := prefix.Allocate(context.TODO(), parent, "child-a", 24, store, nil)
 	require.NoError(t, err)
 	require.NotNil(t, second)
 	assert.Equal(t, first.GetName(), second.GetName())
@@ -102,12 +102,12 @@ func Test_Allocate_SameName_Idempotent_DifferentLength(t *testing.T) {
 	store := setupSqliteStore(t)
 	parent := prefix.New("parent", "169.16.0.0/16", nil)
 
-	first, err := prefix.Allocate(context.TODO(), parent, "child-a", 24, store)
+	first, err := prefix.Allocate(context.TODO(), parent, "child-a", 24, store, nil)
 	require.NoError(t, err)
 	require.NotNil(t, first)
 
 	// Same name, different requested length: still returns the stored prefix.
-	second, err := prefix.Allocate(context.TODO(), parent, "child-a", 28, store)
+	second, err := prefix.Allocate(context.TODO(), parent, "child-a", 28, store, nil)
 	require.NoError(t, err)
 	require.NotNil(t, second)
 	assert.Equal(t, first.GetCidr(), second.GetCidr(),

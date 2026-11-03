@@ -24,7 +24,7 @@ import (
 	"github.com/nordix/meridio/pkg/ipam/types"
 )
 
-// AllocateFunc has the signature of AllocateWithBlocklist.
+// AllocateFunc has the signature of Allocate.
 type AllocateFunc func(ctx context.Context, parent types.Prefix, name string, length int, store types.Storage, blocklist []string) (types.Prefix, error)
 
 // ParentLocker is implemented by stores that serialize allocations per parent
@@ -93,13 +93,4 @@ func WithParentLock(allocate AllocateFunc) AllocateFunc {
 		}
 		return allocate(ctx, parent, name, length, store, blocklist)
 	}
-}
-
-var allocateWithParentLock = WithParentLock(AllocateWithBlocklist)
-
-// AllocateWithParentLock is AllocateWithBlocklist with allocations under the
-// same parent serialized when the store implements ParentLocker (see
-// WithParentLock).
-func AllocateWithParentLock(ctx context.Context, parent types.Prefix, name string, length int, store types.Storage, blocklist []string) (types.Prefix, error) {
-	return allocateWithParentLock(ctx, parent, name, length, store, blocklist)
 }

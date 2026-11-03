@@ -26,7 +26,20 @@ import (
 	"github.com/nordix/meridio/pkg/ipam/types"
 )
 
-// Allocate
+// Allocate allocates a prefix of the given length, named name, under parent.
+// CIDRs in blocklist are treated as taken. If a prefix with the same name
+// already exists under parent, it is returned as is.
+//
+// If store implements ParentLocker (see ParentLockingStore), allocations under
+// the same parent are serialized (see WithParentLock); otherwise the
+// allocation runs unlocked, which is still correct.
+func Allocate(ctx context.Context, parent types.Prefix, name string, length int, store types.Storage, blocklist []string) (types.Prefix, error) {
+	return allocateWithParentLock(ctx, parent, name, length, store, blocklist)
+}
+
+var allocateWithParentLock = WithParentLock(allocate)
+
+// allocate is the allocator without parent locking:
 // 1. Checks if parent length is superior or equals to length
 // 2. Generates a first candidate with parent-IP/length
 // 3. Gets childs of parent (with store)
@@ -35,16 +48,7 @@ import (
 // 6. Save in with the store
 // 7. Gets the childs
 // 8. Checks if only 1 collision (the one we just added)
-//
-// Allocate is AllocateWithBlocklist with an empty blocklist. It does not
-// serialize same-parent allocations; production paths use
-// AllocateWithParentLock instead. It is kept as a convenient entry point for
-// tests exercising the unlocked allocator, and as part of the exported API.
-func Allocate(ctx context.Context, parent types.Prefix, name string, length int, store types.Storage) (types.Prefix, error) {
-	return AllocateWithBlocklist(ctx, parent, name, length, store, []string{})
-}
-
-func AllocateWithBlocklist(ctx context.Context, parent types.Prefix, name string, length int, store types.Storage, blocklist []string) (types.Prefix, error) {
+func allocate(ctx context.Context, parent types.Prefix, name string, length int, store types.Storage, blocklist []string) (types.Prefix, error) {
 	_, parentIPNet, _ := net.ParseCIDR(parent.GetCidr())
 	parentLength, _ := parentIPNet.Mask.Size()
 	if length <= parentLength {

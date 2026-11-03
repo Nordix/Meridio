@@ -202,7 +202,7 @@ func (s *countingStore) Delete(ctx context.Context, p types.Prefix) error {
 	return s.Storage.Delete(ctx, p)
 }
 
-// Test_AllocateWithParentLock_ConcurrentSameParent_MemoryStore shows the
+// Test_Allocate_ConcurrentSameParent_ParentLockingStore shows the
 // effect on the allocator itself. Without the lock, concurrent same-parent
 // attempts against the memory store keep colliding on the same candidate and
 // end with no stable allocation (IPv4_Memory_Storage_Collision in
@@ -210,7 +210,7 @@ func (s *countingStore) Delete(ctx context.Context, p types.Prefix) error {
 // each attempt sees the previous ones' results, so 16 concurrent contenders
 // fill the /24 parent with its 16 /28 subnets, each on its first candidate:
 // exactly one Add per contender and no Delete (no collision rollback).
-func Test_AllocateWithParentLock_ConcurrentSameParent_MemoryStore(t *testing.T) {
+func Test_Allocate_ConcurrentSameParent_ParentLockingStore(t *testing.T) {
 	parent, delayed := setupTestEnv(t, "169.17.0.0/24", setupDelayedMemoryStore)
 	counting := &countingStore{Storage: delayed}
 	store := prefix.NewParentLockingStore(counting)
@@ -228,7 +228,7 @@ func Test_AllocateWithParentLock_ConcurrentSameParent_MemoryStore(t *testing.T) 
 	for i := 0; i < contenders; i++ {
 		go func(name string) {
 			defer wg.Done()
-			p, err := prefix.AllocateWithParentLock(context.Background(), parent, name, 28, store, nil)
+			p, err := prefix.Allocate(context.Background(), parent, name, 28, store, nil)
 			if !assert.NoError(t, err) {
 				return
 			}
