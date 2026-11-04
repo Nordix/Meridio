@@ -29,6 +29,7 @@ NSM_CONNECT_TO | url.URL | url to connect to NSM | unix:///var/lib/networkservic
 NSM_DIAL_TIMEOUT | time.Duration | timeout to dial NSMgr | 5s
 NSM_REQUEST_TIMEOUT | time.Duration | timeout to request NSE | 15s
 NSM_MAX_TOKEN_LIFETIME | time.Duration | maximum lifetime of tokens | 24h
+NSM_TEARDOWN_WAIT_TIMEOUT | time.Duration | max time addNetworkServiceClient waits for an in-flight teardown of the same endpoint before skipping the re-add (0 disables waiting and skips immediately) | 2s
 NSM_IPAM_SERVICE | string | IP (or domain) and port of the IPAM Service | ipam-service:7777
 NSM_HOST | string | Host name the proxy is running on | 
 NSM_NETWORK_SERVICE_NAME | string | Name of the network service the proxy request the connection | load-balancer

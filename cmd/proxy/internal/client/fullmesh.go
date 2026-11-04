@@ -229,12 +229,13 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 	// mu while waiting, so the teardown goroutine can clear the in-flight mark and
 	// broadcast.
 	//
-	// On timeout we fall back to skipping: a later event (incremental watch or a
-	// full-list resend when the Find stream is re-established) re-drives the add
-	// once teardown has drained. Waiting (instead of relying solely on skip +
-	// resend) matters on NSM >= v1.14.x, where the registry no longer tears the
-	// Find stream down on a ~1min cadence, so a periodic full-list resend is not
-	// guaranteed.
+	// On timeout we fall back to skipping: a later Find event for the endpoint
+	// (its periodic re-registration refresh, or a full-list resend when the Find
+	// stream is re-established) re-drives the add once teardown has drained. The
+	// endpoint stays recorded meanwhile, so nothing is lost. Waiting (instead of
+	// relying solely on skip + resend) matters on NSM >= v1.14.x, where the
+	// registry no longer tears the Find stream down on a ~1min cadence, so a
+	// periodic full-list resend is not guaranteed.
 	if _, tearingDown := fmnsc.teardownInFlight[networkServiceEndpointName]; tearingDown {
 		if !fmnsc.waitForTeardown(networkServiceEndpointName) {
 			return
