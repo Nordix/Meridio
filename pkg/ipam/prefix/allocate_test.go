@@ -40,27 +40,27 @@ func Test_Prefix_IPv4_Allocate(t *testing.T) {
 	assert.NotNil(t, p)
 	store := memory.New()
 	assert.NotNil(t, store)
-	newPrefix, err := prefix.Allocate(context.TODO(), p, "child-a", 24, store)
+	newPrefix, err := prefix.Allocate(context.TODO(), p, "child-a", 24, store, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, "child-a", newPrefix.GetName())
 	assert.Equal(t, "169.16.0.0/24", newPrefix.GetCidr())
 	assert.True(t, p.Equals(newPrefix.GetParent()))
-	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-b", 24, store)
+	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-b", 24, store, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, "child-b", newPrefix.GetName())
 	assert.Equal(t, "169.16.1.0/24", newPrefix.GetCidr())
 	assert.True(t, p.Equals(newPrefix.GetParent()))
-	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-c", 32, store)
+	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-c", 32, store, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, "child-c", newPrefix.GetName())
 	assert.Equal(t, "169.16.2.0/32", newPrefix.GetCidr())
 	assert.True(t, p.Equals(newPrefix.GetParent()))
-	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-d", 32, store)
+	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-d", 32, store, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, "child-d", newPrefix.GetName())
 	assert.Equal(t, "169.16.2.1/32", newPrefix.GetCidr())
 	assert.True(t, p.Equals(newPrefix.GetParent()))
-	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-e", 17, store)
+	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-e", 17, store, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, "child-e", newPrefix.GetName())
 	assert.Equal(t, "169.16.128.0/17", newPrefix.GetCidr())
@@ -72,17 +72,17 @@ func Test_Prefix_IPv4_Allocate_Full(t *testing.T) {
 	assert.NotNil(t, p)
 	store := memory.New()
 	assert.NotNil(t, store)
-	newPrefix, err := prefix.Allocate(context.TODO(), p, "child-a", 25, store)
+	newPrefix, err := prefix.Allocate(context.TODO(), p, "child-a", 25, store, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, "child-a", newPrefix.GetName())
 	assert.Equal(t, "169.16.0.0/25", newPrefix.GetCidr())
 	assert.True(t, p.Equals(newPrefix.GetParent()))
-	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-b", 25, store)
+	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-b", 25, store, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, "child-b", newPrefix.GetName())
 	assert.Equal(t, "169.16.0.128/25", newPrefix.GetCidr())
 	assert.True(t, p.Equals(newPrefix.GetParent()))
-	_, err = prefix.Allocate(context.TODO(), p, "child-b", 32, store)
+	_, err = prefix.Allocate(context.TODO(), p, "child-b", 32, store, nil)
 	assert.NotNil(t, err)
 }
 
@@ -91,27 +91,27 @@ func Test_Prefix_IPv6_Allocate(t *testing.T) {
 	assert.NotNil(t, p)
 	store := memory.New()
 	assert.NotNil(t, store)
-	newPrefix, err := prefix.Allocate(context.TODO(), p, "child-a", 64, store)
+	newPrefix, err := prefix.Allocate(context.TODO(), p, "child-a", 64, store, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, "child-a", newPrefix.GetName())
 	assert.Equal(t, "2001:1::/64", newPrefix.GetCidr())
 	assert.True(t, p.Equals(newPrefix.GetParent()))
-	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-b", 64, store)
+	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-b", 64, store, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, "child-b", newPrefix.GetName())
 	assert.Equal(t, "2001:1:0:1::/64", newPrefix.GetCidr())
 	assert.True(t, p.Equals(newPrefix.GetParent()))
-	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-c", 128, store)
+	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-c", 128, store, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, "child-c", newPrefix.GetName())
 	assert.Equal(t, "2001:1:0:2::/128", newPrefix.GetCidr())
 	assert.True(t, p.Equals(newPrefix.GetParent()))
-	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-d", 128, store)
+	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-d", 128, store, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, "child-d", newPrefix.GetName())
 	assert.Equal(t, "2001:1:0:2::1/128", newPrefix.GetCidr())
 	assert.True(t, p.Equals(newPrefix.GetParent()))
-	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-e", 33, store)
+	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-e", 33, store, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, "child-e", newPrefix.GetName())
 	assert.Equal(t, "2001:1:8000::/33", newPrefix.GetCidr())
@@ -123,17 +123,17 @@ func Test_Prefix_IPv6_Allocate_Full(t *testing.T) {
 	assert.NotNil(t, p)
 	store := memory.New()
 	assert.NotNil(t, store)
-	newPrefix, err := prefix.Allocate(context.TODO(), p, "child-a", 65, store)
+	newPrefix, err := prefix.Allocate(context.TODO(), p, "child-a", 65, store, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, "child-a", newPrefix.GetName())
 	assert.Equal(t, "2001:1::/65", newPrefix.GetCidr())
 	assert.True(t, p.Equals(newPrefix.GetParent()))
-	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-b", 65, store)
+	newPrefix, err = prefix.Allocate(context.TODO(), p, "child-b", 65, store, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, "child-b", newPrefix.GetName())
 	assert.Equal(t, "2001:1:0:0:8000::/65", newPrefix.GetCidr())
 	assert.True(t, p.Equals(newPrefix.GetParent()))
-	_, err = prefix.Allocate(context.TODO(), p, "child-c", 128, store)
+	_, err = prefix.Allocate(context.TODO(), p, "child-c", 128, store, nil)
 	assert.NotNil(t, err)
 }
 
@@ -502,8 +502,13 @@ func setupSqliteStoreWithNoUniquenessConstraint(t *testing.T) types.Storage {
 		if err != nil {
 			return nil, fmt.Errorf("failed to open db session: %w", err)
 		}
-		sqlis := &sqlite.SQLiteIPAMStorage{
-			DB: db,
+		// Use NewForTest so the store is constructed through the real
+		// constructor (initializing its internal lock) without running the
+		// production init()/migrate, then migrate the legacy Prefix schema
+		// (which lacks the CIDR uniqueness index) to exercise the old model.
+		sqlis, err := sqlite.NewForTest(db)
+		if err != nil {
+			return nil, err
 		}
 
 		err = sqlis.DB.AutoMigrate(Prefix{})
@@ -578,7 +583,7 @@ func runConcurrentAllocations(
 		go func(task *allocationTask) {
 			defer wg.Done()
 
-			newPrefix, err := prefix.Allocate(ctx, task.Parent, task.ChildName, task.BitSize, store)
+			newPrefix, err := prefix.Allocate(ctx, task.Parent, task.ChildName, task.BitSize, store, nil)
 			if err != nil {
 				t.Logf("Failed to allocate prefix for child %q, err: %v", task.ChildName, err)
 			} else {

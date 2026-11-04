@@ -26,7 +26,20 @@ import (
 	"github.com/nordix/meridio/pkg/ipam/types"
 )
 
-// Allocate
+// Allocate allocates a prefix of the given length, named name, under parent.
+// CIDRs in blocklist are treated as taken. If a prefix with the same name
+// already exists under parent, it is returned as is.
+//
+// If store implements ParentLocker (see ParentLockingStore), allocations under
+// the same parent are serialized (see WithParentLock); otherwise the
+// allocation runs unlocked, which is still correct.
+func Allocate(ctx context.Context, parent types.Prefix, name string, length int, store types.Storage, blocklist []string) (types.Prefix, error) {
+	return allocateWithParentLock(ctx, parent, name, length, store, blocklist)
+}
+
+var allocateWithParentLock = WithParentLock(allocate)
+
+// allocate is the allocator without parent locking:
 // 1. Checks if parent length is superior or equals to length
 // 2. Generates a first candidate with parent-IP/length
 // 3. Gets childs of parent (with store)
@@ -35,11 +48,7 @@ import (
 // 6. Save in with the store
 // 7. Gets the childs
 // 8. Checks if only 1 collision (the one we just added)
-func Allocate(ctx context.Context, parent types.Prefix, name string, length int, store types.Storage) (types.Prefix, error) {
-	return AllocateWithBlocklist(ctx, parent, name, length, store, []string{})
-}
-
-func AllocateWithBlocklist(ctx context.Context, parent types.Prefix, name string, length int, store types.Storage, blocklist []string) (types.Prefix, error) {
+func allocate(ctx context.Context, parent types.Prefix, name string, length int, store types.Storage, blocklist []string) (types.Prefix, error) {
 	_, parentIPNet, _ := net.ParseCIDR(parent.GetCidr())
 	parentLength, _ := parentIPNet.Mask.Size()
 	if length <= parentLength {
@@ -50,11 +59,21 @@ func AllocateWithBlocklist(ctx context.Context, parent types.Prefix, name string
 		return nil, fmt.Errorf("failed to ParseCIDR (%s) while allocating prefix (name: %s ; length: %d ; parent: %s): %w", parentIPNet.IP.String(), name, length, parent.GetName(), err)
 	}
 	firstCandidate := currentCandidate
-	childs, err := store.GetChilds(ctx, parent)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get childs from store while allocating prefix (name: %s ; length: %d ; parent: %s): %w", name, length, parent.GetName(), err)
+	// readChilds re-reads the parent's children from the store.
+	var childs []types.Prefix
+	var childList []string
+	readChilds := func() error {
+		var err error
+		childs, err = store.GetChilds(ctx, parent)
+		if err != nil {
+			return fmt.Errorf("failed to get childs from store while allocating prefix (name: %s ; length: %d ; parent: %s): %w", name, length, parent.GetName(), err)
+		}
+		childList = prefixSliceToStringSlice(childs)
+		return nil
 	}
-	childList := prefixSliceToStringSlice(childs)
+	if err := readChilds(); err != nil {
+		return nil, err
+	}
 	var currentCandidatePrefix types.Prefix
 	for {
 		childList = append(childList, blocklist...)
@@ -73,26 +92,42 @@ func AllocateWithBlocklist(ctx context.Context, parent types.Prefix, name string
 		}
 		currentCandidatePrefix = New(name, currentCandidate.String(), parent)
 		err = store.Add(ctx, currentCandidatePrefix)
-		// Similar to the legacy behaviour Add() can be attempted for a CIDR that might
-		// have been taken in the meantime. However, in case the store has support for
-		// "optimistic concurrency control" to resolve such race conditions and returns
-		// ErrCIDRConflict, then do not abort the allocation process.
+		// Same name already allocated (by a concurrent or earlier attempt):
+		// return the stored prefix idempotently instead of failing.
+		if errors.Is(err, ErrPrimaryIDConflict) {
+			existing, getErr := store.Get(ctx, name, parent)
+			if getErr != nil {
+				return nil, fmt.Errorf("failed to get existing prefix (name: %s ; length: %d ; parent: %s) after primary ID conflict: %w", name, length, parent.GetName(), getErr)
+			}
+			if existing == nil {
+				// The same-name row was deleted between the failed Add and this
+				// Get (a concurrent release). Refresh the children and re-run
+				// the allocation loop.
+				if err := readChilds(); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			return existing, nil
+		}
+		// A candidate CIDR may be taken concurrently. The check below re-reads
+		// the children to detect a duplicate-CIDR race and, if found, deletes our
+		// entry and retries. A store with optimistic concurrency control instead
+		// reports the clash up front via ErrCIDRConflict, reusing that retry
+		// without the Delete. In neither case abort the allocation.
 		isCIDRConflict := errors.Is(err, ErrCIDRConflict)
 		if err != nil && !isCIDRConflict {
 			return nil, fmt.Errorf("failed to add (%s) to store while allocating prefix (name: %s ; length: %d ; parent: %s): %w", currentCandidatePrefix, name, length, parent.GetName(), err)
 		}
-		childs, err = store.GetChilds(ctx, parent)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get childs from store while allocating prefix (name: %s ; length: %d ; parent: %s): %w", name, length, parent.GetName(), err)
+		if err := readChilds(); err != nil {
+			return nil, err
 		}
-		childList = prefixSliceToStringSlice(childs)
 		collisions := PrefixCollideWith(currentCandidatePrefix, childs)
 		if len(collisions) == 1 && currentCandidatePrefix.Equals(collisions[0]) {
 			break
 		}
-		// It is assumed that if the storage supports ErrCIDRConflict return value,
-		// then upon such error the Add() did not take effect and did not alter the
-		// database, hence no Delete() is required.
+		// On ErrCIDRConflict the Add() did not alter the database, so no Delete()
+		// is required before retrying.
 		if isCIDRConflict {
 			continue
 		}

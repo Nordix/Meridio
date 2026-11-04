@@ -37,6 +37,12 @@ import (
 
 const nodeUpdateDampingThreshold = 1 * time.Minute // update node prefix if last update older than threshold // TODO: configuration
 
+// conduitPollInterval is the wait between lookups while an Allocate request
+// waits for its conduit prefix, which is created asynchronously from the NSP
+// configuration. Without it, a waiting request would repeat the lookup (a
+// store operation) in a tight loop.
+const conduitPollInterval = 100 * time.Millisecond
+
 type IpamServer struct {
 	ctx    context.Context
 	logger logr.Logger
@@ -69,15 +75,18 @@ func NewServer(
 	if garbageCollectionEnabled {
 		store.StartGarbageCollector(ctx, garbageCollectionInterval, garbageCollectionThreshold)
 	}
-	logStore := &logger.Store{
+	// The parent-locking wrapper must stay outermost: the allocator finds the
+	// per-parent allocation locks by asserting the store it is given (see
+	// prefix.ParentLockingStore).
+	allocStore := prefix.NewParentLockingStore(&logger.Store{
 		Store: store,
-	}
+	})
 
 	trenchWatchers := []trench.TrenchWatcher{}
 	for ipFamily, cidr := range cidrs {
 		name := getTrenchName(trenchName, ipFamily)
 		p := prefix.New(name, cidr, nil)
-		newTrench, err := trench.New(ctx, p, logStore, is.PrefixLengths[ipFamily])
+		newTrench, err := trench.New(ctx, p, allocStore, is.PrefixLengths[ipFamily])
 		if err != nil {
 			return nil, fmt.Errorf("failed creating new trench prefix (%s): %w", p.GetName(), err)
 		}
@@ -127,6 +136,12 @@ func (is *IpamServer) Allocate(ctx context.Context, child *ipamAPI.Child) (*ipam
 		if conduit != nil {
 			break
 		}
+		// Not created yet; wait before looking it up again. A done ctx ends the
+		// wait early and is reported by the check at the top of the loop.
+		select {
+		case <-ctx.Done():
+		case <-time.After(conduitPollInterval):
+		}
 	}
 	getNodeCtx := sqlite.WithUpdateDamping(sqlite.WithExpirable(ctx), nodeUpdateDampingThreshold) // Applies damping to reduce frequent DB writes and marks node prefix as expirable
 	node, err := conduit.GetNode(getNodeCtx, child.GetSubnet().GetNode())                         // Note: refreshes existing node prefix (i.e. the 'updatedAt' timestamp)
@@ -165,7 +180,7 @@ func (is *IpamServer) Release(ctx context.Context, child *ipamAPI.Child) (*empty
 	}
 	conduit, err := trench.GetConduit(ctx, child.GetSubnet().GetConduit().GetName())
 	if err != nil {
-		return &emptypb.Empty{}, fmt.Errorf("failed getting conduit (%s) while releasing (%s): %w", child.GetSubnet().GetNode(), child.GetName(), err)
+		return &emptypb.Empty{}, fmt.Errorf("failed getting conduit (%s) while releasing (%s): %w", child.GetSubnet().GetConduit().GetName(), child.GetName(), err)
 	}
 	if conduit == nil {
 		return &emptypb.Empty{}, nil
