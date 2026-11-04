@@ -49,6 +49,14 @@ type SimpleNetworkServiceClient struct {
 // SimpleNetworkServiceClient is a retry.Client.
 // Thus Request() blocks as it keeps trying to establish the connection, while the request
 // is cloned at each attempt.
+//
+// Request holds snsc.mu for the whole retry loop, so a concurrent Close() (which
+// calls requestCancel() then takes snsc.mu) waits for Request to unwind. That wait
+// is bounded: the NSM retry client's loop is cancellable (on requestCtx cancel the
+// current try returns and the loop exits via ctx.Done() without sleeping the
+// interval), and each individual try is capped by tryTimeout (== config.RequestTimeout).
+// So a wedged Close() can delay shutdown by at most ~RequestTimeout per client, not
+// indefinitely.
 func (snsc *SimpleNetworkServiceClient) Request(request *networkservice.NetworkServiceRequest) error {
 	if !snsc.requestIsValid(request) {
 		return errors.New("request is not valid")
@@ -103,7 +111,12 @@ func (snsc *SimpleNetworkServiceClient) Close() error {
 			logger.V(1).Info("Connection close concluded")
 		}()
 		logger.V(1).Info("Close connection")
-		_, _ = snsc.networkServiceClient.Close(ctx, snsc.connection)
+		if _, err := snsc.networkServiceClient.Close(ctx, snsc.connection); err != nil {
+			// Surface the error to the caller (teardown goroutine logs it with the
+			// endpoint name). Cleanup is still best-effort: the retry client already
+			// retried until RequestTimeout, and the connection is going away anyway.
+			return fmt.Errorf("network service client failed to close connection: %w", err)
+		}
 	}
 
 	return nil

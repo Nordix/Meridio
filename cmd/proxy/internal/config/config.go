@@ -32,6 +32,7 @@ type Config struct {
 	DialTimeout           time.Duration `default:"5s" desc:"timeout to dial NSMgr" split_words:"true"`
 	RequestTimeout        time.Duration `default:"15s" desc:"timeout to request NSE" split_words:"true"`
 	MaxTokenLifetime      time.Duration `default:"24h" desc:"maximum lifetime of tokens" split_words:"true"`
+	TeardownWaitTimeout   time.Duration `default:"2s" desc:"max time addNetworkServiceClient waits for an in-flight teardown of the same endpoint before skipping the re-add (0 disables waiting and skips immediately)" split_words:"true"`
 	IPAMService           string        `default:"ipam-service:7777" desc:"IP (or domain) and port of the IPAM Service" split_words:"true"`
 	Host                  string        `default:"" desc:"Host name the proxy is running on" split_words:"true"`
 	NetworkServiceName    string        `default:"load-balancer" desc:"Name of the network service the proxy request the connection" split_words:"true"`

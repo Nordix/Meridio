@@ -56,6 +56,7 @@ func GetNSC(ctx context.Context,
 		APIClient:               nsmAPIClient,
 		MonitorConnectionClient: monitorConnectionClient,
 		MaxTokenLifetime:        config.MaxTokenLifetime,
+		TeardownWaitTimeout:     config.TeardownWaitTimeout,
 	}
 	// Note: naming the interface is left to NSM (refer to getNameFromConnection())
 	// However NSM does not seem to ensure uniqueness either. Might need to revisit...

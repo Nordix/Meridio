@@ -47,7 +47,14 @@ type FullMeshNetworkServiceClient struct {
 	networkServiceEndpointRegistryClient registry.NetworkServiceEndpointRegistryClient
 	mu                                   sync.Mutex
 	serviceClosed                        bool
-	logger                               logr.Logger
+	// teardownInFlight holds endpoint names whose detached Close() goroutine
+	// (from deleteNetworkServiceClient) has not finished. Guarded by mu.
+	// It serializes re-add of an endpoint against teardown of its previous
+	// client (same deterministic NSM connection id), and lets Close() wait for
+	// all teardown to drain. teardownCond is broadcast on every removal.
+	teardownInFlight map[string]struct{}
+	teardownCond     *sync.Cond
+	logger           logr.Logger
 }
 
 // Request -
@@ -68,9 +75,10 @@ func (fmnsc *FullMeshNetworkServiceClient) Request(request *networkservice.Netwo
 
 	err := retry.Do(func() error {
 		var err error
-		// Note: Our NetworkServiceEndpointRegistry_FindClient recv will return every 15 seconds apparently. Otherwise,
-		// it would return after 1 minute if k8s-registry is in use due to how the k8s client Watch object is created by NSM.
-		// (refer to: https://github.com/networkservicemesh/sdk-k8s/blob/release/v1.13.2/pkg/registry/etcd/nse_server.go#L173)
+		// Note: a fresh Find yields a full NSE snapshot, then streams events. On NSM
+		// >= v1.14.x the stream stays open indefinitely (no periodic resend); heal
+		// only reopens it on a Recv() error, not on a timer. Don't rely on a periodic
+		// resend (older NSM <= v1.13.2 recycled the watcher ~every minute; no longer).
 		networkServiceDiscoveryStream, err := fmnsc.networkServiceEndpointRegistryClient.Find(fmnsc.ctx, query)
 		if err != nil {
 			if status.Code(err) != codes.Canceled {
@@ -107,12 +115,27 @@ func (fmnsc *FullMeshNetworkServiceClient) Close() error {
 	logger := fmnsc.logger.WithValues("func", "Close")
 	fmnsc.mu.Lock()
 	fmnsc.serviceClosed = true
+	// Snapshot the endpoint names under the lock rather than ranging the live map
+	// while deleteNetworkServiceClient mutates it.
+	names := make([]string, 0, len(fmnsc.networkServiceClients))
+	for name := range fmnsc.networkServiceClients {
+		names = append(names, name)
+	}
 	fmnsc.mu.Unlock()
 
-	logger.Info("Close and delete discovered network service endpoints", "num", len(fmnsc.networkServiceClients))
-	for networkServiceEndpointName := range fmnsc.networkServiceClients {
+	logger.Info("Close and delete discovered network service endpoints", "num", len(names))
+	for _, networkServiceEndpointName := range names {
 		fmnsc.deleteNetworkServiceClient(networkServiceEndpointName)
 	}
+	// deleteNetworkServiceClient tears each connection down in its own goroutine so
+	// the recv loop is never blocked; at shutdown we still wait for those to finish.
+	// teardownCond.Wait releases mu while waiting, so teardown goroutines can update
+	// teardownInFlight and broadcast.
+	fmnsc.mu.Lock()
+	for len(fmnsc.teardownInFlight) > 0 {
+		fmnsc.teardownCond.Wait()
+	}
+	fmnsc.mu.Unlock()
 	return nil
 }
 
@@ -196,6 +219,34 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 		return
 	}
 
+	// If a teardown of the same endpoint is still in flight, wait (bounded) for it
+	// to finish before registering a new client, rather than skip outright. The
+	// NSM connection id is deterministic, so a new Request() must not run
+	// concurrently with the old Close() on the same connection. Blocking briefly
+	// here is acceptable because teardown normally completes quickly; the timeout
+	// caps the recv-loop stall if Close() is stuck, preserving the issue #628
+	// guarantee that recv is never frozen indefinitely. teardownCond.Wait releases
+	// mu while waiting, so the teardown goroutine can clear the in-flight mark and
+	// broadcast.
+	//
+	// On timeout we fall back to skipping: a later Find event for the endpoint
+	// (its periodic re-registration refresh, or a full-list resend when the Find
+	// stream is re-established) re-drives the add once teardown has drained. The
+	// endpoint stays recorded meanwhile, so nothing is lost. Waiting (instead of
+	// relying solely on skip + resend) matters on NSM >= v1.14.x, where the
+	// registry no longer tears the Find stream down on a ~1min cadence, so a
+	// periodic full-list resend is not guaranteed.
+	if _, tearingDown := fmnsc.teardownInFlight[networkServiceEndpointName]; tearingDown {
+		if !fmnsc.waitForTeardown(networkServiceEndpointName) {
+			return
+		}
+		// waitForTeardown returned true: teardown finished within the deadline.
+		// Re-check invariants that may have changed while mu was released in Wait.
+		if fmnsc.serviceClosed || fmnsc.networkServiceClientExists(networkServiceEndpointName) {
+			return
+		}
+	}
+
 	var monitoredConnections map[string]*networkservice.Connection
 	networkServiceClient := NewSimpleNetworkServiceClient(fmnsc.ctx, fmnsc.config, fmnsc.client)
 	request := fmnsc.baseRequest.Clone()
@@ -223,7 +274,11 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 	// then re-use the connection
 	if fmnsc.config.MonitorConnectionClient != nil {
 		monitorCli := fmnsc.config.MonitorConnectionClient
-		monitorCtx, cancelMonitor := context.WithCancel(fmnsc.ctx) // dedicated context when cancelled ensures closing the stream opened by MonitorConnections
+		// Bound the monitor lookup: MonitorConnections + stream.Recv() run under
+		// fmnsc.mu, so a hung stream (e.g. half-open socket after a node reboot)
+		// would otherwise freeze the recv loop indefinitely. Timeout → treat as "no
+		// recovered connection" and continue. cancel on return also closes the stream.
+		monitorCtx, cancelMonitor := context.WithTimeout(fmnsc.ctx, fmnsc.config.RequestTimeout)
 		stream, err := monitorCli.MonitorConnections(monitorCtx, &networkservice.MonitorScopeSelector{
 			PathSegments: []*networkservice.PathSegment{
 				{
@@ -290,27 +345,56 @@ func (fmnsc *FullMeshNetworkServiceClient) addNetworkServiceClient(networkServic
 }
 
 // deleteNetworkServiceClient -
-// Deletes client and closes connection towards Network Service Endpoint
+// Removes the client for the given endpoint and tears its connection down.
+//
+// The client is removed from the map under fmnsc.mu, but Close() is called OUTSIDE
+// the lock and in its own goroutine. This is deliberate: Close() may block for a
+// long time — it cancels any in-flight Request() and then waits on the client's own
+// mutex, which a retry against a vanished NSE (e.g. after a node reboot) can hold
+// until its context unwinds. Calling Close() synchronously under fmnsc.mu would
+// stall the recv() event loop and freeze the whole full-mesh client.
+//
+// The endpoint name is marked in teardownInFlight (under mu) for the duration of
+// the detached Close(): a concurrent re-add of the same name skips registering a
+// new client until teardown finishes (the NSM connection id is deterministic, so
+// a new Request() must not run concurrently with the old Close()), and Close()
+// waits for all in-flight teardown at shutdown.
 func (fmnsc *FullMeshNetworkServiceClient) deleteNetworkServiceClient(networkServiceEndpointName string) {
 	fmnsc.mu.Lock()
-	defer fmnsc.mu.Unlock()
-
 	networkServiceClient, exists := fmnsc.networkServiceClients[networkServiceEndpointName]
+	if exists {
+		delete(fmnsc.networkServiceClients, networkServiceEndpointName)
+		// Mark teardown in flight under mu so a concurrent re-add waits for it and
+		// Close() accounts for it. Add here (not in the goroutine) to avoid a gap
+		// where the client is gone but teardown is not yet tracked.
+		fmnsc.teardownInFlight[networkServiceEndpointName] = struct{}{}
+	}
+	fmnsc.mu.Unlock()
+
 	if !exists {
 		return
 	}
+
 	logger := fmnsc.logger.WithValues("func", "deleteNetworkServiceClient",
 		"name", networkServiceEndpointName,
 		"service", fmnsc.baseRequest.Connection.NetworkService,
 	)
 	logger.Info("Delete network service endpoint")
-	err := networkServiceClient.Close()
-	delete(fmnsc.networkServiceClients, networkServiceEndpointName)
-	if err != nil {
-		logger.Error(err, "Failed to close network service endpoint")
-	} else {
-		logger.Info("Closed network service endpoint")
-	}
+
+	go func() {
+		// Close() runs outside mu so a slow/stuck teardown never blocks the recv
+		// loop or other operations. mu is taken only briefly afterwards to clear
+		// the in-flight mark and wake any waiter (re-add or Close()).
+		if err := networkServiceClient.Close(); err != nil {
+			logger.Error(err, "Failed to close network service endpoint")
+		} else {
+			logger.Info("Closed network service endpoint")
+		}
+		fmnsc.mu.Lock()
+		delete(fmnsc.teardownInFlight, networkServiceEndpointName)
+		fmnsc.teardownCond.Broadcast()
+		fmnsc.mu.Unlock()
+	}()
 }
 
 func (fmnsc *FullMeshNetworkServiceClient) networkServiceClientExists(networkServiceEndpointName string) bool {
@@ -318,6 +402,53 @@ func (fmnsc *FullMeshNetworkServiceClient) networkServiceClientExists(networkSer
 	return ok
 }
 
+// waitForTeardown blocks until the in-flight teardown of networkServiceEndpointName
+// finishes or config.TeardownWaitTimeout elapses. It MUST be called with fmnsc.mu
+// held (teardownCond's locker is &fmnsc.mu); teardownCond.Wait releases and
+// re-acquires mu around the wait.
+//
+// Returns true if teardown finished (safe to register a new client), false if it
+// timed out, serviceClosed became set, or waiting is disabled
+// (TeardownWaitTimeout <= 0) — in all of which cases the caller must skip the add.
+func (fmnsc *FullMeshNetworkServiceClient) waitForTeardown(networkServiceEndpointName string) bool {
+	timeout := fmnsc.config.TeardownWaitTimeout
+	if timeout <= 0 {
+		// Waiting disabled: preserve legacy skip-immediately behavior.
+		fmnsc.logger.V(1).Info("Skip add; teardown of same endpoint still in flight (wait disabled)",
+			"name", networkServiceEndpointName)
+		return false
+	}
+
+	deadline := time.Now().Add(timeout)
+
+	// sync.Cond has no timed Wait: arm a timer that broadcasts on expiry so a stuck
+	// teardown cannot block us past the deadline. Broadcast happens under mu (same
+	// discipline as every other teardownCond signal). The timer is stopped as soon
+	// as we stop waiting.
+	timer := time.AfterFunc(timeout, func() {
+		fmnsc.mu.Lock()
+		fmnsc.teardownCond.Broadcast()
+		fmnsc.mu.Unlock()
+	})
+	defer timer.Stop()
+
+	for {
+		if _, tearingDown := fmnsc.teardownInFlight[networkServiceEndpointName]; !tearingDown {
+			return true // teardown finished; safe to register a fresh client
+		}
+		if fmnsc.serviceClosed {
+			// Close() set serviceClosed while we waited; do not register during
+			// shutdown.
+			return false
+		}
+		if !time.Now().Before(deadline) {
+			fmnsc.logger.V(1).Info("Skip add; teardown of same endpoint still in flight after wait",
+				"name", networkServiceEndpointName, "waited", timeout)
+			return false
+		}
+		fmnsc.teardownCond.Wait() // releases mu; re-acquires on wake (timer or teardown broadcast)
+	}
+}
 func (fmnsc *FullMeshNetworkServiceClient) requestIsValid(request *networkservice.NetworkServiceRequest) bool {
 	if request == nil {
 		return false
@@ -354,11 +485,13 @@ func NewFullMeshNetworkServiceClient(ctx context.Context, config *Config, additi
 	fullMeshNetworkServiceClient := &FullMeshNetworkServiceClient{
 		networkServiceClients:   make(map[string]NetworkServiceClient),
 		networkServiceEndpoints: make(map[string]*registry.NetworkServiceEndpoint),
+		teardownInFlight:        make(map[string]struct{}),
 		client:                  client,
 		ctx:                     ctx,
 		config:                  config,
 		logger:                  log.FromContextOrGlobal(ctx).WithValues("class", "FullMeshNetworkServiceClient"),
 	}
+	fullMeshNetworkServiceClient.teardownCond = sync.NewCond(&fullMeshNetworkServiceClient.mu)
 
 	fullMeshNetworkServiceClient.networkServiceEndpointRegistryClient = registrychain.NewNetworkServiceEndpointRegistryClient(
 		registryrefresh.NewNetworkServiceEndpointRegistryClient(ctx),
