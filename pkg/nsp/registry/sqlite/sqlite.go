@@ -31,9 +31,17 @@ import (
 )
 
 type TargetRegistrySQLite struct {
-	DB       *gorm.DB
-	mu       sync.Mutex
-	watchers map[*common.RegistryWatcher]struct{}
+	DB *gorm.DB
+	mu sync.Mutex
+	// watchers maps each watcher to the stream name of its selector ("" if the
+	// selector names no stream), so a broadcast can give a stream-scoped
+	// watcher only its stream's targets.
+	watchers map[*common.RegistryWatcher]string
+	// notifyDirty is true when watchers may be behind the DB: a write succeeded
+	// but no broadcast has succeeded since. Set then re-notifies instead of
+	// taking the fast path. Guarded by mu. False at startup is correct: watchers
+	// are in-memory only, so nothing is owed across a restart.
+	notifyDirty bool
 }
 
 func New(datastore string) (*TargetRegistrySQLite, error) {
@@ -46,7 +54,7 @@ func New(datastore string) (*TargetRegistrySQLite, error) {
 	}
 	targetRegistrySQLite := &TargetRegistrySQLite{
 		DB:       db,
-		watchers: make(map[*common.RegistryWatcher]struct{}),
+		watchers: make(map[*common.RegistryWatcher]string),
 	}
 	err = targetRegistrySQLite.init()
 	if err != nil {
@@ -67,15 +75,21 @@ func (trsql *TargetRegistrySQLite) Close() error {
 func (trsql *TargetRegistrySQLite) Set(ctx context.Context, target *nspAPI.Target) error {
 	trsql.mu.Lock()
 	defer trsql.mu.Unlock()
+	// Skip calls the client abandoned while waiting for the lock, before any write.
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	var t Target
 	targetModel := NSPTargetToSQLTarget(target)
-	tx := trsql.DB.First(&t, "ID", targetModel.ID)
+	// Load the stream chain too, so the fast path can check it.
+	tx := trsql.DB.Preload("Stream.Conduit.Trench").First(&t, "ID", targetModel.ID)
 	if tx.Error != nil {
 		if errors.Is(tx.Error, gorm.ErrRecordNotFound) { // Create
 			tx = trsql.DB.Create(targetModel)
 			if tx.Error != nil {
 				return tx.Error
 			}
+			trsql.notifyDirty = true // cleared by a successful broadcast
 			err := trsql.clearConflicts(ctx, target)
 			if err != nil {
 				return err
@@ -85,10 +99,36 @@ func (trsql *TargetRegistrySQLite) Set(ctx context.Context, target *nspAPI.Targe
 		return tx.Error
 	}
 	// update
+	// Fast path: targets refresh periodically (keepalive), and most refreshes
+	// change nothing. If the stored row matches and watchers are not behind,
+	// skip Save, clearConflicts and the broadcast, which re-reads the whole
+	// target table on every refresh.
+	//
+	// notifyDirty is set after a write until a broadcast succeeds. While set,
+	// re-broadcast instead of skipping; otherwise a failed broadcast would never
+	// be retried, because every later unchanged refresh would skip.
+	//
+	// Skipping loses nothing: a broadcast sends the full target list, and watchers
+	// already got it. A watcher whose Send failed reconnects and gets a fresh full
+	// list from Watch.
+	//
+	// The fast path also requires the target's shared streams row to still agree
+	// with its ID. Another target's write can repoint that row (see
+	// clearConflicts); then the slow path below repoints it back and clears
+	// conflicts, as every refresh did before the fast path existed. Without this,
+	// a failed clearConflicts could leave a valid target under the wrong conduit
+	// for as long as it keeps refreshing.
+	if t.Equals(targetModel) && t.ID == GetTargetID(SQLTargetToNSPTarget(&t)) {
+		if !trsql.notifyDirty {
+			return nil
+		}
+		return trsql.notifyAllWatchers()
+	}
 	tx = trsql.DB.Save(&targetModel)
 	if tx.Error != nil {
 		return tx.Error
 	}
+	trsql.notifyDirty = true // cleared by a successful broadcast
 	err := trsql.clearConflicts(ctx, target)
 	if err != nil {
 		return err
@@ -96,6 +136,9 @@ func (trsql *TargetRegistrySQLite) Set(ctx context.Context, target *nspAPI.Targe
 	return trsql.notifyAllWatchers()
 }
 
+// Remove does not check ctx: keepalive expiry calls it after deleting the
+// target from its own map, and failing here would leave the target in the
+// database, untracked by keepalive until the next NSP restart.
 func (trsql *TargetRegistrySQLite) Remove(ctx context.Context, target *nspAPI.Target) error {
 	trsql.mu.Lock()
 	defer trsql.mu.Unlock()
@@ -114,12 +157,25 @@ func (trsql *TargetRegistrySQLite) remove(ctx context.Context, target *Target) e
 func (trsql *TargetRegistrySQLite) Watch(ctx context.Context, target *nspAPI.Target) (types.TargetWatcher, error) {
 	trsql.mu.Lock()
 	defer trsql.mu.Unlock()
+	// Skip calls the client abandoned while waiting for the lock, before the
+	// watcher is registered.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	trsql.setWatchersIfNil()
 	watcher := common.NewRegistryWatcher(target)
-	trsql.watchers[watcher] = struct{}{}
-	targets, err := trsql.getAll()
+	trsql.watchers[watcher] = target.GetStream().GetName()
+	targets, err := trsql.getForSelector(target)
+	if err != nil {
+		// The caller ends the stream on error, so the watcher has no use:
+		// deregister it here instead of returning it with the error.
+		// removeWatcher would take the registry lock again, so delete directly.
+		watcher.Stop()
+		delete(trsql.watchers, watcher)
+		return nil, err
+	}
 	watcher.Notify(targets)
-	return watcher, err
+	return &sqliteWatcher{RegistryWatcher: watcher, registry: trsql}, nil
 }
 
 func (trsql *TargetRegistrySQLite) Get(ctx context.Context, target *nspAPI.Target) ([]*nspAPI.Target, error) {
@@ -132,21 +188,40 @@ func (trsql *TargetRegistrySQLite) notifyAllWatchers() error {
 	trsql.setWatchersIfNil()
 	targets, err := trsql.getAll()
 	if err != nil {
+		trsql.notifyDirty = true // watchers stay behind the DB
 		return err
 	}
-	for watcher := range trsql.watchers {
-		if watcher.IsStopped() {
-			delete(trsql.watchers, watcher)
-		}
-		watcher.Notify(targets)
+	// Group the targets by stream once, so a stream-scoped watcher filters only
+	// its stream's targets instead of the whole list. Every target its selector
+	// keeps has that stream name, so the delivered list is the same.
+	byStream := map[string][]*nspAPI.Target{}
+	for _, target := range targets {
+		name := target.GetStream().GetName()
+		byStream[name] = append(byStream[name], target)
 	}
+	for watcher, streamName := range trsql.watchers {
+		// No-op if stopped; sqliteWatcher.Stop removes it.
+		if streamName == "" {
+			watcher.Notify(targets)
+		} else {
+			watcher.Notify(byStream[streamName])
+		}
+	}
+	trsql.notifyDirty = false // watchers now match the DB
 	return nil
 }
 
 func (trsql *TargetRegistrySQLite) setWatchersIfNil() {
 	if trsql.watchers == nil {
-		trsql.watchers = make(map[*common.RegistryWatcher]struct{})
+		trsql.watchers = make(map[*common.RegistryWatcher]string)
 	}
+}
+
+// removeWatcher removes a stopped watcher from the watcher list.
+func (trsql *TargetRegistrySQLite) removeWatcher(watcher *common.RegistryWatcher) {
+	trsql.mu.Lock()
+	defer trsql.mu.Unlock()
+	delete(trsql.watchers, watcher)
 }
 
 func (trsql *TargetRegistrySQLite) get(ctx context.Context, target *nspAPI.Target) ([]*nspAPI.Target, error) {
@@ -158,9 +233,28 @@ func (trsql *TargetRegistrySQLite) get(ctx context.Context, target *nspAPI.Targe
 }
 
 func (trsql *TargetRegistrySQLite) getAll() ([]*nspAPI.Target, error) {
+	return trsql.find(trsql.DB)
+}
+
+// getForSelector returns at least the targets the selector can match. If the
+// selector names a stream, only that stream's rows are read: TAPA opens a
+// stream-scoped Watch on every refresh, and reading the whole table for each
+// would cost O(targets) per refresh. Callers still filter with the selector;
+// every target it keeps has that stream name, so the filtered result is the
+// same as filtering getAll.
+func (trsql *TargetRegistrySQLite) getForSelector(selector *nspAPI.Target) ([]*nspAPI.Target, error) {
+	streamName := selector.GetStream().GetName() // nil-safe protobuf getters
+	if streamName == "" {
+		return trsql.getAll()
+	}
+	return trsql.find(trsql.DB.Where("stream_name = ?", streamName))
+}
+
+// find runs query on the targets table and converts the rows.
+func (trsql *TargetRegistrySQLite) find(query *gorm.DB) ([]*nspAPI.Target, error) {
 	nspTargets := []*nspAPI.Target{}
 	var targets []Target
-	tx := trsql.DB.Preload("Stream.Conduit.Trench").Find(&targets)
+	tx := query.Preload("Stream.Conduit.Trench").Find(&targets)
 	if tx.Error != nil {
 		return nspTargets, tx.Error
 	}
@@ -196,6 +290,39 @@ func (trsql *TargetRegistrySQLite) init() error {
 // FullSaveAssociations will update the association when a target will be registered/updated. This will cause
 // old targets, with, for instance, the same stream name but different conduit name to get their conduit name
 // replaced. This function will then remove all targets which got their association replaced.
+//
+// TODO: The exact role and necessity of clearConflicts should be clarified. It
+// reconciles a shortcut in the schema: Stream/Conduit/Trench are keyed by bare
+// name (namespace is part of neither the keys nor GetTargetID), so a stream name
+// mapped to a different conduit collides onto the same row, whose association is
+// repointed on write (FullSaveAssociations); this cleanup then deletes the
+// targets left mismatched.
+//
+// A persistent same-name/different-conduit collision cannot be resolved: two
+// such targets permanently displace each other. Each refresh re-Saves one target,
+// repoints the shared association and evicts the other; the evicted one recreates
+// on its next refresh and evicts the first in turn. So at most one of them is ever
+// present at a time and both churn (evict + recreate, each fanned out to watchers)
+// on every refresh cycle, indefinitely.
+//
+// Currently reachable trigger: a Stream's spec.conduit is NOT immutable (the
+// Stream webhook only forbids changing the trench label and max-targets), so
+// changing a Stream's conduit can trigger this path. For a genuine move (old
+// conduit abandoned) it is a convergent transient: old-conduit targets are
+// evicted, new-conduit ones registered, and it settles once no old-conduit target
+// remains. It only becomes the unresolvable battle above if targets for both the
+// old and new conduit under the same stream name keep refreshing concurrently.
+// In practice this is bounded: a TAPA closes (unregisters) a stream that
+// disappears from its conduit's configuration, and an unrefreshed target
+// expires after NSP_ENTRY_TIMEOUT.
+//
+// Cross-namespace same-name streams cannot currently collide here, but only
+// because the trench controller lists CRDs with InNamespace(trench.Namespace)
+// when rendering the ConfigMap NSP reads, so a given NSP only ever sees one
+// namespace's streams. If that scoping changed (controller aggregating multiple
+// namespaces into one NSP's config), same-name streams from different namespaces
+// would collide and ping-pong the same way. Namespace-aware keys (composite
+// (namespace, name), namespace in GetTargetID) would remove that fragility.
 func (trsql *TargetRegistrySQLite) clearConflicts(ctx context.Context, target *nspAPI.Target) error {
 	if target == nil {
 		return nil

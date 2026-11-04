@@ -34,7 +34,10 @@ const (
 	defaultTimeout = 60 * time.Second
 )
 
-type TimeoutTrigger func() <-chan struct{}
+// TimeoutTrigger returns a channel that receives a value when an entry
+// expires. ctx is the entry's context, cancelled when the entry is refreshed;
+// the trigger should then release its resources.
+type TimeoutTrigger func(ctx context.Context) <-chan struct{}
 
 // KeepAlive is a middleware for the Target registry.
 // It will monitor each target and check if they receive refresh
@@ -56,8 +59,8 @@ type keepAliveTarget struct {
 func New(options ...Option) (*KeepAlive, error) {
 	ka := &KeepAlive{
 		TargetRegistry: nil,
-		Timeout: func() <-chan struct{} {
-			return delay(defaultTimeout)
+		Timeout: func(ctx context.Context) <-chan struct{} {
+			return delay(ctx, defaultTimeout)
 		},
 		targets: map[string]*keepAliveTarget{},
 	}
@@ -80,6 +83,11 @@ func New(options ...Option) (*KeepAlive, error) {
 func (ka *KeepAlive) Set(ctx context.Context, target *nspAPI.Target) error {
 	ka.mu.Lock()
 	defer ka.mu.Unlock()
+	// Skip calls the client abandoned while waiting for the lock. Checked
+	// before any write; nothing may fail between the registry Set and add().
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	_, exists := ka.targets[sqlite.GetTargetID(target)]
 	// a target cannot register as enabled if it was not previously registered.
 	if !exists {
@@ -101,6 +109,8 @@ func (ka *KeepAlive) Set(ctx context.Context, target *nspAPI.Target) error {
 func (ka *KeepAlive) Remove(ctx context.Context, target *nspAPI.Target) error {
 	ka.mu.Lock()
 	defer ka.mu.Unlock()
+	// ctx is not checked, unlike in Set: the TAPA does not retry Unregister,
+	// so a skipped one would leave the target in place until it expires.
 	return ka.remove(ctx, target)
 }
 
@@ -142,7 +152,15 @@ func (ka *KeepAlive) add(target *nspAPI.Target) {
 }
 
 func (ka *KeepAlive) remove(ctx context.Context, target *nspAPI.Target) error {
-	delete(ka.targets, sqlite.GetTargetID(target))
+	id := sqlite.GetTargetID(target)
+	if kaTarget, exists := ka.targets[id]; exists {
+		// End the entry's expiry goroutine and stop its timer. On the expiry
+		// path this cancels the calling goroutine's own context, which is safe:
+		// it is past its select, and the registry Remove below uses ctx, not the
+		// entry's context.
+		kaTarget.contextCancel()
+	}
+	delete(ka.targets, id)
 	log.Logger.Info("Unregister", "nspAPI-Target", target)
 	if ka.TargetRegistry == nil {
 		return nil
@@ -152,7 +170,7 @@ func (ka *KeepAlive) remove(ctx context.Context, target *nspAPI.Target) error {
 
 func (ka *KeepAlive) timeout(ctx context.Context, target *nspAPI.Target) {
 	select {
-	case <-ka.Timeout():
+	case <-ka.Timeout(ctx):
 		// no refresh
 		ka.mu.Lock()
 		defer ka.mu.Unlock()

@@ -42,9 +42,13 @@ func NewRegistryWatcher(target *nspAPI.Target) *RegistryWatcher {
 	return rw
 }
 
+// Stop stops the watcher and closes its channel. Further calls do nothing.
 func (rw *RegistryWatcher) Stop() {
 	rw.mu.Lock()
 	defer rw.mu.Unlock()
+	if rw.stopped {
+		return
+	}
 	rw.stopped = true
 	close(rw.c)
 }

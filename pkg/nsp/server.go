@@ -57,27 +57,52 @@ func (s *Server) Unregister(ctx context.Context, target *nspAPI.Target) (*emptyp
 }
 
 func (s *Server) Watch(t *nspAPI.Target, watcher nspAPI.TargetRegistry_WatchServer) error {
-	targetWatcher, err := s.TargetRegistry.Watch(context.TODO(), t)
+	targetWatcher, err := s.TargetRegistry.Watch(watcher.Context(), t)
+	// Stop() runs on every exit path. The registry returns no watcher on error
+	// today, so the nil check and stopping on the error path are defensive:
+	// they keep a registry that returns both from leaving a registered watcher
+	// that receives notifications with no reader.
+	if targetWatcher != nil {
+		defer targetWatcher.Stop()
+	}
 	if err != nil {
 		return fmt.Errorf("failed getting target watcher (%s): %w", t.String(), err)
 	}
-	s.watcher(watcher, targetWatcher.ResultChan())
-	targetWatcher.Stop()
-	return nil
+	return s.watcher(watcher, targetWatcher.ResultChan())
 }
 
-func (s *Server) watcher(watcher nspAPI.TargetRegistry_WatchServer, ch <-chan []*nspAPI.Target) {
+// watcher sends every target list from ch to the client. It returns nil when
+// the client goes away, and the error when a send fails, so the stream ends
+// with that error's status instead of OK.
+func (s *Server) watcher(watcher nspAPI.TargetRegistry_WatchServer, ch <-chan []*nspAPI.Target) error {
 	for {
 		select {
 		case event := <-ch:
-			err := watcher.Send(&nspAPI.TargetResponse{
+			// Per the grpc.ServerStream.SendMsg contract ("On error, SendMsg
+			// aborts the stream and the error is returned directly"), a non-nil
+			// Send error means this watch stream is aborted and unusable. Return
+			// to tear the watcher down promptly (the deferred Stop() in Watch()
+			// deregisters it) instead of looping and re-sending on a dead stream.
+			// The client wraps its Watch in a retry loop and will reconnect,
+			// obtaining a fresh full target set from the registry's initial read.
+			//
+			// TODO: Send has no deadline. A slow or half-open consumer can block
+			// this goroutine (and thus the drain of ch) until the stream context
+			// is cancelled, which for a half-open connection may take until the
+			// transport keepalive/timeout fires. Consider bounding Send with a
+			// timeout and treating a timeout as stream death (return) as well.
+			if err := watcher.Send(&nspAPI.TargetResponse{
 				Targets: event,
-			})
-			if err != nil {
-				log.Logger.Error(err, "Sending TrenchResponse")
+			}); err != nil {
+				if watcher.Context().Err() != nil {
+					return nil // client went away during the send: normal end of the stream
+				}
+				// gRPC does not log errors returned by handlers, so log it here.
+				log.Logger.Error(err, "Sending TargetResponse, closing watch stream")
+				return fmt.Errorf("failed sending target response: %w", err)
 			}
 		case <-watcher.Context().Done():
-			return
+			return nil // client went away: normal end of the stream
 		}
 	}
 }
